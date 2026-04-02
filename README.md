@@ -40,3 +40,12 @@ pnpm deploy
 ```
 
 The local API dev server runs on `http://localhost:8790`.
+
+## Production Hostname
+
+The API Worker is configured for the Cloudflare Custom Domain `pineapple.tylerevans.co`.
+
+- Current API base path: `https://pineapple.tylerevans.co/api/v1`
+- Current root response: `https://pineapple.tylerevans.co/` returns service metadata until the UI exists
+
+When you deploy with `pnpm deploy`, Cloudflare will create the DNS record and certificate for this hostname as long as there is not already a conflicting DNS record on `pineapple.tylerevans.co`.

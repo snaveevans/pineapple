@@ -3,6 +3,12 @@
   "name": "pineapple-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-01",
+  "routes": [
+    {
+      "pattern": "pineapple.tylerevans.co",
+      "custom_domain": true,
+    },
+  ],
   "observability": {
     "enabled": true,
   },
