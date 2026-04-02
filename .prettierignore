@@ -1,0 +1,8 @@
+node_modules
+.pnpm-store
+.wrangler
+coverage
+dist
+apps/api/worker-configuration.d.ts
+.tmp-api-*
+fieldops-backend-learning-spec.md

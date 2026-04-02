@@ -1,0 +1,27 @@
+{
+  "name": "pineapple",
+  "private": true,
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "pnpm --dir apps/api dev",
+    "deploy": "pnpm --dir apps/api deploy",
+    "cf-typegen": "pnpm --dir apps/api cf-typegen",
+    "lint": "pnpm exec eslint .",
+    "typecheck": "pnpm --dir apps/api typecheck",
+    "test": "pnpm --dir apps/api test",
+    "format": "pnpm exec prettier . --write",
+    "format:check": "pnpm exec prettier . --check",
+    "check": "pnpm cf-typegen && pnpm typecheck && pnpm lint && pnpm test && pnpm format:check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "eslint": "^9.36.0",
+    "globals": "^16.4.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.5.2",
+    "typescript-eslint": "^8.44.0"
+  }
+}
