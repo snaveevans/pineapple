@@ -49,3 +49,20 @@ The API Worker is configured for the Cloudflare Custom Domain `pineapple.tylerev
 - Current root response: `https://pineapple.tylerevans.co/` returns service metadata until the UI exists
 
 When you deploy with `pnpm deploy`, Cloudflare will create the DNS record and certificate for this hostname as long as there is not already a conflicting DNS record on `pineapple.tylerevans.co`.
+
+## GitHub Actions Deployment
+
+Production deployment is defined in `.github/workflows/deploy-api.yml`.
+
+Add these repository secrets in GitHub before enabling deploys:
+
+- `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account that owns the Worker
+- `CLOUDFLARE_API_TOKEN`: a scoped API token for deploying Workers on that account
+
+The workflow behavior is:
+
+- pull requests run `.github/workflows/ci.yml` for checks only
+- pushes to `main` run checks, deploy the Worker, and smoke test `https://pineapple.tylerevans.co/api/v1/health`
+- manual dispatch is available for redeploying `main`
+
+This uses repository-level secrets so it works on the widest range of GitHub plans. If you later want approvals or branch protection at the deployment layer, move the secrets into a GitHub `production` environment and attach the deploy job to that environment.
