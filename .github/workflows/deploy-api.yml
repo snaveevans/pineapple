@@ -69,4 +69,4 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
 
       - name: Deploy Worker
-        run: pnpm deploy
+        run: pnpm run deploy
