@@ -54,7 +54,7 @@ When you deploy with `pnpm deploy`, Cloudflare will create the DNS record and ce
 
 Production deployment is defined in `.github/workflows/deploy-api.yml`.
 
-Add these repository secrets in GitHub before enabling deploys:
+Configure these GitHub Actions `production` environment secrets before enabling deploys:
 
 - `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account that owns the Worker
 - `CLOUDFLARE_API_TOKEN`: a scoped API token for deploying Workers on that account
@@ -62,7 +62,13 @@ Add these repository secrets in GitHub before enabling deploys:
 The workflow behavior is:
 
 - pull requests run `.github/workflows/ci.yml` for checks only
-- pushes to `main` run checks, deploy the Worker, and smoke test `https://pineapple.tylerevans.co/api/v1/health`
+- pushes to `main` run checks, then deploy the Worker from the `deploy` job attached to the GitHub Actions `production` environment
 - manual dispatch is available for redeploying `main`
+- the `deploy` job verifies `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are present before deploying
+- the workflow does not run an automatic post-deploy smoke test
 
-This uses repository-level secrets so it works on the widest range of GitHub plans. If you later want approvals or branch protection at the deployment layer, move the secrets into a GitHub `production` environment and attach the deploy job to that environment.
+Run this manual post-deploy health check instead:
+
+```sh
+curl https://pineapple.tylerevans.co/api/v1/health
+```

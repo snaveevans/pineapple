@@ -120,15 +120,17 @@ Relevant files:
 - [`apps/api/vitest.config.mts`](/Users/tyler/workspace/pineapple/apps/api/vitest.config.mts)
 - [`apps/api/tests/health.test.ts`](/Users/tyler/workspace/pineapple/apps/api/tests/health.test.ts)
 
-### CI
+### CI / Deployment
 
 Implemented:
 
 - GitHub Actions check workflow for pull requests
+- GitHub Actions deployment workflow for pushes to `main` and manual dispatch
 
-Relevant file:
+Relevant files:
 
 - [`ci.yml`](/Users/tyler/workspace/pineapple/.github/workflows/ci.yml)
+- [`deploy-api.yml`](/Users/tyler/workspace/pineapple/.github/workflows/deploy-api.yml)
 
 ### Domain Routing
 
@@ -162,11 +164,9 @@ Verified locally:
 - `pnpm check` passes
 - `pnpm dev` boots successfully on `http://localhost:8790`
 
-Known warning:
+Compatibility date note:
 
-- the local Workers test runtime warns that the installed runtime supports up to `2026-03-10` while `wrangler.jsonc` requests `2026-04-01`
-- tests still pass because the local runtime falls back
-- this is not a blocker, but it should be cleaned up later by aligning local tooling/runtime with the selected compatibility date
+- `apps/api/wrangler.jsonc` is aligned to `2026-03-10`, matching the local Workers test/runtime support noted during setup
 
 ## Commits So Far
 
@@ -176,26 +176,23 @@ Committed history:
 - `86fdb68` `chore: add AGENTS.md`
 - `502afc8` `feat: add pineapple custom domain routing`
 
-## Current Uncommitted Work
+## GitHub Actions Deployment
 
-There is work in progress for explicit deployment through GitHub Actions that is **not committed yet**.
+The repository now has an explicit GitHub Actions production deployment workflow.
 
-Current working tree state at handoff:
+Current behavior:
 
-- modified [`ci.yml`](/Users/tyler/workspace/pineapple/.github/workflows/ci.yml)
-- modified [`README.md`](/Users/tyler/workspace/pineapple/README.md)
-- new [`deploy-api.yml`](/Users/tyler/workspace/pineapple/.github/workflows/deploy-api.yml)
+- [`ci.yml`](/Users/tyler/workspace/pineapple/.github/workflows/ci.yml) runs checks on pull requests
+- [`deploy-api.yml`](/Users/tyler/workspace/pineapple/.github/workflows/deploy-api.yml) runs checks, then deploys on `push` to `main` and on manual dispatch
+- the `deploy` job is attached to the GitHub Actions `production` environment
+- `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` are expected in that environment and are verified before deploy
+- the workflow does not run an automatic post-deploy smoke test
 
-What that uncommitted work does:
+Manual post-deploy health check:
 
-- narrows CI to pull requests only
-- adds a dedicated production deployment workflow
-- runs checks before deploy
-- deploys on `push` to `main` and on manual dispatch
-- requires GitHub secrets:
-  - `CLOUDFLARE_ACCOUNT_ID`
-  - `CLOUDFLARE_API_TOKEN`
-- smoke tests `https://pineapple.tylerevans.co/api/v1/health` after deploy
+```sh
+curl https://pineapple.tylerevans.co/api/v1/health
+```
 
 This deploy approach was chosen because the user explicitly wants **explicit CI/CD**, especially because the future system is expected to include a database and/or services outside Cloudflare.
 
@@ -216,12 +213,12 @@ The user still chose explicit GitHub Actions over Cloudflare git integration for
 
 Near-term likely next steps:
 
-1. finish and commit the GitHub Actions deployment workflow
-2. add GitHub repository secrets:
+1. keep the GitHub Actions `production` environment configured with:
    - `CLOUDFLARE_ACCOUNT_ID`
    - `CLOUDFLARE_API_TOKEN`
-3. push to `main` and verify first deploy
-4. confirm `pineapple.tylerevans.co/api/v1/health` works from production
+2. use `push` to `main` or manual dispatch when a production deploy is needed
+3. run the manual post-deploy health check after each deploy:
+   - `curl https://pineapple.tylerevans.co/api/v1/health`
 
 After deployment is stable, the next major backend steps from the project spec are likely:
 
@@ -261,10 +258,12 @@ The next agent should assume:
 
 ## Recommended Immediate Next Action
 
-Start by reviewing the uncommitted deployment workflow changes:
+Start by reviewing the current deployment workflow and deployment docs:
 
 - [`deploy-api.yml`](/Users/tyler/workspace/pineapple/.github/workflows/deploy-api.yml)
 - [`ci.yml`](/Users/tyler/workspace/pineapple/.github/workflows/ci.yml)
 - [`README.md`](/Users/tyler/workspace/pineapple/README.md)
 
-If they still match the user’s intent, commit them with a conventional commit, then guide the user through adding GitHub secrets and doing the first production deploy.
+If deployment behavior changes again, update `README.md` and `docs/handoff.md` in the same slice, then run the manual production health check:
+
+`curl https://pineapple.tylerevans.co/api/v1/health`
