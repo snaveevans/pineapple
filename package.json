@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "pnpm --dir apps/api dev",
-    "deploy": "pnpm --dir apps/api deploy",
+    "deploy": "pnpm --dir apps/api run deploy",
     "cf-typegen": "pnpm --dir apps/api cf-typegen",
     "lint": "pnpm exec eslint .",
     "typecheck": "pnpm --dir apps/api typecheck",
