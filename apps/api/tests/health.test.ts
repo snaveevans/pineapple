@@ -12,6 +12,23 @@ type HealthPayload = RootPayload & {
   timestamp: string;
 };
 
+type OpenAPIDocument = {
+  components: {
+    schemas: Record<string, unknown>;
+  };
+  info: {
+    description?: string;
+    title: string;
+    version: string;
+  };
+  openapi: string;
+  paths: Record<string, unknown>;
+  servers: Array<{
+    description: string;
+    url: string;
+  }>;
+};
+
 describe("health routes", () => {
   it("returns service metadata from the root route", async () => {
     const response = await SELF.fetch("http://example.com/");
@@ -52,5 +69,29 @@ describe("health routes", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("x-request-id")).toBe(requestId);
     expect(payload.requestId).toBe(requestId);
+  });
+
+  it("serves a public OpenAPI document", async () => {
+    const response = await SELF.fetch("http://example.com/doc");
+    const payload = await response.json<OpenAPIDocument>();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(payload.openapi).toBe("3.0.0");
+    expect(payload.info).toEqual({
+      description: "Public OpenAPI document for the Pineapple API.",
+      title: "Pineapple API",
+      version: "1.0.0",
+    });
+    expect(payload.servers).toEqual([
+      {
+        url: "http://example.com",
+        description: "Current environment",
+      },
+    ]);
+    expect(payload.paths).toHaveProperty("/");
+    expect(payload.paths).toHaveProperty("/api/v1/health");
+    expect(payload.components.schemas).toHaveProperty("ServiceStatus");
+    expect(payload.components.schemas).toHaveProperty("HealthStatus");
   });
 });

@@ -11,7 +11,9 @@
     "test:watch": "vitest --config vitest.config.mts"
   },
   "dependencies": {
-    "hono": "^4.12.9"
+    "@hono/zod-openapi": "^1.3.0",
+    "hono": "^4.12.9",
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.12.4",
