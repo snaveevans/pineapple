@@ -1,3 +1,4 @@
+import { swaggerUI } from "@hono/swagger-ui";
 import { createRoute, OpenAPIHono } from "@hono/zod-openapi";
 
 import type { AppEnv } from "./env";
@@ -83,11 +84,13 @@ export const createApp = (): OpenAPIHono<AppEnv> => {
     },
     servers: [
       {
-        url: new URL(c.req.url).origin,
-        description: "Current environment",
+        url: "/",
+        description: "Current domain",
       },
     ],
   }));
+
+  app.get("/docs", swaggerUI({ url: "/doc" }));
 
   return app;
 };

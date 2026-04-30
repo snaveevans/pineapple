@@ -85,13 +85,23 @@ describe("health routes", () => {
     });
     expect(payload.servers).toEqual([
       {
-        url: "http://example.com",
-        description: "Current environment",
+        url: "/",
+        description: "Current domain",
       },
     ]);
     expect(payload.paths).toHaveProperty("/");
     expect(payload.paths).toHaveProperty("/api/v1/health");
     expect(payload.components.schemas).toHaveProperty("ServiceStatus");
     expect(payload.components.schemas).toHaveProperty("HealthStatus");
+  });
+
+  it("serves the Swagger UI", async () => {
+    const response = await SELF.fetch("http://example.com/docs");
+    const html = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(html).toContain("SwaggerUIBundle");
+    expect(html).toContain("/doc");
   });
 });
