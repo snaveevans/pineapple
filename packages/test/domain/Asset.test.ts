@@ -7,7 +7,7 @@ describe("Asset", () => {
   });
 
   it("succeeds", () => {
-    const asset = Asset.create({ name: "Ram 2500" });
+    const asset = Asset.create({ name: "Ram 2500 " });
     expect(asset.name).toEqual("Ram 2500");
   });
 });
