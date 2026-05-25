@@ -1,0 +1,8 @@
+name = "pineapple-api"
+main = "src/worker.ts"
+compatibility_date = "2026-05-21"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pineapple"
+database_id = "REPLACE_WITH_OUTPUT_OF_wrangler_d1_create_pineapple"

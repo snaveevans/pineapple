@@ -1,4 +1,4 @@
-export type AssetId = string & { _brand: "AssetId" };
+export type AssetId = string & { readonly _brand: "AssetId" };
 
 export const AssetId = {
   generate: (): AssetId => crypto.randomUUID() as AssetId,
