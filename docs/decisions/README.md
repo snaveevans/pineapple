@@ -55,3 +55,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0001](0001-use-madr-for-adrs.md)                                | Use MADR for architecture decision records       | accepted |
 | [0002](0002-use-tactical-ddd-patterns-for-the-domain-layer.md)   | Use tactical DDD patterns for the domain layer   | accepted |
 | [0003](0003-monorepo-layer-architecture-and-dependency-rules.md) | Monorepo layer architecture and dependency rules | accepted |
+| [0004](0004-error-handling-strategy.md)                          | Error handling strategy                          | accepted |
