@@ -57,3 +57,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0003](0003-monorepo-layer-architecture-and-dependency-rules.md) | Monorepo layer architecture and dependency rules | accepted |
 | [0004](0004-error-handling-strategy.md)                          | Error handling strategy                          | accepted |
 | [0005](0005-repository-contract.md)                              | Repository contract                              | accepted |
+| [0006](0006-deployment-platform.md)                              | Deployment platform                              | accepted |
