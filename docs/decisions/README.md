@@ -58,3 +58,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0004](0004-error-handling-strategy.md)                          | Error handling strategy                          | accepted |
 | [0005](0005-repository-contract.md)                              | Repository contract                              | accepted |
 | [0006](0006-deployment-platform.md)                              | Deployment platform                              | accepted |
+| [0007](0007-api-validation-boundary.md)                          | API validation boundary                          | accepted |
