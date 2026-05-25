@@ -50,6 +50,7 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 
 <!-- Keep this list up to date as ADRs are added -->
 
-| #                                 | Title                                      | Status   |
-| --------------------------------- | ------------------------------------------ | -------- |
-| [0001](0001-use-madr-for-adrs.md) | Use MADR for architecture decision records | accepted |
+| #                                                              | Title                                          | Status   |
+| -------------------------------------------------------------- | ---------------------------------------------- | -------- |
+| [0001](0001-use-madr-for-adrs.md)                              | Use MADR for architecture decision records     | accepted |
+| [0002](0002-use-tactical-ddd-patterns-for-the-domain-layer.md) | Use tactical DDD patterns for the domain layer | accepted |
