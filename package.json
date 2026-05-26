@@ -28,6 +28,8 @@
     "@types/node": "^22.0.0",
     "eslint": "^9.0.0",
     "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-boundaries": "^6.0.2",
+    "eslint-plugin-n": "^18.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.5",
     "prettier": "^3.0.0",
