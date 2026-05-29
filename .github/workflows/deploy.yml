@@ -9,30 +9,29 @@ on:
 
 # Never run two deploys at once; let an in-flight deploy finish.
 concurrency:
-  group: deploy-api
+  group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  # Re-verify on main before shipping. Direct pushes to main skip PR checks,
+  # so this guarantees we never deploy red code.
+  verify:
     runs-on: ubuntu-latest
-    environment: production
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v6
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
-
+        uses: pnpm/action-setup@v5
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: pnpm
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      # Re-verify on main before shipping. Direct pushes to main skip PR checks,
-      # so this guarantees we never deploy red code.
       - name: Lint
         run: pnpm lint
       - name: Type-check
@@ -40,19 +39,38 @@ jobs:
       - name: Test
         run: pnpm -r test
 
-      # Apply any pending D1 migrations to the production database first, so the
-      # schema is ready before the new code goes live. wrangler reads the
-      # CLOUDFLARE_* env vars for auth; CI=true makes it non-interactive.
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Cloudflare credentials are present
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+      # Apply any pending D1 migrations to production first, so the schema is
+      # ready before the new code goes live. CI=true makes wrangler
+      # non-interactive; it reads the CLOUDFLARE_* env vars for auth.
       - name: Apply D1 migrations (production)
         working-directory: apps/api
         run: pnpm wrangler d1 migrations apply pineapple --remote
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Deploy Worker
         working-directory: apps/api
         run: pnpm wrangler deploy
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
