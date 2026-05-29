@@ -14,3 +14,6 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "pineapple"
 database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
+# Tracked migrations (applied via `wrangler d1 migrations apply`). Path is
+# relative to this config file -> repo-root /migrations.
+migrations_dir = "../../migrations"

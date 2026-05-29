@@ -1,0 +1,58 @@
+name: Deploy
+
+# Auto-deploy the API Worker whenever main advances (i.e. when you merge a PR).
+# Also runnable on demand from the Actions tab.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Never run two deploys at once; let an in-flight deploy finish.
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Re-verify on main before shipping. Direct pushes to main skip PR checks,
+      # so this guarantees we never deploy red code.
+      - name: Lint
+        run: pnpm lint
+      - name: Type-check
+        run: pnpm type-check
+      - name: Test
+        run: pnpm -r test
+
+      # Apply any pending D1 migrations to the production database first, so the
+      # schema is ready before the new code goes live. wrangler reads the
+      # CLOUDFLARE_* env vars for auth; CI=true makes it non-interactive.
+      - name: Apply D1 migrations (production)
+        working-directory: apps/api
+        run: pnpm wrangler d1 migrations apply pineapple --remote
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Deploy Worker
+        working-directory: apps/api
+        run: pnpm wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
