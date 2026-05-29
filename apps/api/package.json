@@ -13,11 +13,12 @@
   "dependencies": {
     "@snaveevans/pineapple-shared": "workspace:*",
     "hono": "^4.0.0",
+    "jose": "^6.2.3",
     "zod": "^3.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
     "vitest": "^3.0.0",
-    "wrangler": "^3.0.0"
+    "wrangler": "^4.95.0"
   }
 }

@@ -2,7 +2,13 @@ name = "pineapple-api"
 main = "src/worker.ts"
 compatibility_date = "2026-05-21"
 
+[vars]
+# Your Zero Trust team domain — https://<team-name>.cloudflareaccess.com
+CF_TEAM_DOMAIN = "https://snaveevans.cloudflareaccess.com"
+# AUD tag from Zero Trust → Access → Applications → <app> → Additional settings
+CF_AUD = "f3bb3a0dbe76bc837d38066c29f731808ce17c2810cfb77972aadbc0fc03bb8c"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "pineapple"
-database_id = "REPLACE_WITH_OUTPUT_OF_wrangler_d1_create_pineapple"
+database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
