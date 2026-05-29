@@ -43,7 +43,18 @@ const BLOCKED_IMPORTS = BLOCKED_NODE_BUILTINS.flatMap((name) => [
 export default tseslint.config(
   // ── Global ignores ───────────────────────────────────────────────────────
   // scripts/ are Node tooling (build-time), outside the Workers tsconfig.
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/.wrangler/**", "**/scripts/**"] },
+  // .claude/ holds git worktrees the Claude Code harness creates; their
+  // duplicated source has no linked node_modules, so type-aware linting there
+  // fails to resolve workspace packages. Ignore them like other build output.
+  {
+    ignores: [
+      "**/dist/**",
+      "**/node_modules/**",
+      "**/.wrangler/**",
+      "**/scripts/**",
+      "**/.claude/**",
+    ],
+  },
 
   // ── Layer boundary enforcement (ADR-0003) ────────────────────────────────
   // Elements map file paths → logical layer names.
