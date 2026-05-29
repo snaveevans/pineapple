@@ -1,7 +1,8 @@
 name: Deploy
 
-# Auto-deploy the API Worker whenever main advances (i.e. when you merge a PR).
-# Also runnable on demand from the Actions tab.
+# Auto-deploy whenever main advances (i.e. when you merge a PR). Each app
+# (apps/api, apps/web) deploys only when its files — or a shared dependency —
+# changed. Also runnable on demand from the Actions tab, which deploys both.
 on:
   push:
     branches: [main]
@@ -43,8 +44,45 @@ jobs:
           pnpm --filter @snaveevans/pineapple-api openapi:generate
           git diff --exit-code docs/reference/openapi.json
 
-  deploy:
-    needs: verify
+  # Detect which app(s) changed so we only redeploy what moved. Shared changes
+  # (root config, the lockfile, packages/shared, this workflow) fan out to both.
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      # Only meaningful on push (needs a base to diff against). On manual
+      # dispatch this step is skipped and both deploy jobs run via the
+      # event_name guard below.
+      - uses: dorny/paths-filter@v3
+        id: filter
+        if: github.event_name == 'push'
+        with:
+          filters: |
+            shared: &shared
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - 'tsconfig.base.json'
+              - 'tsconfig.json'
+              - 'packages/shared/**'
+              - '.github/workflows/deploy.yml'
+            api:
+              - *shared
+              - 'apps/api/**'
+              - 'migrations/**'
+            web:
+              - *shared
+              - 'apps/web/**'
+
+  deploy-api:
+    needs: [verify, changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.api == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
@@ -77,4 +115,40 @@ jobs:
 
       - name: Deploy Worker
         working-directory: apps/api
+        run: pnpm wrangler deploy
+
+  deploy-web:
+    needs: [verify, changes]
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify Cloudflare credentials are present
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+
+      # Build the SPA (writes the redirect config wrangler deploy reads), then
+      # deploy the Worker that serves it.
+      - name: Build
+        working-directory: apps/web
+        run: pnpm build
+
+      - name: Deploy Worker
+        working-directory: apps/web
         run: pnpm wrangler deploy
