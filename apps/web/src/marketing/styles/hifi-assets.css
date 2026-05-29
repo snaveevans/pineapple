@@ -1,0 +1,496 @@
+/* FieldOps — Hi-Fi Assets styles
+   Extends the .hf design tokens from hifi.css. Adds asset-grid + asset-row
+   + toolbar + add-card. Same container-query contract — desktop card grid
+   collapses to horizontal rows at the mobile breakpoint. */
+
+/* tints per category (used by the thumb background) */
+.hf {
+  --hf-cat-vehicle-bg: oklch(96% 0.025 240);
+  --hf-cat-vehicle-fg: oklch(40% 0.1 240);
+  --hf-cat-equipment-bg: oklch(95% 0.035 60);
+  --hf-cat-equipment-fg: oklch(40% 0.1 60);
+  --hf-cat-property-bg: oklch(95% 0.03 295);
+  --hf-cat-property-fg: oklch(38% 0.1 295);
+  --hf-cat-lawn-bg: oklch(95% 0.04 145);
+  --hf-cat-lawn-fg: oklch(38% 0.1 145);
+}
+
+/* ============ Assets page chrome ============ */
+.hf-assets-page .hf-greeting .hf-h1 {
+  font-size: 26px;
+}
+.hf-stats-tight {
+  gap: 8px;
+}
+
+/* ============ Toolbar (search + chips + view toggle) ============ */
+.hf-assets-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 320px) 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.hf-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: 8px;
+  height: 36px;
+}
+.hf-search:focus-within {
+  border-color: var(--hf-ink);
+  box-shadow: 0 0 0 1px var(--hf-ink);
+}
+.hf-search-input {
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--hf-ink);
+}
+.hf-search-input::placeholder {
+  color: var(--hf-ink-faint);
+}
+.hf-kbd {
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--hf-surface-2);
+  border: 1px solid var(--hf-line);
+  border-radius: 4px;
+  color: var(--hf-ink-faint);
+  letter-spacing: 0.04em;
+}
+
+.hf-assets-toolbar .hf-filter-chips {
+  gap: 6px;
+}
+.hf-assets-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.hf-view-toggle {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: 8px;
+  gap: 2px;
+}
+.hf-view-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+  color: var(--hf-ink-soft);
+}
+.hf-view-btn:hover {
+  background: var(--hf-surface-2);
+  color: var(--hf-ink);
+}
+.hf-view-btn.active {
+  background: var(--hf-ink);
+  color: var(--hf-surface);
+}
+
+/* ============ The grid ============ */
+.hf-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+.hf-asset-rows {
+  display: none;
+} /* default: card grid layout */
+
+/* ============ The card ============ */
+.hf-asset-card {
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color 100ms,
+    box-shadow 120ms,
+    transform 80ms;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--hf-shadow-1);
+}
+.hf-asset-card:hover {
+  border-color: oklch(80% 0.012 80);
+  box-shadow: var(--hf-shadow-2);
+  transform: translateY(-1px);
+}
+.hf-asset-card:focus-visible {
+  outline: 2px solid var(--hf-ink);
+  outline-offset: 2px;
+}
+
+/* overdue accent: left edge stripe + tinted thumb fade */
+.hf-asset-card[data-status="overdue"] {
+  border-color: oklch(85% 0.05 28);
+}
+.hf-asset-card[data-status="overdue"]::before {
+  /* the stripe is rendered inside the thumb instead — keep card border subtle */
+}
+
+/* ============ Thumb (category-tinted, icon centered) ============ */
+.hf-asset-thumb {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* warm pattern background so empty-photo state feels intentional */
+  background: repeating-linear-gradient(135deg, transparent 0 18px, rgba(0, 0, 0, 0.012) 18px 19px);
+}
+.hf-asset-thumb[data-cat="vehicle"] {
+  background-color: var(--hf-cat-vehicle-bg);
+}
+.hf-asset-thumb[data-cat="equipment"] {
+  background-color: var(--hf-cat-equipment-bg);
+}
+.hf-asset-thumb[data-cat="property"] {
+  background-color: var(--hf-cat-property-bg);
+}
+.hf-asset-thumb[data-cat="lawn"] {
+  background-color: var(--hf-cat-lawn-bg);
+}
+
+.hf-asset-thumb-icon {
+  opacity: 0.85;
+}
+.hf-asset-thumb[data-cat="vehicle"] .hf-asset-thumb-icon {
+  color: var(--hf-cat-vehicle-fg);
+}
+.hf-asset-thumb[data-cat="equipment"] .hf-asset-thumb-icon {
+  color: var(--hf-cat-equipment-fg);
+}
+.hf-asset-thumb[data-cat="property"] .hf-asset-thumb-icon {
+  color: var(--hf-cat-property-fg);
+}
+.hf-asset-thumb[data-cat="lawn"] .hf-asset-thumb-icon {
+  color: var(--hf-cat-lawn-fg);
+}
+
+/* category pill in the thumb corner */
+.hf-asset-cat-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid var(--hf-line);
+  border-radius: 999px;
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hf-ink-soft);
+  backdrop-filter: blur(4px);
+}
+
+/* status dot top-right */
+.hf-asset-status-dot {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  outline: 2px solid var(--hf-surface);
+}
+.hf-asset-status-dot[data-status="overdue"] {
+  background: var(--hf-bad);
+}
+.hf-asset-status-dot[data-status="soon"] {
+  background: var(--hf-warn);
+}
+.hf-asset-status-dot[data-status="ok"] {
+  background: var(--hf-ok);
+}
+
+/* ============ Card body & footer ============ */
+.hf-asset-body {
+  padding: 12px 14px 6px;
+}
+.hf-asset-card-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  color: var(--hf-ink);
+  line-height: 1.25;
+  /* clamp to 1 line in the card grid; row card overrides */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hf-asset-card-meta {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: nowrap;
+  font-size: 12px;
+  color: var(--hf-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hf-asset-card-meta .hf-mono {
+  font-family: var(--hf-mono);
+  font-size: 11.5px;
+  color: var(--hf-ink);
+}
+
+.hf-asset-footer {
+  padding: 8px 14px 14px;
+  margin-top: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px dashed var(--hf-line);
+  padding-top: 10px;
+}
+.hf-asset-footer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.hf-asset-next {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--hf-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+/* ============ Add-asset ghost card ============ */
+.hf-add-card {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 16px, rgba(20, 18, 14, 0.025) 16px 17px),
+    var(--hf-surface);
+  border-style: dashed;
+  box-shadow: none;
+}
+.hf-add-card:hover {
+  background-color: var(--hf-brand-bg);
+  border-color: var(--hf-brand);
+}
+.hf-add-card:hover .hf-add-card-plus {
+  background: var(--hf-brand);
+  color: white;
+  border-color: var(--hf-brand);
+}
+.hf-add-card-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 16px;
+  text-align: center;
+}
+.hf-add-card-plus {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--hf-ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hf-ink-soft);
+  background: var(--hf-surface);
+  transition:
+    background 100ms,
+    color 100ms,
+    border-color 100ms;
+}
+.hf-add-card-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+.hf-add-card-sub {
+  font-size: 11.5px;
+  color: var(--hf-ink-faint);
+  max-width: 180px;
+}
+
+/* ============ Horizontal row card (mobile / list view) ============ */
+.hf-asset-row {
+  display: flex;
+  gap: 12px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+  padding: 10px;
+  cursor: pointer;
+  align-items: stretch;
+  transition:
+    border-color 100ms,
+    box-shadow 120ms;
+}
+.hf-asset-row:hover {
+  border-color: oklch(80% 0.012 80);
+}
+.hf-asset-row[data-status="overdue"] {
+  border-color: oklch(85% 0.05 28);
+}
+.hf-asset-row .hf-asset-thumb {
+  width: 84px;
+  height: 84px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.hf-asset-row .hf-asset-cat-badge {
+  top: 6px;
+  left: 6px;
+  padding: 1.5px 6px;
+  font-size: 9px;
+}
+.hf-asset-row .hf-asset-status-dot {
+  top: 7px;
+  right: 7px;
+  width: 8px;
+  height: 8px;
+}
+.hf-asset-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+.hf-asset-row-top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hf-asset-row-bot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+.hf-asset-next-mobile {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.hf-asset-next-text {
+  font-size: 12.5px;
+  color: var(--hf-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hf-row-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  background: transparent;
+  border: 1.5px dashed var(--hf-ink-faint);
+  border-radius: var(--hf-r);
+  color: var(--hf-ink-soft);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.hf-row-add:hover {
+  color: var(--hf-brand);
+  border-color: var(--hf-brand);
+  background: var(--hf-brand-bg);
+}
+
+/* ===================================================================
+   Responsive — same container-query contract as the home screen
+   =================================================================== */
+
+/* TABLET (≤980px on app container): 3-column grid */
+@container hfmd (max-width: 980px) {
+  .hf-asset-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .hf-assets-toolbar {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "search  end"
+      "chips   chips";
+    row-gap: 10px;
+  }
+  .hf-search {
+    grid-area: search;
+  }
+  .hf-filter-chips {
+    grid-area: chips;
+  }
+  .hf-assets-toolbar-end {
+    grid-area: end;
+  }
+}
+
+/* small TABLET / large MOBILE: 2-column grid */
+@container hfmd (max-width: 720px) {
+  .hf-asset-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* MOBILE (≤580px on app container): swap grid for horizontal rows */
+@container hfapp (max-width: 580px) {
+  .hf-assets-page .hf-asset-grid {
+    display: none;
+  }
+  .hf-assets-page .hf-asset-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .hf-assets-toolbar {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "search"
+      "chips"
+      "end";
+    gap: 10px;
+  }
+  .hf-assets-toolbar-end {
+    justify-content: flex-start;
+  }
+  .hf-view-toggle {
+    display: none;
+  } /* grid/list toggle hides on mobile */
+  .hf-filter-chips {
+    flex-wrap: wrap;
+  }
+}

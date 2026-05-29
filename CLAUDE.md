@@ -7,7 +7,9 @@ everything else.
 
 **Pineapple** — a field-operations app for tracking assets (vehicles,
 properties, equipment) for a two-person team. The backend is a single
-Cloudflare Worker (`apps/api`). There is no frontend yet.
+Cloudflare Worker (`apps/api`). The frontend (`apps/web`) is a Vite + React
+app served by a Cloudflare Worker — it currently hosts the marketing home page
+(see [`apps/web/README.md`](apps/web/README.md)).
 
 ## Stack & runtime constraints
 
