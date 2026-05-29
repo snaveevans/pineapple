@@ -1,0 +1,8 @@
+/* Global reset for the marketing page. The warm off-white matches the .mk /
+   .hf design-system background token so there's no flash before paint. */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: oklch(98% 0.005 85);
+}

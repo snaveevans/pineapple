@@ -1,0 +1,18 @@
+{
+  // Single project covering the React client, the Worker entry, and the Vite
+  // config. The Worker code uses only Web/DOM-standard APIs (Request/Response/
+  // URL), so a DOM lib covers both client and worker without pulling in
+  // @cloudflare/workers-types (which conflicts with lib.dom).
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": [],
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["src", "worker", "vite.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

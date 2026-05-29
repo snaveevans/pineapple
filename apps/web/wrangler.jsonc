@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pineapple-web",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-05-21",
+  // Static assets (the built SPA) are served first; unmatched routes fall
+  // through to index.html so client-side routing works.
+  "assets": {
+    "not_found_handling": "single-page-application",
+  },
+  "observability": {
+    "enabled": true,
+  },
+}

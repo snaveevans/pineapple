@@ -1,0 +1,275 @@
+import { Icon } from "./Icon";
+import { HFAssetIcon, HFAssetThumb, HFStatusPill } from "./hf";
+
+// Stylesheets: the .hf design tokens + asset components first, then the
+// marketing-specific layer (which mirrors the tokens onto .mk so the reused
+// .hf-* pieces resolve outside the app shell).
+import "./styles/hifi.css";
+import "./styles/hifi-assets.css";
+import "./styles/marketing.css";
+
+/* ============ nav ============ */
+function MKNav() {
+  return (
+    <header className="mk-nav">
+      <div className="mk-wrap mk-nav-in">
+        <a className="mk-logo" href="#">
+          <span className="mk-logo-mark">
+            <Icon name="wrench" size={17} color="white" stroke={2} />
+          </span>
+          <span className="mk-logo-text">FieldOps</span>
+        </a>
+        <nav className="mk-nav-links">
+          <a className="mk-nav-link" href="#how">
+            How it works
+          </a>
+        </nav>
+        <div className="mk-nav-cta">
+          <a className="mk-link-quiet" href="#">
+            Log in
+          </a>
+          <a className="mk-btn mk-btn-primary mk-btn-sm" href="#">
+            Get started
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ============ hero collage — composed from real app pieces ============ */
+function MKHeroCollage() {
+  return (
+    <div className="mk-collage">
+      <div className="mk-collage-panel" />
+
+      {/* floating "due soon" pill */}
+      <div
+        className="mk-float mk-float-pill hf-pill hf-pill-warn"
+        style={{ boxShadow: "var(--hf-shadow-3)" }}
+      >
+        <Icon name="clock-sm" size={13} stroke={2} />
+        In 2 days
+      </div>
+
+      {/* floating asset card (top-left) */}
+      <div className="mk-float mk-float-card">
+        <div
+          className="hf hf-app"
+          style={{
+            display: "block",
+            height: "auto",
+            overflow: "visible",
+            background: "transparent",
+          }}
+        >
+          <article className="hf-asset-card" style={{ boxShadow: "none", border: 0 }}>
+            <HFAssetThumb asset={{ cat: "lawn", icon: "leaf", status: "soon" }} height={120} />
+            <div className="hf-asset-body">
+              <h3 className="hf-asset-card-name">Riverside Lawn</h3>
+              <div className="hf-asset-card-meta">
+                <span className="hf-mono">LAWN-A</span>
+              </div>
+            </div>
+            <div className="hf-asset-footer">
+              <div className="hf-asset-footer-text">
+                <div className="hf-label-sm">Next</div>
+                <div className="hf-asset-next">Spring fertilizer</div>
+              </div>
+              <HFStatusPill status="ok" due="9 days" />
+            </div>
+          </article>
+        </div>
+      </div>
+
+      {/* floating "next up" detail card (bottom-right) */}
+      <div className="mk-float mk-float-next">
+        <div
+          className="hf"
+          style={{
+            display: "block",
+            height: "auto",
+            overflow: "visible",
+            background: "transparent",
+          }}
+        >
+          <span className="mk-next-eyebrow">
+            <Icon name="arrow-right" size={11} stroke={2.2} />
+            Next up
+          </span>
+          <div className="mk-next-head">
+            <HFAssetIcon asset={{ category: "vehicle", icon: "truck" }} size={42} />
+            <div>
+              <div className="mk-next-name">Ford F-150 · #4</div>
+              <div className="mk-next-sub">48,210 mi</div>
+            </div>
+          </div>
+          <div className="mk-next-svc-lbl">Service due</div>
+          <div className="mk-next-svc">Oil change + tire rotation</div>
+          <div className="mk-next-row">
+            <HFStatusPill status="overdue" due="3 days late" />
+            <button className="hf-btn hf-btn-primary hf-btn-sm">
+              <Icon name="check" size={13} stroke={2.2} />
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MKHero() {
+  return (
+    <section className="mk-hero">
+      <div className="mk-wrap mk-hero-in">
+        <div>
+          <span className="mk-eyebrow">
+            <Icon name="truck" size={13} stroke={2} />
+            Built for owner-operators
+          </span>
+          <h1 className="mk-h1">
+            Never miss a <em>service date</em> again.
+          </h1>
+          <p className="mk-lede">
+            FieldOps keeps every truck, property, and tool you own on a maintenance schedule — so
+            you spend less time remembering and more time working.
+          </p>
+          <div className="mk-hero-cta">
+            <a className="mk-btn mk-btn-primary mk-btn-lg" href="#">
+              <Icon name="arrow-right" size={16} stroke={2.2} />
+              Get started
+            </a>
+            <a className="mk-btn mk-btn-ghost mk-btn-lg" href="#how">
+              See how it works
+            </a>
+          </div>
+          <div className="mk-hero-note">
+            <Icon name="check" size={14} color="var(--hf-brand)" stroke={2.4} />
+            Free to start · No card needed · Add your first asset in 2 minutes
+          </div>
+        </div>
+        <MKHeroCollage />
+      </div>
+    </section>
+  );
+}
+
+/* ============ small proof strip ============ */
+function MKStrip() {
+  return (
+    <div className="mk-strip">
+      <div className="mk-wrap mk-strip-in">
+        <span className="mk-strip-text">
+          Tracking <span className="mk-strip-stat">vehicles</span>,{" "}
+          <span className="mk-strip-stat">properties</span>,{" "}
+          <span className="mk-strip-stat">equipment</span> &amp;{" "}
+          <span className="mk-strip-stat">grounds</span> — all in one place, from the truck or the
+          office.
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ============ how it works ============ */
+const MK_STEPS = [
+  {
+    n: 1,
+    title: "Add an asset",
+    body: "Vehicle, property, or anything else you maintain. Pick a type and FieldOps asks the right details.",
+  },
+  {
+    n: 2,
+    title: "Set a schedule",
+    body: "Choose how often it needs service — by time or by miles/hours. We track the cadence for you.",
+  },
+  {
+    n: 3,
+    title: "Get reminded",
+    body: "A heads-up lands before each service is due. Mark it done, and the next one's queued automatically.",
+  },
+];
+
+function MKSteps() {
+  return (
+    <section className="mk-section mk-steps-section" id="how">
+      <div className="mk-wrap">
+        <div className="mk-section-head">
+          <div className="mk-kicker">How it works</div>
+          <h2 className="mk-h2">Up and running in three steps</h2>
+          <p>
+            No setup project, no spreadsheets to import. Add your first asset and you're tracking it
+            the same day.
+          </p>
+        </div>
+        <div className="mk-steps">
+          {MK_STEPS.map((s) => (
+            <div className="mk-step" key={s.n}>
+              <div className="mk-step-connector" />
+              <div className="mk-step-num">{s.n}</div>
+              <h3>{s.title}</h3>
+              <p>{s.body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ============ closing CTA ============ */
+function MKCta() {
+  return (
+    <section className="mk-cta-band">
+      <div className="mk-wrap">
+        <div className="mk-cta-box">
+          <h2>Start keeping everything on schedule.</h2>
+          <p>Add your first asset in two minutes. Free to start — no card, no commitment.</p>
+          <div className="mk-hero-cta">
+            <a className="mk-btn mk-btn-primary mk-btn-lg" href="#">
+              <Icon name="arrow-right" size={16} stroke={2.2} />
+              Get started
+            </a>
+            <a className="mk-btn mk-btn-ghost mk-btn-lg" href="#">
+              Log in
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MKFooter() {
+  return (
+    <footer className="mk-footer">
+      <div className="mk-wrap mk-footer-in">
+        <a className="mk-logo" href="#">
+          <span className="mk-logo-mark">
+            <Icon name="wrench" size={16} color="white" stroke={2} />
+          </span>
+          <span className="mk-logo-text">FieldOps</span>
+        </a>
+        <nav className="mk-footer-links">
+          <a href="#how">How it works</a>
+          <a href="#">Log in</a>
+        </nav>
+        <div className="mk-footer-copy">© 2026 FieldOps</div>
+      </div>
+    </footer>
+  );
+}
+
+export function MarketingHome() {
+  return (
+    <div className="mk">
+      <MKNav />
+      <MKHero />
+      <MKStrip />
+      <MKSteps />
+      <MKCta />
+      <MKFooter />
+    </div>
+  );
+}
