@@ -3,6 +3,11 @@
   "name": "pineapple-web",
   "main": "worker/index.ts",
   "compatibility_date": "2026-05-21",
+  // Production route: the SPA owns the catch-all on the shared hostname.
+  // /api/* (and the API's docs/health paths) are claimed more specifically by
+  // pineapple-api, so they take precedence. Requires the tylerevans.co zone in
+  // this account + a proxied DNS record for pineapple.tylerevans.co.
+  "routes": [{ "pattern": "pineapple.tylerevans.co/*", "zone_name": "tylerevans.co" }],
   // Static assets (the built SPA) are served first; unmatched routes fall
   // through to index.html so client-side routing works.
   "assets": {
