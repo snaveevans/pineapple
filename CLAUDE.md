@@ -79,6 +79,15 @@ This writes `docs/reference/openapi.json` (committed). CI fails if it's stale.
 The same spec is served live at `GET /openapi.json` with a Scalar UI at
 `/reference`. Never edit `openapi.json` by hand.
 
+**`openapi.json` is the single source of truth for API contracts.** Do not
+duplicate field names, types, validation rules, or metadata shapes in
+`docs/reference/data-model.md` or anywhere else. `data-model.md` covers only
+what the spec cannot express: domain entities not exposed via HTTP (e.g.
+`User`), internal fields hidden from API responses (e.g. `ownerId`), branded
+value objects, domain events, and storage/table mapping. If you find yourself
+writing a field table that mirrors a spec schema, stop — link to the spec
+instead.
+
 ## Commands
 
 ```bash
