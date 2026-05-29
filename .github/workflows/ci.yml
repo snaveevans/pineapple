@@ -42,3 +42,10 @@ jobs:
 
       - name: Test
         run: pnpm -r test
+
+      # The committed OpenAPI spec must match what the code generates, so the
+      # static file (read by codebase tools) never drifts from the live API.
+      - name: Check OpenAPI spec is up to date
+        run: |
+          pnpm --filter @snaveevans/pineapple-api openapi:generate
+          git diff --exit-code docs/reference/openapi.json

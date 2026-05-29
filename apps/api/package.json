@@ -8,17 +8,21 @@
     "deploy": "wrangler deploy",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "openapi:generate": "tsx scripts/generate-openapi.ts"
   },
   "dependencies": {
+    "@hono/zod-openapi": "^0.19.10",
+    "@scalar/hono-api-reference": "^0.10.19",
     "@snaveevans/pineapple-shared": "workspace:*",
     "better-auth": "^1.6.11",
     "better-auth-cloudflare": "^0.3.0",
-    "hono": "^4.0.0",
+    "hono": "^4.12.0",
     "zod": "^3.0.0"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.0.0",
+    "tsx": "^4.19.0",
     "vitest": "^3.0.0",
     "wrangler": "^4.95.0"
   }

@@ -1,3 +1,7 @@
 dist/
 node_modules/
 pnpm-lock.yaml
+
+# Generated from code by `openapi:generate`; formatting must match the script's
+# output so the CI drift check stays stable. Do not let Prettier reformat it.
+docs/reference/openapi.json
