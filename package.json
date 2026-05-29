@@ -1,27 +1,40 @@
 {
-  "name": "pineapple",
-  "private": true,
-  "packageManager": "pnpm@10.28.2",
-  "engines": {
-    "node": "22.x"
-  },
+  "name": "@snaveevans/pineapple-root",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
   "scripts": {
-    "dev": "pnpm --dir apps/api dev",
-    "deploy": "pnpm --dir apps/api run deploy",
-    "cf-typegen": "pnpm --dir apps/api cf-typegen",
-    "lint": "pnpm exec eslint .",
-    "typecheck": "pnpm --dir apps/api typecheck",
-    "test": "pnpm --dir apps/api test",
-    "format": "pnpm exec prettier . --write",
-    "format:check": "pnpm exec prettier . --check",
-    "check": "pnpm cf-typegen && pnpm typecheck && pnpm lint && pnpm test && pnpm format:check"
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "pnpm -r exec tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "Tyler Evans",
+  "packageManager": "pnpm@10.28.2",
+  "lint-staged": {
+    "**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{json,yaml,md,cjs,mjs}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "eslint": "^9.36.0",
-    "globals": "^16.4.0",
-    "prettier": "^3.6.2",
-    "typescript": "^5.5.2",
-    "typescript-eslint": "^8.44.0"
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-boundaries": "^6.0.2",
+    "eslint-plugin-n": "^18.0.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.5",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
   }
 }

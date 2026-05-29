@@ -1,23 +1,25 @@
 {
-  "name": "@pineapple/api",
+  "name": "@snaveevans/pineapple-api",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --port 8790",
-    "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run --config vitest.config.mts",
-    "test:watch": "vitest --config vitest.config.mts"
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "hono": "^4.12.9"
+    "@snaveevans/pineapple-shared": "workspace:*",
+    "better-auth": "^1.6.11",
+    "better-auth-cloudflare": "^0.3.0",
+    "hono": "^4.0.0",
+    "zod": "^3.0.0"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.12.4",
-    "@types/node": "^25.5.0",
-    "typescript": "^5.5.2",
-    "vitest": "~3.2.0",
-    "wrangler": "^4.79.0"
+    "@cloudflare/workers-types": "^4.0.0",
+    "vitest": "^3.0.0",
+    "wrangler": "^4.95.0"
   }
 }

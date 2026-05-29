@@ -1,0 +1,15 @@
+{
+  "name": "@snaveevans/pineapple-shared",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "echo \"(no tests in shared yet)\""
+  },
+  "keywords": [],
+  "author": "Tyler Evans",
+  "packageManager": "pnpm@10.28.2"
+}

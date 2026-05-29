@@ -1,0 +1,19 @@
+name = "pineapple-api"
+main = "src/worker.ts"
+compatibility_date = "2026-05-21"
+# Better Auth relies on Node APIs (crypto, etc.) on the Workers runtime.
+compatibility_flags = ["nodejs_compat"]
+
+# Auth config is provided as SECRETS (not committed here):
+#   wrangler secret put BETTER_AUTH_SECRET
+#   wrangler secret put GOOGLE_CLIENT_ID
+#   wrangler secret put GOOGLE_CLIENT_SECRET
+# Locally these live in apps/api/.dev.vars (gitignored).
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pineapple"
+database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
+# Tracked migrations (applied via `wrangler d1 migrations apply`). Path is
+# relative to this config file -> repo-root /migrations.
+migrations_dir = "../../migrations"
