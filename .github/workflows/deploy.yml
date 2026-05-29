@@ -38,6 +38,10 @@ jobs:
         run: pnpm type-check
       - name: Test
         run: pnpm -r test
+      - name: Check OpenAPI spec is up to date
+        run: |
+          pnpm --filter @snaveevans/pineapple-api openapi:generate
+          git diff --exit-code docs/reference/openapi.json
 
   deploy:
     needs: verify

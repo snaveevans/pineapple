@@ -42,7 +42,8 @@ const BLOCKED_IMPORTS = BLOCKED_NODE_BUILTINS.flatMap((name) => [
 
 export default tseslint.config(
   // ── Global ignores ───────────────────────────────────────────────────────
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/.wrangler/**"] },
+  // scripts/ are Node tooling (build-time), outside the Workers tsconfig.
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/.wrangler/**", "**/scripts/**"] },
 
   // ── Layer boundary enforcement (ADR-0003) ────────────────────────────────
   // Elements map file paths → logical layer names.

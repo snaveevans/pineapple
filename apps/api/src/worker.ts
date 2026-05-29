@@ -1,6 +1,8 @@
-import { Hono, type Context } from "hono";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
-import { AssetId, ValidationError, DomainError } from "@snaveevans/pineapple-shared";
+import type { Context } from "hono";
+import { AssetId, DomainError } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -18,7 +20,16 @@ import { ListAssets } from "./application/usecases/ListAssets.ts";
 
 // API layer
 import { toHttpError } from "./api/errors.ts";
-import { CreateAssetBodySchema } from "./api/schemas/assetSchemas.ts";
+import {
+  createAssetRoute,
+  getAssetRoute,
+  healthRoute,
+  listAssetsRoute,
+  openApiConfig,
+  registerOpenApiComponents,
+} from "./api/openapi.ts";
+import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
+import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
   /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
@@ -26,11 +37,33 @@ type Bindings = AuthEnv & {
 };
 type Variables = { user: User; auth: Auth };
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
+const app = new OpenAPIHono<{ Bindings: Bindings; Variables: Variables }>({
+  // Validation failures (body/params) → 422 in our standard error shape.
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      const issue = result.error.issues[0];
+      const field = issue?.path.length ? issue.path.join(".") : undefined;
+      return c.json(
+        { error: issue?.message ?? "Validation failed", ...(field ? { field } : {}) },
+        422,
+      );
+    }
+  },
+});
+
+// Centralized error handling: domain errors → their HTTP status; anything
+// else → 500. Handlers and middleware just `throw` and this maps it.
+app.onError((err, c) => {
+  if (err instanceof DomainError) return toHttpError(c as Context, err);
+  console.error(err);
+  return c.json({ error: "Internal Server Error" }, 500);
+});
+
+registerOpenApiComponents(app.openAPIRegistry);
 
 // ── Serializers ────────────────────────────────────────────────────────────
 
-function serializeAsset(asset: Asset) {
+function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
   return {
     id: asset.id,
     name: asset.name,
@@ -42,14 +75,17 @@ function serializeAsset(asset: Asset) {
   };
 }
 
-// ── Routes ─────────────────────────────────────────────────────────────────
+// ── Public routes (no auth) ──────────────────────────────────────────────────
 
-// GET /health — no auth required
-app.get("/health", (c) => c.json({ status: "ok" }));
+app.openapi(healthRoute, (c) => c.json({ status: "ok" } as const, 200));
+
+// Machine-readable spec + interactive docs.
+app.doc("/openapi.json", openApiConfig);
+app.get("/reference", Scalar({ url: "/openapi.json" }));
+
+// ── Better Auth ───────────────────────────────────────────────────────────
 
 // CORS for the Better Auth endpoints (browser hits these with credentials).
-// Reflect the request origin for now — tighten to the deployed web origin
-// once the UI lands.
 app.use(
   "/api/auth/**",
   cors({
@@ -62,75 +98,64 @@ app.use(
 
 // Build a per-request Better Auth instance (baseURL must match the incoming
 // origin for OAuth callbacks/cookies to work) and stash it on the context.
-app.use("*", async (c, next) => {
+app.use("/api/*", async (c, next) => {
   const auth = createAuth(c.env, new URL(c.req.url).origin);
   c.set("auth", auth);
   await next();
 });
 
-// Mount all Better Auth routes: sign-in/out, OAuth callbacks, session, etc.
-// e.g. GET /api/auth/sign-in/social?provider=google
+// Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
 app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 
-// Auth gate for the application API. Resolves (and JIT-provisions) the domain
-// User from the Better Auth session; maps auth failures to clean HTTP errors.
+// ── Auth gate for the application API ────────────────────────────────────────
+
+// Resolves (and JIT-provisions) the domain User from the Better Auth session.
+// Thrown auth errors propagate to app.onError above.
 app.use("/api/*", async (c, next) => {
   const resolver = new BetterAuthResolver(
     c.get("auth"),
     new D1UserRepository(c.env.DB),
     c.env.DEV_AUTH_EMAIL,
   );
-  try {
-    const user = await resolver.resolve(c.req.raw);
-    c.set("user", user);
-  } catch (e) {
-    // Cast to the base Context: this middleware's generic Input is `any`,
-    // which `no-unsafe-argument` rejects; toHttpError only needs the base type.
-    if (e instanceof DomainError) return toHttpError(c as Context, e);
-    throw e;
-  }
+  const user = await resolver.resolve(c.req.raw);
+  c.set("user", user);
   await next();
 });
 
-// POST /api/assets — create a new asset
-app.post("/api/assets", async (c) => {
+// ── Asset endpoints ──────────────────────────────────────────────────────────
+
+app.openapi(createAssetRoute, async (c) => {
   const user = c.get("user");
-  const body = await c.req.json<unknown>().catch(() => null);
-  const parsed = CreateAssetBodySchema.safeParse(body);
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0];
-    return toHttpError(c, new ValidationError(issue?.message ?? "Invalid request body"));
-  }
+  const { name, metadata } = c.req.valid("json");
   const result = await new CreateAsset(new D1AssetRepository(c.env.DB)).execute({
     ownerId: user.id,
-    name: parsed.data.name,
-    // Cast needed: Zod's .optional() produces `T | undefined` but the domain
-    // type uses exactOptionalPropertyTypes (absent ≠ explicitly undefined).
-    metadata: parsed.data.metadata as AssetMetadata,
+    name,
+    // Cast: Zod's `.optional()` yields `T | undefined` but the domain type uses
+    // exactOptionalPropertyTypes (absent ≠ explicitly undefined).
+    metadata: metadata as AssetMetadata,
   });
-  if (!result.ok) return toHttpError(c, result.error);
+  if (!result.ok) throw result.error;
   return c.json({ id: result.value }, 201);
 });
 
-// GET /api/assets — list my assets (active only)
-app.get("/api/assets", async (c) => {
+app.openapi(listAssetsRoute, async (c) => {
   const user = c.get("user");
   const result = await new ListAssets(new D1AssetRepository(c.env.DB)).execute({
     ownerId: user.id,
   });
-  if (!result.ok) return toHttpError(c, result.error);
-  return c.json({ assets: result.value.map(serializeAsset) });
+  if (!result.ok) throw result.error;
+  return c.json({ assets: result.value.map(serializeAsset) }, 200);
 });
 
-// GET /api/assets/:id — get a single asset by ID
-app.get("/api/assets/:id", async (c) => {
+app.openapi(getAssetRoute, async (c) => {
   const user = c.get("user");
+  const { id } = c.req.valid("param");
   const result = await new GetAsset(new D1AssetRepository(c.env.DB)).execute({
-    assetId: AssetId.from(c.req.param("id")),
+    assetId: AssetId.from(id),
     requesterId: user.id,
   });
-  if (!result.ok) return toHttpError(c, result.error);
-  return c.json(serializeAsset(result.value));
+  if (!result.ok) throw result.error;
+  return c.json(serializeAsset(result.value), 200);
 });
 
 export default app;

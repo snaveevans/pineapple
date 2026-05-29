@@ -1,0 +1,482 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Pineapple API",
+    "version": "0.1.0",
+    "description": "Field-operations API for managing assets (vehicles, properties, equipment). Authentication is handled by Better Auth + Google OAuth; send the session cookie obtained from `/api/auth/*` with requests to protected `/api/*` routes."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8787",
+      "description": "Local dev (wrangler)"
+    },
+    {
+      "url": "https://pineapple-api.tylerjevans.workers.dev",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System",
+      "description": "Health and meta endpoints"
+    },
+    {
+      "name": "Assets",
+      "description": "Create and read assets owned by the caller"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "better-auth.session_token",
+        "description": "Better Auth session cookie, set after completing the Google OAuth flow at `/api/auth/sign-in/social?provider=google`."
+      }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "CreatedAsset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Asset not found"
+          },
+          "field": {
+            "type": "string",
+            "example": "metadata.year"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "VehicleMetadata": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "vehicle"
+            ]
+          },
+          "make": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Ram"
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1,
+            "example": "2500"
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1900,
+            "maximum": 2027,
+            "example": 2016
+          },
+          "vin": {
+            "type": "string",
+            "minLength": 17,
+            "maxLength": 17,
+            "example": "1C6RR7LT4GS123456"
+          }
+        },
+        "required": [
+          "kind",
+          "make",
+          "model",
+          "year"
+        ]
+      },
+      "Address": {
+        "type": "object",
+        "properties": {
+          "street": {
+            "type": "string",
+            "minLength": 1
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1
+          },
+          "postalCode": {
+            "type": "string",
+            "minLength": 1
+          },
+          "country": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "street",
+          "city",
+          "state",
+          "postalCode",
+          "country"
+        ]
+      },
+      "PropertyMetadata": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "property"
+            ]
+          },
+          "nickname": {
+            "type": "string",
+            "example": "Lake cabin"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        "required": [
+          "kind",
+          "address"
+        ]
+      },
+      "EquipmentMetadata": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "equipment"
+            ]
+          },
+          "manufacturer": {
+            "type": "string",
+            "example": "Honda"
+          },
+          "modelNumber": {
+            "type": "string",
+            "example": "EU2200i"
+          },
+          "serialNumber": {
+            "type": "string",
+            "example": "EAMT-1234567"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "AssetMetadata": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VehicleMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/PropertyMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/EquipmentMetadata"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "vehicle": "#/components/schemas/VehicleMetadata",
+            "property": "#/components/schemas/PropertyMetadata",
+            "equipment": "#/components/schemas/EquipmentMetadata"
+          }
+        }
+      },
+      "CreateAssetBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "My Truck"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/AssetMetadata"
+          }
+        },
+        "required": [
+          "name",
+          "metadata"
+        ]
+      },
+      "Asset": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Truck"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "vehicle",
+              "property",
+              "equipment"
+            ],
+            "example": "vehicle"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/AssetMetadata"
+          },
+          "archivedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "example": null
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-05-29T03:25:24.887Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-05-29T03:25:24.887Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "metadata",
+          "archivedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "AssetListResponse": {
+        "type": "object",
+        "properties": {
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Asset"
+            }
+          }
+        },
+        "required": [
+          "assets"
+        ]
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Liveness check",
+        "description": "Returns ok when the Worker is serving. No authentication.",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Create an asset",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAssetBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Asset created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedAsset"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "List my assets",
+        "description": "Returns the caller's active (non-archived) assets.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's assets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{id}": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Get an asset by id",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
