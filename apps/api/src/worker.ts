@@ -1,5 +1,6 @@
-import { Hono } from "hono";
-import { AssetId, ValidationError } from "@snaveevans/pineapple-shared";
+import { Hono, type Context } from "hono";
+import { cors } from "hono/cors";
+import { AssetId, ValidationError, DomainError } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -7,7 +8,8 @@ import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
 // Infrastructure
 import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.ts";
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
-import { CloudflareAccessResolver } from "./infrastructure/auth/CloudflareAccessResolver.ts";
+import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
+import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
 
 // Application
 import { CreateAsset } from "./application/usecases/CreateAsset.ts";
@@ -18,14 +20,11 @@ import { ListAssets } from "./application/usecases/ListAssets.ts";
 import { toHttpError } from "./api/errors.ts";
 import { CreateAssetBodySchema } from "./api/schemas/assetSchemas.ts";
 
-type Bindings = {
-  DB: D1Database;
-  CF_TEAM_DOMAIN: string;
-  CF_AUD: string;
-  /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses CF Access JWT verification. */
+type Bindings = AuthEnv & {
+  /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
   DEV_AUTH_EMAIL?: string;
 };
-type Variables = { user: User };
+type Variables = { user: User; auth: Auth };
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>();
 
@@ -48,18 +47,48 @@ function serializeAsset(asset: Asset) {
 // GET /health — no auth required
 app.get("/health", (c) => c.json({ status: "ok" }));
 
-// Auth middleware applied to all /api/* routes.
-// Inlined directly (rather than via createAuthMiddleware) to avoid a Hono
-// generic env mismatch between the full AppEnv and the narrower middleware type.
+// CORS for the Better Auth endpoints (browser hits these with credentials).
+// Reflect the request origin for now — tighten to the deployed web origin
+// once the UI lands.
+app.use(
+  "/api/auth/**",
+  cors({
+    origin: (origin) => origin,
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["GET", "POST", "OPTIONS"],
+    credentials: true,
+  }),
+);
+
+// Build a per-request Better Auth instance (baseURL must match the incoming
+// origin for OAuth callbacks/cookies to work) and stash it on the context.
+app.use("*", async (c, next) => {
+  const auth = createAuth(c.env, new URL(c.req.url).origin);
+  c.set("auth", auth);
+  await next();
+});
+
+// Mount all Better Auth routes: sign-in/out, OAuth callbacks, session, etc.
+// e.g. GET /api/auth/sign-in/social?provider=google
+app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
+
+// Auth gate for the application API. Resolves (and JIT-provisions) the domain
+// User from the Better Auth session; maps auth failures to clean HTTP errors.
 app.use("/api/*", async (c, next) => {
-  const resolver = new CloudflareAccessResolver(
+  const resolver = new BetterAuthResolver(
+    c.get("auth"),
     new D1UserRepository(c.env.DB),
-    c.env.CF_TEAM_DOMAIN,
-    c.env.CF_AUD,
     c.env.DEV_AUTH_EMAIL,
   );
-  const user = await resolver.resolve(c.req.raw);
-  c.set("user", user);
+  try {
+    const user = await resolver.resolve(c.req.raw);
+    c.set("user", user);
+  } catch (e) {
+    // Cast to the base Context: this middleware's generic Input is `any`,
+    // which `no-unsafe-argument` rejects; toHttpError only needs the base type.
+    if (e instanceof DomainError) return toHttpError(c as Context, e);
+    throw e;
+  }
   await next();
 });
 

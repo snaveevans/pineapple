@@ -5,6 +5,7 @@ import {
   ForbiddenError,
   ValidationError,
   ConflictError,
+  UnauthorizedError,
 } from "@snaveevans/pineapple-shared";
 
 /**
@@ -15,13 +16,15 @@ export function toHttpError(c: Context, error: DomainError): Response {
   const status =
     error instanceof NotFoundError
       ? 404
-      : error instanceof ForbiddenError
-        ? 403
-        : error instanceof ValidationError
-          ? 422
-          : error instanceof ConflictError
-            ? 409
-            : 500;
+      : error instanceof UnauthorizedError
+        ? 401
+        : error instanceof ForbiddenError
+          ? 403
+          : error instanceof ValidationError
+            ? 422
+            : error instanceof ConflictError
+              ? 409
+              : 500;
 
   const body: Record<string, unknown> = { error: error.message };
   if (error instanceof ValidationError && error.field) {

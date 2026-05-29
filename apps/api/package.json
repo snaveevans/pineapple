@@ -12,8 +12,9 @@
   },
   "dependencies": {
     "@snaveevans/pineapple-shared": "workspace:*",
+    "better-auth": "^1.6.11",
+    "better-auth-cloudflare": "^0.3.0",
     "hono": "^4.0.0",
-    "jose": "^6.2.3",
     "zod": "^3.0.0"
   },
   "devDependencies": {

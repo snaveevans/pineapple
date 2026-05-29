@@ -7,6 +7,7 @@ export {
   NotFoundError,
   ForbiddenError,
   ConflictError,
+  UnauthorizedError,
   InvariantError,
   ValidationError,
 } from "./errors.ts";
