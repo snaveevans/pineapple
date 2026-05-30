@@ -1,0 +1,592 @@
+/* FieldOps — Hi-Fi Add Asset form
+   Extends the .hf tokens from hifi.css. Single-page form with a 3-type
+   picker (Vehicle / Property / Other), contextual detail fields, optional
+   photo, and a sticky save bar. Mobile collapses to a bottom-sheet shell.
+   Same container-query contract — container-name "hfapp" on the root. */
+
+/* ============ page shell ============ */
+.hf-aa-page {
+  background: var(--hf-bg);
+}
+
+/* breadcrumb strip under the topbar */
+.hf-aa-crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 32px;
+  font-size: 12.5px;
+  color: var(--hf-ink-soft);
+  border-bottom: 1px solid var(--hf-line);
+  background: var(--hf-surface);
+  flex-shrink: 0;
+}
+.hf-aa-crumb a {
+  color: var(--hf-ink-soft);
+  text-decoration: none;
+}
+.hf-aa-crumb a:hover {
+  color: var(--hf-ink);
+}
+.hf-aa-crumb-sep {
+  color: var(--hf-ink-faint);
+}
+.hf-aa-crumb-here {
+  color: var(--hf-ink);
+  font-weight: 500;
+}
+.hf-aa-crumb-esc {
+  margin-left: auto;
+}
+.hf-aa-crumb-esc kbd {
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--hf-surface-2);
+  border: 1px solid var(--hf-line);
+  border-radius: 4px;
+  color: var(--hf-ink-faint);
+}
+
+/* scroll body — centered column */
+.hf-aa-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 28px 32px 40px;
+}
+.hf-aa-col {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ============ page header ============ */
+.hf-aa-head h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--hf-ink);
+  line-height: 1.15;
+}
+.hf-aa-head p {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--hf-ink-soft);
+  line-height: 1.45;
+}
+
+/* ============ field section scaffold ============ */
+.hf-aa-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.hf-aa-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hf-aa-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hf-ink);
+  letter-spacing: -0.01em;
+}
+.hf-aa-section-hint {
+  font-size: 12px;
+  color: var(--hf-ink-faint);
+}
+
+.hf-aa-rule {
+  height: 1px;
+  background: var(--hf-line);
+}
+
+/* ============ field group ============ */
+.hf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.hf-field-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--hf-ink);
+}
+.hf-field-req {
+  color: var(--hf-bad);
+  font-weight: 600;
+}
+.hf-field-opt {
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hf-ink-faint);
+}
+.hf-field-hint {
+  font-size: 11.5px;
+  color: var(--hf-ink-faint);
+  margin-left: auto;
+}
+
+.hf-input,
+.hf-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--hf-line);
+  border-radius: 8px;
+  background: var(--hf-surface);
+  color: var(--hf-ink);
+  font: inherit;
+  font-size: 14px;
+  outline: 0;
+  transition:
+    border-color 100ms,
+    box-shadow 100ms;
+}
+.hf-input::placeholder {
+  color: var(--hf-ink-faint);
+}
+.hf-input:hover,
+.hf-select:hover {
+  border-color: oklch(85% 0.008 80);
+}
+.hf-input:focus,
+.hf-select:focus {
+  border-color: var(--hf-brand);
+  box-shadow: 0 0 0 3px var(--hf-brand-bg);
+}
+.hf-input.hf-mono-input {
+  font-family: var(--hf-mono);
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.hf-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a958c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 34px;
+  cursor: pointer;
+}
+
+.hf-field-row {
+  display: flex;
+  gap: 12px;
+}
+.hf-field-row > .hf-field {
+  flex: 1;
+}
+
+/* ============ type picker (3 radio cards) ============ */
+.hf-aa-types {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.hf-type-card {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+  background: var(--hf-surface);
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  transition:
+    border-color 100ms,
+    box-shadow 120ms,
+    background 100ms;
+}
+.hf-type-card:hover {
+  border-color: oklch(82% 0.012 80);
+  box-shadow: var(--hf-shadow-1);
+}
+.hf-type-card.selected {
+  border-color: var(--hf-brand);
+  box-shadow: 0 0 0 1px var(--hf-brand);
+  background: var(--hf-brand-bg);
+}
+.hf-type-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--hf-ink-faint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--hf-surface);
+  transition: border-color 100ms;
+}
+.hf-type-card.selected .hf-type-radio {
+  border-color: var(--hf-brand);
+}
+.hf-type-card.selected .hf-type-radio::after {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--hf-brand);
+}
+.hf-type-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.hf-type-icon[data-cat="vehicle"] {
+  background: var(--hf-tint-vehicle);
+  color: var(--hf-cat-vehicle-fg);
+}
+.hf-type-icon[data-cat="property"] {
+  background: var(--hf-tint-prop);
+  color: var(--hf-cat-property-fg);
+}
+.hf-type-icon[data-cat="other"] {
+  background: var(--hf-tint-equip);
+  color: var(--hf-cat-equipment-fg);
+}
+.hf-type-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hf-type-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--hf-ink);
+  letter-spacing: -0.01em;
+}
+.hf-type-desc {
+  font-size: 11.5px;
+  color: var(--hf-ink-soft);
+  line-height: 1.3;
+}
+
+/* ============ subtype chips (inside "Other") ============ */
+.hf-aa-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.hf-subchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid var(--hf-line);
+  border-radius: 999px;
+  background: var(--hf-surface);
+  color: var(--hf-ink-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 100ms,
+    background 100ms,
+    color 100ms;
+}
+.hf-subchip:hover {
+  border-color: oklch(82% 0.012 80);
+  color: var(--hf-ink);
+}
+.hf-subchip.selected {
+  background: var(--hf-ink);
+  color: var(--hf-surface);
+  border-color: var(--hf-ink);
+}
+.hf-subchip.selected .hf-subchip-glyph {
+  opacity: 1;
+}
+.hf-subchip-glyph {
+  display: inline-flex;
+  opacity: 0.7;
+}
+
+/* ============ photo dropzone ============ */
+.hf-photo-row {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+.hf-photo-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+.hf-photo-text .hf-field-label {
+  margin-bottom: 2px;
+}
+.hf-photo-sub {
+  font-size: 12px;
+  color: var(--hf-ink-soft);
+  line-height: 1.45;
+}
+.hf-dropzone {
+  width: 132px;
+  flex-shrink: 0;
+  border: 1.5px dashed var(--hf-ink-faint);
+  border-radius: var(--hf-r);
+  background:
+    repeating-linear-gradient(135deg, transparent 0 16px, rgba(20, 18, 14, 0.02) 16px 17px),
+    var(--hf-surface-2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px 12px;
+  color: var(--hf-ink-soft);
+  cursor: pointer;
+  transition:
+    border-color 100ms,
+    background 100ms,
+    color 100ms;
+}
+.hf-dropzone:hover {
+  border-color: var(--hf-brand);
+  color: var(--hf-brand);
+  background: var(--hf-brand-bg);
+}
+.hf-dropzone-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hf-dropzone-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.3;
+}
+.hf-dropzone-sub {
+  font-size: 10.5px;
+  color: var(--hf-ink-faint);
+}
+
+/* ============ deferred next-step note ============ */
+.hf-aa-next {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--hf-line);
+  border-left: 3px solid var(--hf-brand);
+  border-radius: var(--hf-r);
+  background: var(--hf-brand-bg);
+}
+.hf-aa-next-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--hf-surface);
+  border: 1px solid oklch(88% 0.04 150);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hf-brand-2);
+  flex-shrink: 0;
+}
+.hf-aa-next-text {
+  flex: 1;
+  min-width: 0;
+}
+.hf-aa-next-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+.hf-aa-next-sub {
+  font-size: 12px;
+  color: var(--hf-ink-soft);
+  margin-top: 1px;
+}
+
+/* ============ sticky save bar ============ */
+.hf-aa-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 32px;
+  border-top: 1px solid var(--hf-line);
+  background: var(--hf-surface);
+  flex-shrink: 0;
+}
+.hf-aa-footer-note {
+  font-size: 12px;
+  color: var(--hf-ink-faint);
+}
+.hf-aa-footer-note .hf-field-req {
+  font-weight: 600;
+}
+.hf-aa-footer-actions {
+  display: flex;
+  gap: 8px;
+}
+.hf-btn-lg {
+  height: 40px;
+  padding: 0 18px;
+  font-size: 13.5px;
+}
+
+/* ===================================================================
+   MOBILE — bottom-sheet shell
+   =================================================================== */
+.hf-sheet-scrim {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--hf-bg);
+  overflow: hidden;
+}
+.hf-sheet-bg {
+  position: absolute;
+  inset: 0;
+  padding: 16px;
+  opacity: 0.5;
+  pointer-events: none;
+}
+.hf-sheet-bg-h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--hf-ink-faint);
+  margin: 0;
+}
+.hf-sheet-bg-sub {
+  font-size: 12px;
+  color: var(--hf-ink-faint);
+  margin-top: 2px;
+}
+.hf-sheet-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 18, 14, 0.28);
+}
+
+.hf-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 93%;
+  background: var(--hf-surface);
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+  box-shadow: 0 -8px 30px rgba(20, 18, 14, 0.18);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.hf-sheet-grab {
+  display: flex;
+  justify-content: center;
+  padding: 9px 0 5px;
+}
+.hf-sheet-grab span {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hf-line);
+}
+.hf-sheet-head {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 4px 16px 12px;
+  border-bottom: 1px solid var(--hf-line);
+}
+.hf-sheet-head-title {
+  font-size: 15px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--hf-ink);
+}
+.hf-sheet-cancel {
+  font-size: 13px;
+  color: var(--hf-ink-soft);
+  justify-self: start;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+.hf-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.hf-sheet-foot {
+  display: flex;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 8px));
+  border-top: 1px solid var(--hf-line);
+}
+.hf-sheet-foot .hf-btn {
+  flex: 1;
+  justify-content: center;
+  height: 44px;
+}
+.hf-sheet-foot .hf-btn-primary {
+  flex: 1.5;
+}
+
+/* mobile type grid: stack the 3 cards full-width */
+.hf-sheet .hf-aa-types {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+.hf-sheet .hf-type-desc {
+  display: none;
+}
+
+/* ===================================================================
+   RESPONSIVE — container queries on hfapp
+   =================================================================== */
+@container hfapp (max-width: 720px) {
+  .hf-aa-body {
+    padding: 22px 18px 32px;
+  }
+  .hf-aa-crumb {
+    padding: 10px 18px;
+  }
+  .hf-aa-footer {
+    padding: 12px 18px;
+  }
+  .hf-aa-types {
+    grid-template-columns: 1fr;
+  }
+  .hf-type-desc {
+    display: block;
+  }
+}
