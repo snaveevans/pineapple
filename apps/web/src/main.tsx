@@ -4,15 +4,18 @@ import "./index.css";
 import { MarketingHome } from "./marketing/MarketingHome";
 import { AuthFlow } from "./auth/AuthFlow";
 import { AppHome } from "./app/AppHome";
+import { AppAssets } from "./app/AppAssets";
 
 // Minimal path-based routing. The Worker serves index.html for any unmatched
 // path (wrangler.jsonc -> assets.not_found_handling: "single-page-application"),
 // so /login and /app resolve here; everything else renders the marketing home.
 // /login reads ?mode=login|signup to pick its initial screen (set by the
-// marketing CTAs); /app is the authenticated master/detail home.
+// marketing CTAs); /app is the authenticated master/detail home and
+// /app/assets is the asset library (card grid).
 function App() {
   const path = window.location.pathname;
   if (path === "/login") return <AuthFlow />;
+  if (path === "/app/assets") return <AppAssets />;
   if (path === "/app") return <AppHome />;
   return <MarketingHome />;
 }
