@@ -10,6 +10,7 @@ import {
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetMetadata } from "../../domain/asset/AssetMetadata.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import type { EventBus } from "../ports/EventBus.ts";
 
 export type CreateAssetCommand = {
   ownerId: UserId;
@@ -18,7 +19,10 @@ export type CreateAssetCommand = {
 };
 
 export class CreateAsset {
-  constructor(private readonly assets: AssetRepository) {}
+  constructor(
+    private readonly assets: AssetRepository,
+    private readonly eventBus: EventBus,
+  ) {}
 
   async execute(cmd: CreateAssetCommand): Promise<Result<AssetId, DomainError>> {
     try {
@@ -28,7 +32,7 @@ export class CreateAsset {
         metadata: cmd.metadata,
       });
       await this.assets.save(asset);
-      asset.pullEvents(); // drain — no EventBus consumer yet
+      await this.eventBus.publishAll(asset.pullEvents());
       return ok(asset.id);
     } catch (e) {
       if (e instanceof DomainErrorClass) return err(e);

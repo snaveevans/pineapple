@@ -4,6 +4,10 @@ compatibility_date = "2026-05-21"
 # Better Auth relies on Node APIs (crypto, etc.) on the Workers runtime.
 compatibility_flags = ["nodejs_compat"]
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 # Production routes on the shared hostname. The API owns /api/* plus its
 # (non-/api) docs + health endpoints; the web Worker (pineapple-web) owns the
 # catch-all /* for the SPA. Cloudflare matches the most specific route, so
@@ -30,3 +34,11 @@ database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
 # Tracked migrations (applied via `wrangler d1 migrations apply`). Path is
 # relative to this config file -> repo-root /migrations.
 migrations_dir = "../../migrations"
+
+[[analytics_engine_datasets]]
+binding = "ASSET_DOMAIN_TELEMETRY"
+dataset = "pineapple_asset_domain_events"
+
+[[analytics_engine_datasets]]
+binding = "API_REQUEST_TELEMETRY"
+dataset = "pineapple_api_request_events"

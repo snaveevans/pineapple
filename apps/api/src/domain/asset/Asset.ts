@@ -37,7 +37,14 @@ export class Asset {
       now,
       now,
     );
-    asset._domainEvents.push(AssetCreated(asset.id, asset.ownerId));
+    asset._domainEvents.push(
+      AssetCreated({
+        assetId: asset.id,
+        ownerId: asset.ownerId,
+        assetType: asset.type,
+        ...(asset.metadata.kind === "vehicle" ? { assetModelYear: asset.metadata.year } : {}),
+      }),
+    );
     return asset;
   }
 
