@@ -35,10 +35,3 @@ database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
 # relative to this config file -> repo-root /migrations.
 migrations_dir = "../../migrations"
 
-[[analytics_engine_datasets]]
-binding = "ASSET_DOMAIN_TELEMETRY"
-dataset = "pineapple_asset_domain_events"
-
-[[analytics_engine_datasets]]
-binding = "API_REQUEST_TELEMETRY"
-dataset = "pineapple_api_request_events"
