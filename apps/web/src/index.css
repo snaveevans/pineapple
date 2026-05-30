@@ -6,3 +6,12 @@ body {
   padding: 0;
   background: oklch(98% 0.005 85);
 }
+
+/* Full-height chain so the .hf app shell (/app) can size to the viewport and
+   scroll its own main region. Marketing/auth content is taller and simply
+   overflows #root naturally, so this doesn't affect them. */
+html,
+body,
+#root {
+  height: 100%;
+}

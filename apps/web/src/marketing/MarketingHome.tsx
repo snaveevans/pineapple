@@ -1,4 +1,5 @@
 import { Icon } from "../design/Icon";
+import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb, HFStatusPill } from "../design/hf";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
@@ -20,7 +21,7 @@ function MKNav() {
       <div className="mk-wrap mk-nav-in">
         <a className="mk-logo" href="#">
           <span className="mk-logo-mark">
-            <Icon name="wrench" size={17} color="white" stroke={2} />
+            <Brandmark size={17} color="white" />
           </span>
           <span className="mk-logo-text">FieldOps</span>
         </a>
