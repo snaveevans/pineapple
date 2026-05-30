@@ -1,0 +1,25 @@
+# Example local dev secrets for the API Worker. Copy to `.dev.vars` (gitignored)
+# and fill in real values: `cp apps/api/.dev.vars.example apps/api/.dev.vars`.
+# `wrangler dev` loads `.dev.vars` automatically.
+
+# Better Auth signing secret. Generate one with: openssl rand -base64 32
+BETTER_AUTH_SECRET=""
+
+# Base URL Better Auth builds OAuth redirect_uris from. Required locally because
+# `wrangler dev` serves the worker under the production route host (wrangler.toml
+# `routes`), so the request URL is not localhost. Leave unset in production
+# (falls back to the real request origin).
+BETTER_AUTH_URL="http://localhost:8787"
+
+# Google OAuth 2.0 Client ID (type: Web application) from Google Cloud Console:
+#   https://console.cloud.google.com/apis/credentials
+# Authorized redirect URI:  http://localhost:8787/api/auth/callback/google
+# Authorized JS origin:     http://localhost:8787
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+
+# Local dev only: trust the web dev server origin (web :5173 ≠ API :8787).
+DEV_WEB_ORIGIN="http://localhost:5173"
+
+# Optional: bypass auth locally by hardcoding a session email (skips Google).
+# DEV_AUTH_EMAIL="you@example.com"

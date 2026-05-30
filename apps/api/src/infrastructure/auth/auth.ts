@@ -11,6 +11,22 @@ export type AuthEnv = {
   BETTER_AUTH_SECRET: string;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
+  /**
+   * Local dev only — comma-separated extra origins to trust for sign-in /
+   * callbackURL checks. The web app runs on a different port (5173) than the
+   * API (8787) in dev, so its origin must be trusted explicitly. In production
+   * web + API share a hostname, so this is unset. Set in .dev.vars.
+   */
+  DEV_WEB_ORIGIN?: string;
+  /**
+   * Explicit Better Auth base URL. REQUIRED in local dev: `wrangler dev` serves
+   * the worker under the production `routes` hostname from wrangler.toml, so the
+   * request URL is NOT localhost — without this, OAuth `redirect_uri`s point at
+   * the production domain. Set to `http://localhost:8787` in .dev.vars. In
+   * production leave it unset; the worker falls back to the request origin
+   * (the real public hostname). Better Auth's conventional env var name.
+   */
+  BETTER_AUTH_URL?: string;
 };
 
 /**
@@ -49,9 +65,17 @@ export function createAuth(env?: AuthEnv, baseURL?: string) {
     },
   );
 
+  // Dev-only: trust the web app's separate dev origin (e.g. localhost:5173).
+  // Better Auth always trusts baseURL; this adds the cross-port frontend.
+  const devOrigins =
+    env?.DEV_WEB_ORIGIN?.split(",")
+      .map((o) => o.trim())
+      .filter(Boolean) ?? [];
+
   const options: BetterAuthOptions = {
     ...(baseURL ? { baseURL } : {}),
     ...(env?.BETTER_AUTH_SECRET ? { secret: env.BETTER_AUTH_SECRET } : {}),
+    ...(devOrigins.length ? { trustedOrigins: devOrigins } : {}),
     // Cast: better-auth-cloudflare@0.3.0's plugin endpoint types drift from
     // better-auth@1.6's stricter `Endpoint` index signature (optional R2
     // endpoints we don't use). Runtime is unaffected; this only reconciles
