@@ -101,7 +101,13 @@ function HFAssetRowCard({ asset }: { asset: Asset }) {
 /* ============ add-asset ghost card (slots into the grid) ============ */
 function HFAddCard() {
   return (
-    <article className="hf-asset-card hf-add-card" tabIndex={0}>
+    <article
+      className="hf-asset-card hf-add-card"
+      tabIndex={0}
+      onClick={() => {
+        window.location.href = "/app/assets/new";
+      }}
+    >
       <div className="hf-add-card-inner">
         <div className="hf-add-card-plus">
           <Icon name="plus" size={20} stroke={2} />
@@ -169,7 +175,12 @@ function HFAssetsHeader() {
         <div className="hf-greeting-sub">{HF_ASSETS_ALL.length} things you take care of</div>
       </div>
       <div className="hf-stats hf-stats-tight">
-        <button className="hf-btn hf-btn-primary">
+        <button
+          className="hf-btn hf-btn-primary"
+          onClick={() => {
+            window.location.href = "/app/assets/new";
+          }}
+        >
           <Icon name="plus" size={14} stroke={2.2} />
           Add asset
         </button>
@@ -200,7 +211,12 @@ export function AppAssets() {
           {HF_ASSETS_ALL.map((a) => (
             <HFAssetRowCard key={a.id} asset={a} />
           ))}
-          <button className="hf-row-add">
+          <button
+            className="hf-row-add"
+            onClick={() => {
+              window.location.href = "/app/assets/new";
+            }}
+          >
             <Icon name="plus" size={16} stroke={2} />
             Add an asset
           </button>

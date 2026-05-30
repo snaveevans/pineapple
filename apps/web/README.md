@@ -17,6 +17,11 @@ It serves these pages from the Claude Design handoff:
 - **Assets** (`/app/assets`) — [`src/app/AppAssets.tsx`](src/app/AppAssets.tsx) —
   the asset library: a responsive card grid (stacked rows on mobile) with search,
   category filter chips, and a grid/list view toggle.
+- **Add Asset** (`/app/assets/new`) — [`src/app/AppAddAsset.tsx`](src/app/AppAddAsset.tsx) —
+  the add-asset form: a three-bucket type picker (Vehicle / Property / Other)
+  with contextual detail fields, an optional photo dropzone, a deferred
+  "set up a schedule" note, and a sticky save bar. The "Add asset" buttons and
+  the ghost add-card on the Assets page link here; `esc` cancels back.
 
 The authenticated pages share their chrome — the desktop top bar and mobile
 bottom tab bar — via [`src/app/AppChrome.tsx`](src/app/AppChrome.tsx), where the
@@ -25,7 +30,7 @@ nav tabs link between `/app` and `/app/assets`.
 The shared design-system primitives (`Icon`, `HFStatusPill`, `HFAssetIcon`,
 `HFAssetThumb`) are ported from the FieldOps app prototype and live in
 [`src/design/`](src/design/), styled by `design/styles/hifi.css` +
-`hifi-assets.css` (the `.hf-*` tokens/components). Each page adds a thin layer
+`hifi-assets.css` + `hifi-add-asset.css` (the `.hf-*` tokens/components). Each page adds a thin layer
 that mirrors those tokens onto its own scope: `marketing.css` (`.mk`) and
 `auth.css` (`.au`). The `/app` pages render the `.hf` system directly.
 
@@ -38,7 +43,7 @@ fallback (see `wrangler.jsonc`) serves `index.html` for any path, so `/login`,
 
 ```
 index.html              # Vite HTML entry (loads Inter + JetBrains Mono)
-src/main.tsx            # React bootstrap + path routing (/, /login, /app, /app/assets)
+src/main.tsx            # React bootstrap + path routing (/, /login, /app, /app/assets, /app/assets/new)
 src/design/             # shared design-system primitives + .hf CSS tokens
 src/marketing/          # Marketing Home page + .mk CSS
 src/auth/               # Auth Flow page (/login) + .au CSS
