@@ -4,9 +4,8 @@ import { AssetCreatedTelemetryHandler } from "./asset/AssetCreatedTelemetryHandl
 
 export function registerDomainTelemetry(deps: {
   eventBus: EventBus;
-  assetDomainDataset: AnalyticsEngineDataset | undefined;
+  assetDomainDataset: AnalyticsEngineDataset;
 }): void {
-  if (!deps.assetDomainDataset) return;
   const assetDomainSink = new AnalyticsEngineTelemetrySink(deps.assetDomainDataset);
   deps.eventBus.subscribe(new AssetCreatedTelemetryHandler(assetDomainSink));
 }

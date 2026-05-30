@@ -37,8 +37,8 @@ import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
-  ASSET_DOMAIN_TELEMETRY?: AnalyticsEngineDataset;
-  API_REQUEST_TELEMETRY?: AnalyticsEngineDataset;
+  ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
   DEV_AUTH_EMAIL?: string;
 };
@@ -71,10 +71,8 @@ registerOpenApiComponents(app.openAPIRegistry);
 
 app.use(
   "*",
-  createTechnicalTelemetryMiddleware<AppEnv>((c) =>
-    c.env.API_REQUEST_TELEMETRY
-      ? new AnalyticsEngineTelemetrySink(c.env.API_REQUEST_TELEMETRY)
-      : { write() {} },
+  createTechnicalTelemetryMiddleware<AppEnv>(
+    (c) => new AnalyticsEngineTelemetrySink(c.env.API_REQUEST_TELEMETRY),
   ),
 );
 
