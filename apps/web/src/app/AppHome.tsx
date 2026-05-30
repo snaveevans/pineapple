@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Icon, type IconName } from "../design/Icon";
-import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFStatusPill, type AssetCategory, type AssetStatus } from "../design/hf";
+import { HFTopBar, HFBottomNav } from "./AppChrome";
 
 // FieldOps — Home (Master / Detail). The authenticated app shell: a top bar,
 // greeting + fleet stats, category filters, and a master/detail grid (detail
@@ -137,19 +137,6 @@ const HF_ASSETS: Asset[] = [
   },
 ];
 
-interface NavItem {
-  id: string;
-  label: string;
-  icon: IconName;
-}
-
-const HF_NAV: NavItem[] = [
-  { id: "home", label: "Home", icon: "home-nav" },
-  { id: "assets", label: "Assets", icon: "grid" },
-  { id: "schedule", label: "Schedule", icon: "calendar" },
-  { id: "history", label: "History", icon: "clock" },
-];
-
 /* ============ detail body (shared by hero card + inline expand) ============ */
 function HFDetailBody({
   asset,
@@ -250,58 +237,6 @@ function HFDetailBody({
         )}
       </div>
     </div>
-  );
-}
-
-/* ============ top bar ============ */
-function HFTopBar({ activeNav = "home" }: { activeNav?: string }) {
-  return (
-    <header className="hf-topbar">
-      <div className="hf-topbar-left">
-        <div className="hf-logo">
-          <div className="hf-logo-mark">
-            <Brandmark size={15} color="white" />
-          </div>
-          <span className="hf-logo-text">FieldOps</span>
-        </div>
-        <nav className="hf-nav-top">
-          {HF_NAV.map((n) => (
-            <a
-              key={n.id}
-              className={`hf-nav-tab ${n.id === activeNav ? "active" : ""}`}
-              title={n.label}
-            >
-              <Icon name={n.icon} size={16} />
-              <span className="hf-nav-label">{n.label}</span>
-            </a>
-          ))}
-        </nav>
-      </div>
-      <div className="hf-topbar-right">
-        <button className="hf-icon-btn" title="Search">
-          <Icon name="search" size={16} />
-        </button>
-        <button className="hf-icon-btn hf-icon-btn-badge" title="Notifications">
-          <Icon name="bell" size={16} />
-          <span className="hf-badge">3</span>
-        </button>
-        <div className="hf-avatar">J</div>
-      </div>
-    </header>
-  );
-}
-
-/* ============ bottom tab bar (mobile only) ============ */
-function HFBottomNav({ activeNav = "home" }: { activeNav?: string }) {
-  return (
-    <nav className="hf-nav-bottom">
-      {HF_NAV.map((n) => (
-        <a key={n.id} className={`hf-nav-bottom-tab ${n.id === activeNav ? "active" : ""}`}>
-          <Icon name={n.icon} size={20} stroke={n.id === activeNav ? 2 : 1.5} />
-          <span>{n.label}</span>
-        </a>
-      ))}
-    </nav>
   );
 }
 
