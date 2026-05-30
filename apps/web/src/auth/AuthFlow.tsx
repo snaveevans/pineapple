@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../design/Icon";
+import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
@@ -113,7 +114,7 @@ function AuthBrand() {
     <div className="au-brand">
       <a className="au-brand-logo" href="/">
         <span className="au-brand-mark">
-          <Icon name="wrench" size={17} color="white" stroke={2} />
+          <Brandmark size={17} color="white" />
         </span>
         <span className="au-brand-name">FieldOps</span>
       </a>
@@ -241,7 +242,7 @@ function AuthSignedIn({
         {user.name ? ` (${user.email})` : ""}.
       </p>
       <div className="au-hero-cta" style={{ display: "flex", gap: 12, marginTop: 24 }}>
-        <a className="au-google" style={{ width: "auto", padding: "0 20px" }} href="/">
+        <a className="au-google" style={{ width: "auto", padding: "0 20px" }} href="/app">
           Go to FieldOps
         </a>
       </div>
