@@ -1,6 +1,9 @@
+import { useEffect } from "react";
+import { Link } from "react-router";
 import { Icon, type IconName } from "../design/Icon";
 import { HFAssetThumb, HFStatusPill, type AssetCategory, type AssetStatus } from "../design/hf";
 import { HFTopBar, HFBottomNav } from "./AppChrome";
+import { paths } from "../routes";
 
 // FieldOps — Assets (card grid). The authenticated asset library: a header with
 // fleet count + add button, a toolbar (search, category filter chips, grid/list
@@ -101,13 +104,7 @@ function HFAssetRowCard({ asset }: { asset: Asset }) {
 /* ============ add-asset ghost card (slots into the grid) ============ */
 function HFAddCard() {
   return (
-    <article
-      className="hf-asset-card hf-add-card"
-      tabIndex={0}
-      onClick={() => {
-        window.location.href = "/app/assets/new";
-      }}
-    >
+    <Link to={paths.addAsset} className="hf-asset-card hf-add-card">
       <div className="hf-add-card-inner">
         <div className="hf-add-card-plus">
           <Icon name="plus" size={20} stroke={2} />
@@ -115,7 +112,7 @@ function HFAddCard() {
         <div className="hf-add-card-label">Add an asset</div>
         <div className="hf-add-card-sub">Vehicle, equipment, property, grounds…</div>
       </div>
-    </article>
+    </Link>
   );
 }
 
@@ -175,15 +172,10 @@ function HFAssetsHeader() {
         <div className="hf-greeting-sub">{HF_ASSETS_ALL.length} things you take care of</div>
       </div>
       <div className="hf-stats hf-stats-tight">
-        <button
-          className="hf-btn hf-btn-primary"
-          onClick={() => {
-            window.location.href = "/app/assets/new";
-          }}
-        >
+        <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
           <Icon name="plus" size={14} stroke={2.2} />
           Add asset
-        </button>
+        </Link>
       </div>
     </div>
   );
@@ -191,11 +183,15 @@ function HFAssetsHeader() {
 
 /* ============ main: assets card grid (responsive) ============ */
 export function AppAssets() {
+  useEffect(() => {
+    document.title = "FieldOps — Assets";
+  }, []);
+
   // The add-card slots in at the END of the grid so the "+" stays discoverable
   // inline; the stacked rows (mobile) get their own add button at the bottom.
   return (
     <div className="hf hf-app hf-assets-page">
-      <HFTopBar activeNav="assets" />
+      <HFTopBar />
       <main className="hf-main hf-shell">
         <HFAssetsHeader />
         <HFAssetsToolbar activeCat="all" activeView="grid" />
@@ -211,18 +207,13 @@ export function AppAssets() {
           {HF_ASSETS_ALL.map((a) => (
             <HFAssetRowCard key={a.id} asset={a} />
           ))}
-          <button
-            className="hf-row-add"
-            onClick={() => {
-              window.location.href = "/app/assets/new";
-            }}
-          >
+          <Link className="hf-row-add" to={paths.addAsset}>
             <Icon name="plus" size={16} stroke={2} />
             Add an asset
-          </button>
+          </Link>
         </div>
       </main>
-      <HFBottomNav activeNav="assets" />
+      <HFBottomNav />
     </div>
   );
 }

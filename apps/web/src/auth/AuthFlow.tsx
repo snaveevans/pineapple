@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
+import { paths } from "../routes";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
 // auth-specific layer (which mirrors the tokens onto .au so the reused .hf-*
@@ -112,12 +114,12 @@ function AuthCollage() {
 function AuthBrand() {
   return (
     <div className="au-brand">
-      <a className="au-brand-logo" href="/">
+      <Link className="au-brand-logo" to={paths.home}>
         <span className="au-brand-mark">
           <Brandmark size={17} color="white" />
         </span>
         <span className="au-brand-name">FieldOps</span>
-      </a>
+      </Link>
       <div className="au-brand-content">
         <div className="au-brand-body">
           <h2 className="au-brand-h2">Keep everything you own on schedule.</h2>
@@ -151,12 +153,12 @@ function AuthCard({
   const isSignup = mode === "signup";
   return (
     <div className="au-card">
-      <a className="au-card-logo" href="/">
+      <Link className="au-card-logo" to={paths.home}>
         <span className="au-brand-mark">
           <Icon name="wrench" size={16} color="white" stroke={2} />
         </span>
         <span className="au-brand-name">FieldOps</span>
-      </a>
+      </Link>
 
       <div className="au-eyebrow">{isSignup ? "Get started" : "Welcome back"}</div>
       <h1 className="au-h1">{isSignup ? "Create your account" : "Log in to FieldOps"}</h1>
@@ -242,9 +244,9 @@ function AuthSignedIn({
         {user.name ? ` (${user.email})` : ""}.
       </p>
       <div className="au-hero-cta" style={{ display: "flex", gap: 12, marginTop: 24 }}>
-        <a className="au-google" style={{ width: "auto", padding: "0 20px" }} href="/app">
+        <Link className="au-google" style={{ width: "auto", padding: "0 20px" }} to={paths.appHome}>
           Go to FieldOps
-        </a>
+        </Link>
       </div>
       <button className="au-redirect-cancel" onClick={onSignOut}>
         Sign out
@@ -255,6 +257,7 @@ function AuthSignedIn({
 
 /* ============ page ============ */
 export function AuthFlow() {
+  const navigate = useNavigate();
   // mode: "login" | "signup" ; phase: "form" | "redirect"
   // initial mode comes from ?mode= so marketing CTAs can deep-link the right screen
   const initialMode: Mode =
@@ -303,7 +306,7 @@ export function AuthFlow() {
       credentials: "include",
     }).finally(() => {
       // Logged out → send them to the marketing home.
-      window.location.href = "/";
+      navigate(paths.home);
     });
   };
 

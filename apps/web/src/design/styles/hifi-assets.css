@@ -293,6 +293,8 @@
     var(--hf-surface);
   border-style: dashed;
   box-shadow: none;
+  color: inherit;
+  text-decoration: none;
 }
 .hf-add-card:hover {
   background-color: var(--hf-brand-bg);
@@ -424,6 +426,7 @@
   color: var(--hf-ink-soft);
   font-size: 13.5px;
   font-weight: 600;
+  text-decoration: none;
 }
 .hf-row-add:hover {
   color: var(--hf-brand);

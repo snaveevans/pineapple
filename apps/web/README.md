@@ -34,16 +34,19 @@ The shared design-system primitives (`Icon`, `HFStatusPill`, `HFAssetIcon`,
 that mirrors those tokens onto its own scope: `marketing.css` (`.mk`) and
 `auth.css` (`.au`). The `/app` pages render the `.hf` system directly.
 
-Routing is a single `window.location.pathname` check in
-[`src/main.tsx`](src/main.tsx) — no router dependency. The Worker's SPA
-fallback (see `wrangler.jsonc`) serves `index.html` for any path, so `/login`,
-`/app`, and `/app/assets` resolve client-side.
+Routing uses React Router Data Mode. [`src/router.tsx`](src/router.tsx) owns the
+route tree and [`src/routes.ts`](src/routes.ts) exports shared path helpers for
+route-aware links and navigation. The Worker's SPA fallback (see
+`wrangler.jsonc`) serves `index.html` for any path, so direct loads of `/login`,
+`/app`, `/app/assets`, and `/app/assets/new` resolve client-side.
 
 ## Layout
 
 ```
 index.html              # Vite HTML entry (loads Inter + JetBrains Mono)
-src/main.tsx            # React bootstrap + path routing (/, /login, /app, /app/assets, /app/assets/new)
+src/main.tsx            # React bootstrap + RouterProvider
+src/router.tsx          # React Router route tree (/, /login, /app, /app/assets, /app/assets/new)
+src/routes.ts           # shared route paths/path builders
 src/design/             # shared design-system primitives + .hf CSS tokens
 src/marketing/          # Marketing Home page + .mk CSS
 src/auth/               # Auth Flow page (/login) + .au CSS
