@@ -12,14 +12,19 @@ import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
+import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
+import { AnalyticsEngineTelemetrySink } from "./infrastructure/telemetry/AnalyticsEngineTelemetrySink.ts";
+import { registerDomainTelemetry } from "./infrastructure/telemetry/registerDomainTelemetry.ts";
 
 // Application
 import { CreateAsset } from "./application/usecases/CreateAsset.ts";
 import { GetAsset } from "./application/usecases/GetAsset.ts";
 import { ListAssets } from "./application/usecases/ListAssets.ts";
+import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
 import { toHttpError } from "./api/errors.ts";
+import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTelemetry.ts";
 import {
   createAssetRoute,
   getAssetRoute,
@@ -32,12 +37,15 @@ import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
+  ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
   DEV_AUTH_EMAIL?: string;
 };
 type Variables = { user: User; auth: Auth };
+type AppEnv = { Bindings: Bindings; Variables: Variables };
 
-const app = new OpenAPIHono<{ Bindings: Bindings; Variables: Variables }>({
+const app = new OpenAPIHono<AppEnv>({
   // Validation failures (body/params) → 422 in our standard error shape.
   defaultHook: (result, c) => {
     if (!result.success) {
@@ -61,6 +69,13 @@ app.onError((err, c) => {
 
 registerOpenApiComponents(app.openAPIRegistry);
 
+app.use(
+  "*",
+  createTechnicalTelemetryMiddleware<AppEnv>(
+    (c) => new AnalyticsEngineTelemetrySink(c.env.API_REQUEST_TELEMETRY),
+  ),
+);
+
 // ── Serializers ────────────────────────────────────────────────────────────
 
 function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
@@ -73,6 +88,15 @@ function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
   };
+}
+
+function createEventBus(c: Context<AppEnv>): EventBus {
+  const eventBus = new InMemoryEventBus();
+  registerDomainTelemetry({
+    eventBus,
+    assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
+  });
+  return eventBus;
 }
 
 // ── Public routes (no auth) ──────────────────────────────────────────────────
@@ -131,7 +155,7 @@ app.use("/api/*", async (c, next) => {
 app.openapi(createAssetRoute, async (c) => {
   const user = c.get("user");
   const { name, metadata } = c.req.valid("json");
-  const result = await new CreateAsset(new D1AssetRepository(c.env.DB)).execute({
+  const result = await new CreateAsset(new D1AssetRepository(c.env.DB), createEventBus(c)).execute({
     ownerId: user.id,
     name,
     // Cast: Zod's `.optional()` yields `T | undefined` but the domain type uses
