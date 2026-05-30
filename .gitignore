@@ -1,6 +1,8 @@
 node_modules
 .pnpm-store
 .dev.vars
+.env.local
+.env.*.local
 .DS_Store
 .wrangler
 coverage
@@ -8,3 +10,4 @@ dist
 tmp
 *.log
 .tmp-api-*
+.playwright-mcp

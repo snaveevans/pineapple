@@ -1,0 +1,503 @@
+/* FieldOps — Auth (log in / sign up) flow.
+   Google-first (Better Auth, phase 1). Split layout: brand panel + auth card.
+   Built on the .hf tokens; token block mirrored onto .au so reused .hf-*
+   collage components resolve their variables. */
+
+.au {
+  --hf-bg: oklch(98% 0.005 85);
+  --hf-surface: oklch(100% 0 0);
+  --hf-surface-2: oklch(97% 0.005 85);
+  --hf-ink: oklch(22% 0.015 70);
+  --hf-ink-soft: oklch(45% 0.012 75);
+  --hf-ink-faint: oklch(60% 0.008 80);
+  --hf-line: oklch(91% 0.006 80);
+  --hf-line-soft: oklch(94% 0.005 80);
+  --hf-brand: oklch(45% 0.1 150);
+  --hf-brand-2: oklch(38% 0.1 150);
+  --hf-brand-bg: oklch(95% 0.025 150);
+  --hf-ok: oklch(50% 0.1 150);
+  --hf-ok-bg: oklch(96% 0.025 150);
+  --hf-warn: oklch(60% 0.13 75);
+  --hf-warn-bg: oklch(96% 0.045 80);
+  --hf-bad: oklch(52% 0.18 28);
+  --hf-bad-bg: oklch(96% 0.025 28);
+  --hf-tint-vehicle: oklch(94% 0.025 240);
+  --hf-tint-equip: oklch(94% 0.035 55);
+  --hf-tint-prop: oklch(94% 0.025 295);
+  --hf-tint-lawn: oklch(94% 0.03 145);
+  --hf-cat-vehicle-bg: oklch(96% 0.025 240);
+  --hf-cat-vehicle-fg: oklch(40% 0.1 240);
+  --hf-cat-property-bg: oklch(95% 0.03 295);
+  --hf-cat-property-fg: oklch(38% 0.1 295);
+  --hf-cat-equipment-bg: oklch(95% 0.035 60);
+  --hf-cat-equipment-fg: oklch(40% 0.1 60);
+  --hf-cat-lawn-bg: oklch(95% 0.04 145);
+  --hf-cat-lawn-fg: oklch(38% 0.1 145);
+  --hf-r-sm: 6px;
+  --hf-r: 10px;
+  --hf-r-lg: 14px;
+  --hf-shadow-1: 0 1px 2px rgba(20, 18, 14, 0.04), 0 1px 0 rgba(20, 18, 14, 0.03);
+  --hf-shadow-2: 0 4px 12px rgba(20, 18, 14, 0.06), 0 1px 0 rgba(20, 18, 14, 0.03);
+  --hf-shadow-3: 0 18px 50px -12px rgba(20, 18, 14, 0.22), 0 6px 16px -8px rgba(20, 18, 14, 0.12);
+  --hf-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --hf-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  background: var(--hf-bg);
+  color: var(--hf-ink);
+  font-family: var(--hf-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: -0.006em;
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+}
+.au * {
+  box-sizing: border-box;
+}
+
+/* ============ split layout ============ */
+.au-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+}
+
+/* ---- brand panel (left) ---- */
+.au-brand {
+  position: relative;
+  overflow: hidden;
+  padding: 40px 48px;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(120% 90% at 80% 8%, var(--hf-brand-bg) 0%, transparent 52%),
+    radial-gradient(100% 80% at 10% 100%, var(--hf-tint-vehicle) 0%, transparent 55%),
+    var(--hf-surface-2);
+  border-right: 1px solid var(--hf-line);
+}
+.au-brand::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 22px,
+    rgba(20, 18, 14, 0.012) 22px 23px
+  );
+}
+.au-brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  text-decoration: none;
+  color: var(--hf-ink);
+  position: relative;
+  z-index: 1;
+}
+.au-brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--hf-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.au-brand-name {
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+}
+
+.au-brand-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+}
+.au-brand-body {
+  position: relative;
+  z-index: 1;
+  max-width: 440px;
+}
+.au-brand-h2 {
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin: 0 0 24px;
+  text-wrap: balance;
+}
+.au-brand-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.au-brand-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  font-size: 15px;
+  color: var(--hf-ink-soft);
+}
+.au-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 1px;
+  background: var(--hf-brand);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.au-brand-quote {
+  margin-top: 30px;
+  padding: 16px 18px;
+  position: relative;
+  z-index: 1;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+  box-shadow: var(--hf-shadow-1);
+  max-width: 440px;
+}
+.au-brand-quote p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--hf-ink);
+}
+.au-brand-quote-by {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--hf-ink-faint);
+  font-family: var(--hf-mono);
+}
+
+/* ---- form side (right) ---- */
+.au-form-side {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  overflow-y: auto;
+}
+.au-card {
+  width: 100%;
+  max-width: 380px;
+}
+.au-card-logo {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 28px;
+  text-decoration: none;
+  color: var(--hf-ink);
+}
+.au-card-logo .au-brand-mark {
+  width: 28px;
+  height: 28px;
+}
+
+.au-eyebrow {
+  font-family: var(--hf-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--hf-brand-2);
+}
+.au-h1 {
+  margin: 10px 0 8px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+.au-sub {
+  margin: 0 0 28px;
+  font-size: 15px;
+  color: var(--hf-ink-soft);
+  line-height: 1.5;
+}
+
+/* ---- Google button ---- */
+.au-google {
+  width: 100%;
+  height: 50px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  font-family: inherit;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: var(--hf-ink);
+  cursor: pointer;
+  box-shadow: var(--hf-shadow-1);
+  transition:
+    background 120ms,
+    border-color 120ms,
+    box-shadow 120ms,
+    transform 80ms;
+}
+.au-google:hover {
+  background: var(--hf-surface-2);
+  border-color: oklch(82% 0.012 80);
+  box-shadow: var(--hf-shadow-2);
+}
+.au-google:active {
+  transform: translateY(1px);
+}
+.au-google svg {
+  flex-shrink: 0;
+}
+
+/* ---- divider + legal ---- */
+.au-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: var(--hf-ink-faint);
+}
+.au-divider::before,
+.au-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--hf-line);
+}
+.au-divider span {
+  font-size: 11.5px;
+  font-family: var(--hf-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.au-soon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  border: 1px dashed var(--hf-line);
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+  color: var(--hf-ink-soft);
+  font-size: 13.5px;
+}
+.au-soon-icon {
+  color: var(--hf-ink-faint);
+  flex-shrink: 0;
+}
+
+.au-legal {
+  margin-top: 26px;
+  font-size: 12.5px;
+  color: var(--hf-ink-faint);
+  line-height: 1.55;
+}
+.au-legal a {
+  color: var(--hf-ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.au-legal a:hover {
+  color: var(--hf-ink);
+}
+
+.au-switch {
+  margin-top: 26px;
+  padding-top: 22px;
+  border-top: 1px solid var(--hf-line);
+  font-size: 14px;
+  color: var(--hf-ink-soft);
+}
+.au-switch a,
+.au-switch button {
+  color: var(--hf-brand-2);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  font: inherit;
+  padding: 0;
+}
+.au-switch a:hover,
+.au-switch button:hover {
+  text-decoration: underline;
+}
+
+/* ============ redirecting state ============ */
+.au-redirect {
+  width: 100%;
+  max-width: 380px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.au-redirect-badge {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  box-shadow: var(--hf-shadow-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+.au-spinner {
+  position: absolute;
+  inset: -9px;
+  border-radius: 24px;
+  border: 2.5px solid var(--hf-brand-bg);
+  border-top-color: var(--hf-brand);
+  animation: au-spin 0.8s linear infinite;
+}
+@keyframes au-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.au-redirect h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.au-redirect p {
+  margin: 0;
+  font-size: 14.5px;
+  color: var(--hf-ink-soft);
+}
+.au-redirect-cancel {
+  margin-top: 28px;
+  font-size: 13.5px;
+  color: var(--hf-ink-soft);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.au-redirect-cancel:hover {
+  color: var(--hf-ink);
+  text-decoration: underline;
+}
+
+/* ============ floating collage in brand panel ============ */
+.au-collage {
+  position: relative;
+  height: 230px;
+  margin-top: 30px;
+  z-index: 1;
+}
+.au-float {
+  position: absolute;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  box-shadow: var(--hf-shadow-3);
+}
+.au-float-card {
+  width: 200px;
+  top: 0;
+  left: 0;
+  transform: rotate(-2deg);
+}
+.au-float-pill {
+  top: 8px;
+  right: 30px;
+  transform: rotate(3deg);
+  padding: 9px 13px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--hf-shadow-3);
+}
+.au-float-next {
+  width: 240px;
+  right: 0;
+  bottom: 0;
+  transform: rotate(1.5deg);
+  padding: 14px 16px;
+}
+.au-next-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--hf-ink-faint);
+}
+.au-next-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+.au-next-name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+}
+.au-next-sub {
+  font-size: 11.5px;
+  color: var(--hf-ink-soft);
+  font-family: var(--hf-mono);
+}
+.au-next-svc-lbl {
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--hf-ink-faint);
+  margin-bottom: 3px;
+}
+.au-next-svc {
+  font-size: 13.5px;
+  font-weight: 500;
+}
+
+/* ============ responsive ============ */
+@media (max-width: 860px) {
+  .au-split {
+    grid-template-columns: 1fr;
+  }
+  .au-brand {
+    display: none;
+  }
+  .au-card-logo {
+    display: flex;
+  }
+  .au {
+    height: auto;
+    min-height: 100vh;
+    overflow: auto;
+  }
+  .au-form-side {
+    min-height: 100vh;
+  }
+}

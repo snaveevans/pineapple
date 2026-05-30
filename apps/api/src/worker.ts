@@ -96,10 +96,14 @@ app.use(
   }),
 );
 
-// Build a per-request Better Auth instance (baseURL must match the incoming
-// origin for OAuth callbacks/cookies to work) and stash it on the context.
+// Build a per-request Better Auth instance and stash it on the context. The
+// baseURL drives OAuth callbacks/cookies, so it must match the public origin.
+// Prefer an explicit BETTER_AUTH_URL (required in `wrangler dev`, where the
+// request URL is the production route host, not localhost); otherwise derive
+// it from the incoming request (correct in production).
 app.use("/api/*", async (c, next) => {
-  const auth = createAuth(c.env, new URL(c.req.url).origin);
+  const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
+  const auth = createAuth(c.env, baseURL);
   c.set("auth", auth);
   await next();
 });

@@ -1,12 +1,17 @@
-import { Icon } from "./Icon";
-import { HFAssetIcon, HFAssetThumb, HFStatusPill } from "./hf";
+import { Icon } from "../design/Icon";
+import { HFAssetIcon, HFAssetThumb, HFStatusPill } from "../design/hf";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
 // marketing-specific layer (which mirrors the tokens onto .mk so the reused
 // .hf-* pieces resolve outside the app shell).
-import "./styles/hifi.css";
-import "./styles/hifi-assets.css";
+import "../design/styles/hifi.css";
+import "../design/styles/hifi-assets.css";
 import "./styles/marketing.css";
+
+// Auth entry points. "Get started" deep-links to the sign-up screen, "Log in"
+// to the login screen; the auth page reads ?mode= to pick its initial state.
+const SIGNUP_HREF = "/login?mode=signup";
+const LOGIN_HREF = "/login?mode=login";
 
 /* ============ nav ============ */
 function MKNav() {
@@ -25,10 +30,10 @@ function MKNav() {
           </a>
         </nav>
         <div className="mk-nav-cta">
-          <a className="mk-link-quiet" href="#">
+          <a className="mk-link-quiet" href={LOGIN_HREF}>
             Log in
           </a>
-          <a className="mk-btn mk-btn-primary mk-btn-sm" href="#">
+          <a className="mk-btn mk-btn-primary mk-btn-sm" href={SIGNUP_HREF}>
             Get started
           </a>
         </div>
@@ -136,7 +141,7 @@ function MKHero() {
             you spend less time remembering and more time working.
           </p>
           <div className="mk-hero-cta">
-            <a className="mk-btn mk-btn-primary mk-btn-lg" href="#">
+            <a className="mk-btn mk-btn-primary mk-btn-lg" href={SIGNUP_HREF}>
               <Icon name="arrow-right" size={16} stroke={2.2} />
               Get started
             </a>
@@ -227,11 +232,11 @@ function MKCta() {
           <h2>Start keeping everything on schedule.</h2>
           <p>Add your first asset in two minutes. Free to start — no card, no commitment.</p>
           <div className="mk-hero-cta">
-            <a className="mk-btn mk-btn-primary mk-btn-lg" href="#">
+            <a className="mk-btn mk-btn-primary mk-btn-lg" href={SIGNUP_HREF}>
               <Icon name="arrow-right" size={16} stroke={2.2} />
               Get started
             </a>
-            <a className="mk-btn mk-btn-ghost mk-btn-lg" href="#">
+            <a className="mk-btn mk-btn-ghost mk-btn-lg" href={LOGIN_HREF}>
               Log in
             </a>
           </div>
@@ -253,7 +258,7 @@ function MKFooter() {
         </a>
         <nav className="mk-footer-links">
           <a href="#how">How it works</a>
-          <a href="#">Log in</a>
+          <a href={LOGIN_HREF}>Log in</a>
         </nav>
         <div className="mk-footer-copy">© 2026 FieldOps</div>
       </div>
