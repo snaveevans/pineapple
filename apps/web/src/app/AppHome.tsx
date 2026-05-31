@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, type IconName } from "../design/Icon";
 import { HFAssetIcon, HFStatusPill, type AssetCategory, type AssetStatus } from "../design/hf";
 import { HFTopBar, HFBottomNav } from "./AppChrome";
@@ -281,6 +281,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
   const [selId, setSelId] = useState(sorted[0]?.id ?? "");
   const selected = HF_ASSETS.find((a) => a.id === selId) ?? sorted[0];
   const isNextUp = selId === sorted[0]?.id;
+
+  useEffect(() => {
+    document.title = "FieldOps — Home";
+  }, []);
 
   if (!selected) return null;
 

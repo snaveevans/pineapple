@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router";
 import { Icon, type IconName } from "../design/Icon";
 import { HFTopBar } from "./AppChrome";
+import { paths } from "../routes";
 
 // FieldOps — Add Asset. A focused single-page form on the .hf design system:
 // a three-bucket type picker (Vehicle / Property / Other), contextual detail
@@ -15,8 +17,6 @@ import "../design/styles/hifi-add-asset.css";
 
 type AssetType = "vehicle" | "property" | "other";
 type Subtype = "lawn" | "power-tool" | "appliance" | "hvac" | "generator" | "other";
-
-const ASSETS_HREF = "/app/assets";
 
 /* ============ field primitives ============ */
 function HFField({
@@ -344,27 +344,28 @@ function HFAddAssetFields({
 export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetType }) {
   const [type, setType] = useState<AssetType>(initialType);
   const [subtype, setSubtype] = useState<Subtype>("lawn");
+  const navigate = useNavigate();
 
   // Esc cancels back to the asset library — mirrors the breadcrumb's hint.
   useEffect(() => {
     document.title = "FieldOps — Add Asset";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") window.location.href = ASSETS_HREF;
+      if (e.key === "Escape") navigate(paths.assets);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [navigate]);
 
   const cancel = () => {
-    window.location.href = ASSETS_HREF;
+    navigate(paths.assets);
   };
 
   return (
     <div className="hf hf-app hf-aa-page">
-      <HFTopBar activeNav="assets" />
+      <HFTopBar />
 
       <div className="hf-aa-crumb">
-        <a href={ASSETS_HREF}>Assets</a>
+        <Link to={paths.assets}>Assets</Link>
         <span className="hf-aa-crumb-sep">
           <Icon name="chevron-right" size={13} />
         </span>

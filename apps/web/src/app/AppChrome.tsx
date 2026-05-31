@@ -1,10 +1,12 @@
+import { NavLink } from "react-router";
 import { Icon, type IconName } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
+import { paths } from "../routes";
 
 // Shared authenticated-app chrome: the desktop top bar and the mobile bottom
 // tab bar. Ported from the FieldOps prototype (hifi.jsx). Both the Home
 // (master/detail) and Assets pages render this, so nav lives here. Tabs that
-// have a real page carry an href; placeholders (Schedule, History) don't.
+// have a real page carry a route; placeholders (Schedule, History) don't.
 
 export type AppNav = "home" | "assets" | "schedule" | "history";
 
@@ -12,17 +14,18 @@ interface NavItem {
   id: AppNav;
   label: string;
   icon: IconName;
-  href?: string;
+  to?: string;
+  end?: boolean;
 }
 
 const HF_NAV: NavItem[] = [
-  { id: "home", label: "Home", icon: "home-nav", href: "/app" },
-  { id: "assets", label: "Assets", icon: "grid", href: "/app/assets" },
+  { id: "home", label: "Home", icon: "home-nav", to: paths.appHome, end: true },
+  { id: "assets", label: "Assets", icon: "grid", to: paths.assets },
   { id: "schedule", label: "Schedule", icon: "calendar" },
   { id: "history", label: "History", icon: "clock" },
 ];
 
-export function HFTopBar({ activeNav = "home" }: { activeNav?: AppNav }) {
+export function HFTopBar() {
   return (
     <header className="hf-topbar">
       <div className="hf-topbar-left">
@@ -33,17 +36,25 @@ export function HFTopBar({ activeNav = "home" }: { activeNav?: AppNav }) {
           <span className="hf-logo-text">FieldOps</span>
         </div>
         <nav className="hf-nav-top">
-          {HF_NAV.map((n) => (
-            <a
-              key={n.id}
-              href={n.href}
-              className={`hf-nav-tab ${n.id === activeNav ? "active" : ""}`}
-              title={n.label}
-            >
-              <Icon name={n.icon} size={16} />
-              <span className="hf-nav-label">{n.label}</span>
-            </a>
-          ))}
+          {HF_NAV.map((n) =>
+            n.to ? (
+              <NavLink
+                key={n.id}
+                to={n.to}
+                end={n.end ?? false}
+                className={({ isActive }) => `hf-nav-tab ${isActive ? "active" : ""}`}
+                title={n.label}
+              >
+                <Icon name={n.icon} size={16} />
+                <span className="hf-nav-label">{n.label}</span>
+              </NavLink>
+            ) : (
+              <span key={n.id} className="hf-nav-tab" title={n.label} aria-disabled="true">
+                <Icon name={n.icon} size={16} />
+                <span className="hf-nav-label">{n.label}</span>
+              </span>
+            ),
+          )}
         </nav>
       </div>
       <div className="hf-topbar-right">
@@ -60,19 +71,31 @@ export function HFTopBar({ activeNav = "home" }: { activeNav?: AppNav }) {
   );
 }
 
-export function HFBottomNav({ activeNav = "home" }: { activeNav?: AppNav }) {
+export function HFBottomNav() {
   return (
     <nav className="hf-nav-bottom">
-      {HF_NAV.map((n) => (
-        <a
-          key={n.id}
-          href={n.href}
-          className={`hf-nav-bottom-tab ${n.id === activeNav ? "active" : ""}`}
-        >
-          <Icon name={n.icon} size={20} stroke={n.id === activeNav ? 2 : 1.5} />
-          <span>{n.label}</span>
-        </a>
-      ))}
+      {HF_NAV.map((n) =>
+        n.to ? (
+          <NavLink
+            key={n.id}
+            to={n.to}
+            end={n.end ?? false}
+            className={({ isActive }) => `hf-nav-bottom-tab ${isActive ? "active" : ""}`}
+          >
+            {({ isActive }) => (
+              <>
+                <Icon name={n.icon} size={20} stroke={isActive ? 2 : 1.5} />
+                <span>{n.label}</span>
+              </>
+            )}
+          </NavLink>
+        ) : (
+          <span key={n.id} className="hf-nav-bottom-tab" aria-disabled="true">
+            <Icon name={n.icon} size={20} stroke={1.5} />
+            <span>{n.label}</span>
+          </span>
+        ),
+      )}
     </nav>
   );
 }

@@ -1,6 +1,9 @@
+import { useEffect } from "react";
+import { Link } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb, HFStatusPill } from "../design/hf";
+import { paths } from "../routes";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
 // marketing-specific layer (which mirrors the tokens onto .mk so the reused
@@ -11,32 +14,32 @@ import "./styles/marketing.css";
 
 // Auth entry points. "Get started" deep-links to the sign-up screen, "Log in"
 // to the login screen; the auth page reads ?mode= to pick its initial state.
-const SIGNUP_HREF = "/login?mode=signup";
-const LOGIN_HREF = "/login?mode=login";
+const SIGNUP_HREF = paths.login("signup");
+const LOGIN_HREF = paths.login("login");
 
 /* ============ nav ============ */
 function MKNav() {
   return (
     <header className="mk-nav">
       <div className="mk-wrap mk-nav-in">
-        <a className="mk-logo" href="#">
+        <Link className="mk-logo" to={paths.home}>
           <span className="mk-logo-mark">
             <Brandmark size={17} color="white" />
           </span>
           <span className="mk-logo-text">FieldOps</span>
-        </a>
+        </Link>
         <nav className="mk-nav-links">
           <a className="mk-nav-link" href="#how">
             How it works
           </a>
         </nav>
         <div className="mk-nav-cta">
-          <a className="mk-link-quiet" href={LOGIN_HREF}>
+          <Link className="mk-link-quiet" to={LOGIN_HREF}>
             Log in
-          </a>
-          <a className="mk-btn mk-btn-primary mk-btn-sm" href={SIGNUP_HREF}>
+          </Link>
+          <Link className="mk-btn mk-btn-primary mk-btn-sm" to={SIGNUP_HREF}>
             Get started
-          </a>
+          </Link>
         </div>
       </div>
     </header>
@@ -142,10 +145,10 @@ function MKHero() {
             you spend less time remembering and more time working.
           </p>
           <div className="mk-hero-cta">
-            <a className="mk-btn mk-btn-primary mk-btn-lg" href={SIGNUP_HREF}>
+            <Link className="mk-btn mk-btn-primary mk-btn-lg" to={SIGNUP_HREF}>
               <Icon name="arrow-right" size={16} stroke={2.2} />
               Get started
-            </a>
+            </Link>
             <a className="mk-btn mk-btn-ghost mk-btn-lg" href="#how">
               See how it works
             </a>
@@ -233,13 +236,13 @@ function MKCta() {
           <h2>Start keeping everything on schedule.</h2>
           <p>Add your first asset in two minutes. Free to start — no card, no commitment.</p>
           <div className="mk-hero-cta">
-            <a className="mk-btn mk-btn-primary mk-btn-lg" href={SIGNUP_HREF}>
+            <Link className="mk-btn mk-btn-primary mk-btn-lg" to={SIGNUP_HREF}>
               <Icon name="arrow-right" size={16} stroke={2.2} />
               Get started
-            </a>
-            <a className="mk-btn mk-btn-ghost mk-btn-lg" href={LOGIN_HREF}>
+            </Link>
+            <Link className="mk-btn mk-btn-ghost mk-btn-lg" to={LOGIN_HREF}>
               Log in
-            </a>
+            </Link>
           </div>
         </div>
       </div>
@@ -251,15 +254,15 @@ function MKFooter() {
   return (
     <footer className="mk-footer">
       <div className="mk-wrap mk-footer-in">
-        <a className="mk-logo" href="#">
+        <Link className="mk-logo" to={paths.home}>
           <span className="mk-logo-mark">
             <Icon name="wrench" size={16} color="white" stroke={2} />
           </span>
           <span className="mk-logo-text">FieldOps</span>
-        </a>
+        </Link>
         <nav className="mk-footer-links">
           <a href="#how">How it works</a>
-          <a href={LOGIN_HREF}>Log in</a>
+          <Link to={LOGIN_HREF}>Log in</Link>
         </nav>
         <div className="mk-footer-copy">© 2026 FieldOps</div>
       </div>
@@ -268,6 +271,10 @@ function MKFooter() {
 }
 
 export function MarketingHome() {
+  useEffect(() => {
+    document.title = "FieldOps — Keep everything you own on schedule";
+  }, []);
+
   return (
     <div className="mk">
       <MKNav />

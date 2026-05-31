@@ -497,6 +497,7 @@
   border: 1px solid var(--hf-line);
   background: var(--hf-surface);
   color: var(--hf-ink);
+  text-decoration: none;
   transition:
     background 100ms,
     border-color 100ms;
