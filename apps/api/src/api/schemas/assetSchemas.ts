@@ -15,8 +15,12 @@ const VehicleMetadataSchema = z
       .number()
       .int()
       .min(1900, "Year must be 1900 or later")
-      .max(new Date().getFullYear() + 1, "Year is too far in the future")
-      .openapi({ example: 2016 }),
+      // .refine() (not .max()) so the year ceiling is evaluated per-request, not
+      // at module init where Cloudflare Workers freezes Date to the Unix epoch.
+      .refine((val: number) => val <= new Date().getFullYear() + 1, {
+        message: "Year is too far in the future",
+      })
+      .openapi({ maximum: new Date().getFullYear() + 1, example: 2016 }),
     vin: z
       .string()
       .length(17, "VIN must be exactly 17 characters")
