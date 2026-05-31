@@ -3,6 +3,7 @@
   "compilerOptions": {
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
     "types": ["@cloudflare/workers-types", "vitest/globals"],
     "lib": ["ESNext"]
   },

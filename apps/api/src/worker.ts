@@ -30,9 +30,9 @@ import {
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
-  openApiConfig,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
+import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { z } from "@hono/zod-openapi";
 
@@ -103,8 +103,8 @@ function createEventBus(c: Context<AppEnv>): EventBus {
 
 app.openapi(healthRoute, (c) => c.json({ status: "ok" } as const, 200));
 
-// Machine-readable spec + interactive docs.
-app.doc("/openapi.json", openApiConfig);
+// Serve committed spec (app.doc() bakes in epoch date at module init in Workers).
+app.get("/openapi.json", (c) => c.json(openApiSpec));
 app.get("/reference", Scalar({ url: "/openapi.json" }));
 
 // ── Better Auth ───────────────────────────────────────────────────────────
