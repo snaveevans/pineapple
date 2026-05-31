@@ -89,11 +89,13 @@
           "make": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 64,
             "example": "Ram"
           },
           "model": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 64,
             "example": "2500"
           },
           "year": {
@@ -106,6 +108,7 @@
             "type": "string",
             "minLength": 17,
             "maxLength": 17,
+            "pattern": "^[A-HJ-NPR-Z0-9]{17}$",
             "example": "1C6RR7LT4GS123456"
           }
         },
@@ -121,23 +124,28 @@
         "properties": {
           "street": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 160
           },
           "city": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 80
           },
           "state": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 80
           },
           "postalCode": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 20
           },
           "country": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "maxLength": 80
           }
         },
         "required": [
@@ -159,6 +167,7 @@
           },
           "nickname": {
             "type": "string",
+            "maxLength": 80,
             "example": "Lake cabin"
           },
           "address": {
@@ -181,14 +190,17 @@
           },
           "manufacturer": {
             "type": "string",
+            "maxLength": 80,
             "example": "Honda"
           },
           "modelNumber": {
             "type": "string",
+            "maxLength": 80,
             "example": "EU2200i"
           },
           "serialNumber": {
             "type": "string",
+            "maxLength": 80,
             "example": "EAMT-1234567"
           }
         },
@@ -223,6 +235,7 @@
           "name": {
             "type": "string",
             "minLength": 1,
+            "maxLength": 120,
             "example": "My Truck"
           },
           "metadata": {
@@ -329,6 +342,7 @@
           "Assets"
         ],
         "summary": "Create an asset",
+        "description": "Creates an asset owned by the caller. The JSON request body must not exceed 16 KiB.",
         "security": [
           {
             "cookieAuth": []
@@ -365,8 +379,46 @@
               }
             }
           },
+          "409": {
+            "description": "Active asset quota reached",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 16 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Write rate limit exceeded",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the caller should retry",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -401,6 +453,24 @@
           },
           "401": {
             "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Read rate limit exceeded",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the caller should retry",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -455,8 +525,8 @@
               }
             }
           },
-          "403": {
-            "description": "The asset belongs to another user",
+          "404": {
+            "description": "No such asset",
             "content": {
               "application/json": {
                 "schema": {
@@ -465,8 +535,16 @@
               }
             }
           },
-          "404": {
-            "description": "No such asset",
+          "429": {
+            "description": "Read rate limit exceeded",
+            "headers": {
+              "Retry-After": {
+                "description": "Seconds until the caller should retry",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {

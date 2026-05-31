@@ -1,5 +1,6 @@
 import {
   type AssetId,
+  ConflictError,
   type DomainError,
   DomainError as DomainErrorClass,
   ok,
@@ -11,6 +12,8 @@ import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetMetadata } from "../../domain/asset/AssetMetadata.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
+
+export const MAX_ACTIVE_ASSETS_PER_USER = 500;
 
 export type CreateAssetCommand = {
   ownerId: UserId;
@@ -26,6 +29,10 @@ export class CreateAsset {
 
   async execute(cmd: CreateAssetCommand): Promise<Result<AssetId, DomainError>> {
     try {
+      const activeAssetCount = await this.assets.countActiveByOwner(cmd.ownerId);
+      if (activeAssetCount >= MAX_ACTIVE_ASSETS_PER_USER) {
+        return err(new ConflictError("Active asset limit reached"));
+      }
       const asset = Asset.create({
         ownerId: cmd.ownerId,
         name: cmd.name,

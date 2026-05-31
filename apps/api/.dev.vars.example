@@ -22,4 +22,6 @@ GOOGLE_CLIENT_SECRET=""
 DEV_WEB_ORIGIN="http://localhost:5173"
 
 # Optional: bypass auth locally by hardcoding a session email (skips Google).
+# Both values are required and only work with the loopback BETTER_AUTH_URL above.
+# DEV_AUTH_BYPASS_ENABLED="true"
 # DEV_AUTH_EMAIL="you@example.com"

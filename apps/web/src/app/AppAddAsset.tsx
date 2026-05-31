@@ -1,7 +1,21 @@
-import { useEffect, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+  type HTMLInputTypeAttribute,
+  type ReactNode,
+} from "react";
 import { Link, useNavigate } from "react-router";
+import { createAsset } from "../api/client";
 import { Icon, type IconName } from "../design/Icon";
 import { HFTopBar } from "./AppChrome";
+import {
+  ADD_ASSET_FIELD_LIMITS,
+  buildCreateAssetPayload,
+  EMPTY_ADD_ASSET_FORM,
+  type AddAssetFormValues,
+  type AssetType,
+} from "./addAssetPayload";
 import { paths } from "../routes";
 
 // FieldOps — Add Asset. A focused single-page form on the .hf design system:
@@ -15,7 +29,6 @@ import "../design/styles/hifi.css";
 import "../design/styles/hifi-assets.css";
 import "../design/styles/hifi-add-asset.css";
 
-type AssetType = "vehicle" | "property" | "other";
 type Subtype = "lawn" | "power-tool" | "appliance" | "hvac" | "generator" | "other";
 
 /* ============ field primitives ============ */
@@ -52,7 +65,14 @@ function HFTextField({
   hint,
   placeholder,
   mono,
-  defaultValue,
+  value,
+  onChange,
+  maxLength,
+  inputMode,
+  pattern,
+  type,
+  min,
+  max,
 }: {
   label: string;
   required?: boolean | undefined;
@@ -60,14 +80,29 @@ function HFTextField({
   hint?: string | undefined;
   placeholder?: string | undefined;
   mono?: boolean | undefined;
-  defaultValue?: string | undefined;
+  value: string;
+  onChange: (value: string) => void;
+  maxLength?: number | undefined;
+  inputMode?: "numeric" | "text" | undefined;
+  pattern?: string | undefined;
+  type?: HTMLInputTypeAttribute | undefined;
+  min?: number | undefined;
+  max?: number | undefined;
 }) {
   return (
     <HFField label={label} required={required} optional={optional} hint={hint}>
       <input
         className={`hf-input ${mono ? "hf-mono-input" : ""}`}
         placeholder={placeholder}
-        defaultValue={defaultValue}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+        maxLength={maxLength}
+        inputMode={inputMode}
+        pattern={pattern}
+        type={type}
+        min={min}
+        max={max}
       />
     </HFField>
   );
@@ -79,18 +114,25 @@ function HFSelectField({
   optional,
   hint,
   options,
-  defaultValue,
+  value,
+  onChange,
 }: {
   label: string;
   required?: boolean | undefined;
   optional?: boolean | undefined;
   hint?: string | undefined;
   options: string[];
-  defaultValue?: string | undefined;
+  value: string;
+  onChange: (value: string) => void;
 }) {
   return (
     <HFField label={label} required={required} optional={optional} hint={hint}>
-      <select className="hf-select" defaultValue={defaultValue}>
+      <select
+        className="hf-select"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+      >
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -108,13 +150,7 @@ const HF_TYPES: { id: AssetType; icon: IconName; name: string; desc: string }[] 
   { id: "other", icon: "wrench", name: "Other", desc: "Tools, HVAC, generators, appliances" },
 ];
 
-function HFTypePicker({
-  value,
-  onChange,
-}: {
-  value: AssetType;
-  onChange: (v: AssetType) => void;
-}) {
+function HFTypePicker({ value, onChange }: { value: AssetType; onChange: (v: AssetType) => void }) {
   return (
     <div className="hf-aa-types" role="radiogroup" aria-label="Asset type">
       {HF_TYPES.map((t) => (
@@ -150,13 +186,7 @@ const HF_SUBTYPES: { id: Subtype; glyph: IconName; label: string }[] = [
   { id: "other", glyph: "dot", label: "Something else" },
 ];
 
-function HFSubtypeChips({
-  value,
-  onChange,
-}: {
-  value: Subtype;
-  onChange: (v: Subtype) => void;
-}) {
+function HFSubtypeChips({ value, onChange }: { value: Subtype; onChange: (v: Subtype) => void }) {
   return (
     <div className="hf-aa-chips">
       {HF_SUBTYPES.map((s) => (
@@ -179,18 +209,23 @@ function HFSubtypeChips({
 /* ============ photo dropzone ============ */
 function HFDropzone() {
   return (
-    <div className="hf-dropzone">
+    <button className="hf-dropzone" type="button" disabled title="Photo uploads are coming soon">
       <div className="hf-dropzone-icon">
         <Icon name="camera" size={18} color="var(--hf-ink-soft)" />
       </div>
       <div className="hf-dropzone-label">Add photo</div>
-      <div className="hf-dropzone-sub">drag or click</div>
-    </div>
+      <div className="hf-dropzone-sub">coming soon</div>
+    </button>
   );
 }
 
 /* ============ contextual detail sections ============ */
-function HFVehicleFields() {
+type SetField = <K extends keyof AddAssetFormValues>(
+  field: K,
+  value: AddAssetFormValues[K],
+) => void;
+
+function HFVehicleFields({ values, setField }: { values: AddAssetFormValues; setField: SetField }) {
   return (
     <div className="hf-aa-section">
       <div className="hf-aa-section-head">
@@ -198,9 +233,34 @@ function HFVehicleFields() {
         <span className="hf-aa-section-hint">helps with service reminders</span>
       </div>
       <div className="hf-field-row">
-        <HFTextField label="Make" required placeholder="Ford" />
-        <HFTextField label="Model" required placeholder="F-150" />
-        <HFTextField label="Year" required placeholder="2022" mono />
+        <HFTextField
+          label="Make"
+          required
+          placeholder="Ford"
+          value={values.vehicleMake}
+          onChange={(value) => setField("vehicleMake", value)}
+          maxLength={ADD_ASSET_FIELD_LIMITS.vehicleMake}
+        />
+        <HFTextField
+          label="Model"
+          required
+          placeholder="F-150"
+          value={values.vehicleModel}
+          onChange={(value) => setField("vehicleModel", value)}
+          maxLength={ADD_ASSET_FIELD_LIMITS.vehicleModel}
+        />
+        <HFTextField
+          label="Year"
+          required
+          placeholder="2022"
+          mono
+          type="number"
+          inputMode="numeric"
+          min={1900}
+          max={new Date().getFullYear() + 1}
+          value={values.vehicleYear}
+          onChange={(value) => setField("vehicleYear", value)}
+        />
       </div>
       <HFTextField
         label="VIN"
@@ -208,12 +268,22 @@ function HFVehicleFields() {
         hint="enables warranty lookups"
         placeholder="1FTFW1E50NFA12345"
         mono
+        value={values.vin}
+        onChange={(value) => setField("vin", value.toUpperCase())}
+        maxLength={ADD_ASSET_FIELD_LIMITS.vin}
+        pattern="[A-HJ-NPR-Z0-9]{17}"
       />
     </div>
   );
 }
 
-function HFPropertyFields() {
+function HFPropertyFields({
+  values,
+  setField,
+}: {
+  values: AddAssetFormValues;
+  setField: SetField;
+}) {
   return (
     <div className="hf-aa-section">
       <div className="hf-aa-section-head">
@@ -225,12 +295,43 @@ function HFPropertyFields() {
         optional
         hint="handy when you own multiples"
         placeholder="Main house, Cabin…"
+        value={values.propertyNickname}
+        onChange={(value) => setField("propertyNickname", value)}
+        maxLength={ADD_ASSET_FIELD_LIMITS.propertyNickname}
       />
-      <HFTextField label="Street" required placeholder="12 Oak St, Apt 4" />
+      <HFTextField
+        label="Street"
+        required
+        placeholder="12 Oak St, Apt 4"
+        value={values.propertyStreet}
+        onChange={(value) => setField("propertyStreet", value)}
+        maxLength={ADD_ASSET_FIELD_LIMITS.propertyStreet}
+      />
       <div className="hf-field-row">
-        <HFTextField label="City" required placeholder="Portland" />
-        <HFSelectField label="State" required options={["OR", "WA", "CA", "ID", "NV", "AZ"]} />
-        <HFTextField label="Postal" required placeholder="97204" mono />
+        <HFTextField
+          label="City"
+          required
+          placeholder="Portland"
+          value={values.propertyCity}
+          onChange={(value) => setField("propertyCity", value)}
+          maxLength={ADD_ASSET_FIELD_LIMITS.propertyCity}
+        />
+        <HFSelectField
+          label="State"
+          required
+          options={["OR", "WA", "CA", "ID", "NV", "AZ"]}
+          value={values.propertyState}
+          onChange={(value) => setField("propertyState", value)}
+        />
+        <HFTextField
+          label="Postal"
+          required
+          placeholder="97204"
+          mono
+          value={values.propertyPostalCode}
+          onChange={(value) => setField("propertyPostalCode", value)}
+          maxLength={ADD_ASSET_FIELD_LIMITS.propertyPostalCode}
+        />
       </div>
     </div>
   );
@@ -239,9 +340,13 @@ function HFPropertyFields() {
 function HFOtherFields({
   subtype,
   onSubtype,
+  values,
+  setField,
 }: {
   subtype: Subtype;
   onSubtype: (v: Subtype) => void;
+  values: AddAssetFormValues;
+  setField: SetField;
 }) {
   return (
     <div className="hf-aa-section">
@@ -264,15 +369,29 @@ function HFOtherFields({
                   ? "Generac"
                   : "Brand"
           }
+          value={values.equipmentManufacturer}
+          onChange={(value) => setField("equipmentManufacturer", value)}
+          maxLength={ADD_ASSET_FIELD_LIMITS.equipmentManufacturer}
         />
-        <HFTextField label="Model number" placeholder="MX5060" mono />
+        <HFTextField
+          label="Model number"
+          placeholder="MX5060"
+          mono
+          value={values.equipmentModelNumber}
+          onChange={(value) => setField("equipmentModelNumber", value)}
+          maxLength={ADD_ASSET_FIELD_LIMITS.equipmentModelNumber}
+        />
       </div>
-      <HFTextField label="Serial number" optional hint="useful for warranty" placeholder="SN-298471-A" mono />
-      {subtype === "lawn" && (
-        <div className="hf-field-row">
-          <HFTextField label="Engine hours" optional hint="schedules oil changes" placeholder="124" mono />
-        </div>
-      )}
+      <HFTextField
+        label="Serial number"
+        optional
+        hint="useful for warranty"
+        placeholder="SN-298471-A"
+        mono
+        value={values.equipmentSerialNumber}
+        onChange={(value) => setField("equipmentSerialNumber", value)}
+        maxLength={ADD_ASSET_FIELD_LIMITS.equipmentSerialNumber}
+      />
     </div>
   );
 }
@@ -301,12 +420,16 @@ function HFAddAssetFields({
   setType,
   subtype,
   setSubtype,
+  values,
+  setField,
   showHeaderHint,
 }: {
   type: AssetType;
   setType: (v: AssetType) => void;
   subtype: Subtype;
   setSubtype: (v: Subtype) => void;
+  values: AddAssetFormValues;
+  setField: SetField;
   showHeaderHint?: boolean | undefined;
 }) {
   return (
@@ -328,14 +451,24 @@ function HFAddAssetFields({
         required
         hint="how you'll recognize it"
         placeholder={namePlaceholder(type, subtype)}
+        value={values.name}
+        onChange={(value) => setField("name", value)}
+        maxLength={ADD_ASSET_FIELD_LIMITS.name}
       />
 
       <div className="hf-aa-rule" />
 
       {/* CONTEXTUAL FIELDS */}
-      {type === "vehicle" && <HFVehicleFields />}
-      {type === "property" && <HFPropertyFields />}
-      {type === "other" && <HFOtherFields subtype={subtype} onSubtype={setSubtype} />}
+      {type === "vehicle" && <HFVehicleFields values={values} setField={setField} />}
+      {type === "property" && <HFPropertyFields values={values} setField={setField} />}
+      {type === "other" && (
+        <HFOtherFields
+          subtype={subtype}
+          onSubtype={setSubtype}
+          values={values}
+          setField={setField}
+        />
+      )}
     </>
   );
 }
@@ -344,6 +477,9 @@ function HFAddAssetFields({
 export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetType }) {
   const [type, setType] = useState<AssetType>(initialType);
   const [subtype, setSubtype] = useState<Subtype>("lawn");
+  const [values, setValues] = useState<AddAssetFormValues>(EMPTY_ADD_ASSET_FORM);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Esc cancels back to the asset library — mirrors the breadcrumb's hint.
@@ -358,6 +494,23 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
 
   const cancel = () => {
     navigate(paths.assets);
+  };
+
+  const setField: SetField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }));
+  };
+
+  const save = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSaving(true);
+    setSaveError(null);
+    try {
+      await createAsset(buildCreateAssetPayload(type, values));
+      navigate(paths.assets);
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : "Unable to save asset");
+      setSaving(false);
+    }
   };
 
   return (
@@ -375,7 +528,7 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
         </span>
       </div>
 
-      <div className="hf-aa-body">
+      <form id="add-asset-form" className="hf-aa-body" onSubmit={save}>
         <div className="hf-aa-col">
           <div className="hf-aa-head">
             <h1>Add an asset</h1>
@@ -390,8 +543,16 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
             setType={setType}
             subtype={subtype}
             setSubtype={setSubtype}
+            values={values}
+            setField={setField}
             showHeaderHint
           />
+
+          {saveError && (
+            <div className="hf-aa-error" role="alert">
+              {saveError}
+            </div>
+          )}
 
           <div className="hf-aa-rule" />
 
@@ -402,8 +563,7 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
                 Photo <span className="hf-field-opt">optional</span>
               </label>
               <div className="hf-photo-sub">
-                Helps you spot it in the grid. If you skip it, we'll use a category icon — you can
-                add or change this anytime.
+                Photo uploads are not available yet. Saved assets use a category icon.
               </div>
             </div>
             <HFDropzone />
@@ -424,7 +584,7 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
             <Icon name="arrow-right" size={18} color="var(--hf-brand-2)" />
           </div>
         </div>
-      </div>
+      </form>
 
       {/* STICKY SAVE BAR */}
       <div className="hf-aa-footer">
@@ -432,12 +592,17 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
           Fields marked <span className="hf-field-req">*</span> are required
         </div>
         <div className="hf-aa-footer-actions">
-          <button className="hf-btn hf-btn-secondary hf-btn-lg" onClick={cancel}>
+          <button className="hf-btn hf-btn-secondary hf-btn-lg" type="button" onClick={cancel}>
             Cancel
           </button>
-          <button className="hf-btn hf-btn-primary hf-btn-lg">
+          <button
+            className="hf-btn hf-btn-primary hf-btn-lg"
+            type="submit"
+            form="add-asset-form"
+            disabled={saving}
+          >
             <Icon name="check" size={15} stroke={2.2} />
-            Save asset
+            {saving ? "Saving..." : "Save asset"}
           </button>
         </div>
       </div>

@@ -38,8 +38,9 @@ pnpm type-check
 pnpm -r test
 ```
 
-Local secrets live in `apps/api/.dev.vars` (gitignored). Set `DEV_AUTH_EMAIL`
-there to bypass the login flow during development. See
+Local secrets live in `apps/api/.dev.vars` (gitignored). Set
+`DEV_AUTH_BYPASS_ENABLED=true` and `DEV_AUTH_EMAIL` there to bypass the login
+flow during local development. See
 [`docs/guides/getting-started.md`](docs/guides/getting-started.md) for the full
 setup, including Google OAuth.
 

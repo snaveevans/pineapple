@@ -33,6 +33,12 @@ describe("Asset", () => {
     );
   });
 
+  it("rejects overlong names", () => {
+    expect(() => Asset.create({ ownerId, name: "a".repeat(121), metadata: validVehicle })).toThrow(
+      ValidationError,
+    );
+  });
+
   it("rejects invalid vehicle year", () => {
     expect(() =>
       Asset.create({ ownerId, name: "Old Truck", metadata: { ...validVehicle, year: 1800 } }),
@@ -45,6 +51,16 @@ describe("Asset", () => {
         ownerId,
         name: "Truck",
         metadata: { ...validVehicle, vin: "TOOSHORT" },
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it("rejects VIN characters that are not VIN-safe", () => {
+    expect(() =>
+      Asset.create({
+        ownerId,
+        name: "Truck",
+        metadata: { ...validVehicle, vin: "1C6RR7LT4GS12345I" },
       }),
     ).toThrow(ValidationError);
   });

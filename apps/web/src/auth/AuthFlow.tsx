@@ -3,6 +3,8 @@ import { Link, useSearchParams } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
+import { getSession, signOut, startGoogleSignIn, type SessionUser } from "../api/client";
+import { loginPath, safeAppPath } from "./redirects";
 import { paths } from "../routes";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
@@ -14,32 +16,6 @@ import "./styles/auth.css";
 
 type Mode = "login" | "signup";
 type Phase = "form" | "redirect";
-
-// Where the Better Auth endpoints live. In dev the API runs on its own port
-// (set VITE_API_URL=http://localhost:8787); in production web + API share a
-// hostname so the default empty base = same-origin /api/auth/*.
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
-
-type SessionUser = { email: string; name?: string | null } | null;
-
-/** Kick off Better Auth's Google OAuth. Resolves the consent URL then navigates. */
-async function startGoogleSignIn() {
-  const res = await fetch(`${API_BASE}/api/auth/sign-in/social`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({
-      provider: "google",
-      // Return to /login so the page can confirm the session was established.
-      callbackURL: `${window.location.origin}/login`,
-      errorCallbackURL: `${window.location.origin}/login?error=google`,
-    }),
-  });
-  if (!res.ok) throw new Error(`sign-in/social failed: ${res.status}`);
-  const data = (await res.json()) as { url?: string };
-  if (!data.url) throw new Error("sign-in/social returned no redirect url");
-  window.location.href = data.url;
-}
 
 /** official Google "G" mark for the sign-in button */
 function GoogleG({ size = 18 }: { size?: number }) {
@@ -228,9 +204,11 @@ function AuthRedirect({ mode, onCancel }: { mode: Mode; onCancel: () => void }) 
 /* ============ signed-in confirmation (post-OAuth return) ============ */
 function AuthSignedIn({
   user,
+  next,
   onSignOut,
 }: {
   user: { email: string; name?: string | null };
+  next: string;
   onSignOut: () => void;
 }) {
   return (
@@ -244,7 +222,7 @@ function AuthSignedIn({
         {user.name ? ` (${user.email})` : ""}.
       </p>
       <div className="au-hero-cta" style={{ display: "flex", gap: 12, marginTop: 24 }}>
-        <Link className="au-google" style={{ width: "auto", padding: "0 20px" }} to={paths.appHome}>
+        <Link className="au-google" style={{ width: "auto", padding: "0 20px" }} to={next}>
           Go to FieldOps
         </Link>
       </div>
@@ -261,10 +239,11 @@ export function AuthFlow() {
   // initial mode comes from ?mode= so marketing CTAs can deep-link the right screen
   const [searchParams] = useSearchParams();
   const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const next = safeAppPath(searchParams.get("next"));
   const [mode, setMode] = useState<Mode>(initialMode);
   const [phase, setPhase] = useState<Phase>("form");
   // undefined = still checking; null = logged out; object = logged in
-  const [session, setSession] = useState<SessionUser | undefined>(undefined);
+  const [session, setSession] = useState<SessionUser | null | undefined>(undefined);
 
   useEffect(() => {
     document.title = "FieldOps — Sign in";
@@ -273,10 +252,9 @@ export function AuthFlow() {
   // On load (and after returning from Google) check whether a session exists.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/auth/get-session`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { user?: SessionUser } | null) => {
-        if (!cancelled) setSession(data?.user ?? null);
+    getSession()
+      .then((user) => {
+        if (!cancelled) setSession(user);
       })
       .catch(() => {
         if (!cancelled) setSession(null);
@@ -288,26 +266,24 @@ export function AuthFlow() {
 
   const onGoogle = () => {
     setPhase("redirect");
-    startGoogleSignIn().catch((err) => {
+    const callbackURL = `${window.location.origin}${loginPath({ next })}`;
+    const errorCallbackURL = `${window.location.origin}${loginPath({ next, error: "google" })}`;
+    startGoogleSignIn(callbackURL, errorCallbackURL).catch((err: unknown) => {
       console.error(err);
       setPhase("form");
     });
   };
 
   const onSignOut = () => {
-    // Better Auth's /sign-out requires a JSON content-type AND a (non-empty)
-    // JSON body — without the header it 415s, with the header but an empty body
-    // it 500s on JSON.parse. Send "{}". The response clears the session cookies.
-    fetch(`${API_BASE}/api/auth/sign-out`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-      credentials: "include",
-    }).finally(() => {
-      // Logged out → full-page reload to the marketing home so any in-memory
-      // session state is wiped, not just unmounted.
-      window.location.href = paths.home;
-    });
+    void signOut()
+      .catch((error: unknown) => {
+        console.error(error);
+      })
+      .finally(() => {
+        // Logged out → full-page reload to the marketing home so any in-memory
+        // session state is wiped, not just unmounted.
+        window.location.href = paths.home;
+      });
   };
 
   return (
@@ -316,7 +292,7 @@ export function AuthFlow() {
         <AuthBrand />
         <div className="au-form-side">
           {session ? (
-            <AuthSignedIn user={session} onSignOut={onSignOut} />
+            <AuthSignedIn user={session} next={next} onSignOut={onSignOut} />
           ) : phase === "redirect" ? (
             <AuthRedirect mode={mode} onCancel={() => setPhase("form")} />
           ) : (

@@ -6,6 +6,7 @@ import {
   ValidationError,
   ConflictError,
   UnauthorizedError,
+  InvariantError,
 } from "@snaveevans/pineapple-shared";
 
 /**
@@ -25,6 +26,11 @@ export function toHttpError(c: Context, error: DomainError): Response {
             : error instanceof ConflictError
               ? 409
               : 500;
+
+  if (status === 500 || error instanceof InvariantError) {
+    console.error(error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
 
   const body: Record<string, unknown> = { error: error.message };
   if (error instanceof ValidationError && error.field) {

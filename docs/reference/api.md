@@ -34,9 +34,10 @@ Auth is **Better Auth + Google OAuth**, handled inside the Worker under
 The API maps the session to a domain user by email, creating the user on first
 sign-in. There is no separate "register" step.
 
-> **Local development:** set `DEV_AUTH_EMAIL` in `apps/api/.dev.vars` to bypass
-> the session check entirely — every request is treated as that user. Never set
-> it in production. See [getting-started](../guides/getting-started.md).
+> **Local development:** set `DEV_AUTH_BYPASS_ENABLED=true` and `DEV_AUTH_EMAIL`
+> in `apps/api/.dev.vars` to bypass the session check entirely. The bypass only
+> works with a loopback `BETTER_AUTH_URL`. Never set it in production. See
+> [getting-started](../guides/getting-started.md).
 
 ## Endpoints
 
@@ -80,14 +81,15 @@ All errors share one JSON shape:
 
 `field` is present only for validation errors. Status codes:
 
-| Status | Meaning                                     |
-| ------ | ------------------------------------------- |
-| 401    | Not authenticated (no/expired session)      |
-| 403    | Authenticated, but the resource isn't yours |
-| 404    | Resource not found                          |
-| 409    | Conflict (e.g. uniqueness violation)        |
-| 422    | Request body/params failed validation       |
-| 500    | Unexpected server error                     |
+| Status | Meaning                                 |
+| ------ | --------------------------------------- |
+| 401    | Not authenticated (no/expired session)  |
+| 404    | Resource not found                      |
+| 409    | Conflict (e.g. uniqueness violation)    |
+| 413    | Request body exceeds the endpoint limit |
+| 429    | Request rate limit exceeded             |
+| 422    | Request body/params failed validation   |
+| 500    | Unexpected server error                 |
 
 These map directly to the domain error types (see
 [ADR-0004](../decisions/0004-error-handling-strategy.md)). Structural validation
@@ -100,4 +102,6 @@ in the domain (see [ADR-0007](../decisions/0007-api-validation-boundary.md)).
 - IDs are UUID strings.
 - Timestamps are ISO-8601 UTC strings (e.g. `2026-05-29T03:25:24.887Z`).
 - `GET /api/assets` returns only **active** assets (archived ones are excluded).
-- You can only read assets you own; requesting another user's asset returns 403.
+- You can only read assets you own; missing and non-owned asset IDs both return
+  `404`.
+- `POST /api/assets` accepts JSON request bodies up to `16 KiB`.

@@ -19,7 +19,7 @@ It serves these pages from the Claude Design handoff:
   category filter chips, and a grid/list view toggle.
 - **Add Asset** (`/app/assets/new`) — [`src/app/AppAddAsset.tsx`](src/app/AppAddAsset.tsx) —
   the add-asset form: a three-bucket type picker (Vehicle / Property / Other)
-  with contextual detail fields, an optional photo dropzone, a deferred
+  with contextual detail fields, a disabled future photo control, a deferred
   "set up a schedule" note, and a sticky save bar. The "Add asset" buttons and
   the ghost add-card on the Assets page link here; `esc` cancels back.
 
@@ -64,6 +64,10 @@ pnpm --filter @snaveevans/pineapple-web build       # production build → dist/
 pnpm --filter @snaveevans/pineapple-web preview      # preview the built worker locally
 pnpm --filter @snaveevans/pineapple-web deploy       # build + wrangler deploy
 ```
+
+Copy `.env.example` to `.env.development.local` for local API calls. Production
+builds reject `VITE_API_URL` because the deployed web app uses same-origin API
+requests.
 
 > Unlike `apps/api`, this app **has a build step** (Vite). It uses Web/DOM
 > standard APIs in the Worker entry, so no `@cloudflare/workers-types` global

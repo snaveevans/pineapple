@@ -1,6 +1,18 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { withCloudflare } from "better-auth-cloudflare";
 
+function isLoopbackOrigin(value: string): boolean {
+  try {
+    const { hostname, origin } = new URL(value);
+    return (
+      origin === value &&
+      (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]")
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Environment needed to construct a runtime Better Auth instance.
  * Values come from wrangler bindings (`c.env`) — never `process.env`,
@@ -67,10 +79,11 @@ export function createAuth(env?: AuthEnv, baseURL?: string) {
 
   // Dev-only: trust the web app's separate dev origin (e.g. localhost:5173).
   // Better Auth always trusts baseURL; this adds the cross-port frontend.
-  const devOrigins =
-    env?.DEV_WEB_ORIGIN?.split(",")
-      .map((o) => o.trim())
-      .filter(Boolean) ?? [];
+  const devOrigins = isLoopbackOrigin(baseURL ?? "")
+    ? (env?.DEV_WEB_ORIGIN?.split(",")
+        .map((o) => o.trim())
+        .filter((origin) => isLoopbackOrigin(origin)) ?? [])
+    : [];
 
   const options: BetterAuthOptions = {
     ...(baseURL ? { baseURL } : {}),

@@ -37,6 +37,14 @@ export class D1AssetRepository implements AssetRepository {
     return result.results.map((row) => this.#rowToAsset(row));
   }
 
+  async countActiveByOwner(ownerId: UserId): Promise<number> {
+    const row = await this.db
+      .prepare("SELECT COUNT(*) AS count FROM assets WHERE owner_id = ? AND archived_at IS NULL")
+      .bind(ownerId)
+      .first<{ count: number }>();
+    return row?.count ?? 0;
+  }
+
   async save(asset: Asset): Promise<void> {
     await this.db
       .prepare(

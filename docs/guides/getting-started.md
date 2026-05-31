@@ -36,15 +36,31 @@ BETTER_AUTH_SECRET=dev-only-change-me
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
+# Local Better Auth URL and cross-port web origin.
+BETTER_AUTH_URL=http://localhost:8787
+DEV_WEB_ORIGIN=http://localhost:5173
+
 # Dev bypass: treat every request as this user, skipping the login flow.
-# Remove it to exercise the real Google session flow. NEVER set in production.
+# Both values are required. Remove them to exercise the real Google session
+# flow. They only work with a loopback BETTER_AUTH_URL. NEVER set in production.
+DEV_AUTH_BYPASS_ENABLED=true
 DEV_AUTH_EMAIL=you@example.com
 ```
+
+For the web app, copy the development-only API URL:
+
+```bash
+cp apps/web/.env.example apps/web/.env.development.local
+```
+
+Production web builds reject `VITE_API_URL`; deployed web and API requests are
+same-origin.
 
 ## 4. Run
 
 ```bash
 pnpm dev        # from repo root → http://localhost:8787
+pnpm --filter @snaveevans/pineapple-web dev  # web → http://localhost:5173
 ```
 
 Try it:
@@ -52,7 +68,7 @@ Try it:
 ```bash
 curl http://localhost:8787/health                 # {"status":"ok"}
 open http://localhost:8787/reference              # interactive API docs
-curl http://localhost:8787/api/assets             # works via DEV_AUTH_EMAIL bypass
+curl http://localhost:8787/api/assets             # works via the local bypass
 ```
 
 ## 5. Google OAuth (for the real login flow)

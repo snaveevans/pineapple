@@ -2,6 +2,7 @@
 // metadata. This is the single source of truth for both runtime validation
 // AND the generated OpenAPI spec — change a rule here and the docs follow.
 import { z } from "@hono/zod-openapi";
+import { ASSET_FIELD_LIMITS, VIN_PATTERN } from "../../domain/asset/AssetConstraints.ts";
 import { ASSET_TYPES } from "../../domain/asset/AssetType.ts";
 
 // ── Asset metadata (discriminated by `kind`) ─────────────────────────────────
@@ -9,8 +10,18 @@ import { ASSET_TYPES } from "../../domain/asset/AssetType.ts";
 const VehicleMetadataSchema = z
   .object({
     kind: z.literal("vehicle"),
-    make: z.string().min(1, "Make is required").openapi({ example: "Ram" }),
-    model: z.string().min(1, "Model is required").openapi({ example: "2500" }),
+    make: z
+      .string()
+      .trim()
+      .min(1, "Make is required")
+      .max(ASSET_FIELD_LIMITS.vehicleMake)
+      .openapi({ example: "Ram" }),
+    model: z
+      .string()
+      .trim()
+      .min(1, "Model is required")
+      .max(ASSET_FIELD_LIMITS.vehicleModel)
+      .openapi({ example: "2500" }),
     year: z
       .number()
       .int()
@@ -20,6 +31,7 @@ const VehicleMetadataSchema = z
     vin: z
       .string()
       .length(17, "VIN must be exactly 17 characters")
+      .regex(VIN_PATTERN, "VIN must use VIN-safe characters")
       .optional()
       .openapi({ example: "1C6RR7LT4GS123456" }),
   })
@@ -28,14 +40,31 @@ const VehicleMetadataSchema = z
 const PropertyMetadataSchema = z
   .object({
     kind: z.literal("property"),
-    nickname: z.string().optional().openapi({ example: "Lake cabin" }),
+    nickname: z
+      .string()
+      .trim()
+      .max(ASSET_FIELD_LIMITS.propertyNickname)
+      .optional()
+      .openapi({ example: "Lake cabin" }),
     address: z
       .object({
-        street: z.string().min(1, "Street is required"),
-        city: z.string().min(1, "City is required"),
-        state: z.string().min(1, "State is required"),
-        postalCode: z.string().min(1, "Postal code is required"),
-        country: z.string().min(1, "Country is required"),
+        street: z
+          .string()
+          .trim()
+          .min(1, "Street is required")
+          .max(ASSET_FIELD_LIMITS.propertyStreet),
+        city: z.string().trim().min(1, "City is required").max(ASSET_FIELD_LIMITS.propertyCity),
+        state: z.string().trim().min(1, "State is required").max(ASSET_FIELD_LIMITS.propertyState),
+        postalCode: z
+          .string()
+          .trim()
+          .min(1, "Postal code is required")
+          .max(ASSET_FIELD_LIMITS.propertyPostalCode),
+        country: z
+          .string()
+          .trim()
+          .min(1, "Country is required")
+          .max(ASSET_FIELD_LIMITS.propertyCountry),
       })
       .openapi("Address"),
   })
@@ -44,9 +73,24 @@ const PropertyMetadataSchema = z
 const EquipmentMetadataSchema = z
   .object({
     kind: z.literal("equipment"),
-    manufacturer: z.string().optional().openapi({ example: "Honda" }),
-    modelNumber: z.string().optional().openapi({ example: "EU2200i" }),
-    serialNumber: z.string().optional().openapi({ example: "EAMT-1234567" }),
+    manufacturer: z
+      .string()
+      .trim()
+      .max(ASSET_FIELD_LIMITS.equipmentManufacturer)
+      .optional()
+      .openapi({ example: "Honda" }),
+    modelNumber: z
+      .string()
+      .trim()
+      .max(ASSET_FIELD_LIMITS.equipmentModelNumber)
+      .optional()
+      .openapi({ example: "EU2200i" }),
+    serialNumber: z
+      .string()
+      .trim()
+      .max(ASSET_FIELD_LIMITS.equipmentSerialNumber)
+      .optional()
+      .openapi({ example: "EAMT-1234567" }),
   })
   .openapi("EquipmentMetadata");
 
@@ -62,7 +106,12 @@ export const AssetMetadataSchema = z
 
 export const CreateAssetBodySchema = z
   .object({
-    name: z.string().min(1, "Name is required").openapi({ example: "My Truck" }),
+    name: z
+      .string()
+      .trim()
+      .min(1, "Name is required")
+      .max(ASSET_FIELD_LIMITS.name)
+      .openapi({ example: "My Truck" }),
     metadata: AssetMetadataSchema,
   })
   .openapi("CreateAssetBody");

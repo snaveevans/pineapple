@@ -365,10 +365,14 @@
     background 100ms,
     color 100ms;
 }
-.hf-dropzone:hover {
+.hf-dropzone:not(:disabled):hover {
   border-color: var(--hf-brand);
   color: var(--hf-brand);
   background: var(--hf-brand-bg);
+}
+.hf-dropzone:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 .hf-dropzone-icon {
   width: 38px;
@@ -401,6 +405,16 @@
   border-left: 3px solid var(--hf-brand);
   border-radius: var(--hf-r);
   background: var(--hf-brand-bg);
+}
+
+.hf-aa-error {
+  padding: 10px 12px;
+  border: 1px solid oklch(78% 0.1 25);
+  border-radius: var(--hf-r);
+  background: oklch(97% 0.025 25);
+  color: oklch(42% 0.11 25);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .hf-aa-next-icon {
   width: 34px;

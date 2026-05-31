@@ -3,6 +3,7 @@ import { validateMetadata, type AssetMetadata } from "./AssetMetadata";
 import type { AssetType } from "./AssetType";
 import type { DomainEvent } from "../events/DomainEvent";
 import { AssetCreated } from "./events/AssetCreated";
+import { ASSET_FIELD_LIMITS } from "./AssetConstraints";
 
 export class Asset {
   private _domainEvents: DomainEvent[] = [];
@@ -24,6 +25,12 @@ export class Asset {
   static create(props: { ownerId: UserId; name: string; metadata: AssetMetadata }): Asset {
     if (!props.name?.trim()) {
       throw new ValidationError("Asset name is required", "name");
+    }
+    if (props.name.trim().length > ASSET_FIELD_LIMITS.name) {
+      throw new ValidationError(
+        `Asset name must be ${ASSET_FIELD_LIMITS.name} characters or fewer`,
+        "name",
+      );
     }
     validateMetadata(props.metadata);
 
@@ -70,6 +77,12 @@ export class Asset {
 
   rename(name: string): void {
     if (!name?.trim()) throw new ValidationError("Name required", "name");
+    if (name.trim().length > ASSET_FIELD_LIMITS.name) {
+      throw new ValidationError(
+        `Asset name must be ${ASSET_FIELD_LIMITS.name} characters or fewer`,
+        "name",
+      );
+    }
     this.name = name.trim();
     this.updatedAt = new Date();
   }

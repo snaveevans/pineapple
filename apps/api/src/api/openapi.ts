@@ -65,6 +65,8 @@ export const createAssetRoute = createRoute({
   path: "/api/assets",
   tags: ["Assets"],
   summary: "Create an asset",
+  description:
+    "Creates an asset owned by the caller. The JSON request body must not exceed 16 KiB.",
   security: [cookieAuth],
   request: {
     body: {
@@ -79,6 +81,24 @@ export const createAssetRoute = createRoute({
     },
     401: {
       description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "Active asset quota reached",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    413: {
+      description: "Request body exceeds 16 KiB",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    429: {
+      description: "Write rate limit exceeded",
+      headers: {
+        "Retry-After": {
+          description: "Seconds until the caller should retry",
+          schema: { type: "string" },
+        },
+      },
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
     422: {
@@ -104,6 +124,16 @@ export const listAssetsRoute = createRoute({
       description: "Not authenticated",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
+    429: {
+      description: "Read rate limit exceeded",
+      headers: {
+        "Retry-After": {
+          description: "Seconds until the caller should retry",
+          schema: { type: "string" },
+        },
+      },
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
   },
 });
 
@@ -123,12 +153,18 @@ export const getAssetRoute = createRoute({
       description: "Not authenticated",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
-    403: {
-      description: "The asset belongs to another user",
-      content: { "application/json": { schema: ErrorResponseSchema } },
-    },
     404: {
       description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    429: {
+      description: "Read rate limit exceeded",
+      headers: {
+        "Retry-After": {
+          description: "Seconds until the caller should retry",
+          schema: { type: "string" },
+        },
+      },
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },

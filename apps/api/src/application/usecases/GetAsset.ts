@@ -3,7 +3,6 @@ import {
   type DomainError,
   DomainError as DomainErrorClass,
   NotFoundError,
-  ForbiddenError,
   ok,
   err,
   type Result,
@@ -24,7 +23,7 @@ export class GetAsset {
     try {
       const asset = await this.assets.findById(query.assetId);
       if (!asset) return err(new NotFoundError("Asset not found"));
-      if (asset.ownerId !== query.requesterId) return err(new ForbiddenError("Access denied"));
+      if (asset.ownerId !== query.requesterId) return err(new NotFoundError("Asset not found"));
       return ok(asset);
     } catch (e) {
       if (e instanceof DomainErrorClass) return err(e);

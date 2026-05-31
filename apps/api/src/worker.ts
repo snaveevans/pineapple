@@ -1,7 +1,8 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
-import type { Context } from "hono";
+import { secureHeaders } from "hono/secure-headers";
+import type { Context, Next } from "hono";
 import { AssetId, DomainError } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
@@ -25,6 +26,12 @@ import type { EventBus } from "./application/ports/EventBus.ts";
 // API layer
 import { toHttpError } from "./api/errors.ts";
 import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTelemetry.ts";
+import { createAssetBodyLimit } from "./api/middleware/createAssetBodyLimit.ts";
+import {
+  getAllowedApiCorsOrigin,
+  getAuthBaseURL,
+  resolveDevAuthEmail,
+} from "./api/authSecurity.ts";
 import {
   createAssetRoute,
   getAssetRoute,
@@ -41,6 +48,10 @@ type Bindings = AuthEnv & {
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
   DEV_AUTH_EMAIL?: string;
+  /** Local dev only — must be exactly "true" before DEV_AUTH_EMAIL is honored. */
+  DEV_AUTH_BYPASS_ENABLED?: string;
+  ASSET_WRITE_RATE_LIMITER: RateLimit;
+  ASSET_READ_RATE_LIMITER: RateLimit;
 };
 type Variables = { user: User; auth: Auth };
 type AppEnv = { Bindings: Bindings; Variables: Variables };
@@ -59,6 +70,8 @@ const app = new OpenAPIHono<AppEnv>({
   },
 });
 
+const ASSET_RATE_LIMIT_RETRY_AFTER_SECONDS = 60;
+
 // Centralized error handling: domain errors → their HTTP status; anything
 // else → 500. Handlers and middleware just `throw` and this maps it.
 app.onError((err, c) => {
@@ -68,6 +81,22 @@ app.onError((err, c) => {
 });
 
 registerOpenApiComponents(app.openAPIRegistry);
+
+app.use(
+  "*",
+  secureHeaders({
+    // Approved local development CORS needs to remain usable for API responses.
+    crossOriginOpenerPolicy: false,
+    crossOriginResourcePolicy: false,
+    permissionsPolicy: {
+      camera: [],
+      geolocation: [],
+      microphone: [],
+    },
+    referrerPolicy: "no-referrer",
+    xFrameOptions: "DENY",
+  }),
+);
 
 app.use(
   "*",
@@ -109,11 +138,19 @@ app.get("/reference", Scalar({ url: "/openapi.json" }));
 
 // ── Better Auth ───────────────────────────────────────────────────────────
 
-// CORS for the Better Auth endpoints (browser hits these with credentials).
+// Credentialed browser API calls are same-origin in production and explicitly
+// allowlisted by loopback origin in local development.
 app.use(
-  "/api/auth/**",
+  "/api/*",
   cors({
-    origin: (origin) => origin,
+    origin: (origin, c) => {
+      const env = c.env as Bindings;
+      return getAllowedApiCorsOrigin(
+        origin,
+        getAuthBaseURL(c.req.url, env.BETTER_AUTH_URL),
+        env.DEV_WEB_ORIGIN,
+      );
+    },
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "OPTIONS"],
     credentials: true,
@@ -126,13 +163,26 @@ app.use(
 // request URL is the production route host, not localhost); otherwise derive
 // it from the incoming request (correct in production).
 app.use("/api/*", async (c, next) => {
-  const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
+  const baseURL = getAuthBaseURL(c.req.url, c.env.BETTER_AUTH_URL);
   const auth = createAuth(c.env, baseURL);
   c.set("auth", auth);
   await next();
 });
 
-// Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
+// The local bypass also needs a session-shaped response so the web router can
+// exercise protected screens without Google credentials.
+app.get("/api/auth/get-session", (c) => {
+  const baseURL = getAuthBaseURL(c.req.url, c.env.BETTER_AUTH_URL);
+  const devEmail = resolveDevAuthEmail({
+    baseURL,
+    email: c.env.DEV_AUTH_EMAIL,
+    enabled: c.env.DEV_AUTH_BYPASS_ENABLED,
+  });
+  if (devEmail) return c.json({ user: { email: devEmail, name: null } });
+  return c.get("auth").handler(c.req.raw);
+});
+
+// Mount all other Better Auth routes (sign-in/out and OAuth callbacks).
 app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 
 // ── Auth gate for the application API ────────────────────────────────────────
@@ -140,10 +190,15 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 // Resolves (and JIT-provisions) the domain User from the Better Auth session.
 // Thrown auth errors propagate to app.onError above.
 app.use("/api/*", async (c, next) => {
+  const baseURL = getAuthBaseURL(c.req.url, c.env.BETTER_AUTH_URL);
   const resolver = new BetterAuthResolver(
     c.get("auth"),
     new D1UserRepository(c.env.DB),
-    c.env.DEV_AUTH_EMAIL,
+    resolveDevAuthEmail({
+      baseURL,
+      email: c.env.DEV_AUTH_EMAIL,
+      enabled: c.env.DEV_AUTH_BYPASS_ENABLED,
+    }),
   );
   const user = await resolver.resolve(c.req.raw);
   c.set("user", user);
@@ -151,6 +206,29 @@ app.use("/api/*", async (c, next) => {
 });
 
 // ── Asset endpoints ──────────────────────────────────────────────────────────
+
+app.use("/api/assets", createAssetBodyLimit);
+
+async function enforceAssetRateLimit(c: Context<AppEnv>, next: Next) {
+  const limiter =
+    c.req.method === "POST"
+      ? c.env.ASSET_WRITE_RATE_LIMITER
+      : c.req.method === "GET"
+        ? c.env.ASSET_READ_RATE_LIMITER
+        : undefined;
+  if (!limiter) return next();
+
+  const { success } = await limiter.limit({ key: c.get("user").id });
+  if (!success) {
+    return c.json({ error: "Too many requests" }, 429, {
+      "Retry-After": String(ASSET_RATE_LIMIT_RETRY_AFTER_SECONDS),
+    });
+  }
+  return next();
+}
+
+app.use("/api/assets", enforceAssetRateLimit);
+app.use("/api/assets/*", enforceAssetRateLimit);
 
 app.openapi(createAssetRoute, async (c) => {
   const user = c.get("user");
