@@ -191,6 +191,100 @@
   flex: 1;
 }
 
+/* ---- error states ---- */
+.hf-input.is-invalid,
+.hf-select.is-invalid {
+  border-color: var(--hf-bad);
+  background: var(--hf-bad-bg);
+}
+.hf-input.is-invalid:hover,
+.hf-select.is-invalid:hover {
+  border-color: var(--hf-bad);
+}
+.hf-input.is-invalid:focus,
+.hf-select.is-invalid:focus {
+  border-color: var(--hf-bad);
+  box-shadow: 0 0 0 3px oklch(52% 0.18 28 / 0.16);
+}
+.hf-field-error {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  font-weight: 500;
+  color: var(--hf-bad);
+}
+.hf-field-error svg {
+  flex-shrink: 0;
+}
+
+/* ---- validation summary banner ---- */
+.hf-aa-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+}
+.hf-aa-banner.is-error {
+  background: var(--hf-bad-bg);
+  border-color: oklch(85% 0.05 28);
+  border-left: 3px solid var(--hf-bad);
+}
+.hf-aa-banner.is-ok {
+  background: var(--hf-ok-bg);
+  border-color: oklch(88% 0.04 150);
+  border-left: 3px solid var(--hf-ok);
+}
+.hf-aa-banner-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--hf-surface);
+}
+.hf-aa-banner.is-error .hf-aa-banner-icon {
+  color: var(--hf-bad);
+  border: 1px solid oklch(85% 0.05 28);
+}
+.hf-aa-banner.is-ok .hf-aa-banner-icon {
+  color: var(--hf-ok);
+  border: 1px solid oklch(88% 0.04 150);
+}
+.hf-aa-banner-text {
+  min-width: 0;
+}
+.hf-aa-banner-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.hf-aa-banner.is-error .hf-aa-banner-title {
+  color: var(--hf-bad);
+}
+.hf-aa-banner.is-ok .hf-aa-banner-title {
+  color: var(--hf-ok);
+}
+.hf-aa-banner-sub {
+  font-size: 12px;
+  color: var(--hf-ink-soft);
+  margin-top: 1px;
+}
+
+/* ---- footer error note ---- */
+.hf-aa-footer-err {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--hf-bad);
+  font-weight: 500;
+}
+
 /* ============ type picker (3 radio cards) ============ */
 .hf-aa-types {
   display: grid;

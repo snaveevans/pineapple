@@ -1,16 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { Icon, type IconName } from "../design/Icon";
 import { HFTopBar } from "./AppChrome";
 import { paths } from "../routes";
 
-// FieldOps — Add Asset. A focused single-page form on the .hf design system:
-// a three-bucket type picker (Vehicle / Property / Other), contextual detail
-// fields that reveal based on the chosen type/subtype, an optional photo
-// dropzone, a deferred "set up a schedule" note, and a sticky save bar. Ported
-// from the FieldOps design prototype (Add Asset.html / hifi-add-asset.jsx);
-// styling comes from the shared .hf tokens in styles/hifi.css + hifi-assets.css
-// plus the .hf-aa-* scopes in styles/hifi-add-asset.css.
 import "../design/styles/hifi.css";
 import "../design/styles/hifi-assets.css";
 import "../design/styles/hifi-add-asset.css";
@@ -18,22 +11,111 @@ import "../design/styles/hifi-add-asset.css";
 type AssetType = "vehicle" | "property" | "other";
 type Subtype = "lawn" | "power-tool" | "appliance" | "hvac" | "generator" | "other";
 
+/* ============ form model ============ */
+const EMPTY_FORM = {
+  name: "",
+  make: "", model: "", year: "", vin: "",
+  nickname: "", street: "", city: "", state: "OR", postal: "", country: "United States",
+  manufacturer: "", modelNumber: "", serialNumber: "", engineHours: "",
+};
+
+type Form = typeof EMPTY_FORM;
+type Errors = Partial<Record<keyof Form, string>>;
+
+/* Validates against the Pineapple API CreateAssetBody schema */
+function validateAsset(type: AssetType, form: Form): Errors {
+  const e: Errors = {};
+  const has = (v: string) => v.trim().length > 0;
+
+  if (!has(form.name)) e.name = "Required — give this asset a name.";
+
+  if (type === "vehicle") {
+    if (!has(form.make)) e.make = "Required.";
+    if (!has(form.model)) e.model = "Required.";
+    if (!has(form.year)) {
+      e.year = "Required.";
+    } else if (!/^\d+$/.test(form.year.trim())) {
+      e.year = "Must be a whole number.";
+    } else if (parseInt(form.year, 10) < 1900) {
+      e.year = "Must be 1900 or later.";
+    }
+    const vin = form.vin.trim();
+    if (vin && vin.length !== 17) {
+      e.vin = `VIN must be exactly 17 characters (${vin.length} entered).`;
+    }
+  } else if (type === "property") {
+    if (!has(form.street)) e.street = "Required.";
+    if (!has(form.city)) e.city = "Required.";
+    if (!has(form.state)) e.state = "Required.";
+    if (!has(form.postal)) e.postal = "Required.";
+    if (!has(form.country)) e.country = "Required.";
+  }
+
+  return e;
+}
+
+function useAddAssetForm(type: AssetType) {
+  const [form, setForm] = useState<Form>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Errors>({});
+  const [status, setStatus] = useState<null | "error" | "ok">(null);
+
+  const setField =
+    (key: keyof Form) => (ev: { target: HTMLInputElement | HTMLSelectElement }) => {
+      const v = ev.target.value;
+      setForm((f: Form) => ({ ...f, [key]: v }));
+      setErrors((er: Errors) => {
+        if (!er[key]) return er;
+        const next = { ...er };
+        delete next[key];
+        return next;
+      });
+    };
+
+  const clearValidation = () => {
+    setErrors({});
+    setStatus(null);
+  };
+
+  const save = (scrollEl?: HTMLElement | null) => {
+    const errs = validateAsset(type, form);
+    setErrors(errs);
+    const count = Object.keys(errs).length;
+    setStatus(count ? "error" : "ok");
+    setTimeout(() => {
+      if (count) {
+        const el = (scrollEl || document).querySelector<HTMLElement>(
+          ".hf-input.is-invalid, .hf-select.is-invalid",
+        );
+        el?.focus();
+      } else if (scrollEl) {
+        scrollEl.scrollTop = 0;
+      }
+    }, 0);
+  };
+
+  return { form, errors, status, errorCount: Object.keys(errors).length, setField, save, clearValidation };
+}
+
 /* ============ field primitives ============ */
+type SetField = (key: keyof Form) => (ev: { target: HTMLInputElement | HTMLSelectElement }) => void;
+
 function HFField({
   label,
   required,
   optional,
   hint,
+  error,
   children,
 }: {
   label: string;
   required?: boolean | undefined;
   optional?: boolean | undefined;
   hint?: string | undefined;
+  error?: string | undefined;
   children: ReactNode;
 }) {
   return (
-    <div className="hf-field">
+    <div className={`hf-field${error ? " has-error" : ""}`}>
       <label className="hf-field-label">
         {label}
         {required && <span className="hf-field-req">*</span>}
@@ -41,6 +123,12 @@ function HFField({
         {hint && <span className="hf-field-hint">{hint}</span>}
       </label>
       {children}
+      {error && (
+        <span className="hf-field-error" role="alert">
+          <Icon name="alert" size={12} stroke={2} />
+          {error}
+        </span>
+      )}
     </div>
   );
 }
@@ -52,7 +140,11 @@ function HFTextField({
   hint,
   placeholder,
   mono,
-  defaultValue,
+  value,
+  onChange,
+  error,
+  inputMode,
+  maxLength,
 }: {
   label: string;
   required?: boolean | undefined;
@@ -60,14 +152,22 @@ function HFTextField({
   hint?: string | undefined;
   placeholder?: string | undefined;
   mono?: boolean | undefined;
-  defaultValue?: string | undefined;
+  value: string;
+  onChange: (ev: { target: HTMLInputElement }) => void;
+  error?: string | undefined;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search" | undefined;
+  maxLength?: number | undefined;
 }) {
   return (
-    <HFField label={label} required={required} optional={optional} hint={hint}>
+    <HFField label={label} required={required} optional={optional} hint={hint} error={error}>
       <input
-        className={`hf-input ${mono ? "hf-mono-input" : ""}`}
+        className={`hf-input${mono ? " hf-mono-input" : ""}${error ? " is-invalid" : ""}`}
         placeholder={placeholder}
-        defaultValue={defaultValue}
+        value={value}
+        onChange={onChange}
+        aria-invalid={error ? true : undefined}
+        inputMode={inputMode}
+        maxLength={maxLength}
       />
     </HFField>
   );
@@ -79,18 +179,27 @@ function HFSelectField({
   optional,
   hint,
   options,
-  defaultValue,
+  value,
+  onChange,
+  error,
 }: {
   label: string;
   required?: boolean | undefined;
   optional?: boolean | undefined;
   hint?: string | undefined;
   options: string[];
-  defaultValue?: string | undefined;
+  value: string;
+  onChange: (ev: { target: HTMLSelectElement }) => void;
+  error?: string | undefined;
 }) {
   return (
-    <HFField label={label} required={required} optional={optional} hint={hint}>
-      <select className="hf-select" defaultValue={defaultValue}>
+    <HFField label={label} required={required} optional={optional} hint={hint} error={error}>
+      <select
+        className={`hf-select${error ? " is-invalid" : ""}`}
+        value={value}
+        onChange={onChange}
+        aria-invalid={error ? true : undefined}
+      >
         {options.map((o) => (
           <option key={o} value={o}>
             {o}
@@ -99,6 +208,39 @@ function HFSelectField({
       </select>
     </HFField>
   );
+}
+
+/* ============ validation summary banner ============ */
+function HFValidationBanner({ status, count }: { status: null | "error" | "ok"; count: number }) {
+  if (status === "error") {
+    return (
+      <div className="hf-aa-banner is-error" role="alert">
+        <span className="hf-aa-banner-icon">
+          <Icon name="alert" size={15} stroke={2} />
+        </span>
+        <div className="hf-aa-banner-text">
+          <div className="hf-aa-banner-title">
+            {count === 1 ? "1 field needs attention" : `${count} fields need attention`}
+          </div>
+          <div className="hf-aa-banner-sub">Fix the highlighted fields below, then save again.</div>
+        </div>
+      </div>
+    );
+  }
+  if (status === "ok") {
+    return (
+      <div className="hf-aa-banner is-ok" role="status">
+        <span className="hf-aa-banner-icon">
+          <Icon name="check" size={15} stroke={2.4} />
+        </span>
+        <div className="hf-aa-banner-text">
+          <div className="hf-aa-banner-title">Looks good</div>
+          <div className="hf-aa-banner-sub">Everything checks out — this asset is ready to save.</div>
+        </div>
+      </div>
+    );
+  }
+  return null;
 }
 
 /* ============ type picker ============ */
@@ -123,7 +265,7 @@ function HFTypePicker({
           type="button"
           role="radio"
           aria-checked={value === t.id}
-          className={`hf-type-card ${value === t.id ? "selected" : ""}`}
+          className={`hf-type-card${value === t.id ? " selected" : ""}`}
           onClick={() => onChange(t.id)}
         >
           <span className="hf-type-radio" />
@@ -163,7 +305,7 @@ function HFSubtypeChips({
         <button
           key={s.id}
           type="button"
-          className={`hf-subchip ${value === s.id ? "selected" : ""}`}
+          className={`hf-subchip${value === s.id ? " selected" : ""}`}
           onClick={() => onChange(s.id)}
         >
           <span className="hf-subchip-glyph">
@@ -190,7 +332,15 @@ function HFDropzone() {
 }
 
 /* ============ contextual detail sections ============ */
-function HFVehicleFields() {
+function HFVehicleFields({
+  form,
+  errors,
+  setField,
+}: {
+  form: Form;
+  errors: Errors;
+  setField: SetField;
+}) {
   return (
     <div className="hf-aa-section">
       <div className="hf-aa-section-head">
@@ -198,40 +348,117 @@ function HFVehicleFields() {
         <span className="hf-aa-section-hint">helps with service reminders</span>
       </div>
       <div className="hf-field-row">
-        <HFTextField label="Make" required placeholder="Ford" />
-        <HFTextField label="Model" required placeholder="F-150" />
-        <HFTextField label="Year" required placeholder="2022" mono />
+        <HFTextField
+          label="Make"
+          required
+          placeholder="Ford"
+          value={form.make}
+          onChange={setField("make")}
+          error={errors.make}
+        />
+        <HFTextField
+          label="Model"
+          required
+          placeholder="F-150"
+          value={form.model}
+          onChange={setField("model")}
+          error={errors.model}
+        />
+        <HFTextField
+          label="Year"
+          required
+          hint="1900 or later"
+          placeholder="2022"
+          mono
+          inputMode="numeric"
+          maxLength={4}
+          value={form.year}
+          onChange={setField("year")}
+          error={errors.year}
+        />
       </div>
       <HFTextField
         label="VIN"
         optional
-        hint="enables warranty lookups"
-        placeholder="1FTFW1E50NFA12345"
+        hint="17 characters"
+        placeholder="1C6RR7LT4GS123456"
         mono
+        maxLength={17}
+        value={form.vin}
+        onChange={setField("vin")}
+        error={errors.vin}
       />
     </div>
   );
 }
 
-function HFPropertyFields() {
+function HFPropertyFields({
+  form,
+  errors,
+  setField,
+}: {
+  form: Form;
+  errors: Errors;
+  setField: SetField;
+}) {
   return (
     <div className="hf-aa-section">
       <div className="hf-aa-section-head">
         <span className="hf-aa-section-title">Property details</span>
-        <span className="hf-aa-section-hint">at least street, city & state</span>
+        <span className="hf-aa-section-hint">full address required</span>
       </div>
       <HFTextField
         label="Nickname"
         optional
         hint="handy when you own multiples"
         placeholder="Main house, Cabin…"
+        value={form.nickname}
+        onChange={setField("nickname")}
       />
-      <HFTextField label="Street" required placeholder="12 Oak St, Apt 4" />
+      <HFTextField
+        label="Street"
+        required
+        placeholder="12 Oak St, Apt 4"
+        value={form.street}
+        onChange={setField("street")}
+        error={errors.street}
+      />
       <div className="hf-field-row">
-        <HFTextField label="City" required placeholder="Portland" />
-        <HFSelectField label="State" required options={["OR", "WA", "CA", "ID", "NV", "AZ"]} />
-        <HFTextField label="Postal" required placeholder="97204" mono />
+        <HFTextField
+          label="City"
+          required
+          placeholder="Portland"
+          value={form.city}
+          onChange={setField("city")}
+          error={errors.city}
+        />
+        <HFSelectField
+          label="State"
+          required
+          options={["OR", "WA", "CA", "ID", "NV", "AZ"]}
+          value={form.state}
+          onChange={setField("state")}
+          error={errors.state}
+        />
+        <HFTextField
+          label="Postal"
+          required
+          placeholder="97204"
+          mono
+          inputMode="numeric"
+          value={form.postal}
+          onChange={setField("postal")}
+          error={errors.postal}
+        />
       </div>
+      <HFSelectField
+        label="Country"
+        required
+        options={["United States", "Canada", "Mexico"]}
+        value={form.country}
+        onChange={setField("country")}
+        error={errors.country}
+      />
     </div>
   );
 }
@@ -239,9 +466,13 @@ function HFPropertyFields() {
 function HFOtherFields({
   subtype,
   onSubtype,
+  form,
+  setField,
 }: {
   subtype: Subtype;
   onSubtype: (v: Subtype) => void;
+  form: Form;
+  setField: SetField;
 }) {
   return (
     <div className="hf-aa-section">
@@ -264,13 +495,38 @@ function HFOtherFields({
                   ? "Generac"
                   : "Brand"
           }
+          value={form.manufacturer}
+          onChange={setField("manufacturer")}
         />
-        <HFTextField label="Model number" placeholder="MX5060" mono />
+        <HFTextField
+          label="Model number"
+          placeholder="MX5060"
+          mono
+          value={form.modelNumber}
+          onChange={setField("modelNumber")}
+        />
       </div>
-      <HFTextField label="Serial number" optional hint="useful for warranty" placeholder="SN-298471-A" mono />
+      <HFTextField
+        label="Serial number"
+        optional
+        hint="useful for warranty"
+        placeholder="EAMT-1234567"
+        mono
+        value={form.serialNumber}
+        onChange={setField("serialNumber")}
+      />
       {subtype === "lawn" && (
         <div className="hf-field-row">
-          <HFTextField label="Engine hours" optional hint="schedules oil changes" placeholder="124" mono />
+          <HFTextField
+            label="Engine hours"
+            optional
+            hint="schedules oil changes"
+            placeholder="124"
+            mono
+            inputMode="numeric"
+            value={form.engineHours}
+            onChange={setField("engineHours")}
+          />
         </div>
       )}
     </div>
@@ -301,12 +557,18 @@ function HFAddAssetFields({
   setType,
   subtype,
   setSubtype,
+  form,
+  errors,
+  setField,
   showHeaderHint,
 }: {
   type: AssetType;
   setType: (v: AssetType) => void;
   subtype: Subtype;
   setSubtype: (v: Subtype) => void;
+  form: Form;
+  errors: Errors;
+  setField: SetField;
   showHeaderHint?: boolean | undefined;
 }) {
   return (
@@ -328,25 +590,37 @@ function HFAddAssetFields({
         required
         hint="how you'll recognize it"
         placeholder={namePlaceholder(type, subtype)}
+        value={form.name}
+        onChange={setField("name")}
+        error={errors.name}
       />
 
       <div className="hf-aa-rule" />
 
       {/* CONTEXTUAL FIELDS */}
-      {type === "vehicle" && <HFVehicleFields />}
-      {type === "property" && <HFPropertyFields />}
-      {type === "other" && <HFOtherFields subtype={subtype} onSubtype={setSubtype} />}
+      {type === "vehicle" && <HFVehicleFields form={form} errors={errors} setField={setField} />}
+      {type === "property" && <HFPropertyFields form={form} errors={errors} setField={setField} />}
+      {type === "other" && (
+        <HFOtherFields subtype={subtype} onSubtype={setSubtype} form={form} setField={setField} />
+      )}
     </>
   );
 }
 
-/* ============ main: full-page add-asset form (responsive) ============ */
+/* ============ main: full-page add-asset form ============ */
 export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetType }) {
-  const [type, setType] = useState<AssetType>(initialType);
+  const [type, setTypeRaw] = useState<AssetType>(initialType);
   const [subtype, setSubtype] = useState<Subtype>("lawn");
+  const { form, errors, status, errorCount, setField, save, clearValidation } =
+    useAddAssetForm(type);
   const navigate = useNavigate();
+  const bodyRef = useRef<HTMLDivElement>(null);
 
-  // Esc cancels back to the asset library — mirrors the breadcrumb's hint.
+  const setType = (t: AssetType) => {
+    setTypeRaw(t);
+    clearValidation();
+  };
+
   useEffect(() => {
     document.title = "FieldOps — Add Asset";
     const onKey = (e: KeyboardEvent) => {
@@ -356,9 +630,7 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
     return () => window.removeEventListener("keydown", onKey);
   }, [navigate]);
 
-  const cancel = () => {
-    navigate(paths.assets);
-  };
+  const cancel = () => navigate(paths.assets);
 
   return (
     <div className="hf hf-app hf-aa-page">
@@ -375,7 +647,7 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
         </span>
       </div>
 
-      <div className="hf-aa-body">
+      <div className="hf-aa-body" ref={bodyRef}>
         <div className="hf-aa-col">
           <div className="hf-aa-head">
             <h1>Add an asset</h1>
@@ -385,11 +657,16 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
             </p>
           </div>
 
+          <HFValidationBanner status={status} count={errorCount} />
+
           <HFAddAssetFields
             type={type}
             setType={setType}
             subtype={subtype}
             setSubtype={setSubtype}
+            form={form}
+            errors={errors}
+            setField={setField}
             showHeaderHint
           />
 
@@ -429,13 +706,25 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
       {/* STICKY SAVE BAR */}
       <div className="hf-aa-footer">
         <div className="hf-aa-footer-note">
-          Fields marked <span className="hf-field-req">*</span> are required
+          {status === "error" ? (
+            <span className="hf-aa-footer-err">
+              <Icon name="alert" size={13} stroke={2} />
+              {errorCount === 1 ? "1 field needs attention" : `${errorCount} fields need attention`}
+            </span>
+          ) : (
+            <>
+              Fields marked <span className="hf-field-req">*</span> are required
+            </>
+          )}
         </div>
         <div className="hf-aa-footer-actions">
           <button className="hf-btn hf-btn-secondary hf-btn-lg" onClick={cancel}>
             Cancel
           </button>
-          <button className="hf-btn hf-btn-primary hf-btn-lg">
+          <button
+            className="hf-btn hf-btn-primary hf-btn-lg"
+            onClick={() => save(bodyRef.current)}
+          >
             <Icon name="check" size={15} stroke={2.2} />
             Save asset
           </button>
