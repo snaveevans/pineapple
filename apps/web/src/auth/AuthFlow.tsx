@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
@@ -257,11 +257,10 @@ function AuthSignedIn({
 
 /* ============ page ============ */
 export function AuthFlow() {
-  const navigate = useNavigate();
   // mode: "login" | "signup" ; phase: "form" | "redirect"
   // initial mode comes from ?mode= so marketing CTAs can deep-link the right screen
-  const initialMode: Mode =
-    new URLSearchParams(window.location.search).get("mode") === "signup" ? "signup" : "login";
+  const [searchParams] = useSearchParams();
+  const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const [mode, setMode] = useState<Mode>(initialMode);
   const [phase, setPhase] = useState<Phase>("form");
   // undefined = still checking; null = logged out; object = logged in
@@ -305,8 +304,9 @@ export function AuthFlow() {
       body: "{}",
       credentials: "include",
     }).finally(() => {
-      // Logged out → send them to the marketing home.
-      navigate(paths.home);
+      // Logged out → full-page reload to the marketing home so any in-memory
+      // session state is wiped, not just unmounted.
+      window.location.href = paths.home;
     });
   };
 

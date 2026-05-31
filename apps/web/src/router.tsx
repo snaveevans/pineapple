@@ -4,9 +4,7 @@ import { AppAddAsset } from "./app/AppAddAsset";
 import { AppAssets } from "./app/AppAssets";
 import { AppHome } from "./app/AppHome";
 import { MarketingHome } from "./marketing/MarketingHome";
-import { paths, routePaths } from "./routes";
-
-export { paths };
+import { routePaths } from "./routes";
 
 export const router = createBrowserRouter([
   { path: routePaths.home, element: <MarketingHome /> },
@@ -14,5 +12,7 @@ export const router = createBrowserRouter([
   { path: routePaths.appHome, element: <AppHome /> },
   { path: routePaths.assets, element: <AppAssets /> },
   { path: routePaths.addAsset, element: <AppAddAsset /> },
+  // TODO: unknown routes currently fall back to the marketing home. Design a
+  // real not-found / 404 experience and route it here.
   { path: "*", element: <MarketingHome /> },
 ]);
