@@ -39,20 +39,28 @@ GOOGLE_CLIENT_SECRET=
 # Dev bypass: treat every request as this user, skipping the login flow.
 # Remove it to exercise the real Google session flow. NEVER set in production.
 DEV_AUTH_EMAIL=you@example.com
+
+# OAuth callbacks should return through Vite's same-origin /api proxy.
+BETTER_AUTH_URL=http://localhost:5173
 ```
 
 ## 4. Run
 
+Run the API Worker and web app in separate terminals:
+
 ```bash
-pnpm dev        # from repo root → http://localhost:8787
+pnpm --filter @snaveevans/pineapple-api dev   # http://localhost:8787
+pnpm --filter @snaveevans/pineapple-web dev   # http://localhost:5173
 ```
 
-Try it:
+The browser should use `http://localhost:5173`. Vite proxies same-origin
+`/api/*` requests to the API Worker. Try it:
 
 ```bash
 curl http://localhost:8787/health                 # {"status":"ok"}
 open http://localhost:8787/reference              # interactive API docs
 curl http://localhost:8787/api/assets             # works via DEV_AUTH_EMAIL bypass
+open http://localhost:5173/app/assets             # web app through the Vite proxy
 ```
 
 ## 5. Google OAuth (for the real login flow)
@@ -60,11 +68,11 @@ curl http://localhost:8787/api/assets             # works via DEV_AUTH_EMAIL byp
 1. Google Cloud Console → **APIs & Services → Credentials → Create OAuth client
    ID** → type **Web application**.
 2. **Authorized redirect URIs:**
-   - `http://localhost:8787/api/auth/callback/google`
+   - `http://localhost:5173/api/auth/callback/google`
    - `https://<your-prod-domain>/api/auth/callback/google`
 3. Put the client ID/secret in `.dev.vars` (local) and as Worker secrets (prod,
    step 7). Then sign in via
-   `http://localhost:8787/api/auth/sign-in/social?provider=google`.
+   `http://localhost:5173/api/auth/sign-in/social?provider=google`.
 
 ## 6. Quality gates
 

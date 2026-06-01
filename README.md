@@ -26,8 +26,12 @@ stack that stays cheap and fast at small scale and is disciplined enough to grow
 ```bash
 pnpm install
 
-# Run the API locally (http://localhost:8787)
-pnpm dev
+# Terminal 1: run the API locally (http://localhost:8787)
+pnpm --filter @snaveevans/pineapple-api dev
+
+# Terminal 2: run the web app (http://localhost:5173)
+# Vite proxies same-origin /api/* requests to the API Worker.
+pnpm --filter @snaveevans/pineapple-web dev
 
 # Apply the database schema to your local D1
 pnpm --filter @snaveevans/pineapple-api wrangler d1 migrations apply pineapple --local

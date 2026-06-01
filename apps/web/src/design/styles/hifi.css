@@ -505,6 +505,10 @@
 .hf-btn:hover {
   background: var(--hf-surface-2);
 }
+.hf-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 .hf-btn-primary {
   background: var(--hf-ink);
   color: var(--hf-surface);

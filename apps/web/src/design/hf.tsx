@@ -57,7 +57,7 @@ export function HFAssetThumb({
   asset,
   height = 132,
 }: {
-  asset: { cat: AssetCategory; icon: IconName; status: AssetStatus };
+  asset: { cat: AssetCategory; icon: IconName; status?: AssetStatus };
   height?: number;
 }) {
   return (
@@ -66,7 +66,7 @@ export function HFAssetThumb({
         <Icon name={asset.icon} size={Math.round(height * 0.36)} stroke={1.4} />
       </div>
       <span className="hf-asset-cat-badge">{CAT_LABELS[asset.cat]}</span>
-      <span className="hf-asset-status-dot" data-status={asset.status} />
+      {asset.status && <span className="hf-asset-status-dot" data-status={asset.status} />}
     </div>
   );
 }

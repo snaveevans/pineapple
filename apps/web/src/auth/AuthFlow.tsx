@@ -15,16 +15,11 @@ import "./styles/auth.css";
 type Mode = "login" | "signup";
 type Phase = "form" | "redirect";
 
-// Where the Better Auth endpoints live. In dev the API runs on its own port
-// (set VITE_API_URL=http://localhost:8787); in production web + API share a
-// hostname so the default empty base = same-origin /api/auth/*.
-const API_BASE = import.meta.env.VITE_API_URL ?? "";
-
 type SessionUser = { email: string; name?: string | null } | null;
 
 /** Kick off Better Auth's Google OAuth. Resolves the consent URL then navigates. */
 async function startGoogleSignIn() {
-  const res = await fetch(`${API_BASE}/api/auth/sign-in/social`, {
+  const res = await fetch("/api/auth/sign-in/social", {
     method: "POST",
     headers: { "content-type": "application/json" },
     credentials: "include",
@@ -273,7 +268,7 @@ export function AuthFlow() {
   // On load (and after returning from Google) check whether a session exists.
   useEffect(() => {
     let cancelled = false;
-    fetch(`${API_BASE}/api/auth/get-session`, { credentials: "include" })
+    fetch("/api/auth/get-session", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { user?: SessionUser } | null) => {
         if (!cancelled) setSession(data?.user ?? null);
@@ -298,7 +293,7 @@ export function AuthFlow() {
     // Better Auth's /sign-out requires a JSON content-type AND a (non-empty)
     // JSON body — without the header it 415s, with the header but an empty body
     // it 500s on JSON.parse. Send "{}". The response clears the session cookies.
-    fetch(`${API_BASE}/api/auth/sign-out`, {
+    fetch("/api/auth/sign-out", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{}",

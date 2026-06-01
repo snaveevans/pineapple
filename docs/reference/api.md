@@ -10,7 +10,9 @@ This page is the narrative guide. For the precise, machine-readable contract
 - **Static spec (in repo):** [`docs/reference/openapi.json`](openapi.json)
 - **Live spec:** `GET /openapi.json`
 - **Interactive docs (Scalar):** open `/reference` in a browser
-- Local base URL: `http://localhost:8787` · Production: `https://pineapple-api.tylerjevans.workers.dev`
+- Local API base URL: `http://localhost:8787` · Local browser requests:
+  same-origin `/api/*` through Vite at `http://localhost:5173` · Production:
+  same-origin `/api/*`
 
 The spec is generated from the Zod schemas, so it never drifts from the running
 code. If this prose and the spec disagree, the spec wins.

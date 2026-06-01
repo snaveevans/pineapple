@@ -65,6 +65,12 @@ pnpm --filter @snaveevans/pineapple-web preview      # preview the built worker 
 pnpm --filter @snaveevans/pineapple-web deploy       # build + wrangler deploy
 ```
 
+During local development, Vite proxies same-origin `/api/*` browser requests
+to the API Worker at `http://localhost:8787`. Run the API separately with
+`pnpm --filter @snaveevans/pineapple-api dev`. Set
+`BETTER_AUTH_URL=http://localhost:5173` in `apps/api/.dev.vars` so OAuth
+callbacks return through the proxy.
+
 > Unlike `apps/api`, this app **has a build step** (Vite). It uses Web/DOM
 > standard APIs in the Worker entry, so no `@cloudflare/workers-types` global
 > is pulled in (which would conflict with `lib.dom`).
