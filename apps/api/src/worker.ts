@@ -1,6 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import { cors } from "hono/cors";
 import type { Context } from "hono";
 import { AssetId, DomainError } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
@@ -108,17 +107,6 @@ app.get("/openapi.json", (c) => c.json(openApiSpec));
 app.get("/reference", Scalar({ url: "/openapi.json" }));
 
 // ── Better Auth ───────────────────────────────────────────────────────────
-
-// CORS for the Better Auth endpoints (browser hits these with credentials).
-app.use(
-  "/api/auth/**",
-  cors({
-    origin: (origin) => origin,
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "OPTIONS"],
-    credentials: true,
-  }),
-);
 
 // Build a per-request Better Auth instance and stash it on the context. The
 // baseURL drives OAuth callbacks/cookies, so it must match the public origin.

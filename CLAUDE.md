@@ -93,7 +93,8 @@ instead.
 ## Commands
 
 ```bash
-pnpm dev                 # wrangler dev (http://localhost:8787)
+pnpm --filter @snaveevans/pineapple-api dev   # wrangler dev (http://localhost:8787)
+pnpm --filter @snaveevans/pineapple-web dev   # vite (http://localhost:5173), proxies /api/*
 pnpm lint                # eslint (includes layer-boundary + Workers constraints)
 pnpm type-check          # tsc --noEmit across workspace
 pnpm -r test             # vitest (domain tests live in apps/api/src/**)

@@ -4,10 +4,6 @@ compatibility_date = "2026-05-21"
 # Better Auth relies on Node APIs (crypto, etc.) on the Workers runtime.
 compatibility_flags = ["nodejs_compat"]
 
-[observability]
-enabled = true
-head_sampling_rate = 1
-
 # Production routes on the shared hostname. The API owns /api/* plus its
 # (non-/api) docs + health endpoints; the web Worker (pineapple-web) owns the
 # catch-all /* for the SPA. Cloudflare matches the most specific route, so
@@ -20,6 +16,10 @@ routes = [
   { pattern = "pineapple.tylerevans.co/reference", zone_name = "tylerevans.co" },
   { pattern = "pineapple.tylerevans.co/health", zone_name = "tylerevans.co" },
 ]
+
+[observability]
+enabled = true
+head_sampling_rate = 1
 
 # Auth config is provided as SECRETS (not committed here):
 #   wrangler secret put BETTER_AUTH_SECRET

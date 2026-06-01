@@ -105,6 +105,10 @@
   background: var(--hf-ink);
   color: var(--hf-surface);
 }
+.hf-assets-toolbar-disabled :disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
 
 /* ============ The grid ============ */
 .hf-asset-grid {
@@ -139,6 +143,14 @@
 .hf-asset-card:focus-visible {
   outline: 2px solid var(--hf-ink);
   outline-offset: 2px;
+}
+.hf-asset-card-static {
+  cursor: default;
+}
+.hf-asset-card-static:hover {
+  border-color: var(--hf-line);
+  box-shadow: var(--hf-shadow-1);
+  transform: none;
 }
 
 /* overdue accent: left edge stripe + tinted thumb fade */
@@ -269,6 +281,14 @@
   border-top: 1px dashed var(--hf-line);
   padding-top: 10px;
 }
+.hf-asset-summary {
+  padding: 8px 14px 14px;
+  margin-top: auto;
+  border-top: 1px dashed var(--hf-line);
+  color: var(--hf-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
 .hf-asset-footer-text {
   display: flex;
   flex-direction: column;
@@ -358,6 +378,12 @@
 .hf-asset-row:hover {
   border-color: oklch(80% 0.012 80);
 }
+.hf-asset-row-static {
+  cursor: default;
+}
+.hf-asset-row-static:hover {
+  border-color: var(--hf-line);
+}
 .hf-asset-row[data-status="overdue"] {
   border-color: oklch(85% 0.05 28);
 }
@@ -413,6 +439,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.hf-asset-row-summary {
+  color: var(--hf-ink-soft);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
 
 .hf-row-add {
   display: flex;
@@ -432,6 +463,32 @@
   color: var(--hf-brand);
   border-color: var(--hf-brand);
   background: var(--hf-brand-bg);
+}
+
+/* ============ Loading, error, and empty states ============ */
+.hf-assets-state {
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 32px;
+  border: 1px dashed var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  background: var(--hf-surface);
+  text-align: center;
+}
+.hf-assets-state-title {
+  color: var(--hf-ink);
+  font-size: 16px;
+  font-weight: 600;
+}
+.hf-assets-state-sub {
+  max-width: 420px;
+  margin-bottom: 4px;
+  color: var(--hf-ink-soft);
+  font-size: 13px;
 }
 
 /* ===================================================================
