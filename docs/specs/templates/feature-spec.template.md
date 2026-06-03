@@ -1,8 +1,14 @@
+---
+audience: [who reads this spec]
+purpose: [what this feature does — one line]
+source: this file
+date: YYYY-MM-DD
+---
+
 # [Feature Name]
 
 **Status:** `draft` | `review` | `active` | `deprecated`
 **Owner:** [PM or team name]
-**Last Updated:** [YYYY-MM-DD]
 **Related Specs:** [cross-cutting specs this feature references]
 
 ---
@@ -33,9 +39,3 @@ One paragraph. What this feature does and the user problem it solves. No impleme
 ## Open Questions
 
 - [ ] [Question — owner — target resolution date]
-
-## References
-
-- Figma: [link]
-- Issues: [link]
-- Code: [path/to/relevant/files]

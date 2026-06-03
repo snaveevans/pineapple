@@ -18,11 +18,12 @@ relevant cross-cutting specs rather than re-describing the behavior.
 
 | Spec                                                   | Concern                         | Status |
 | ------------------------------------------------------ | ------------------------------- | ------ |
-| [authentication.md](./cross-cutting/authentication.md) | Auth, sessions, identity        | draft  |
-| [error-handling.md](./cross-cutting/error-handling.md) | Error states and user messaging | draft  |
-| [permissions.md](./cross-cutting/permissions.md)       | Role-based access control       | draft  |
-| [validation.md](./cross-cutting/validation.md)         | Input validation patterns       | draft  |
-| [loading-states.md](./cross-cutting/loading-states.md) | Async UI states                 | draft  |
+| [authentication.md](./cross-cutting/authentication.md) | Auth, sessions, identity        | active |
+| [error-handling.md](./cross-cutting/error-handling.md) | Error states and user messaging | active |
+| [permissions.md](./cross-cutting/permissions.md)       | Role-based access control       | active |
+| [validation.md](./cross-cutting/validation.md)         | Input validation patterns       | active |
+| [loading-states.md](./cross-cutting/loading-states.md) | Async UI states                 | active |
+| [telemetry.md](./cross-cutting/telemetry.md)           | Telemetry and observability     | active |
 
 ## Feature Specs
 

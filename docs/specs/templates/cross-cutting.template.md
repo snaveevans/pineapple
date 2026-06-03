@@ -1,3 +1,10 @@
+---
+audience: all contributors
+purpose: [what this concern covers — one line]
+source: this file
+date: YYYY-MM-DD
+---
+
 # [Concern Name] — Cross-Cutting Spec
 
 **Status:** `draft` | `review` | `active` | `deprecated`
@@ -29,8 +36,3 @@ What every feature spec MUST document when this concern applies:
 ## Anti-Patterns
 
 - **[Wrong approach]:** Why it's wrong and what to do instead
-
-## References
-
-- Code: [path/to/canonical/implementation]
-- Design: [link]
