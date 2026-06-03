@@ -15,6 +15,7 @@ this repo.
 | --------------- | ---------------------------------------- | ------------------------------- | -------------------------- |
 | Front door      | `README.md`, `CLAUDE.md`                 | hand-written                    | newcomers · AI agents      |
 | Decisions (ADR) | `docs/decisions/`                        | hand-written                    | engineers (the _why_)      |
+| Specs           | `docs/specs/`                            | hand-written                    | everyone (the _what_)      |
 | API reference   | `docs/reference/api.md` + `openapi.json` | **generated from Zod**          | UI/integration devs · LLMs |
 | Data model      | `docs/reference/data-model.md`           | hand-written, mirrors `domain/` | designers · devs           |
 | Product         | `docs/product/`                          | hand-written                    | PM · marketing             |
@@ -26,8 +27,8 @@ this repo.
   (`/openapi.json`, `/reference`); `reference/data-model.md` for field details.
 - **Designer** → `reference/data-model.md` (what data and which enums exist) and
   `product/features.md` (what flows are possible).
-- **Product manager** → `product/features.md` (what we have) and
-  `product/roadmap.md` (gaps & opportunities).
+- **Product manager** → `specs/SPECS.md` (intent ledger) and `product/features.md`
+  (what we have) and `product/roadmap.md` (gaps & opportunities).
 - **Marketing** → `product/features.md` (benefit-framed capability list).
 - **AI agent** → `CLAUDE.md` is the hub; everything is linked and, where
   possible, machine-readable.

@@ -117,6 +117,7 @@ secrets, never committed.
 ## Where to look
 
 - **Why** anything is built a certain way → [`docs/decisions/`](docs/decisions/) (ADRs, MADR format)
+- **What a feature is supposed to do** → [`docs/specs/`](docs/specs/) (intent ledger; index at `docs/specs/SPECS.md`)
 - **API contract** → [`docs/reference/api.md`](docs/reference/api.md), `docs/reference/openapi.json`
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
 - **Product features** → [`docs/product/features.md`](docs/product/features.md)
