@@ -1,6 +1,6 @@
 ---
-name: implement
-description: Implement a feature from a spec. Use /implement new to build a complete spec from scratch across all layers, or /implement diff to implement only what changed in an updated spec.
+name: spec-implement
+description: Implement a feature from a spec. Use /spec-implement new to build a complete spec from scratch across all layers, or /spec-implement diff to implement only what changed in an updated spec.
 argument-hint: [new|diff] [feature-name]
 disable-model-invocation: true
 allowed-tools: Read Bash Write Edit
@@ -20,7 +20,7 @@ Arguments: `$ARGUMENTS`
 
 Before writing any code, read the spec at `docs/specs/features/[feature-name].md` and verify:
 
-1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec revise [name]` first.
+1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec-author revise [name]` first.
 2. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
 3. **Telemetry section exists** — if missing, the operation name and domain event contract are unknown. Stop and flag it.
 4. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
@@ -90,4 +90,4 @@ When implementation is done:
 
 - Confirm all acceptance criteria in the spec are satisfied — walk through them one by one
 - Note any criteria that could not be met and why (flag candidates for the spec)
-- Remind the user to run `/spec sync [name]` if behavior diverged from the spec during implementation
+- Remind the user to run `/spec-author sync [name]` if behavior diverged from the spec during implementation
