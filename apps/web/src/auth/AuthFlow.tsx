@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
@@ -13,7 +13,7 @@ import "../design/styles/hifi-assets.css";
 import "./styles/auth.css";
 
 type Mode = "login" | "signup";
-type Phase = "form" | "redirect";
+type Phase = "form" | "redirect" | "error";
 
 type SessionUser = { email: string; name?: string | null } | null;
 
@@ -220,66 +220,61 @@ function AuthRedirect({ mode, onCancel }: { mode: Mode; onCancel: () => void }) 
   );
 }
 
-/* ============ signed-in confirmation (post-OAuth return) ============ */
-function AuthSignedIn({
-  user,
-  onSignOut,
-}: {
-  user: { email: string; name?: string | null };
-  onSignOut: () => void;
-}) {
+/* ============ off-flow error state (OAuth came back broken) ============ */
+function AuthFailure({ onRetry, onBack }: { onRetry: () => void; onBack: () => void }) {
   return (
-    <div className="au-redirect">
-      <div className="au-redirect-badge">
-        <Icon name="check" size={30} color="var(--hf-brand)" stroke={2.4} />
+    <div className="au-fail">
+      <div className="au-fail-badge">
+        <Icon name="alert" size={30} stroke={1.9} />
       </div>
-      <h1>You're signed in</h1>
-      <p>
-        Signed in as <strong>{user.name ?? user.email}</strong>
-        {user.name ? ` (${user.email})` : ""}.
-      </p>
-      <div className="au-hero-cta" style={{ display: "flex", gap: 12, marginTop: 24 }}>
-        <Link className="au-google" style={{ width: "auto", padding: "0 20px" }} to={paths.appHome}>
-          Go to FieldOps
-        </Link>
+      <h1>Something went wrong</h1>
+      <p>We're sorry — we ran into an unexpected error while signing you in. Please try again in a moment.</p>
+      <div className="au-fail-ref">Error · sign-in could not be completed</div>
+      <div className="au-fail-actions">
+        <button className="au-btn-primary" onClick={onRetry}>
+          <Icon name="repeat" size={17} stroke={2} />
+          Try again
+        </button>
+        <button className="au-fail-back" onClick={onBack}>
+          Back to sign in
+        </button>
       </div>
-      <button className="au-redirect-cancel" onClick={onSignOut}>
-        Sign out
-      </button>
     </div>
   );
 }
 
 /* ============ page ============ */
 export function AuthFlow() {
-  // mode: "login" | "signup" ; phase: "form" | "redirect"
+  // mode: "login" | "signup" ; phase: "form" | "redirect" | "error"
   // initial mode comes from ?mode= so marketing CTAs can deep-link the right screen
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [phase, setPhase] = useState<Phase>("form");
-  // undefined = still checking; null = logged out; object = logged in
-  const [session, setSession] = useState<SessionUser | undefined>(undefined);
+  const [phase, setPhase] = useState<Phase>(searchParams.has("error") ? "error" : "form");
 
   useEffect(() => {
     document.title = "FieldOps — Sign in";
   }, []);
 
   // On load (and after returning from Google) check whether a session exists.
+  // If a session is found, navigate directly to the app dashboard.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/get-session", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data: { user?: SessionUser } | null) => {
-        if (!cancelled) setSession(data?.user ?? null);
+        if (!cancelled && data?.user) {
+          void navigate(paths.appHome, { replace: true });
+        }
       })
       .catch(() => {
-        if (!cancelled) setSession(null);
+        // session check failed — stay on login form
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [navigate]);
 
   const onGoogle = () => {
     setPhase("redirect");
@@ -289,31 +284,15 @@ export function AuthFlow() {
     });
   };
 
-  const onSignOut = () => {
-    // Better Auth's /sign-out requires a JSON content-type AND a (non-empty)
-    // JSON body — without the header it 415s, with the header but an empty body
-    // it 500s on JSON.parse. Send "{}". The response clears the session cookies.
-    fetch("/api/auth/sign-out", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: "{}",
-      credentials: "include",
-    }).finally(() => {
-      // Logged out → full-page reload to the marketing home so any in-memory
-      // session state is wiped, not just unmounted.
-      window.location.href = paths.home;
-    });
-  };
-
   return (
     <div className="au">
       <div className="au-split">
         <AuthBrand />
         <div className="au-form-side">
-          {session ? (
-            <AuthSignedIn user={session} onSignOut={onSignOut} />
-          ) : phase === "redirect" ? (
+          {phase === "redirect" ? (
             <AuthRedirect mode={mode} onCancel={() => setPhase("form")} />
+          ) : phase === "error" ? (
+            <AuthFailure onRetry={onGoogle} onBack={() => setPhase("form")} />
           ) : (
             <AuthCard mode={mode} onGoogle={onGoogle} onSwitch={(m) => setMode(m)} />
           )}

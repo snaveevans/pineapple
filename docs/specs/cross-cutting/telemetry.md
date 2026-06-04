@@ -97,22 +97,27 @@ These limits apply to every data point written and must be respected when design
 | ------------------------------------- | ------------------------------ | ------------------------------------ |
 | `pineapple_asset_domain_events`       | `ASSET_DOMAIN_TELEMETRY`       | Asset lifecycle events — implemented |
 | `pineapple_api_request_events`        | `API_REQUEST_TELEMETRY`        | HTTP request telemetry — implemented |
+| `pineapple_user_domain_events`        | `USER_DOMAIN_TELEMETRY`        | User lifecycle events — planned      |
 | `pineapple_maintenance_domain_events` | `MAINTENANCE_DOMAIN_TELEMETRY` | Maintenance record events — planned  |
 
 ### Operation Name Mapping
 
 Every API route maps to a named operation used as the `indexes[0]` value in request telemetry. The current mapping:
 
-| Route                  | Operation         |
-| ---------------------- | ----------------- |
-| `/api/auth/*`          | `Auth`            |
-| `POST /api/assets`     | `CreateAsset`     |
-| `GET /api/assets`      | `ListAssets`      |
-| `GET /api/assets/{id}` | `GetAsset`        |
-| `GET /health`          | `Health`          |
-| `GET /openapi.json`    | `OpenApiDocument` |
-| `GET /reference`       | `ApiReference`    |
-| (anything else)        | `Unknown`         |
+| Route                           | Operation         |
+| ------------------------------- | ----------------- |
+| `POST /api/auth/sign-in/social` | `SignIn`          |
+| `GET /api/auth/callback/google` | `OAuthCallback`   |
+| `GET /api/auth/get-session`     | `SessionCheck`    |
+| `POST /api/auth/sign-out`       | `SignOut`         |
+| `/api/auth/*` (other)           | `Auth`            |
+| `POST /api/assets`              | `CreateAsset`     |
+| `GET /api/assets`               | `ListAssets`      |
+| `GET /api/assets/{id}`          | `GetAsset`        |
+| `GET /health`                   | `Health`          |
+| `GET /openapi.json`             | `OpenApiDocument` |
+| `GET /reference`                | `ApiReference`    |
+| (anything else)                 | `Unknown`         |
 
 ### Failure Policy
 

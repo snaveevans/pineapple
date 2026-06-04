@@ -30,7 +30,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 
 | Spec                                              | Area      | Status |
 | ------------------------------------------------- | --------- | ------ |
-| [sign-in.md](./features/sign-in.md)               | Auth      | draft  |
+| [sign-in.md](./features/sign-in.md)               | Auth      | review |
 | [create-asset.md](./features/create-asset.md)     | Assets    | draft  |
 | [asset-library.md](./features/asset-library.md)   | Assets    | draft  |
 | [dashboard.md](./features/dashboard.md)           | Home      | wip    |
