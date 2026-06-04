@@ -1,22 +1,22 @@
 ---
 name: marketing-home
-description: Work-in-progress public landing page for value proposition, future feature positioning, and CTAs
+description: Work-in-progress public landing page for value proposition, future feature positioning, and CTAs; adapts auth CTAs based on session state
 metadata:
   type: feature
 ---
 
 # Marketing Home
 
-**Status:** wip
+**Status:** active
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-06-03
+**Last Updated:** 2026-06-04
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md)
 
 ---
 
 ## Summary
 
-The Marketing Home is the work-in-progress public landing page at `/`. Its purpose is to communicate FieldOps' intended value to prospective users, establish what type of user the product is for, and route visitors to either the signup or login flow. The current copy includes future-facing service scheduling and reminder claims that must be revisited before the page is treated as final.
+The Marketing Home is the work-in-progress public landing page at `/`. Its purpose is to communicate FieldOps' intended value to prospective users, establish what type of user the product is for, and route visitors to either the signup or login flow. The page is publicly accessible regardless of session state, but on load it checks the current session: if the visitor is already logged in, every CTA that would navigate to the login screen is replaced with a single "Go to App" button linking to `/app`. The current copy includes future-facing service scheduling and reminder claims that must be revisited before the page is treated as final.
 
 ## User Stories
 
@@ -24,11 +24,15 @@ The Marketing Home is the work-in-progress public landing page at `/`. Its purpo
 - As a **prospective user**, I can **click "Get started"** so that **I'm taken directly to the signup form**
 - As a **returning user visiting the marketing page**, I can **click "Log in"** so that **I'm taken to the login form**
 - As a **curious visitor**, I can **read how the product works** so that **I know what I'm committing to before signing up**
+- As an **already-logged-in user visiting the marketing page**, I can **click "Go to App"** so that **I can navigate directly to the app without going through the login screen again**
 
 ## Acceptance Criteria
 
+### Unauthenticated state (default / loading)
+
 - [ ] The page renders at `/` without authentication
 - [ ] The page title is "FieldOps — Keep everything you own on schedule"
+- [ ] While the session check is in flight, the page displays the unauthenticated button set (described below); this prevents layout shift in the common case where the visitor is not logged in
 - [ ] The nav contains: FieldOps logo (links to `/`), "How it works" anchor link (`#how`), "Log in" link (to `/login?mode=login`), "Get started" button (to `/login?mode=signup`)
 - [ ] The hero section contains: eyebrow "Built for owner-operators", headline "Never miss a service date again.", lede copy, two CTAs ("Get started" → signup, "See how it works" → `#how`), a hero note ("Free to start · No card needed · Add your first asset in 2 minutes"), and a UI collage
 - [ ] The proof strip names tracked or intended asset categories, pending final category review
@@ -38,13 +42,36 @@ The Marketing Home is the work-in-progress public landing page at `/`. Its purpo
 - [ ] All "Get started" CTAs link to `/login?mode=signup`
 - [ ] All "Log in" CTAs link to `/login` or `/login?mode=login`
 
+### Session check
+
+- [ ] On page load, the page calls `GET /api/auth/get-session` (Better Auth session endpoint) to determine the current session state
+- [ ] Any failure response (network error, 4xx, 5xx) is treated as "not authenticated"; the unauthenticated button set remains and no error is surfaced to the user
+
+### Authenticated state
+
+When `GET /api/auth/get-session` resolves with a valid session, every button or link that would navigate to the login screen is replaced with a "Go to App" button linking to `/app`. Specifically:
+
+- [ ] The nav's "Log in" link and "Get started" button are replaced by a single "Go to App" button (to `/app`)
+- [ ] The hero's "Get started" CTA is replaced by a "Go to App" button (to `/app`); "See how it works" (→ `#how`) remains unchanged
+- [ ] The closing CTA band's "Get started" and "Log in" are replaced by a single "Go to App" button (to `/app`)
+- [ ] The footer's "Log in" link is removed; no replacement is shown in the footer
+
 ## Edge Cases & Error States
 
-| Scenario                      | Expected Behavior                                                        |
-| ----------------------------- | ------------------------------------------------------------------------ |
-| Authenticated user visits `/` | No redirect; the marketing page is shown (authentication is not checked) |
-| "How it works" anchor clicked | Page scrolls to the `#how` section                                       |
-| Logo clicked                  | Navigates to `/`                                                         |
+| Scenario                                   | Expected Behavior                                                                                                   |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| Authenticated user visits `/`              | Marketing page shown; session check resolves; all login-destined CTAs swap to "Go to App" (→ `/app`)                |
+| Session check in flight                    | Unauthenticated button set is displayed; no spinner or placeholder is shown                                         |
+| Session check fails (network error or 5xx) | Unauthenticated button set is retained; no error message is shown to the user                                       |
+| Unauthenticated user visits `/`            | Session check resolves as no session; default unauthenticated button set is displayed (no visible change from load) |
+| "How it works" anchor clicked              | Page scrolls to the `#how` section                                                                                  |
+| Logo clicked                               | Navigates to `/`                                                                                                    |
+
+## Telemetry
+
+**Request telemetry:** `GET /api/auth/get-session` is called on page load to determine session state. This is a Better Auth infrastructure endpoint; it is not a product operation and does not need an entry in `technicalTelemetry.ts`.
+
+**Domain events:** None — this feature is frontend-only and read-only. Client-side frontend telemetry is not yet implemented (listed as an exception in `telemetry.md`).
 
 ## Flags
 
@@ -54,11 +81,9 @@ The Marketing Home is the work-in-progress public landing page at `/`. Its purpo
 
 **NOT SPECIFIED — "Grounds" in the proof strip:** The strip lists "grounds" as a tracked category alongside vehicles, properties, and equipment. The API only supports vehicle, property, and equipment asset types. "Grounds" / "Lawn" appears in the dashboard prototype data but is not a creatable type.
 
-**NOT SPECIFIED — Telemetry not referenced:** This page makes no API calls and produces no domain events. Client-side frontend telemetry is not yet implemented (listed as an exception in `telemetry.md`). No telemetry applies today, but `telemetry.md` should be referenced so the exception is stated explicitly rather than omitted.
-
 ## Out of Scope
 
-- Authentication or session-awareness on this page
+- Redirecting authenticated users away from the marketing page (they may intentionally visit it)
 - Pricing information
 - Feature comparison or tiers
 - Blog, changelog, or documentation links

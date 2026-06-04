@@ -4,6 +4,7 @@
   "description": "",
   "type": "module",
   "scripts": {
+    "kill-ports": "lsof -ti:8787,5173 | xargs kill -9 2>/dev/null || true",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
