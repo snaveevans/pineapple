@@ -18,7 +18,7 @@ this repo.
 | Specs           | `docs/specs/`                            | hand-written                    | everyone (the _what_)      |
 | API reference   | `docs/reference/api.md` + `openapi.json` | **generated from Zod**          | UI/integration devs · LLMs |
 | Data model      | `docs/reference/data-model.md`           | hand-written, mirrors `domain/` | designers · devs           |
-| Product         | `docs/product/`                          | hand-written                    | PM · marketing             |
+| Roadmap         | `docs/product/roadmap.md`                | hand-written                    | PM · marketing             |
 | Guides          | `docs/guides/`                           | hand-written                    | operators · contributors   |
 
 ### Who reads what
@@ -26,10 +26,11 @@ this repo.
 - **UI / integration developer** → `reference/api.md` and the live spec
   (`/openapi.json`, `/reference`); `reference/data-model.md` for field details.
 - **Designer** → `reference/data-model.md` (what data and which enums exist) and
-  `product/features.md` (what flows are possible).
-- **Product manager** → `specs/SPECS.md` (intent ledger) and `product/features.md`
-  (what we have) and `product/roadmap.md` (gaps & opportunities).
-- **Marketing** → `product/features.md` (benefit-framed capability list).
+  `specs/SPECS.md` (what flows are possible).
+- **Product manager** → `specs/SPECS.md` (what we have and intend) and
+  `product/roadmap.md` (gaps & opportunities).
+- **Marketing** → `specs/SPECS.md` for product truth and `product/roadmap.md` for
+  future positioning.
 - **AI agent** → `CLAUDE.md` is the hub; everything is linked and, where
   possible, machine-readable.
 

@@ -76,7 +76,7 @@ that matches your goal:
 | -------------------------------------------- | ------------------------------------------------------------------ |
 | Call the API from a UI                       | [`docs/reference/api.md`](docs/reference/api.md) + the live spec¹  |
 | Know what data exists (fields, types, enums) | [`docs/reference/data-model.md`](docs/reference/data-model.md)     |
-| Understand what the product does             | [`docs/product/features.md`](docs/product/features.md)             |
+| Understand what the product does             | [`docs/specs/SPECS.md`](docs/specs/SPECS.md)                       |
 | See what's planned / where to improve        | [`docs/product/roadmap.md`](docs/product/roadmap.md)               |
 | Run, test, or deploy the project             | [`docs/guides/getting-started.md`](docs/guides/getting-started.md) |
 | Understand _why_ something is built a way    | [`docs/decisions/`](docs/decisions/) (ADRs)                        |
