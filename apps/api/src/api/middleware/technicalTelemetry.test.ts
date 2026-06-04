@@ -21,6 +21,29 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     });
   });
 
+  it("maps auth sub-routes to their specific operation names", () => {
+    const cases: [string, string, string][] = [
+      ["POST", "/api/auth/sign-in/social", "SignIn"],
+      ["GET", "/api/auth/callback/google", "OAuthCallback"],
+      ["GET", "/api/auth/get-session", "SessionCheck"],
+      ["POST", "/api/auth/sign-out", "SignOut"],
+      ["GET", "/api/auth/csrf", "Auth"],
+    ];
+    for (const [method, pathname, operation] of cases) {
+      expect(
+        buildApiRequestTelemetryDataPoint({
+          method,
+          pathname,
+          status: 200,
+          durationMs: 1,
+          requestSizeBytes: 0,
+          authenticated: false,
+          error: null,
+        }).indexes[0],
+      ).toBe(operation);
+    }
+  });
+
   it("normalizes asset ids and records validation failures", () => {
     expect(
       buildApiRequestTelemetryDataPoint({

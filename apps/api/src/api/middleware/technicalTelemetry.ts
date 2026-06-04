@@ -94,6 +94,18 @@ export function buildApiRequestTelemetryDataPoint(
 }
 
 function routeTelemetry(method: string, pathname: string): RouteTelemetry {
+  if (pathname === "/api/auth/sign-in/social" && method === "POST") {
+    return { operation: "SignIn", routePattern: "/api/auth/sign-in/social" };
+  }
+  if (pathname === "/api/auth/callback/google" && method === "GET") {
+    return { operation: "OAuthCallback", routePattern: "/api/auth/callback/google" };
+  }
+  if (pathname === "/api/auth/get-session" && method === "GET") {
+    return { operation: "SessionCheck", routePattern: "/api/auth/get-session" };
+  }
+  if (pathname === "/api/auth/sign-out" && method === "POST") {
+    return { operation: "SignOut", routePattern: "/api/auth/sign-out" };
+  }
   if (pathname.startsWith("/api/auth/")) {
     return { operation: "Auth", routePattern: "/api/auth/*" };
   }

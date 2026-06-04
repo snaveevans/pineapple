@@ -1,7 +1,9 @@
 import { Email, InvariantError, UnauthorizedError } from "@snaveevans/pineapple-shared";
 import { User } from "../../domain/identity/User.ts";
+import { UserProvisioned } from "../../domain/identity/events/UserProvisioned.ts";
 import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import type { AuthenticatedUserResolver } from "../../application/ports/AuthenticatedUserResolver.ts";
+import type { EventBus } from "../../application/ports/EventBus.ts";
 import type { Auth } from "./auth.ts";
 
 /**
@@ -23,6 +25,7 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
     private readonly auth: Auth,
     private readonly users: UserRepository,
     private readonly devEmail?: string,
+    private readonly eventBus?: EventBus,
   ) {}
 
   async resolve(request: Request): Promise<User> {
@@ -34,6 +37,7 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
     if (!user) {
       user = User.create(email);
       await this.users.save(user);
+      await this.eventBus?.publish(UserProvisioned({ userId: user.id }));
     }
     return user;
   }

@@ -37,11 +37,12 @@ import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
   ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
   DEV_AUTH_EMAIL?: string;
 };
-type Variables = { user: User; auth: Auth };
+type Variables = { user: User; auth: Auth; eventBus: EventBus };
 type AppEnv = { Bindings: Bindings; Variables: Variables };
 
 const app = new OpenAPIHono<AppEnv>({
@@ -89,15 +90,6 @@ function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
   };
 }
 
-function createEventBus(c: Context<AppEnv>): EventBus {
-  const eventBus = new InMemoryEventBus();
-  registerDomainTelemetry({
-    eventBus,
-    assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
-  });
-  return eventBus;
-}
-
 // ── Public routes (no auth) ──────────────────────────────────────────────────
 
 app.openapi(healthRoute, (c) => c.json({ status: "ok" } as const, 200));
@@ -117,6 +109,15 @@ app.use("/api/*", async (c, next) => {
   const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
   const auth = createAuth(c.env, baseURL);
   c.set("auth", auth);
+
+  const eventBus = new InMemoryEventBus();
+  registerDomainTelemetry({
+    eventBus,
+    assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
+    userDomainDataset: c.env.USER_DOMAIN_TELEMETRY,
+  });
+  c.set("eventBus", eventBus);
+
   await next();
 });
 
@@ -132,6 +133,7 @@ app.use("/api/*", async (c, next) => {
     c.get("auth"),
     new D1UserRepository(c.env.DB),
     c.env.DEV_AUTH_EMAIL,
+    c.get("eventBus"),
   );
   const user = await resolver.resolve(c.req.raw);
   c.set("user", user);
@@ -143,7 +145,7 @@ app.use("/api/*", async (c, next) => {
 app.openapi(createAssetRoute, async (c) => {
   const user = c.get("user");
   const { name, metadata } = c.req.valid("json");
-  const result = await new CreateAsset(new D1AssetRepository(c.env.DB), createEventBus(c)).execute({
+  const result = await new CreateAsset(new D1AssetRepository(c.env.DB), c.get("eventBus")).execute({
     ownerId: user.id,
     name,
     // Cast: Zod's `.optional()` yields `T | undefined` but the domain type uses
