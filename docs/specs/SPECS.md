@@ -34,7 +34,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [create-asset.md](./features/create-asset.md)     | Assets    | draft  |
 | [asset-library.md](./features/asset-library.md)   | Assets    | draft  |
 | [dashboard.md](./features/dashboard.md)           | Home      | wip    |
-| [marketing-home.md](./features/marketing-home.md) | Marketing | wip    |
+| [marketing-home.md](./features/marketing-home.md) | Marketing | active |
 
 ## Directory Structure
 

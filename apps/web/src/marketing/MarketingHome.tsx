@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
@@ -16,9 +16,28 @@ import "./styles/marketing.css";
 // to the login screen; the auth page reads ?mode= to pick its initial state.
 const SIGNUP_HREF = paths.login("signup");
 const LOGIN_HREF = paths.login("login");
+const APP_HREF = paths.appHome;
+
+// Defaults to false (unauthenticated) so buttons render immediately on load.
+// Any failure from the session endpoint is also treated as unauthenticated.
+function useSession(): boolean {
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/get-session", { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as { session?: unknown } | null;
+        if (data?.session) setAuthed(true);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  return authed;
+}
 
 /* ============ nav ============ */
-function MKNav() {
+function MKNav({ authed }: { authed: boolean }) {
   return (
     <header className="mk-nav">
       <div className="mk-wrap mk-nav-in">
@@ -34,12 +53,20 @@ function MKNav() {
           </a>
         </nav>
         <div className="mk-nav-cta">
-          <Link className="mk-link-quiet" to={LOGIN_HREF}>
-            Log in
-          </Link>
-          <Link className="mk-btn mk-btn-primary mk-btn-sm" to={SIGNUP_HREF}>
-            Get started
-          </Link>
+          {authed ? (
+            <Link className="mk-btn mk-btn-primary mk-btn-sm" to={APP_HREF}>
+              Go to App
+            </Link>
+          ) : (
+            <>
+              <Link className="mk-link-quiet" to={LOGIN_HREF}>
+                Log in
+              </Link>
+              <Link className="mk-btn mk-btn-primary mk-btn-sm" to={SIGNUP_HREF}>
+                Get started
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
@@ -128,7 +155,7 @@ function MKHeroCollage() {
   );
 }
 
-function MKHero() {
+function MKHero({ authed }: { authed: boolean }) {
   return (
     <section className="mk-hero">
       <div className="mk-wrap mk-hero-in">
@@ -145,10 +172,17 @@ function MKHero() {
             you spend less time remembering and more time working.
           </p>
           <div className="mk-hero-cta">
-            <Link className="mk-btn mk-btn-primary mk-btn-lg" to={SIGNUP_HREF}>
-              <Icon name="arrow-right" size={16} stroke={2.2} />
-              Get started
-            </Link>
+            {authed ? (
+              <Link className="mk-btn mk-btn-primary mk-btn-lg" to={APP_HREF}>
+                <Icon name="arrow-right" size={16} stroke={2.2} />
+                Go to App
+              </Link>
+            ) : (
+              <Link className="mk-btn mk-btn-primary mk-btn-lg" to={SIGNUP_HREF}>
+                <Icon name="arrow-right" size={16} stroke={2.2} />
+                Get started
+              </Link>
+            )}
             <a className="mk-btn mk-btn-ghost mk-btn-lg" href="#how">
               See how it works
             </a>
@@ -228,7 +262,7 @@ function MKSteps() {
 }
 
 /* ============ closing CTA ============ */
-function MKCta() {
+function MKCta({ authed }: { authed: boolean }) {
   return (
     <section className="mk-cta-band">
       <div className="mk-wrap">
@@ -236,13 +270,22 @@ function MKCta() {
           <h2>Start keeping everything on schedule.</h2>
           <p>Add your first asset in two minutes. Free to start — no card, no commitment.</p>
           <div className="mk-hero-cta">
-            <Link className="mk-btn mk-btn-primary mk-btn-lg" to={SIGNUP_HREF}>
-              <Icon name="arrow-right" size={16} stroke={2.2} />
-              Get started
-            </Link>
-            <Link className="mk-btn mk-btn-ghost mk-btn-lg" to={LOGIN_HREF}>
-              Log in
-            </Link>
+            {authed ? (
+              <Link className="mk-btn mk-btn-primary mk-btn-lg" to={APP_HREF}>
+                <Icon name="arrow-right" size={16} stroke={2.2} />
+                Go to App
+              </Link>
+            ) : (
+              <>
+                <Link className="mk-btn mk-btn-primary mk-btn-lg" to={SIGNUP_HREF}>
+                  <Icon name="arrow-right" size={16} stroke={2.2} />
+                  Get started
+                </Link>
+                <Link className="mk-btn mk-btn-ghost mk-btn-lg" to={LOGIN_HREF}>
+                  Log in
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -250,7 +293,7 @@ function MKCta() {
   );
 }
 
-function MKFooter() {
+function MKFooter({ authed }: { authed: boolean }) {
   return (
     <footer className="mk-footer">
       <div className="mk-wrap mk-footer-in">
@@ -262,7 +305,7 @@ function MKFooter() {
         </Link>
         <nav className="mk-footer-links">
           <a href="#how">How it works</a>
-          <Link to={LOGIN_HREF}>Log in</Link>
+          {!authed && <Link to={LOGIN_HREF}>Log in</Link>}
         </nav>
         <div className="mk-footer-copy">© 2026 FieldOps</div>
       </div>
@@ -271,18 +314,20 @@ function MKFooter() {
 }
 
 export function MarketingHome() {
+  const authed = useSession();
+
   useEffect(() => {
     document.title = "FieldOps — Keep everything you own on schedule";
   }, []);
 
   return (
     <div className="mk">
-      <MKNav />
-      <MKHero />
+      <MKNav authed={authed} />
+      <MKHero authed={authed} />
       <MKStrip />
       <MKSteps />
-      <MKCta />
-      <MKFooter />
+      <MKCta authed={authed} />
+      <MKFooter authed={authed} />
     </div>
   );
 }
