@@ -1,9 +1,6 @@
 ---
 name: spec-implement
 description: Implement a feature from a spec. Use /spec-implement new to build a complete spec from scratch across all layers, or /spec-implement diff to implement only what changed in an updated spec.
-argument-hint: [new|diff] [feature-name]
-disable-model-invocation: true
-allowed-tools: Read Bash Write Edit
 ---
 
 ## Mode
