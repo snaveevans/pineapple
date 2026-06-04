@@ -13,7 +13,7 @@ import "../design/styles/hifi-assets.css";
 import "./styles/auth.css";
 
 type Mode = "login" | "signup";
-type Phase = "form" | "redirect";
+type Phase = "form" | "redirect" | "error";
 
 type SessionUser = { email: string; name?: string | null } | null;
 
@@ -220,6 +220,29 @@ function AuthRedirect({ mode, onCancel }: { mode: Mode; onCancel: () => void }) 
   );
 }
 
+/* ============ off-flow error state (OAuth came back broken) ============ */
+function AuthFailure({ onRetry, onBack }: { onRetry: () => void; onBack: () => void }) {
+  return (
+    <div className="au-fail">
+      <div className="au-fail-badge">
+        <Icon name="alert" size={30} stroke={1.9} />
+      </div>
+      <h1>Something went wrong</h1>
+      <p>We're sorry — we ran into an unexpected error while signing you in. Please try again in a moment.</p>
+      <div className="au-fail-ref">Error · sign-in could not be completed</div>
+      <div className="au-fail-actions">
+        <button className="au-btn-primary" onClick={onRetry}>
+          <Icon name="repeat" size={17} stroke={2} />
+          Try again
+        </button>
+        <button className="au-fail-back" onClick={onBack}>
+          Back to sign in
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ============ signed-in confirmation (post-OAuth return) ============ */
 function AuthSignedIn({
   user,
@@ -257,7 +280,7 @@ export function AuthFlow() {
   const [searchParams] = useSearchParams();
   const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const [mode, setMode] = useState<Mode>(initialMode);
-  const [phase, setPhase] = useState<Phase>("form");
+  const [phase, setPhase] = useState<Phase>(searchParams.has("error") ? "error" : "form");
   // undefined = still checking; null = logged out; object = logged in
   const [session, setSession] = useState<SessionUser | undefined>(undefined);
 
@@ -314,6 +337,8 @@ export function AuthFlow() {
             <AuthSignedIn user={session} onSignOut={onSignOut} />
           ) : phase === "redirect" ? (
             <AuthRedirect mode={mode} onCancel={() => setPhase("form")} />
+          ) : phase === "error" ? (
+            <AuthFailure onRetry={onGoogle} onBack={() => setPhase("form")} />
           ) : (
             <AuthCard mode={mode} onGoogle={onGoogle} onSwitch={(m) => setMode(m)} />
           )}
