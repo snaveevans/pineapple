@@ -1,12 +1,13 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-06-01
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-06-03
 
 # Spec Index
 
-The spec system captures _intent_ — what a feature is supposed to do and why —
-so the objective record survives as code changes over time. Specs are not API
-contracts (those live in `openapi.json`) and not decisions about _how_ we built
-something (those live in `docs/decisions/`). They answer: **what should this
-do, for whom, and under what conditions?**
+The spec system captures product behavior and intent — what a feature is
+supposed to do and why — so the objective record survives as code changes over
+time. Feature and cross-cutting specs are the source of truth for product
+behavior. Specs are not API contracts (those live in `openapi.json`) and not
+decisions about _how_ we built something (those live in `docs/decisions/`). They
+answer: **what should this do, for whom, and under what conditions?**
 
 See `templates/` for blank starting points and `prompts/` for AI prompts that
 generate or sync specs from code and PRs.
@@ -27,8 +28,13 @@ relevant cross-cutting specs rather than re-describing the behavior.
 
 ## Feature Specs
 
-| Spec | Area | Status |
-| ---- | ---- | ------ |
+| Spec                                              | Area      | Status |
+| ------------------------------------------------- | --------- | ------ |
+| [sign-in.md](./features/sign-in.md)               | Auth      | draft  |
+| [create-asset.md](./features/create-asset.md)     | Assets    | draft  |
+| [asset-library.md](./features/asset-library.md)   | Assets    | draft  |
+| [dashboard.md](./features/dashboard.md)           | Home      | wip    |
+| [marketing-home.md](./features/marketing-home.md) | Marketing | wip    |
 
 ## Directory Structure
 
@@ -45,7 +51,9 @@ docs/specs/
   cross-cutting/
     authentication.md
     error-handling.md
+    loading-states.md
     permissions.md
+    telemetry.md
     validation.md
   features/
     [feature-name].md

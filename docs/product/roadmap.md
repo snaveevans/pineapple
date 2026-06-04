@@ -1,16 +1,16 @@
 # Roadmap
 
 > **Audience:** product · **Purpose:** gaps and opportunities, roughly ordered ·
-> **Source of truth:** this file · **Last reviewed:** 2026-05-29
+> **Source of truth:** this file for roadmap direction; feature behavior lives in `docs/specs/` · **Last reviewed:** 2026-06-03
 
-Direction, not commitment. Reflects where the product can grow from today's
-[feature set](features.md). Order is a rough priority, not a schedule.
+Direction, not commitment. Reflects where the product can grow from the current
+feature specs. Order is a rough priority, not a schedule.
 
 ## Near term — complete the core loop
 
-- **Web UI.** The biggest gap: everything today is API-only. A front end (likely
-  Cloudflare Pages, referencing the existing high-fidelity designs) turns the API
-  into a usable product.
+- **Finish the web UI.** The asset registry screens exist, while the dashboard
+  and marketing page are still work in progress. Bring the WIP specs to active
+  requirements before treating those screens as complete.
 - **Edit, archive, delete assets.** The data model already supports archiving;
   expose `PATCH`/archive/`DELETE` endpoints and wire the UI to them.
 - **Search & filter.** Filter assets by type, and search by name/details, as
@@ -37,5 +37,6 @@ Direction, not commitment. Reflects where the product can grow from today's
 
 For a significant, hard-to-reverse technical choice, write an
 [ADR](../decisions/README.md). For product/feature ideas, add them here and link
-any supporting design or API work. Use the [feature list](features.md) to check
-what already exists before proposing.
+any supporting design, API work, or feature spec. Use
+[`docs/specs/SPECS.md`](../specs/SPECS.md) to check what already exists before
+proposing.

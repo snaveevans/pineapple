@@ -7,7 +7,7 @@ date: YYYY-MM-DD
 
 # [Feature Name]
 
-**Status:** `draft` | `review` | `active` | `deprecated`
+**Status:** `draft` | `wip` | `review` | `active` | `deprecated`
 **Owner:** [PM or team name]
 **Related Specs:** [cross-cutting specs this feature references]
 
@@ -31,6 +31,12 @@ One paragraph. What this feature does and the user problem it solves. No impleme
 | Scenario   | Expected Behavior   |
 | ---------- | ------------------- |
 | [scenario] | [expected behavior] |
+
+## Telemetry
+
+**Request telemetry:** `[METHOD] [/path]` maps to the `[OperationName]` operation via `createTechnicalTelemetryMiddleware`. See [telemetry.md](../cross-cutting/telemetry.md) for the full data point shape. _(If no API calls: "None — this feature makes no API calls." If the route is new, add it to the operation name mapping in `technicalTelemetry.ts` and update [telemetry.md](../cross-cutting/telemetry.md).)_
+
+**Domain events:** _(If none: "None — [read operation / frontend-only / etc.]." If yes: "[EventName] published on [condition]; captured by [HandlerName] (dataset: [dataset_name]). Full blobs/doubles contract defined in [telemetry.md](../cross-cutting/telemetry.md).")_
 
 ## Out of Scope
 

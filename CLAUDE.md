@@ -120,7 +120,7 @@ secrets, never committed.
 - **What a feature is supposed to do** → [`docs/specs/`](docs/specs/) (intent ledger; index at `docs/specs/SPECS.md`)
 - **API contract** → [`docs/reference/api.md`](docs/reference/api.md), `docs/reference/openapi.json`
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
-- **Product features** → [`docs/product/features.md`](docs/product/features.md)
+- **Product behavior / features** → [`docs/specs/SPECS.md`](docs/specs/SPECS.md)
 - **How we document** → [`docs/README.md`](docs/README.md)
 
 ## Workflow
