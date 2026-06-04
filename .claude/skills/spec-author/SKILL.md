@@ -1,9 +1,6 @@
 ---
 name: spec-author
 description: Draft or update a feature spec. Use /spec-author new for greenfield, /spec-author sync to document existing code, or /spec-author revise to complete a draft spec and make it implementation-ready. Walks through persona brainstorming, scenarios, user stories, and all six cross-cutting concerns.
-argument-hint: [new|sync|revise] [feature-name]
-disable-model-invocation: true
-allowed-tools: Read Bash Write Edit
 ---
 
 Work conversationally. Ask questions and confirm assumptions before writing. Do not generate a full draft until the steps below are complete.
