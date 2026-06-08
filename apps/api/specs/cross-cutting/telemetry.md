@@ -1,21 +1,27 @@
 ---
-audience: all contributors
-purpose: canonical telemetry architecture and data contract for feature specs
+audience: API contributors
+purpose: canonical telemetry architecture and data contract for API features
 source: this file
-date: 2026-06-02
+date: 2026-06-08
 ---
 
-# Telemetry — Cross-Cutting Spec
+# Telemetry (API) — Cross-Cutting Spec
 
 **Status:** `active`
 **Owner:** engineering
-**Applies To:** All features that add API endpoints or domain events
+**Package:** `apps/api`
+**Applies To:** All API features that add API endpoints or domain events
 
 ---
 
 ## Summary
 
-Telemetry is split into two independent systems: request-level telemetry (every HTTP request, captured in middleware) and domain-event telemetry (business events, captured in event handlers). Both write to Cloudflare Analytics Engine. Telemetry failures are never blocking — they are logged and swallowed so an Analytics Engine outage cannot break the API.
+Telemetry is split into two independent systems: request-level telemetry (every
+HTTP request, captured in middleware) and domain-event telemetry (business events,
+captured in event handlers). Both write to Cloudflare Analytics Engine. Telemetry
+failures are never blocking — they are logged and swallowed so an Analytics Engine
+outage cannot break the API. This is entirely an API-package concern; the web side
+has no telemetry yet (see Exceptions).
 
 ## Canonical Behavior
 
@@ -26,7 +32,10 @@ Telemetry is split into two independent systems: request-level telemetry (every 
 | API Request  | `pineapple_api_request_events`  | Every HTTP request                  | `createTechnicalTelemetryMiddleware` |
 | Domain Event | `pineapple_asset_domain_events` | Domain event published to event bus | Per-event telemetry handler          |
 
-The two systems are complementary, not interchangeable. API request telemetry answers operational questions (latency, error rates, traffic). Domain event telemetry answers business questions (what entities were created, by whom, with what attributes).
+The two systems are complementary, not interchangeable. API request telemetry
+answers operational questions (latency, error rates, traffic). Domain event
+telemetry answers business questions (what entities were created, by whom, with
+what attributes).
 
 ### Data Shape
 
@@ -81,7 +90,8 @@ Both systems write to Cloudflare Analytics Engine using the same envelope:
 
 ### Analytics Engine Constraints
 
-These limits apply to every data point written and must be respected when designing new event schemas:
+These limits apply to every data point written and must be respected when designing
+new event schemas:
 
 - Max 20 blobs, 20 doubles, and 1 index per `writeDataPoint` call
 - Total blob payload per data point must be under 16 KB
@@ -102,7 +112,8 @@ These limits apply to every data point written and must be respected when design
 
 ### Operation Name Mapping
 
-Every API route maps to a named operation used as the `indexes[0]` value in request telemetry. The current mapping:
+Every API route maps to a named operation used as the `indexes[0]` value in request
+telemetry. The current mapping:
 
 | Route                           | Operation         |
 | ------------------------------- | ----------------- |
@@ -123,46 +134,86 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 
 Telemetry failures are non-blocking at every layer:
 
-1. `AnalyticsEngineTelemetrySink.write()` wraps `dataset.writeDataPoint()` in try-catch — errors are logged with `console.error` and swallowed.
-2. The request telemetry middleware wraps the sink call in a second try-catch for the same reason.
-3. The `InMemoryEventBus` catches handler errors (including domain telemetry handlers) per-handler and logs them without re-throwing.
+1. `AnalyticsEngineTelemetrySink.write()` wraps `dataset.writeDataPoint()` in
+   try-catch — errors are logged with `console.error` and swallowed.
+2. The request telemetry middleware wraps the sink call in a second try-catch for
+   the same reason.
+3. The `InMemoryEventBus` catches handler errors (including domain telemetry
+   handlers) per-handler and logs them without re-throwing.
 
-A complete Analytics Engine outage will produce `console.error` log entries but will not affect API responses.
+A complete Analytics Engine outage will produce `console.error` log entries but
+will not affect API responses.
 
 ## Feature Integration Contract
 
 **Adding a new API endpoint:**
 
 - Add an entry to the operation name mapping in the request telemetry middleware.
-- For use-case-backed routes, the operation name must match the use case name (e.g. `UpdateAsset`, `ArchiveAsset`). For system routes with no use case (health checks, API docs), use a descriptive label as shown in the Operation Name Mapping table.
+- For use-case-backed routes, the operation name must match the use case name (e.g.
+  `UpdateAsset`, `ArchiveAsset`). For system routes with no use case (health checks,
+  API docs), use a descriptive label as shown in the Operation Name Mapping table.
 - The spec for the feature must name the operation it maps to.
 
 **Adding a new domain event:**
 
-- Create a telemetry handler for the event (following `AssetCreatedTelemetryHandler` as the pattern).
+- Create a telemetry handler for the event (following `AssetCreatedTelemetryHandler`
+  as the pattern).
 - Register the handler in `registerDomainTelemetry()`.
-- The spec for the feature must define the full ordered `blobs` and `doubles` contract for the event — every position, its name, and its value. Use the `AssetCreated` table above as the model. Future events (e.g. `MaintenanceRecorded`) may use multiple domain-specific doubles; document each one explicitly.
+- The spec for the feature must define the full ordered `blobs` and `doubles`
+  contract for the event — every position, its name, and its value. Use the
+  `AssetCreated` table above as the model. Future events (e.g. `MaintenanceRecorded`)
+  may use multiple domain-specific doubles; document each one explicitly.
 
 ## Exceptions
 
 | Feature                                | Deviation                 | Reason                                                                           |
 | -------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Frontend                               | No telemetry              | Client-side instrumentation not yet implemented                                  |
+| Web package (frontend)                 | No telemetry              | Client-side instrumentation not yet implemented                                  |
 | Read operations (GetAsset, ListAssets) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal |
 
 ## Anti-Patterns
 
-- **Throwing on telemetry failure:** Telemetry must never break a request. All sink calls must be wrapped so errors are swallowed after logging.
-- **Adding an endpoint without an operation name:** Routes that fall through to `"Unknown"` are invisible in telemetry. Every new route needs an entry in the mapping before it ships.
-- **Storing PII in blobs:** Blobs are retained and queryable. Never store user-supplied strings (names, addresses, emails, VINs, serial numbers, raw request bodies) in telemetry fields. For user and entity identifiers use stable non-PII IDs (UUIDs); categorical enum values (operation names, asset types, status codes, schema versions) are fine.
-- **Telemetry in the domain or application layer:** Telemetry handlers live in `infrastructure/telemetry/`. The domain publishes events; infrastructure decides what to record. Never import Analytics Engine bindings, sinks, or Hono from `domain/` or `application/`.
-- **Re-querying D1 inside a telemetry handler:** If a field is needed in telemetry, it must be part of the domain event payload. Handlers must not make additional database calls.
-- **Using Analytics Engine as an audit log or event store:** Retention is 3 months, writes are sampled, and exact replay is not supported. Use D1, R2, or Logpush for exact records.
-- **Using asset IDs or random UUIDs as the index:** The index is the query partition key. Use `owner_id` for domain events and `operation` for request telemetry, not high-cardinality random IDs.
+- **Throwing on telemetry failure:** Telemetry must never break a request. All sink
+  calls must be wrapped so errors are swallowed after logging.
+- **Adding an endpoint without an operation name:** Routes that fall through to
+  `"Unknown"` are invisible in telemetry. Every new route needs an entry in the
+  mapping before it ships.
+- **Storing PII in blobs:** Blobs are retained and queryable. Never store
+  user-supplied strings (names, addresses, emails, VINs, serial numbers, raw request
+  bodies) in telemetry fields. For user and entity identifiers use stable non-PII IDs
+  (UUIDs); categorical enum values (operation names, asset types, status codes,
+  schema versions) are fine.
+- **Telemetry in the domain or application layer:** Telemetry handlers live in
+  `infrastructure/telemetry/`. The domain publishes events; infrastructure decides
+  what to record. Never import Analytics Engine bindings, sinks, or Hono from
+  `domain/` or `application/`.
+- **Re-querying D1 inside a telemetry handler:** If a field is needed in telemetry,
+  it must be part of the domain event payload. Handlers must not make additional
+  database calls.
+- **Using Analytics Engine as an audit log or event store:** Retention is 3 months,
+  writes are sampled, and exact replay is not supported. Use D1, R2, or Logpush for
+  exact records.
+- **Using asset IDs or random UUIDs as the index:** The index is the query partition
+  key. Use `owner_id` for domain events and `operation` for request telemetry, not
+  high-cardinality random IDs.
 
 ## Known Issues
 
-- **`actor_id` (`blobs[5]`) always equals `owner_id` (`blobs[3]`) today.** `actor_id` records who performed the action, which is semantically distinct from who owns the entity. In a system where only the owner can act, the two are the same. When delegation or assignment is introduced — where one user acts on another's behalf — `actor_id` will diverge from `owner_id`. The field is intentionally reserved for this future case.
-- **No request correlation across the two systems.** A domain event data point cannot be linked to the API request that produced it — there is no trace ID or correlation ID shared between them. **Planned:** generate a request-scoped correlation ID in the telemetry middleware, thread it through to domain events via the use case, and include it in both data points.
-- **No frontend telemetry.** User-facing errors and interactions are invisible unless they produce an API call that fails. **Planned:** define what frontend events are worth capturing before implementing, to avoid instrumenting noise.
-- **Telemetry is always active in all environments.** There is no reduced or disabled telemetry mode for local development — `wrangler dev` writes to Miniflare's Analytics Engine emulation at the same 100% sample rate as production. This is acceptable now but should be revisited if local test runs begin polluting a shared dev dataset.
+- **`actor_id` (`blobs[5]`) always equals `owner_id` (`blobs[3]`) today.** `actor_id`
+  records who performed the action, which is semantically distinct from who owns the
+  entity. In a system where only the owner can act, the two are the same. When
+  delegation or assignment is introduced — where one user acts on another's behalf —
+  `actor_id` will diverge from `owner_id`. The field is intentionally reserved for
+  this future case.
+- **No request correlation across the two systems.** A domain event data point cannot
+  be linked to the API request that produced it — there is no trace ID or correlation
+  ID shared between them. **Planned:** generate a request-scoped correlation ID in the
+  telemetry middleware, thread it through to domain events via the use case, and
+  include it in both data points.
+- **No frontend telemetry.** User-facing errors and interactions are invisible unless
+  they produce an API call that fails. **Planned:** define what frontend events are
+  worth capturing before implementing, to avoid instrumenting noise.
+- **Telemetry is always active in all environments.** There is no reduced or disabled
+  telemetry mode for local development — `wrangler dev` writes to Miniflare's Analytics
+  Engine emulation at the same 100% sample rate as production. This is acceptable now
+  but should be revisited if local test runs begin polluting a shared dev dataset.

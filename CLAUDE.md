@@ -117,10 +117,12 @@ secrets, never committed.
 ## Where to look
 
 - **Why** anything is built a certain way → [`docs/decisions/`](docs/decisions/) (ADRs, MADR format)
-- **What a feature is supposed to do** → [`docs/specs/`](docs/specs/) (intent ledger; index at `docs/specs/SPECS.md`)
+- **What a feature is supposed to do** → specs, organized **by package** (hub: [`docs/specs/SPECS.md`](docs/specs/SPECS.md)):
+  - **API capabilities** (endpoints, validation, ownership, telemetry) → [`apps/api/specs/`](apps/api/specs/SPECS.md)
+  - **UX** (screens, states, copy) → [`apps/web/specs/`](apps/web/specs/SPECS.md)
+  - **API↔web wire contracts** (error envelope, session) → [`docs/specs/universal/`](docs/specs/universal/)
 - **API contract** → [`docs/reference/api.md`](docs/reference/api.md), `docs/reference/openapi.json`
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
-- **Product behavior / features** → [`docs/specs/SPECS.md`](docs/specs/SPECS.md)
 - **How we document** → [`docs/README.md`](docs/README.md)
 
 ## Workflow

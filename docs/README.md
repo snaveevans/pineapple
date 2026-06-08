@@ -11,15 +11,15 @@ this repo.
 
 ## The doc types
 
-| Type            | Lives in                                 | Source of truth                 | Primarily serves           |
-| --------------- | ---------------------------------------- | ------------------------------- | -------------------------- |
-| Front door      | `README.md`, `CLAUDE.md`                 | hand-written                    | newcomers · AI agents      |
-| Decisions (ADR) | `docs/decisions/`                        | hand-written                    | engineers (the _why_)      |
-| Specs           | `docs/specs/`                            | hand-written                    | everyone (the _what_)      |
-| API reference   | `docs/reference/api.md` + `openapi.json` | **generated from Zod**          | UI/integration devs · LLMs |
-| Data model      | `docs/reference/data-model.md`           | hand-written, mirrors `domain/` | designers · devs           |
-| Roadmap         | `docs/product/roadmap.md`                | hand-written                    | PM · marketing             |
-| Guides          | `docs/guides/`                           | hand-written                    | operators · contributors   |
+| Type            | Lives in                                                  | Source of truth                 | Primarily serves           |
+| --------------- | --------------------------------------------------------- | ------------------------------- | -------------------------- |
+| Front door      | `README.md`, `CLAUDE.md`                                  | hand-written                    | newcomers · AI agents      |
+| Decisions (ADR) | `docs/decisions/`                                         | hand-written                    | engineers (the _why_)      |
+| Specs           | `apps/*/specs/` (by package) · hub: `docs/specs/SPECS.md` | hand-written                    | everyone (the _what_)      |
+| API reference   | `docs/reference/api.md` + `openapi.json`                  | **generated from Zod**          | UI/integration devs · LLMs |
+| Data model      | `docs/reference/data-model.md`                            | hand-written, mirrors `domain/` | designers · devs           |
+| Roadmap         | `docs/product/roadmap.md`                                 | hand-written                    | PM · marketing             |
+| Guides          | `docs/guides/`                                            | hand-written                    | operators · contributors   |
 
 ### Who reads what
 

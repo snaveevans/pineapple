@@ -1,21 +1,32 @@
 ---
-audience: all contributors
+audience: [api | web] contributors
 purpose: [what this concern covers — one line]
 source: this file
 date: YYYY-MM-DD
 ---
 
-# [Concern Name] — Cross-Cutting Spec
+<!--
+A cross-cutting concern belongs to ONE package: it lives in
+  apps/api/specs/cross-cutting/  or  apps/web/specs/cross-cutting/.
+If the concern is a wire-level shape BOTH packages must implement identically (e.g.
+the error envelope, the session handshake), it is a universal contract instead —
+put it in docs/specs/universal/ and link it from each package's cross-cutting specs.
+-->
+
+# [Concern Name] ([API | Web]) — Cross-Cutting Spec
 
 **Status:** `draft` | `review` | `active` | `deprecated`
 **Owner:** [team]
-**Applies To:** All features unless listed in Exceptions
+**Package:** `apps/[api | web]`
+**Applies To:** All [api | web] features unless listed in Exceptions
+**Universal contract:** [link, if this concern references one]
 
 ---
 
 ## Summary
 
-What this concern covers and why it applies globally.
+What this concern covers within its package, and any universal contract it
+implements.
 
 ## Canonical Behavior
 

@@ -15,11 +15,15 @@ Arguments: `$ARGUMENTS`
 
 ## Pre-flight (both modes)
 
-Before writing any code, read the spec at `docs/specs/features/[feature-name].md` and verify:
+Specs are organized by package (see `docs/specs/SPECS.md`). A feature may have an
+API capability spec (`apps/api/specs/features/[name].md`), a web UX spec
+(`apps/web/specs/features/[name].md`), or both. Read **every** spec that exists for
+the feature — the API spec drives the backend layers, the web spec drives the
+frontend. Then verify each:
 
 1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec-author revise [name]` first.
 2. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
-3. **Telemetry section exists** — if missing, the operation name and domain event contract are unknown. Stop and flag it.
+3. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
 4. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
 
 If pre-flight passes, summarize what will be built and confirm with the user before proceeding.
@@ -58,8 +62,11 @@ Implement only the delta between the spec's last committed state and its current
 **1. Get the spec diff**
 
 ```!
-git diff main -- docs/specs/features/$ARGUMENTS.md 2>/dev/null || git diff HEAD~1 -- docs/specs/features/$ARGUMENTS.md 2>/dev/null || echo "No diff found — spec may not have changed since main"
+git diff main -- "apps/*/specs/features/$ARGUMENTS.md" 2>/dev/null || git diff HEAD~1 -- "apps/*/specs/features/$ARGUMENTS.md" 2>/dev/null || echo "No diff found — spec may not have changed since main"
 ```
+
+This globs both packages; a full-stack feature may show a diff in both the API and
+web specs. Interpret each.
 
 If no diff is found, ask the user to confirm which version of the spec changed and how.
 
