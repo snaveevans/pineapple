@@ -1,15 +1,27 @@
 ---
 name: spec-implement
-description: Implement a feature from a spec. Use /spec-implement new to build a complete spec from scratch across all layers, or /spec-implement diff to implement only what changed in an updated spec.
+description: Implement a feature from its spec(s). Detects the target spec from recent spec changes, builds a complete spec across all layers, or implements only what changed in an updated spec.
 ---
 
-## Mode
+## Find the target spec
 
-Arguments: `$ARGUMENTS`
+Do NOT expect a command argument. Work out which spec to implement from git state:
 
-- `new [name]` → **New**: implement a complete spec from scratch, layer by layer
-- `diff [name]` → **Diff**: implement only what changed in a recently updated spec
-- No arguments or ambiguous → ask the user which mode and which feature
+```!
+echo "── Uncommitted spec changes ──"
+git status --porcelain -- 'apps/*/specs/**/*.md'
+echo "── Spec files changed vs main ──"
+git diff --name-only main -- 'apps/*/specs/**/*.md' 2>/dev/null
+echo "── Recently committed specs ──"
+git log --oneline -10 --name-only -- 'apps/*/specs/**/*.md' 2>/dev/null
+```
+
+Use the output to pick the target and the mode:
+
+- A **new, untracked** spec file (or a spec with no implementing code yet) → **New** (full build across all layers).
+- An **existing** spec with uncommitted edits or recent commits that changed it → **Diff** (implement only the delta).
+
+Propose the spec file(s) and the mode you inferred in one line and confirm with the user. If nothing relevant shows up, or several candidates are equally likely, ask the user which feature to implement. A full-stack feature may have a spec in each package — implement the API spec's layers and the web spec's layers together.
 
 ---
 
@@ -21,7 +33,7 @@ API capability spec (`apps/api/specs/features/[name].md`), a web UX spec
 the feature — the API spec drives the backend layers, the web spec drives the
 frontend. Then verify each:
 
-1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec-author revise [name]` first.
+1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec-author` first to complete the spec.
 2. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
 3. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
 4. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
@@ -61,12 +73,13 @@ Implement only the delta between the spec's last committed state and its current
 
 **1. Get the spec diff**
 
-```!
-git diff main -- "apps/*/specs/features/$ARGUMENTS.md" 2>/dev/null || git diff HEAD~1 -- "apps/*/specs/features/$ARGUMENTS.md" 2>/dev/null || echo "No diff found — spec may not have changed since main"
+Run a diff against the spec file(s) you identified in **Find the target spec** (substitute the detected path; a full-stack feature has one per package, so run it for each):
+
+```
+git diff main -- "<detected-spec-path>" 2>/dev/null || git diff HEAD~1 -- "<detected-spec-path>" 2>/dev/null || echo "No diff found — spec may not have changed since main"
 ```
 
-This globs both packages; a full-stack feature may show a diff in both the API and
-web specs. Interpret each.
+A full-stack feature may show a diff in both the API and web specs. Interpret each.
 
 If no diff is found, ask the user to confirm which version of the spec changed and how.
 
@@ -94,4 +107,4 @@ When implementation is done:
 
 - Confirm all acceptance criteria in the spec are satisfied — walk through them one by one
 - Note any criteria that could not be met and why (flag candidates for the spec)
-- Remind the user to run `/spec-author sync [name]` if behavior diverged from the spec during implementation
+- Remind the user to run `/spec-author` (document existing code) if behavior diverged from the spec during implementation
