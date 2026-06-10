@@ -23,6 +23,10 @@
     {
       "name": "Assets",
       "description": "Create and read assets owned by the caller"
+    },
+    {
+      "name": "Maintenance",
+      "description": "Create and read asset maintenance records owned by the caller"
     }
   ],
   "components": {
@@ -297,6 +301,89 @@
         "required": [
           "assets"
         ]
+      },
+      "MaintenanceRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "e914b960-772f-46a7-b6fb-f333dcfc7fc9"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "title": {
+            "type": "string",
+            "example": "Changed oil"
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-09"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "example": "Used 7 quarts of synthetic oil."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-09T18:25:24.887Z"
+          }
+        },
+        "required": [
+          "id",
+          "assetId",
+          "title",
+          "performedAt",
+          "notes",
+          "createdAt"
+        ]
+      },
+      "CreateMaintenanceRecordBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Changed oil"
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-09"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "Used 7 quarts of 5W-20 synthetic oil."
+          }
+        },
+        "required": [
+          "title",
+          "performedAt"
+        ]
+      },
+      "MaintenanceRecordListResponse": {
+        "type": "object",
+        "properties": {
+          "maintenanceRecords": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaintenanceRecord"
+            }
+          }
+        },
+        "required": [
+          "maintenanceRecords"
+        ]
       }
     },
     "parameters": {}
@@ -441,6 +528,169 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/maintenance-records": {
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Create a maintenance record",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMaintenanceRecordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Maintenance record created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset is archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "List maintenance records for an asset",
+        "description": "Returns records newest first by performed date, then creation time. Archived asset history remains readable.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The asset's maintenance records",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRecordListResponse"
                 }
               }
             }

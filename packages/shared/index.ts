@@ -1,4 +1,5 @@
 export { AssetId } from "./types/AssetId.ts";
+export { MaintenanceRecordId } from "./types/MaintenanceRecordId.ts";
 export { UserId } from "./types/UserId.ts";
 export { Email } from "./types/Email.ts";
 export { type Result, ok, err } from "./result.ts";

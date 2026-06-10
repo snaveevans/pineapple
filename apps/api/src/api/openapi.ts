@@ -8,6 +8,12 @@ import {
   ErrorResponseSchema,
   HealthResponseSchema,
 } from "./schemas/assetSchemas.ts";
+import {
+  CreateMaintenanceRecordBodySchema,
+  MaintenanceAssetIdParamSchema,
+  MaintenanceRecordListResponseSchema,
+  MaintenanceRecordResponseSchema,
+} from "./schemas/maintenanceRecordSchemas.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenAPI route specs (metadata only — no handlers, no infrastructure).
@@ -41,6 +47,10 @@ export const openApiConfig = {
   tags: [
     { name: "System", description: "Health and meta endpoints" },
     { name: "Assets", description: "Create and read assets owned by the caller" },
+    {
+      name: "Maintenance",
+      description: "Create and read asset maintenance records owned by the caller",
+    },
   ],
 };
 
@@ -134,6 +144,76 @@ export const getAssetRoute = createRoute({
   },
 });
 
+export const createMaintenanceRecordRoute = createRoute({
+  method: "post",
+  path: "/api/assets/{assetId}/maintenance-records",
+  tags: ["Maintenance"],
+  summary: "Create a maintenance record",
+  security: [cookieAuth],
+  request: {
+    params: MaintenanceAssetIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: CreateMaintenanceRecordBodySchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: "Maintenance record created",
+      content: { "application/json": { schema: MaintenanceRecordResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "The asset is archived",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const listMaintenanceRecordsRoute = createRoute({
+  method: "get",
+  path: "/api/assets/{assetId}/maintenance-records",
+  tags: ["Maintenance"],
+  summary: "List maintenance records for an asset",
+  description:
+    "Returns records newest first by performed date, then creation time. Archived asset history remains readable.",
+  security: [cookieAuth],
+  request: { params: MaintenanceAssetIdParamSchema },
+  responses: {
+    200: {
+      description: "The asset's maintenance records",
+      content: { "application/json": { schema: MaintenanceRecordListResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 /**
  * Register shared OpenAPI components (security schemes) on a registry.
  * Keyed off the registry type (not the app's Env) so it works for both the
@@ -164,6 +244,8 @@ export function getApiDocument() {
   doc.openapi(createAssetRoute, stub);
   doc.openapi(listAssetsRoute, stub);
   doc.openapi(getAssetRoute, stub);
+  doc.openapi(createMaintenanceRecordRoute, stub);
+  doc.openapi(listMaintenanceRecordsRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }
