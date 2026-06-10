@@ -55,6 +55,11 @@ export type CreatedAssetResponse = {
 };
 
 export const assetsQueryKey = ["assets"] as const;
+export const assetQueryKey = (id: string) => ["asset", id] as const;
+
+export function getAsset(id: string): Promise<AssetResponse> {
+  return apiRequest<AssetResponse>(`/api/assets/${id}`);
+}
 
 export function listAssets(): Promise<AssetListResponse> {
   return apiRequest<AssetListResponse>("/api/assets");

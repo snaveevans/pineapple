@@ -6,6 +6,7 @@ export const routePaths = {
   appHome: "/app",
   assets: "/app/assets",
   addAsset: "/app/assets/new",
+  assetMaintenance: "/app/assets/:assetId/maintenance",
 } as const;
 
 export const paths = {
@@ -14,4 +15,5 @@ export const paths = {
   appHome: routePaths.appHome,
   assets: routePaths.assets,
   addAsset: routePaths.addAsset,
+  assetMaintenance: (assetId: string) => `/app/assets/${assetId}/maintenance`,
 } as const;
