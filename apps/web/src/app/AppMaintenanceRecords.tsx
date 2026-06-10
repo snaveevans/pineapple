@@ -108,11 +108,11 @@ function MRTimeline({ groups }: { groups: YearGroup[] }) {
                 <div className="mr-tl-date-inline">
                   {fmtDate(r.performedAt)}
                   <span className="mr-tl-ago-inline">· {relAgo(r.performedAt)}</span>
-                  {r.sameDay && <span className="mr-tl-sameday">same day</span>}
+                  {r.sameDay && <span className="mr-sameday">same day</span>}
                 </div>
                 <div className="mr-tl-title">
                   {r.title}
-                  {r.sameDay && <span className="mr-tl-sameday mr-tl-sameday-wide">same day</span>}
+                  {r.sameDay && <span className="mr-sameday mr-tl-sameday-wide">same day</span>}
                 </div>
                 {r.notes && <p className="mr-tl-notes">{r.notes}</p>}
               </div>
@@ -144,7 +144,7 @@ function MRTable({ groups }: { groups: YearGroup[] }) {
               </span>
               <span className="mr-td mr-td-work" role="cell">
                 {r.title}
-                {r.sameDay && <span className="mr-tl-sameday">same day</span>}
+                {r.sameDay && <span className="mr-sameday">same day</span>}
               </span>
               <span className="mr-td mr-td-notes" role="cell">
                 {r.notes || <span className="mr-td-dim">—</span>}
@@ -340,117 +340,119 @@ function MRForm({ asset, assetId, variant, onClose, onSaved }: MRFormProps) {
         </button>
       </div>
 
-      <div className="mr-form-body">
-        {banner && (
-          <div className="mr-banner" role="alert">
-            <Icon name="alert" size={15} stroke={2} />
-            <span>{banner}</span>
-          </div>
-        )}
-
-        <div className="mr-field">
-          <div className="mr-field-top">
-            <label className="mr-field-label" htmlFor="mr-title">
-              Title <span className="mr-req">*</span>
-            </label>
-            <span className={`mr-field-count ${title.length > TITLE_MAX ? "over" : ""}`}>
-              {title.length}/{TITLE_MAX}
-            </span>
-          </div>
-          <input
-            id="mr-title"
-            ref={titleRef}
-            type="text"
-            className={`mr-input ${fieldErrors.title ? "err" : ""}`}
-            placeholder='What did you do? e.g. "Oil change"'
-            maxLength={TITLE_MAX + 20}
-            value={title}
-            onChange={(e) => {
-              setTitle(e.target.value);
-              clearErr("title");
-              if (banner) setBanner(null);
-            }}
-          />
-          {fieldErrors.title && (
-            <div className="mr-field-err">
-              <Icon name="alert" size={13} stroke={2} />{fieldErrors.title}
+      <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+        <div className="mr-form-body">
+          {banner && (
+            <div className="mr-banner" role="alert">
+              <Icon name="alert" size={15} stroke={2} />
+              <span>{banner}</span>
             </div>
           )}
+
+          <div className="mr-field">
+            <div className="mr-field-top">
+              <label className="mr-field-label" htmlFor="mr-title">
+                Title <span className="mr-req">*</span>
+              </label>
+              <span className={`mr-field-count ${title.length > TITLE_MAX ? "over" : ""}`}>
+                {title.length}/{TITLE_MAX}
+              </span>
+            </div>
+            <input
+              id="mr-title"
+              ref={titleRef}
+              type="text"
+              className={`mr-input ${fieldErrors.title ? "err" : ""}`}
+              placeholder='What did you do? e.g. "Oil change"'
+              maxLength={TITLE_MAX + 20}
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                clearErr("title");
+                if (banner) setBanner(null);
+              }}
+            />
+            {fieldErrors.title && (
+              <div className="mr-field-err">
+                <Icon name="alert" size={13} stroke={2} />{fieldErrors.title}
+              </div>
+            )}
+          </div>
+
+          <div className="mr-field">
+            <div className="mr-field-top">
+              <label className="mr-field-label" htmlFor="mr-date">
+                Performed date <span className="mr-req">*</span>
+              </label>
+            </div>
+            <input
+              id="mr-date"
+              type="date"
+              className={`mr-input mr-input-date ${fieldErrors.performedAt ? "err" : ""}`}
+              max={todayDateOnly()}
+              value={performedAt}
+              onChange={(e) => {
+                setPerformedAt(e.target.value);
+                clearErr("performedAt");
+                if (banner) setBanner(null);
+              }}
+            />
+            {fieldErrors.performedAt ? (
+              <div className="mr-field-err">
+                <Icon name="alert" size={13} stroke={2} />{fieldErrors.performedAt}
+              </div>
+            ) : (
+              <div className="mr-field-hint">When the work was done. Today or earlier.</div>
+            )}
+          </div>
+
+          <div className="mr-field">
+            <div className="mr-field-top">
+              <label className="mr-field-label" htmlFor="mr-notes">Notes</label>
+              <span className={`mr-field-count ${notes.length > NOTES_MAX ? "over" : ""}`}>
+                {notes.length}/{NOTES_MAX}
+              </span>
+            </div>
+            <textarea
+              id="mr-notes"
+              className={`mr-input mr-textarea ${fieldErrors.notes ? "err" : ""}`}
+              placeholder="Optional — location, condition, cost, vendor, quantity…"
+              value={notes}
+              onChange={(e) => {
+                setNotes(e.target.value);
+                clearErr("notes");
+                if (banner) setBanner(null);
+              }}
+            />
+            {fieldErrors.notes ? (
+              <div className="mr-field-err">
+                <Icon name="alert" size={13} stroke={2} />{fieldErrors.notes}
+              </div>
+            ) : (
+              <div className="mr-field-hint">
+                Free-form details. No structured fields — just write what's useful.
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="mr-field">
-          <div className="mr-field-top">
-            <label className="mr-field-label" htmlFor="mr-date">
-              Performed date <span className="mr-req">*</span>
-            </label>
-          </div>
-          <input
-            id="mr-date"
-            type="date"
-            className={`mr-input mr-input-date ${fieldErrors.performedAt ? "err" : ""}`}
-            max={todayDateOnly()}
-            value={performedAt}
-            onChange={(e) => {
-              setPerformedAt(e.target.value);
-              clearErr("performedAt");
-              if (banner) setBanner(null);
-            }}
-          />
-          {fieldErrors.performedAt ? (
-            <div className="mr-field-err">
-              <Icon name="alert" size={13} stroke={2} />{fieldErrors.performedAt}
-            </div>
-          ) : (
-            <div className="mr-field-hint">When the work was done. Today or earlier.</div>
-          )}
+        <div className="mr-form-actions">
+          <button type="button" className="mr-btn mr-btn-ghost" onClick={onClose} disabled={mutation.isPending}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="mr-btn mr-btn-primary mr-btn-save"
+            disabled={mutation.isPending}
+          >
+            {mutation.isPending ? (
+              <><span className="mr-spinner" />Saving…</>
+            ) : (
+              <><Icon name="check" size={15} stroke={2.4} />Save record</>
+            )}
+          </button>
         </div>
-
-        <div className="mr-field">
-          <div className="mr-field-top">
-            <label className="mr-field-label" htmlFor="mr-notes">Notes</label>
-            <span className={`mr-field-count ${notes.length > NOTES_MAX ? "over" : ""}`}>
-              {notes.length}/{NOTES_MAX}
-            </span>
-          </div>
-          <textarea
-            id="mr-notes"
-            className={`mr-input mr-textarea ${fieldErrors.notes ? "err" : ""}`}
-            placeholder="Optional — location, condition, cost, vendor, quantity…"
-            value={notes}
-            onChange={(e) => {
-              setNotes(e.target.value);
-              clearErr("notes");
-              if (banner) setBanner(null);
-            }}
-          />
-          {fieldErrors.notes ? (
-            <div className="mr-field-err">
-              <Icon name="alert" size={13} stroke={2} />{fieldErrors.notes}
-            </div>
-          ) : (
-            <div className="mr-field-hint">
-              Free-form details. No structured fields — just write what's useful.
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="mr-form-actions">
-        <button className="mr-btn mr-btn-ghost" onClick={onClose} disabled={mutation.isPending}>
-          Cancel
-        </button>
-        <button
-          className="mr-btn mr-btn-primary mr-btn-save"
-          onClick={handleSubmit}
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending ? (
-            <><span className="mr-spinner" />Saving…</>
-          ) : (
-            <><Icon name="check" size={15} stroke={2.4} />Save record</>
-          )}
-        </button>
-      </div>
+      </form>
     </div>
   );
 }
@@ -463,7 +465,9 @@ export function AppMaintenanceRecords() {
   const queryClient = useQueryClient();
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(window.innerWidth);
+  // Start at 0 so the first render defaults to mobile rather than using
+  // window.innerWidth, which can be wider than the actual container.
+  const [containerWidth, setContainerWidth] = useState(0);
   const isMobile = containerWidth <= 600;
 
   useEffect(() => {
@@ -528,6 +532,7 @@ export function AppMaintenanceRecords() {
   // ── derive page title
   useEffect(() => {
     document.title = asset ? `${asset.name} — Maintenance · FieldOps` : "Maintenance · FieldOps";
+    return () => { document.title = "FieldOps"; };
   }, [asset]);
 
   // ── error kinds
@@ -668,7 +673,8 @@ export function AppMaintenanceRecords() {
 
           {/* tabs */}
           <div className="mr-tabs" role="tablist">
-            <button className="mr-tab" role="tab">Overview</button>
+            {/* TODO: wire Overview tab when that panel is built */}
+            <button className="mr-tab" role="tab" aria-selected="false">Overview</button>
             <button className="mr-tab active" role="tab" aria-selected="true">
               Maintenance{" "}
               <span className="mr-tab-count">
