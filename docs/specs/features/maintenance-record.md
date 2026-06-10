@@ -34,6 +34,9 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 - [ ] The API never accepts `ownerId` in the request body; ownership is derived from the authenticated session
 - [ ] The create use case checks that the target asset exists and belongs to the authenticated user before creating the record
 - [ ] The list use case returns only records for an asset owned by the authenticated user
+- [ ] `POST /api/assets/{assetId}/maintenance-records` accepts `{ title, performedAt, notes? }` and returns the full created maintenance record with status 201
+- [ ] `GET /api/assets/{assetId}/maintenance-records` returns `{ maintenanceRecords: [...] }` with status 200
+- [ ] Maintenance record responses contain `id`, `assetId`, `title`, `performedAt`, nullable `notes`, and `createdAt`; `ownerId` is never exposed
 - [ ] The user can start maintenance record creation from an asset detail page
 - [ ] The maintenance record form requires a **Title** field describing the work performed
 - [ ] Title is limited to 100 characters
@@ -42,6 +45,8 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 - [ ] Notes are limited to 1000 characters
 - [ ] The performed date must be today or earlier; future dates are rejected with a field-level validation error
 - [ ] Performed date is treated as date-only data in `YYYY-MM-DD` format, not as a user-local timestamp
+- [ ] The API uses the current UTC calendar date as the authoritative definition of today
+- [ ] An archived asset's maintenance history remains readable, but creating a new record for it returns 409
 - [ ] Submitting with missing or invalid required fields shows an error banner and field-level errors
 - [ ] Editing a field that has an error clears that field's error immediately
 - [ ] Save button shows "Saving..." and is disabled while save is in flight
@@ -62,9 +67,9 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 
 **Permissions:** Maintenance records are owned through the asset they belong to. A user can create and list maintenance records only for assets they own. The client cannot supply `ownerId`.
 
-**HTTP validation:** Inputs are validated at the Zod HTTP edge in a planned schema file, `apps/api/src/api/schemas/maintenanceRecordSchemas.ts`, and drive the generated OpenAPI contract. The schema must require `title` and `performedAt`, allow optional `notes`, enforce title length <= 100 characters, enforce notes length <= 1000 characters, and reject future performed dates.
+**HTTP validation:** Inputs are validated at the Zod HTTP edge in `apps/api/src/api/schemas/maintenanceRecordSchemas.ts` and drive the generated OpenAPI contract. The schema requires `title` and `performedAt`, allows optional `notes`, enforces title length <= 100 characters, enforces notes length <= 1000 characters, validates `assetId` as a UUID, and rejects malformed calendar dates. The domain performs the authoritative current-UTC-date comparison.
 
-**Domain validation:** Domain construction must preserve the same invariants: a maintenance record has an asset ID, owner ID derived from the session context, non-empty title of 100 characters or fewer, date-only performed date of today or earlier, optional notes of 1000 characters or fewer, and creation timestamp.
+**Domain validation:** Domain construction trims title and notes, converts blank notes to `null`, and preserves these invariants: a maintenance record has an asset ID, owner ID derived from the session context, non-empty title of 100 characters or fewer, date-only performed date of today or earlier, nullable notes of 1000 characters or fewer, and a UTC creation timestamp.
 
 **Date-only mitigation:** Until a cross-cutting time spec exists, this feature treats `performedAt` as a timezone-free calendar date string in `YYYY-MM-DD` format across the UI, API, domain, and D1 persistence. The implementation should compare dates lexicographically against today's `YYYY-MM-DD` value and must not parse `performedAt` through `Date` for validation, storage, or display. The stored maintenance date is not "in UTC"; it is a date-only value with no time zone. Generated timestamps such as `createdAt`, domain event time, and request telemetry time are UTC instants. Event telemetry may convert `performedAt` to UTC midnight only at the telemetry boundary because Analytics Engine doubles require a number.
 
@@ -79,9 +84,11 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 | Title is over 100 characters                        | Save blocked; title field shows a max-length error                          |
 | Performed date is empty                             | Save blocked; performed date field shows a required-field error             |
 | Performed date is in the future                     | Save blocked; performed date field shows a "must be today or earlier" error |
-| Notes is empty                                      | Accepted                                                                    |
+| Notes is empty or whitespace-only                   | Accepted and normalized to `null`                                           |
 | Notes is over 1000 characters                       | Save blocked; notes field shows a max-length error                          |
 | Notes contains component details                    | Accepted as free text; no structured component/location fields are created  |
+| Asset is archived and history is requested          | Existing maintenance history is returned                                    |
+| Asset is archived and record creation is attempted  | Creation rejected with 409                                                  |
 | User submits and the API returns 422 with a field   | Banner shown and the server message is pinned to the matching form field    |
 | User submits and the API returns 422 without field  | Banner shown; no field highlighted                                          |
 | User submits and the API returns 401                | Redirect to `/login` (replace history entry)                                |
@@ -100,21 +107,21 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 
 **MaintenanceRecordCreated data point contract:**
 
-| Field        | Name                    | Value                                                                         |
-| ------------ | ----------------------- | ----------------------------------------------------------------------------- |
-| `indexes[0]` | -                       | `owner_id` (partition key for per-owner queries)                              |
-| `blobs[0]`   | `event_type`            | `"MaintenanceRecordCreated"`                                                  |
-| `blobs[1]`   | `aggregate_type`        | `"MaintenanceRecord"`                                                         |
-| `blobs[2]`   | `maintenance_record_id` | Maintenance record UUID                                                       |
-| `blobs[3]`   | `asset_id`              | Asset UUID                                                                    |
-| `blobs[4]`   | `owner_id`              | Owner UUID                                                                    |
-| `blobs[5]`   | `actor_id`              | UUID of the user who performed the action; currently always equals `owner_id` |
-| `blobs[6]`   | `source_use_case`       | `"CreateMaintenanceRecord"`                                                   |
-| `blobs[7]`   | `schema_version`        | `"v1"`                                                                        |
-| `blobs[8]`   | `result`                | `"success"`                                                                   |
-| `doubles[0]` | `count`                 | Always `1`                                                                    |
-| `doubles[1]` | `event_time_ms`         | Event timestamp (ms since epoch)                                              |
-| `doubles[2]` | `performed_date_ms`     | Performed date at UTC midnight (ms since epoch)                               |
+| Field        | Name                    | Value                                                   |
+| ------------ | ----------------------- | ------------------------------------------------------- |
+| `indexes[0]` | -                       | `owner_id` (partition key for per-owner queries)        |
+| `blobs[0]`   | `event_type`            | `"MaintenanceRecordCreated"`                            |
+| `blobs[1]`   | `aggregate_type`        | `"MaintenanceRecord"`                                   |
+| `blobs[2]`   | `maintenance_record_id` | Maintenance record UUID                                 |
+| `blobs[3]`   | `asset_id`              | Asset UUID                                              |
+| `blobs[4]`   | `owner_id`              | Owner UUID                                              |
+| `blobs[5]`   | `actor_id`              | UUID of the authenticated user who performed the action |
+| `blobs[6]`   | `source_use_case`       | `"CreateMaintenanceRecord"`                             |
+| `blobs[7]`   | `schema_version`        | `"v1"`                                                  |
+| `blobs[8]`   | `result`                | `"success"`                                             |
+| `doubles[0]` | `count`                 | Always `1`                                              |
+| `doubles[1]` | `event_time_ms`         | Event timestamp (ms since epoch)                        |
+| `doubles[2]` | `performed_date_ms`     | Performed date at UTC midnight (ms since epoch)         |
 
 ## Flags
 

@@ -71,4 +71,34 @@ describe("buildApiRequestTelemetryDataPoint", () => {
       doubles: [3, 1, 422, 0],
     });
   });
+
+  it.each([
+    ["POST", "CreateMaintenanceRecord"],
+    ["GET", "ListMaintenanceRecords"],
+  ])("maps %s maintenance routes to %s", (method, operation) => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method,
+        pathname: "/api/assets/195d0ef0-47f5-439f-abfd-29f892c9a040/maintenance-records",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: [operation],
+      blobs: [
+        operation,
+        "/api/assets/{assetId}/maintenance-records",
+        method,
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v1",
+      ],
+    });
+  });
 });

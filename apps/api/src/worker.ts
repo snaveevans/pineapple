@@ -5,20 +5,25 @@ import { AssetId, DomainError } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
+import type { MaintenanceRecord } from "./domain/maintenance/MaintenanceRecord.ts";
 
 // Infrastructure
 import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.ts";
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
+import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
 import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
 import { AnalyticsEngineTelemetrySink } from "./infrastructure/telemetry/AnalyticsEngineTelemetrySink.ts";
 import { registerDomainTelemetry } from "./infrastructure/telemetry/registerDomainTelemetry.ts";
+import { SystemUtcDateProvider } from "./infrastructure/time/SystemUtcDateProvider.ts";
 
 // Application
 import { CreateAsset } from "./application/usecases/CreateAsset.ts";
 import { GetAsset } from "./application/usecases/GetAsset.ts";
 import { ListAssets } from "./application/usecases/ListAssets.ts";
+import { CreateMaintenanceRecord } from "./application/usecases/CreateMaintenanceRecord.ts";
+import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRecords.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -26,17 +31,21 @@ import { toHttpError } from "./api/errors.ts";
 import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTelemetry.ts";
 import {
   createAssetRoute,
+  createMaintenanceRecordRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
+  listMaintenanceRecordsRoute,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
 import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
+import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
   ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  MAINTENANCE_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
@@ -90,6 +99,19 @@ function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
   };
 }
 
+function serializeMaintenanceRecord(
+  record: MaintenanceRecord,
+): z.infer<typeof MaintenanceRecordResponseSchema> {
+  return {
+    id: record.id,
+    assetId: record.assetId,
+    title: record.title,
+    performedAt: record.performedAt,
+    notes: record.notes,
+    createdAt: record.createdAt.toISOString(),
+  };
+}
+
 // ── Public routes (no auth) ──────────────────────────────────────────────────
 
 app.openapi(healthRoute, (c) => c.json({ status: "ok" } as const, 200));
@@ -114,6 +136,7 @@ app.use("/api/*", async (c, next) => {
   registerDomainTelemetry({
     eventBus,
     assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
+    maintenanceDomainDataset: c.env.MAINTENANCE_DOMAIN_TELEMETRY,
     userDomainDataset: c.env.USER_DOMAIN_TELEMETRY,
   });
   c.set("eventBus", eventBus);
@@ -174,6 +197,42 @@ app.openapi(getAssetRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(serializeAsset(result.value), 200);
+});
+
+// ── Maintenance record endpoints ────────────────────────────────────────────
+
+app.openapi(createMaintenanceRecordRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId } = c.req.valid("param");
+  const { title, performedAt, notes } = c.req.valid("json");
+  const result = await new CreateMaintenanceRecord(
+    new D1AssetRepository(c.env.DB),
+    new D1MaintenanceRecordRepository(c.env.DB),
+    c.get("eventBus"),
+    new SystemUtcDateProvider(),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+    title,
+    performedAt,
+    ...(notes !== undefined ? { notes } : {}),
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeMaintenanceRecord(result.value), 201);
+});
+
+app.openapi(listMaintenanceRecordsRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId } = c.req.valid("param");
+  const result = await new ListMaintenanceRecords(
+    new D1AssetRepository(c.env.DB),
+    new D1MaintenanceRecordRepository(c.env.DB),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ maintenanceRecords: result.value.map(serializeMaintenanceRecord) }, 200);
 });
 
 export default app;

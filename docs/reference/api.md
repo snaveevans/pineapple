@@ -42,15 +42,17 @@ sign-in. There is no separate "register" step.
 
 ## Endpoints
 
-| Method | Path               | Auth | Description                              |
-| ------ | ------------------ | ---- | ---------------------------------------- |
-| GET    | `/health`          | no   | Liveness check                           |
-| GET    | `/openapi.json`    | no   | The OpenAPI spec                         |
-| GET    | `/reference`       | no   | Interactive API docs (Scalar)            |
-| `*`    | `/api/auth/*`      | —    | Better Auth (sign-in, callback, session) |
-| POST   | `/api/assets`      | yes  | Create an asset                          |
-| GET    | `/api/assets`      | yes  | List the caller's active assets          |
-| GET    | `/api/assets/{id}` | yes  | Get one asset the caller owns            |
+| Method | Path                                        | Auth | Description                              |
+| ------ | ------------------------------------------- | ---- | ---------------------------------------- |
+| GET    | `/health`                                   | no   | Liveness check                           |
+| GET    | `/openapi.json`                             | no   | The OpenAPI spec                         |
+| GET    | `/reference`                                | no   | Interactive API docs (Scalar)            |
+| `*`    | `/api/auth/*`                               | —    | Better Auth (sign-in, callback, session) |
+| POST   | `/api/assets`                               | yes  | Create an asset                          |
+| GET    | `/api/assets`                               | yes  | List the caller's active assets          |
+| GET    | `/api/assets/{id}`                          | yes  | Get one asset the caller owns            |
+| POST   | `/api/assets/{assetId}/maintenance-records` | yes  | Create a maintenance record              |
+| GET    | `/api/assets/{assetId}/maintenance-records` | yes  | List an asset's maintenance history      |
 
 See [`data-model.md`](data-model.md) for the shape of an asset and its metadata
 variants.
@@ -101,5 +103,7 @@ in the domain (see [ADR-0007](../decisions/0007-api-validation-boundary.md)).
 - All request and response bodies are JSON.
 - IDs are UUID strings.
 - Timestamps are ISO-8601 UTC strings (e.g. `2026-05-29T03:25:24.887Z`).
+- Maintenance `performedAt` values are timezone-free calendar dates in
+  `YYYY-MM-DD` format.
 - `GET /api/assets` returns only **active** assets (archived ones are excluded).
 - You can only read assets you own; requesting another user's asset returns 403.

@@ -79,6 +79,24 @@ Both systems write to Cloudflare Analytics Engine using the same envelope:
 | `doubles[1]` | `event_time_ms`    | Event timestamp (ms since epoch)                                               |
 | `doubles[2]` | `asset_model_year` | Model year for vehicles; `0` for other asset types                             |
 
+**Domain event data point — `MaintenanceRecordCreated`** (dataset: `pineapple_maintenance_domain_events`, index: `owner_id`):
+
+| Field        | Name                    | Value                                                   |
+| ------------ | ----------------------- | ------------------------------------------------------- |
+| `indexes[0]` | —                       | `owner_id` (partition key for per-owner queries)        |
+| `blobs[0]`   | `event_type`            | `"MaintenanceRecordCreated"`                            |
+| `blobs[1]`   | `aggregate_type`        | `"MaintenanceRecord"`                                   |
+| `blobs[2]`   | `maintenance_record_id` | Maintenance record UUID                                 |
+| `blobs[3]`   | `asset_id`              | Asset UUID                                              |
+| `blobs[4]`   | `owner_id`              | Owner UUID                                              |
+| `blobs[5]`   | `actor_id`              | UUID of the authenticated user who performed the action |
+| `blobs[6]`   | `source_use_case`       | `"CreateMaintenanceRecord"`                             |
+| `blobs[7]`   | `schema_version`        | `"v1"`                                                  |
+| `blobs[8]`   | `result`                | `"success"`                                             |
+| `doubles[0]` | `count`                 | Always `1`                                              |
+| `doubles[1]` | `event_time_ms`         | Event timestamp (ms since epoch)                        |
+| `doubles[2]` | `performed_date_ms`     | Performed date at UTC midnight (ms since epoch)         |
+
 ### Analytics Engine Constraints
 
 These limits apply to every data point written and must be respected when designing new event schemas:
@@ -93,31 +111,33 @@ These limits apply to every data point written and must be respected when design
 
 ### Planned Datasets
 
-| Dataset                               | Binding                        | Purpose                              |
-| ------------------------------------- | ------------------------------ | ------------------------------------ |
-| `pineapple_asset_domain_events`       | `ASSET_DOMAIN_TELEMETRY`       | Asset lifecycle events — implemented |
-| `pineapple_api_request_events`        | `API_REQUEST_TELEMETRY`        | HTTP request telemetry — implemented |
-| `pineapple_user_domain_events`        | `USER_DOMAIN_TELEMETRY`        | User lifecycle events — planned      |
-| `pineapple_maintenance_domain_events` | `MAINTENANCE_DOMAIN_TELEMETRY` | Maintenance record events — planned  |
+| Dataset                               | Binding                        | Purpose                                 |
+| ------------------------------------- | ------------------------------ | --------------------------------------- |
+| `pineapple_asset_domain_events`       | `ASSET_DOMAIN_TELEMETRY`       | Asset lifecycle events — implemented    |
+| `pineapple_api_request_events`        | `API_REQUEST_TELEMETRY`        | HTTP request telemetry — implemented    |
+| `pineapple_user_domain_events`        | `USER_DOMAIN_TELEMETRY`        | User lifecycle events — planned         |
+| `pineapple_maintenance_domain_events` | `MAINTENANCE_DOMAIN_TELEMETRY` | Maintenance record events — implemented |
 
 ### Operation Name Mapping
 
 Every API route maps to a named operation used as the `indexes[0]` value in request telemetry. The current mapping:
 
-| Route                           | Operation         |
-| ------------------------------- | ----------------- |
-| `POST /api/auth/sign-in/social` | `SignIn`          |
-| `GET /api/auth/callback/google` | `OAuthCallback`   |
-| `GET /api/auth/get-session`     | `SessionCheck`    |
-| `POST /api/auth/sign-out`       | `SignOut`         |
-| `/api/auth/*` (other)           | `Auth`            |
-| `POST /api/assets`              | `CreateAsset`     |
-| `GET /api/assets`               | `ListAssets`      |
-| `GET /api/assets/{id}`          | `GetAsset`        |
-| `GET /health`                   | `Health`          |
-| `GET /openapi.json`             | `OpenApiDocument` |
-| `GET /reference`                | `ApiReference`    |
-| (anything else)                 | `Unknown`         |
+| Route                                            | Operation                 |
+| ------------------------------------------------ | ------------------------- |
+| `POST /api/auth/sign-in/social`                  | `SignIn`                  |
+| `GET /api/auth/callback/google`                  | `OAuthCallback`           |
+| `GET /api/auth/get-session`                      | `SessionCheck`            |
+| `POST /api/auth/sign-out`                        | `SignOut`                 |
+| `/api/auth/*` (other)                            | `Auth`                    |
+| `POST /api/assets`                               | `CreateAsset`             |
+| `GET /api/assets`                                | `ListAssets`              |
+| `GET /api/assets/{id}`                           | `GetAsset`                |
+| `POST /api/assets/{assetId}/maintenance-records` | `CreateMaintenanceRecord` |
+| `GET /api/assets/{assetId}/maintenance-records`  | `ListMaintenanceRecords`  |
+| `GET /health`                                    | `Health`                  |
+| `GET /openapi.json`                              | `OpenApiDocument`         |
+| `GET /reference`                                 | `ApiReference`            |
+| (anything else)                                  | `Unknown`                 |
 
 ### Failure Policy
 
