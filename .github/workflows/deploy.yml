@@ -109,7 +109,13 @@ jobs:
       - name: Reject production development auth bypass
         working-directory: apps/api
         run: |
-          secrets="$(CI=true pnpm wrangler secret list --format json)"
+          secrets="$(pnpm wrangler secret list --format json)"
+          if ! jq -e \
+            'type == "array" and all(.[]; type == "object" and ((.name | type) == "string"))' \
+            <<<"$secrets" >/dev/null; then
+            echo "::error::Unable to validate the production Worker secret list"
+            exit 1
+          fi
           if jq -e 'any(.[]; .name == "DEV_AUTH_EMAIL")' <<<"$secrets" >/dev/null; then
             echo "::error::DEV_AUTH_EMAIL is configured on the production Worker"
             exit 1

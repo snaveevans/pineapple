@@ -1,4 +1,4 @@
-import { Email, InvariantError } from "@snaveevans/pineapple-shared";
+import { Email, InvariantError, UnauthorizedError } from "@snaveevans/pineapple-shared";
 import { describe, expect, it, vi } from "vitest";
 import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import { User } from "../../domain/identity/User.ts";
@@ -79,4 +79,18 @@ describe("BetterAuthResolver", () => {
       expect(save).not.toHaveBeenCalled();
     },
   );
+
+  it("rejects a request without DEV_AUTH_EMAIL or an active session", async () => {
+    const { resolver, getSession, findByEmail, save } = createHarness({
+      environment: "production",
+    });
+
+    await expect(
+      resolver.resolve(new Request("https://pineapple.example/api/assets")),
+    ).rejects.toBeInstanceOf(UnauthorizedError);
+
+    expect(getSession).toHaveBeenCalledOnce();
+    expect(findByEmail).not.toHaveBeenCalled();
+    expect(save).not.toHaveBeenCalled();
+  });
 });
