@@ -45,11 +45,12 @@ import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceR
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
+  ENVIRONMENT: string;
   ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   MAINTENANCE_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
-  /** Local dev only — set in .dev.vars, never in wrangler.toml. Bypasses the Better Auth session check. */
+  /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
 };
 type Variables = { user: User; auth: Auth; eventBus: EventBus };
@@ -177,6 +178,7 @@ app.use("/api/*", async (c, next) => {
   const resolver = new BetterAuthResolver(
     c.get("auth"),
     new D1UserRepository(c.env.DB),
+    c.env.ENVIRONMENT,
     c.env.DEV_AUTH_EMAIL,
     c.get("eventBus"),
   );

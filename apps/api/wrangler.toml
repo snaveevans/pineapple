@@ -17,6 +17,9 @@ routes = [
   { pattern = "pineapple.tylerevans.co/health", zone_name = "tylerevans.co" },
 ]
 
+[vars]
+ENVIRONMENT = "production"
+
 [observability]
 enabled = true
 head_sampling_rate = 1

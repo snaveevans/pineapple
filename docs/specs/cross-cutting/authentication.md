@@ -25,7 +25,8 @@ All application features operate within an authenticated session. Better Auth ha
 - All `/api/*` routes outside `/api/auth/*` are protected by the `BetterAuthResolver` middleware registered in `worker.ts`.
 - The middleware calls `resolver.resolve()`, which reads the session cookie, validates it, and provisions a domain `User` JIT from the Better Auth record (keyed on email).
 - If no valid session exists, the middleware throws `UnauthorizedError` → 401.
-- In local development, `DEV_AUTH_EMAIL` in `.dev.vars` bypasses session validation and injects a synthetic user. This must never reach production.
+- In local development, `DEV_AUTH_EMAIL` in `.dev.vars` bypasses session validation and injects a synthetic user only when `ENVIRONMENT` is exactly `development`.
+- If `DEV_AUTH_EMAIL` is present in any other or unspecified environment, authentication fails closed before session resolution or user provisioning. The production deploy also rejects a persisted `DEV_AUTH_EMAIL` Worker secret.
 
 **Frontend:**
 
