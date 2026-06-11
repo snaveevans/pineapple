@@ -1,4 +1,9 @@
-import { AssetId, MaintenanceRecordId, UserId } from "@snaveevans/pineapple-shared";
+import {
+  AssetId,
+  MaintenanceRecordId,
+  MaintenanceTaskId,
+  UserId,
+} from "@snaveevans/pineapple-shared";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
 
@@ -9,10 +14,11 @@ type MaintenanceRecordRow = {
   title: string;
   performed_at: string;
   notes: string | null;
+  task_id: string | null;
   created_at: string;
 };
 
-const SELECT_COLUMNS = "id, asset_id, owner_id, title, performed_at, notes, created_at";
+const SELECT_COLUMNS = "id, asset_id, owner_id, title, performed_at, notes, task_id, created_at";
 
 export class D1MaintenanceRecordRepository implements MaintenanceRecordRepository {
   constructor(private readonly db: D1Database) {}
@@ -34,8 +40,8 @@ export class D1MaintenanceRecordRepository implements MaintenanceRecordRepositor
     await this.db
       .prepare(
         `INSERT INTO maintenance_records
-           (id, asset_id, owner_id, title, performed_at, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           (id, asset_id, owner_id, title, performed_at, notes, task_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         record.id,
@@ -44,6 +50,7 @@ export class D1MaintenanceRecordRepository implements MaintenanceRecordRepositor
         record.title,
         record.performedAt,
         record.notes,
+        record.taskId,
         record.createdAt.toISOString(),
       )
       .run();
@@ -57,6 +64,7 @@ export class D1MaintenanceRecordRepository implements MaintenanceRecordRepositor
       title: row.title,
       performedAt: row.performed_at,
       notes: row.notes,
+      taskId: row.task_id ? MaintenanceTaskId.from(row.task_id) : null,
       createdAt: new Date(row.created_at),
     });
   }

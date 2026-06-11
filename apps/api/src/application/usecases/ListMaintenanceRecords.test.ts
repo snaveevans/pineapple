@@ -107,6 +107,7 @@ describe("ListMaintenanceRecords", () => {
       title: created.title,
       performedAt: created.performedAt,
       notes: created.notes,
+      taskId: null,
       createdAt: new Date(createdAt),
     });
   }

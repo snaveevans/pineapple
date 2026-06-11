@@ -10,7 +10,7 @@ metadata:
 **Status:** draft
 **Owner:** [unknown - assign on review]
 **Last Updated:** 2026-06-04
-**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [dashboard.md](./dashboard.md)
+**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [dashboard.md](./dashboard.md), [maintenance-task.md](./maintenance-task.md)
 
 ---
 
@@ -34,9 +34,9 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 - [ ] The API never accepts `ownerId` in the request body; ownership is derived from the authenticated session
 - [ ] The create use case checks that the target asset exists and belongs to the authenticated user before creating the record
 - [ ] The list use case returns only records for an asset owned by the authenticated user
-- [ ] `POST /api/assets/{assetId}/maintenance-records` accepts `{ title, performedAt, notes? }` and returns the full created maintenance record with status 201
+- [ ] `POST /api/assets/{assetId}/maintenance-records` accepts `{ title, performedAt, notes?, taskId? }` and returns the full created maintenance record with status 201; `taskId` behavior is defined in [maintenance-task.md](./maintenance-task.md)
 - [ ] `GET /api/assets/{assetId}/maintenance-records` returns `{ maintenanceRecords: [...] }` with status 200
-- [ ] Maintenance record responses contain `id`, `assetId`, `title`, `performedAt`, nullable `notes`, and `createdAt`; `ownerId` is never exposed
+- [ ] Maintenance record responses contain `id`, `assetId`, `title`, `performedAt`, nullable `notes`, nullable `taskId`, and `createdAt`; `ownerId` is never exposed
 - [ ] The user can start maintenance record creation from an asset detail page
 - [ ] The maintenance record form requires a **Title** field describing the work performed
 - [ ] Title is limited to 100 characters
@@ -135,7 +135,7 @@ The Maintenance Record feature lets an authenticated user create dated maintenan
 
 - Editing maintenance records
 - Deleting maintenance records
-- Service schedules, reminders, recurrence rules, next-due dates, and maintenance-task definitions
+- Service schedules, reminders, recurrence rules, and next-due dates (scheduling is defined in [maintenance-task.md](./maintenance-task.md))
 - Structured maintenance task/category management
 - Structured component or location tracking for repeated failures
 - Structured quantity, cost, vendor, mileage, odometer, or attachment fields

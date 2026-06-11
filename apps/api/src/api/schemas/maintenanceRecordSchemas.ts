@@ -32,6 +32,11 @@ export const CreateMaintenanceRecordBodySchema = z
       .max(1000, "Notes must be 1000 characters or fewer")
       .optional()
       .openapi({ example: "Used 7 quarts of 5W-20 synthetic oil." }),
+    taskId: z
+      .string()
+      .uuid("Task id must be a UUID")
+      .optional()
+      .openapi({ example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }),
   })
   .openapi("CreateMaintenanceRecordBody");
 
@@ -42,6 +47,11 @@ export const MaintenanceRecordResponseSchema = z
     title: z.string().openapi({ example: "Changed oil" }),
     performedAt: DateOnlySchema,
     notes: z.string().nullable().openapi({ example: "Used 7 quarts of synthetic oil." }),
+    taskId: z
+      .string()
+      .uuid()
+      .nullable()
+      .openapi({ example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }),
     createdAt: z.string().datetime().openapi({ example: "2026-06-09T18:25:24.887Z" }),
   })
   .openapi("MaintenanceRecord");

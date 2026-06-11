@@ -35,6 +35,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [asset-library.md](./features/asset-library.md)           | Assets      | draft  |
 | [dashboard.md](./features/dashboard.md)                   | Home        | wip    |
 | [maintenance-record.md](./features/maintenance-record.md) | Maintenance | draft  |
+| [maintenance-task.md](./features/maintenance-task.md)     | Maintenance | draft  |
 | [marketing-home.md](./features/marketing-home.md)         | Marketing   | active |
 
 ## Directory Structure
