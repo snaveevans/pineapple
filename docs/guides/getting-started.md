@@ -37,7 +37,7 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
 # Dev bypass: treat every request as this user, skipping the login flow.
-# Remove it to exercise the real Google session flow. NEVER set in production.
+# The API dev script supplies ENVIRONMENT=development; other environments reject it.
 DEV_AUTH_EMAIL=you@example.com
 
 # OAuth callbacks should return through Vite's same-origin /api proxy.
@@ -52,6 +52,10 @@ Run the API Worker and web app in separate terminals:
 pnpm --filter @snaveevans/pineapple-api dev   # http://localhost:8787
 pnpm --filter @snaveevans/pineapple-web dev   # http://localhost:5173
 ```
+
+The API dev script passes `ENVIRONMENT=development` directly to Wrangler.
+Production uses the committed `ENVIRONMENT=production` binding. Do not add the
+environment marker to `.dev.vars`.
 
 The browser should use `http://localhost:5173`. Vite proxies same-origin
 `/api/*` requests to the API Worker. Try it:
@@ -93,6 +97,9 @@ Deployment is automatic: **merging to `main`** runs CI, applies pending D1
 migrations to production, then `wrangler deploy`s the Worker (see
 [ADR-0006](../decisions/0006-deployment-platform.md) and the workflows in
 `.github/workflows/`).
+
+Before applying migrations, the deploy job lists the production Worker's
+secrets and fails if `DEV_AUTH_EMAIL` is present.
 
 **One-time setup:**
 

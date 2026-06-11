@@ -17,21 +17,20 @@ import type { Auth } from "./auth.ts";
  * `users` table is what the rest of the app references.
  *
  * LOCAL DEV: pass `devEmail` (from DEV_AUTH_EMAIL in .dev.vars) to skip the
- * session check entirely. Lets local development proceed before Google OAuth
- * credentials are configured. Never set DEV_AUTH_EMAIL in production.
+ * session check entirely. The bypass is honored only when `environment` is
+ * exactly "development"; any other configuration fails closed.
  */
 export class BetterAuthResolver implements AuthenticatedUserResolver {
   constructor(
     private readonly auth: Auth,
     private readonly users: UserRepository,
+    private readonly environment: string | undefined,
     private readonly devEmail?: string,
     private readonly eventBus?: EventBus,
   ) {}
 
   async resolve(request: Request): Promise<User> {
-    const email = this.devEmail
-      ? Email.from(this.devEmail)
-      : await this.#resolveFromSession(request);
+    const email = await this.#resolveEmail(request);
 
     let user = await this.users.findByEmail(email);
     if (!user) {
@@ -40,6 +39,18 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
       await this.eventBus?.publish(UserProvisioned({ userId: user.id }));
     }
     return user;
+  }
+
+  async #resolveEmail(request: Request): Promise<Email> {
+    if (!this.devEmail) return this.#resolveFromSession(request);
+
+    if (this.environment !== "development") {
+      throw new InvariantError(
+        "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
+      );
+    }
+
+    return Email.from(this.devEmail);
   }
 
   /** Production: read the verified Better Auth session and extract the email. */

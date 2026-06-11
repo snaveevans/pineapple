@@ -37,8 +37,9 @@ The API maps the session to a domain user by email, creating the user on first
 sign-in. There is no separate "register" step.
 
 > **Local development:** set `DEV_AUTH_EMAIL` in `apps/api/.dev.vars` to bypass
-> the session check entirely — every request is treated as that user. Never set
-> it in production. See [getting-started](../guides/getting-started.md).
+> the session check entirely — every request is treated as that user. The bypass
+> is honored only when `ENVIRONMENT` is exactly `development`; other
+> environments fail closed. See [getting-started](../guides/getting-started.md).
 
 ## Endpoints
 

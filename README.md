@@ -43,7 +43,9 @@ pnpm -r test
 ```
 
 Local secrets live in `apps/api/.dev.vars` (gitignored). Set `DEV_AUTH_EMAIL`
-there to bypass the login flow during development. See
+there to bypass the login flow during development. The API dev script supplies
+the required `ENVIRONMENT=development` runtime marker; production defaults to
+`ENVIRONMENT=production` and rejects the bypass. See
 [`docs/guides/getting-started.md`](docs/guides/getting-started.md) for the full
 setup, including Google OAuth.
 
