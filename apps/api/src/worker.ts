@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
+import { secureHeaders } from "hono/secure-headers";
 import { AssetId, DomainError } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
@@ -84,6 +85,27 @@ app.use(
   createTechnicalTelemetryMiddleware<AppEnv>(
     (c) => new AnalyticsEngineTelemetrySink(c.env.API_REQUEST_TELEMETRY),
   ),
+);
+
+app.use(
+  "*",
+  secureHeaders({
+    xFrameOptions: "DENY",
+    xContentTypeOptions: true,
+    referrerPolicy: "strict-origin-when-cross-origin",
+    strictTransportSecurity: "max-age=31536000; includeSubDomains",
+    // Scalar's /reference UI loads from cdn.jsdelivr.net and emits an inline
+    // init script — unsafe-inline/CDN are unavoidable in the v0.10.x adapter.
+    // These directives are irrelevant for JSON API responses.
+    contentSecurityPolicy: {
+      defaultSrc: ["'none'"],
+      scriptSrc: ["'self'", "https://cdn.jsdelivr.net", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      frameAncestors: ["'none'"],
+    },
+  }),
 );
 
 // ── Serializers ────────────────────────────────────────────────────────────
