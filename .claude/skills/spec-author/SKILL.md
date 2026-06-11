@@ -1,22 +1,43 @@
 ---
 name: spec-author
-description: Draft or update a feature spec. Use /spec-author new for greenfield, /spec-author sync to document existing code, or /spec-author revise to complete a draft spec and make it implementation-ready. Walks through persona brainstorming, scenarios, user stories, and all six cross-cutting concerns.
+description: Draft, document, or revise a feature spec. Walks through persona brainstorming, scenarios, user stories, and all six cross-cutting concerns, and keeps specs organized by package.
 ---
 
 Work conversationally. Ask questions and confirm assumptions before writing. Do not generate a full draft until the steps below are complete.
 
 ## Existing specs
 
-!`find docs/specs/features -name "*.md" | sort`
+!`find apps/api/specs apps/web/specs -name "*.md" 2>/dev/null | sort`
 
-## Mode
+## Specs are organized by package
 
-Arguments: `$ARGUMENTS`
+Specs live with the package they describe (see `docs/specs/SPECS.md`):
 
-- `new [name]` → **Greenfield**: spec a feature that does not yet exist in code
-- `sync [name|path]` → **Brownfield**: document a spec from existing code
-- `revise [name]` → **Revise**: complete a draft spec and make it implementation-ready; the spec drives the code, not the other way around
-- No arguments or ambiguous → ask the user which mode and what the feature is
+- **API capability** (endpoint + validation/ownership/telemetry) → `apps/api/specs/features/`
+- **UX** (a screen/flow) → `apps/web/specs/features/`
+- A full-stack feature is **two specs**, one per package, that link to each other.
+- Cross-cutting concerns are per-package (`apps/<pkg>/specs/cross-cutting/`); the
+  genuine API↔web wire contracts live in `docs/specs/universal/`.
+
+**Before drafting, decide which package(s) the feature touches.** If both, plan to
+write an API capability spec and a web UX spec and cross-link them.
+
+## Figure out what you're doing
+
+Do NOT expect a command argument. Infer the mode from the conversation and the repo,
+confirm it in one line, and only ask when genuinely ambiguous:
+
+- The feature/code doesn't exist yet, or the user describes something to build →
+  **Greenfield** (author a new spec)
+- The user points at existing code, or a spec is missing for code that already
+  exists → **Brownfield** (document current behavior)
+- A spec already exists and the user wants to complete/sharpen it → **Revise**
+  (complete a draft and make it implementation-ready; the spec drives the code, not
+  the other way around)
+
+If the user's message already makes the mode and feature obvious, state your reading
+and proceed. If not, ask which of the three they want and what the feature is. The
+`Existing specs` list above is your reference for what already exists.
 
 ---
 
@@ -24,23 +45,25 @@ Arguments: `$ARGUMENTS`
 
 **1. Intent** — Ask for the user problem this feature solves in one sentence. Do not proceed until you have it.
 
-**2. Personas** — Identify all actors. Start with the primary persona (authenticated owner-operator for app features; unauthenticated visitor for public pages) then expand:
+**2. Name** — From the intent and the capability/screen described, propose a kebab-case spec name (e.g. `archive-asset`, `service-queue`). Present it as a suggestion and ask the user to confirm or replace it. **Always take the user's chosen name** — your suggestion is only a starting point. Use the agreed name for the spec file(s).
+
+**3. Personas** — Identify all actors. Start with the primary persona (authenticated owner-operator for app features; unauthenticated visitor for public pages) then expand:
 
 - Different states of the primary user (new user with no data, established user, user mid-flow)
 - Secondary personas (future team members, delegates)
 - System actors (background jobs, webhooks, scheduled tasks)
 
-**3. Scenarios** — For each persona, generate scenarios across three categories:
+**4. Scenarios** — For each persona, generate scenarios across three categories:
 
 - **Happy path** — the intended flow from entry to success
 - **Error and edge cases** — empty state, validation failure, API error, 401, slow network, concurrent actions
 - **Lifecycle transitions** — before/during/after states; navigation on success and failure
 
-**4. User stories** — Derive from scenarios using: "As a **[persona]**, I can **[action]** so that **[outcome]**." Every significant scenario should map to at least one story.
+**5. User stories** — Derive from scenarios using: "As a **[persona]**, I can **[action]** so that **[outcome]**." Every significant scenario should map to at least one story.
 
-**5. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md). Ask the user about unknowns rather than guessing.
+**6. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md). Ask the user about unknowns rather than guessing.
 
-**6. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`, fill it in, and write the spec to `docs/specs/features/[feature-name].md`. Add an entry to `docs/specs/SPECS.md`.
+**7. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`, fill it in, and write the spec to the right package: `apps/api/specs/features/[name].md` for an API capability, `apps/web/specs/features/[name].md` for UX. If the feature spans both, write both and cross-link them via the **Counterpart** line. Add an entry to the package's index (`apps/api/specs/SPECS.md` and/or `apps/web/specs/SPECS.md`).
 
 ---
 
@@ -48,7 +71,7 @@ Arguments: `$ARGUMENTS`
 
 **1. Locate the code** — Find relevant files: route handler in `apps/api/src/api/` or `worker.ts`, use case in `apps/api/src/application/usecases/`, UI component in `apps/web/src/`. Ask if unclear.
 
-**2. Check for an existing spec** — If one exists in `docs/specs/features/`, read it and note any gaps between spec and code.
+**2. Check for an existing spec** — Look in `apps/api/specs/features/` and `apps/web/specs/features/`. If it's unclear which package the feature lives in, ask, then use the `Existing specs` list (scoped to that package) to locate or rule out an existing spec. If one exists, read it and note any gaps between spec and code. Remember a full-stack feature may have one spec per package.
 
 **3. Describe current behavior** — Summarize what the code actually does: inputs → validation → domain logic → outputs → side effects. Confirm with the user before proceeding.
 
@@ -56,10 +79,10 @@ Arguments: `$ARGUMENTS`
 
 **5. Draft or update**
 
-- No spec: draft from `docs/specs/templates/feature-spec.template.md` and write to `docs/specs/features/[feature-name].md`
+- No spec: draft from `docs/specs/templates/feature-spec.template.md` and write to the right package's `features/` directory (API capability → `apps/api/specs/`, UX → `apps/web/specs/`)
 - Existing spec: update to match current behavior. Flag spec-vs-code divergences as `REVIEW NEEDED` flags rather than silently resolving them.
 
-Add or update the entry in `docs/specs/SPECS.md`.
+Add or update the entry in the relevant package index (`apps/api/specs/SPECS.md` and/or `apps/web/specs/SPECS.md`).
 
 ---
 
@@ -67,7 +90,14 @@ Add or update the entry in `docs/specs/SPECS.md`.
 
 Use this mode when a spec already exists but has open flags, gaps, or NOT SPECIFIED sections that need design decisions before implementation can begin. The spec is the source of truth — the goal is to produce something complete enough to hand to an implementer.
 
-**1. Read the spec** — Read `docs/specs/features/[feature-name].md` in full. Catalogue every open item:
+**0. Locate the spec** — If the user hasn't pinpointed a file:
+
+1. Ask which project the spec lives in — `apps/api` (capabilities) or `apps/web` (UX). A full-stack feature may have one in each.
+2. List the specs in that project from the `Existing specs` output above and have the user pick. Confirm the exact file path(s) before reading.
+
+If the user already named the feature, locate matching files across both packages and confirm which to revise.
+
+**1. Read the spec** — Read the spec in its package (`apps/api/specs/features/[name].md` or `apps/web/specs/features/[name].md`) in full; if the feature spans both packages, read both counterparts. Catalogue every open item:
 
 - `NOT SPECIFIED` flags — behavior that has never been decided
 - `REVIEW NEEDED` flags — behavior that exists but needs a decision
@@ -88,7 +118,7 @@ Work through decisions conversationally. Do not resolve a flag by guessing — i
 
 **5. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md) against the **intended** behavior (decisions made in step 3), not the current code. Flag anything still unresolved.
 
-**6. Update the spec** — Rewrite or update `docs/specs/features/[feature-name].md`:
+**6. Update the spec** — Rewrite or update the spec in its package (and its counterpart if the change crosses the API↔web seam):
 
 - Replace resolved flags with acceptance criteria or edge case table rows
 - Remove flags that are explicitly out of scope (add to Out of Scope section instead)
@@ -101,7 +131,9 @@ Work through decisions conversationally. Do not resolve a flag by guessing — i
 
 Before writing the file, verify:
 
+- The spec is in the correct package directory for what it covers (API capability vs UX)
 - Every user story maps to at least one acceptance criterion
-- Every cross-cutting concern has been addressed or explicitly flagged
-- The Telemetry section names the operation(s) and states whether domain events apply
+- Every cross-cutting concern for that package has been addressed or explicitly flagged
+- **API specs only:** the Telemetry section names the operation(s) and states whether domain events apply
+- If the feature spans both packages, the API and web specs reference each other via the Counterpart line and neither duplicates the other's half
 - Anything unresolved is a named flag, not a missing section
