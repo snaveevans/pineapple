@@ -21,7 +21,7 @@ const HF_CAT_LABELS: Record<AssetCategory, string> = {
 
 function HFAssetGridCard({ asset }: { asset: AssetPresentation }) {
   return (
-    <article className="hf-asset-card hf-asset-card-static">
+    <Link to={paths.assetMaintenance(asset.id)} className="hf-asset-card">
       <HFAssetThumb asset={asset} height={132} />
       <div className="hf-asset-body">
         <h3 className="hf-asset-card-name">{asset.name}</h3>
@@ -32,13 +32,13 @@ function HFAssetGridCard({ asset }: { asset: AssetPresentation }) {
         </div>
       </div>
       <div className="hf-asset-summary">{asset.summary}</div>
-    </article>
+    </Link>
   );
 }
 
 function HFAssetRowCard({ asset }: { asset: AssetPresentation }) {
   return (
-    <article className="hf-asset-row hf-asset-row-static">
+    <Link to={paths.assetMaintenance(asset.id)} className="hf-asset-row">
       <HFAssetThumb asset={asset} height={84} />
       <div className="hf-asset-row-body">
         <div className="hf-asset-row-top">
@@ -53,7 +53,7 @@ function HFAssetRowCard({ asset }: { asset: AssetPresentation }) {
         </div>
         <div className="hf-asset-row-summary">{asset.summary}</div>
       </div>
-    </article>
+    </Link>
   );
 }
 
