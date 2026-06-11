@@ -21,15 +21,15 @@ const SELECT_COLUMNS =
 export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
   constructor(private readonly db: D1Database) {}
 
-  async findByAsset(assetId: AssetId, ownerId: UserId): Promise<MaintenanceTask[]> {
+  async findByAsset(assetId: AssetId): Promise<MaintenanceTask[]> {
     const result = await this.db
       .prepare(
         `SELECT ${SELECT_COLUMNS}
          FROM maintenance_tasks
-         WHERE asset_id = ? AND owner_id = ?
+         WHERE asset_id = ?
          ORDER BY next_due ASC`,
       )
-      .bind(assetId, ownerId)
+      .bind(assetId)
       .all<MaintenanceTaskRow>();
     return result.results.map((row) => this.#rowToTask(row));
   }

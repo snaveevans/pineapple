@@ -22,4 +22,4 @@ CREATE TABLE IF NOT EXISTS maintenance_tasks (
 CREATE INDEX IF NOT EXISTS idx_maintenance_tasks_owner_asset_due
   ON maintenance_tasks(owner_id, asset_id, next_due ASC);
 
-ALTER TABLE maintenance_records ADD COLUMN task_id TEXT REFERENCES maintenance_tasks(id);
+ALTER TABLE maintenance_records ADD COLUMN task_id TEXT REFERENCES maintenance_tasks(id) ON DELETE SET NULL;

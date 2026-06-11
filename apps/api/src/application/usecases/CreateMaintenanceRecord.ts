@@ -72,14 +72,20 @@ export class CreateMaintenanceRecord {
         todayUtc: this.dates.today(),
       });
       await this.records.save(record);
-      await this.eventBus.publishAll(record.pullEvents());
 
+      // Advance the task in the DB before publishing any events so both writes
+      // succeed before side effects fire.
+      let advanced = false;
       if (task !== null) {
-        const advanced = task.advance(record.performedAt, record.id, command.requesterId);
+        advanced = task.advance(record.performedAt, record.id, command.requesterId);
         if (advanced) {
           await this.tasks.save(task);
-          await this.eventBus.publishAll(task.pullEvents());
         }
+      }
+
+      await this.eventBus.publishAll(record.pullEvents());
+      if (task !== null && advanced) {
+        await this.eventBus.publishAll(task.pullEvents());
       }
 
       return ok(record);

@@ -1,11 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { isValidDateOnly } from "../../domain/maintenance/DateOnly.ts";
-
-const DateOnlySchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must use YYYY-MM-DD format")
-  .refine(isValidDateOnly, "Date must be a valid calendar date")
-  .openapi({ format: "date", example: "2026-04-11" });
+import { DateOnlySchema } from "./shared.ts";
 
 const IntervalUnitSchema = z.enum(["day", "week", "month", "year"]).openapi({ example: "month" });
 
@@ -61,8 +55,8 @@ export const MaintenanceTaskResponseSchema = z
     title: z.string().openapi({ example: "Replace furnace filter" }),
     intervalValue: z.number().int().openapi({ example: 2 }),
     intervalUnit: IntervalUnitSchema,
-    lastCompletedDate: z.string().nullable().openapi({ example: "2026-04-11" }),
-    nextDue: z.string().openapi({ example: "2026-06-11" }),
+    lastCompletedDate: DateOnlySchema.nullable().openapi({ example: "2026-04-11" }),
+    nextDue: DateOnlySchema.openapi({ example: "2026-06-11" }),
     createdAt: z.string().datetime().openapi({ example: "2026-06-11T18:25:24.887Z" }),
   })
   .openapi("MaintenanceTask");

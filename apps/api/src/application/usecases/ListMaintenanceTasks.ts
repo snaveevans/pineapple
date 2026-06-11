@@ -32,7 +32,7 @@ export class ListMaintenanceTasks {
         return err(new ForbiddenError("Access denied"));
       }
 
-      const tasks = await this.tasks.findByAsset(asset.id, query.requesterId);
+      const tasks = await this.tasks.findByAsset(asset.id);
       return ok(tasks);
     } catch (error) {
       if (error instanceof DomainErrorClass) return err(error);

@@ -169,7 +169,7 @@ All three route patterns must be added to the operation name mapping in `technic
 
 ### `MaintenanceTaskAdvanced` — when a linked record advances the task's `lastCompletedDate`
 
-Published only when `record.performedAt >= task.lastCompletedDate` (i.e. when `nextDue` actually changes). Not published when linking an older record.
+Published only when `record.performedAt > task.lastCompletedDate` (i.e. when `nextDue` actually changes). Not published when linking an older record.
 
 | Field        | Name                    | Value                                                 |
 | ------------ | ----------------------- | ----------------------------------------------------- |

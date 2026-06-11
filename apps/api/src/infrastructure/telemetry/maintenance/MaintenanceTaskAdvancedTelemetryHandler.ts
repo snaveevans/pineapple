@@ -29,6 +29,6 @@ export class MaintenanceTaskAdvancedTelemetryHandler implements DomainEventHandl
 }
 
 function dateOnlyToUtcMidnight(value: string): number {
-  const [year, month, day] = value.split("-").map(Number);
-  return Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1);
+  const [year, month, day] = value.split("-").map(Number) as [number, number, number];
+  return Date.UTC(year, month - 1, day);
 }
