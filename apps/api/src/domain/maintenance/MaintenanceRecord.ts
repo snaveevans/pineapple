@@ -2,6 +2,7 @@ import {
   type AssetId,
   InvariantError,
   MaintenanceRecordId,
+  type MaintenanceTaskId,
   type UserId,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
@@ -19,6 +20,7 @@ export class MaintenanceRecord {
     readonly title: string,
     readonly performedAt: string,
     readonly notes: string | null,
+    readonly taskId: MaintenanceTaskId | null,
     readonly createdAt: Date,
   ) {}
 
@@ -29,6 +31,7 @@ export class MaintenanceRecord {
     title: string;
     performedAt: string;
     notes?: string;
+    taskId?: MaintenanceTaskId;
     todayUtc: string;
   }): MaintenanceRecord {
     const title = props.title.trim();
@@ -59,6 +62,7 @@ export class MaintenanceRecord {
       title,
       props.performedAt,
       notes,
+      props.taskId ?? null,
       new Date(),
     );
     record._domainEvents.push(
@@ -80,6 +84,7 @@ export class MaintenanceRecord {
     title: string;
     performedAt: string;
     notes: string | null;
+    taskId: MaintenanceTaskId | null;
     createdAt: Date;
   }): MaintenanceRecord {
     return new MaintenanceRecord(
@@ -89,6 +94,7 @@ export class MaintenanceRecord {
       props.title,
       props.performedAt,
       props.notes,
+      props.taskId,
       props.createdAt,
     );
   }

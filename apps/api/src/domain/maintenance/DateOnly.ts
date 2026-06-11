@@ -21,12 +21,16 @@ export function validateDateOnly(value: string, field = "performedAt"): void {
   }
 }
 
-function daysInMonth(year: number, month: number): number {
+export function daysInMonth(year: number, month: number): number {
   if (month === 2) return isLeapYear(year) ? 29 : 28;
   if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
   return 31;
 }
 
-function isLeapYear(year: number): boolean {
+export function isLeapYear(year: number): boolean {
   return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+export function formatDateOnly(year: number, month: number, day: number): string {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }

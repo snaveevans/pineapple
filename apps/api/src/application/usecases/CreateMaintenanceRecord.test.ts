@@ -3,6 +3,7 @@ import {
   AssetId,
   ConflictError,
   ForbiddenError,
+  MaintenanceTaskId,
   NotFoundError,
   UserId,
   ValidationError,
@@ -12,6 +13,8 @@ import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
+import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
+import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
 import { CreateMaintenanceRecord } from "./CreateMaintenanceRecord.ts";
@@ -41,6 +44,24 @@ class MaintenanceRecordRepositoryFake implements MaintenanceRecordRepository {
 
   save(record: MaintenanceRecord): Promise<void> {
     this.saved = record;
+    return Promise.resolve();
+  }
+}
+
+class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
+  saved: MaintenanceTask | null = null;
+  constructor(private readonly task: MaintenanceTask | null = null) {}
+  findByAsset(): Promise<MaintenanceTask[]> {
+    return Promise.resolve([]);
+  }
+  findById(): Promise<MaintenanceTask | null> {
+    return Promise.resolve(this.task);
+  }
+  save(task: MaintenanceTask): Promise<void> {
+    this.saved = task;
+    return Promise.resolve();
+  }
+  delete(): Promise<void> {
     return Promise.resolve();
   }
 }
@@ -82,6 +103,7 @@ describe("CreateMaintenanceRecord", () => {
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
       records,
+      new MaintenanceTaskRepositoryFake(),
       events,
       dates,
     ).execute({
@@ -130,6 +152,7 @@ describe("CreateMaintenanceRecord", () => {
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
       new MaintenanceRecordRepositoryFake(),
+      new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
       dates,
     ).execute({
@@ -152,6 +175,7 @@ describe("CreateMaintenanceRecord", () => {
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
       records,
+      new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
       dates,
     ).execute({
@@ -172,6 +196,7 @@ describe("CreateMaintenanceRecord", () => {
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
       new MaintenanceRecordRepositoryFake(),
+      new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
       { today: () => "not-a-date" },
     ).execute({
@@ -192,6 +217,7 @@ describe("CreateMaintenanceRecord", () => {
     return new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
       new MaintenanceRecordRepositoryFake(),
+      new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
       dates,
     ).execute({
@@ -201,4 +227,200 @@ describe("CreateMaintenanceRecord", () => {
       performedAt: "2026-06-09",
     });
   }
+
+  describe("with taskId", () => {
+    function makeTask(
+      overrides: {
+        assetId?: AssetId;
+        ownerId?: UserId;
+        lastCompletedDate?: string | null;
+      } = {},
+    ) {
+      const asset = assetFor();
+      return MaintenanceTask.reconstitute({
+        id: MaintenanceTaskId.generate(),
+        assetId: overrides.assetId ?? asset.id,
+        ownerId: overrides.ownerId ?? ownerId,
+        title: "Replace furnace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+        lastCompletedDate:
+          overrides.lastCompletedDate !== undefined ? overrides.lastCompletedDate : null,
+        nextDue: "2026-08-09",
+        createdAt: new Date(),
+      });
+    }
+
+    it("saves the record, advances the task, and publishes MaintenanceTaskAdvanced", async () => {
+      const asset = assetFor();
+      const task = MaintenanceTask.reconstitute({
+        id: MaintenanceTaskId.generate(),
+        assetId: asset.id,
+        ownerId,
+        title: "Replace furnace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+        lastCompletedDate: "2026-04-09",
+        nextDue: "2026-06-09",
+        createdAt: new Date(),
+      });
+      const tasks = new MaintenanceTaskRepositoryFake(task);
+      const events = new EventBusFake();
+
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new MaintenanceRecordRepositoryFake(),
+        tasks,
+        events,
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-06-09",
+        taskId: task.id,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(tasks.saved).not.toBeNull();
+      expect(events.events).toContainEqual(
+        expect.objectContaining({ type: "MaintenanceTaskAdvanced", performedAt: "2026-06-09" }),
+      );
+    });
+
+    it("does not advance the task when performedAt equals lastCompletedDate", async () => {
+      const asset = assetFor();
+      const task = MaintenanceTask.reconstitute({
+        id: MaintenanceTaskId.generate(),
+        assetId: asset.id,
+        ownerId,
+        title: "Replace furnace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+        lastCompletedDate: "2026-06-09",
+        nextDue: "2026-08-09",
+        createdAt: new Date(),
+      });
+      const tasks = new MaintenanceTaskRepositoryFake(task);
+      const events = new EventBusFake();
+
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new MaintenanceRecordRepositoryFake(),
+        tasks,
+        events,
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-06-09",
+        taskId: task.id,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(tasks.saved).toBeNull();
+      expect(events.events.some((e) => e.type === "MaintenanceTaskAdvanced")).toBe(false);
+    });
+
+    it("does not advance the task when performedAt is older than lastCompletedDate", async () => {
+      const asset = assetFor();
+      const task = MaintenanceTask.reconstitute({
+        id: MaintenanceTaskId.generate(),
+        assetId: asset.id,
+        ownerId,
+        title: "Replace furnace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+        lastCompletedDate: "2026-06-09",
+        nextDue: "2026-08-09",
+        createdAt: new Date(),
+      });
+      const tasks = new MaintenanceTaskRepositoryFake(task);
+      const events = new EventBusFake();
+
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new MaintenanceRecordRepositoryFake(),
+        tasks,
+        events,
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-04-01",
+        taskId: task.id,
+      });
+
+      expect(result.ok).toBe(true);
+      expect(tasks.saved).toBeNull();
+      expect(events.events.some((e) => e.type === "MaintenanceTaskAdvanced")).toBe(false);
+    });
+
+    it("returns not found when taskId references a non-existent task", async () => {
+      const asset = assetFor();
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new MaintenanceRecordRepositoryFake(),
+        new MaintenanceTaskRepositoryFake(null),
+        new EventBusFake(),
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-06-09",
+        taskId: MaintenanceTaskId.generate(),
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBeInstanceOf(NotFoundError);
+    });
+
+    it("returns not found when taskId belongs to another user's task", async () => {
+      const asset = assetFor();
+      const task = makeTask({ assetId: asset.id, ownerId: UserId.generate() });
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new MaintenanceRecordRepositoryFake(),
+        new MaintenanceTaskRepositoryFake(task),
+        new EventBusFake(),
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-06-09",
+        taskId: task.id,
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBeInstanceOf(NotFoundError);
+    });
+
+    it("returns validation error when taskId belongs to a different asset", async () => {
+      const asset = assetFor();
+      const task = makeTask({ assetId: AssetId.generate(), ownerId });
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new MaintenanceRecordRepositoryFake(),
+        new MaintenanceTaskRepositoryFake(task),
+        new EventBusFake(),
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-06-09",
+        taskId: task.id,
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error).toBeInstanceOf(ValidationError);
+        expect((result.error as ValidationError).field).toBe("taskId");
+      }
+    });
+  });
 });

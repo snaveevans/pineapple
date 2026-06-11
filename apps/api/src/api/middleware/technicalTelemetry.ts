@@ -130,6 +130,24 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
       routePattern: "/api/assets/{assetId}/maintenance-records",
     };
   }
+  if (/^\/api\/assets\/[^/]+\/maintenance-tasks$/.test(pathname) && method === "POST") {
+    return {
+      operation: "CreateMaintenanceTask",
+      routePattern: "/api/assets/{assetId}/maintenance-tasks",
+    };
+  }
+  if (/^\/api\/assets\/[^/]+\/maintenance-tasks$/.test(pathname) && method === "GET") {
+    return {
+      operation: "ListMaintenanceTasks",
+      routePattern: "/api/assets/{assetId}/maintenance-tasks",
+    };
+  }
+  if (/^\/api\/assets\/[^/]+\/maintenance-tasks\/[^/]+$/.test(pathname) && method === "DELETE") {
+    return {
+      operation: "DeleteMaintenanceTask",
+      routePattern: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
+    };
+  }
   if (pathname === "/health" && method === "GET") {
     return { operation: "Health", routePattern: "/health" };
   }

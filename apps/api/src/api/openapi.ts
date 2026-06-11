@@ -14,6 +14,13 @@ import {
   MaintenanceRecordListResponseSchema,
   MaintenanceRecordResponseSchema,
 } from "./schemas/maintenanceRecordSchemas.ts";
+import {
+  CreateMaintenanceTaskBodySchema,
+  MaintenanceTaskAssetIdParamSchema,
+  MaintenanceTaskListResponseSchema,
+  MaintenanceTaskParamsSchema,
+  MaintenanceTaskResponseSchema,
+} from "./schemas/maintenanceTaskSchemas.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenAPI route specs (metadata only — no handlers, no infrastructure).
@@ -49,7 +56,7 @@ export const openApiConfig = {
     { name: "Assets", description: "Create and read assets owned by the caller" },
     {
       name: "Maintenance",
-      description: "Create and read asset maintenance records owned by the caller",
+      description: "Create and read maintenance records and tasks for assets owned by the caller",
     },
   ],
 };
@@ -214,6 +221,102 @@ export const listMaintenanceRecordsRoute = createRoute({
   },
 });
 
+export const createMaintenanceTaskRoute = createRoute({
+  method: "post",
+  path: "/api/assets/{assetId}/maintenance-tasks",
+  tags: ["Maintenance"],
+  summary: "Create a maintenance task",
+  security: [cookieAuth],
+  request: {
+    params: MaintenanceTaskAssetIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: CreateMaintenanceTaskBodySchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: "Maintenance task created",
+      content: { "application/json": { schema: MaintenanceTaskResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "The asset is archived",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const listMaintenanceTasksRoute = createRoute({
+  method: "get",
+  path: "/api/assets/{assetId}/maintenance-tasks",
+  tags: ["Maintenance"],
+  summary: "List maintenance tasks for an asset",
+  description:
+    "Returns tasks ordered by nextDue ascending (soonest due first). Archived asset tasks remain readable.",
+  security: [cookieAuth],
+  request: { params: MaintenanceTaskAssetIdParamSchema },
+  responses: {
+    200: {
+      description: "The asset's maintenance tasks",
+      content: { "application/json": { schema: MaintenanceTaskListResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const deleteMaintenanceTaskRoute = createRoute({
+  method: "delete",
+  path: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
+  tags: ["Maintenance"],
+  summary: "Delete a maintenance task",
+  description:
+    "Permanently removes the task. Linked maintenance records are preserved with taskId set to null.",
+  security: [cookieAuth],
+  request: { params: MaintenanceTaskParamsSchema },
+  responses: {
+    204: { description: "Task deleted" },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The task belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such task",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 /**
  * Register shared OpenAPI components (security schemes) on a registry.
  * Keyed off the registry type (not the app's Env) so it works for both the
@@ -246,6 +349,9 @@ export function getApiDocument() {
   doc.openapi(getAssetRoute, stub);
   doc.openapi(createMaintenanceRecordRoute, stub);
   doc.openapi(listMaintenanceRecordsRoute, stub);
+  doc.openapi(createMaintenanceTaskRoute, stub);
+  doc.openapi(listMaintenanceTasksRoute, stub);
+  doc.openapi(deleteMaintenanceTaskRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }

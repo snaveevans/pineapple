@@ -80,6 +80,7 @@ describe("MaintenanceRecord", () => {
       title: original.title,
       performedAt: original.performedAt,
       notes: original.notes,
+      taskId: null,
       createdAt: original.createdAt,
     });
 
