@@ -2,7 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { AssetId, DomainError } from "@snaveevans/pineapple-shared";
+import { AssetId, DomainError, MaintenanceTaskId } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -12,6 +12,7 @@ import type { MaintenanceRecord } from "./domain/maintenance/MaintenanceRecord.t
 import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.ts";
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
 import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
+import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
 import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
@@ -25,6 +26,9 @@ import { GetAsset } from "./application/usecases/GetAsset.ts";
 import { ListAssets } from "./application/usecases/ListAssets.ts";
 import { CreateMaintenanceRecord } from "./application/usecases/CreateMaintenanceRecord.ts";
 import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRecords.ts";
+import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
+import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
+import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -33,21 +37,27 @@ import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTe
 import {
   createAssetRoute,
   createMaintenanceRecordRoute,
+  createMaintenanceTaskRoute,
+  deleteMaintenanceTaskRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
   listMaintenanceRecordsRoute,
+  listMaintenanceTasksRoute,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
 import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
+import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
+import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
   ENVIRONMENT: string;
   ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   MAINTENANCE_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
@@ -131,7 +141,23 @@ function serializeMaintenanceRecord(
     title: record.title,
     performedAt: record.performedAt,
     notes: record.notes,
+    taskId: record.taskId,
     createdAt: record.createdAt.toISOString(),
+  };
+}
+
+function serializeMaintenanceTask(
+  task: MaintenanceTask,
+): z.infer<typeof MaintenanceTaskResponseSchema> {
+  return {
+    id: task.id,
+    assetId: task.assetId,
+    title: task.title,
+    intervalValue: task.intervalValue,
+    intervalUnit: task.intervalUnit,
+    lastCompletedDate: task.lastCompletedDate,
+    nextDue: task.nextDue,
+    createdAt: task.createdAt.toISOString(),
   };
 }
 
@@ -160,6 +186,7 @@ app.use("/api/*", async (c, next) => {
     eventBus,
     assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
     maintenanceDomainDataset: c.env.MAINTENANCE_DOMAIN_TELEMETRY,
+    maintenanceTaskDomainDataset: c.env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
     userDomainDataset: c.env.USER_DOMAIN_TELEMETRY,
   });
   c.set("eventBus", eventBus);
@@ -228,10 +255,11 @@ app.openapi(getAssetRoute, async (c) => {
 app.openapi(createMaintenanceRecordRoute, async (c) => {
   const user = c.get("user");
   const { assetId } = c.req.valid("param");
-  const { title, performedAt, notes } = c.req.valid("json");
+  const { title, performedAt, notes, taskId } = c.req.valid("json");
   const result = await new CreateMaintenanceRecord(
     new D1AssetRepository(c.env.DB),
     new D1MaintenanceRecordRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
     new SystemUtcDateProvider(),
   ).execute({
@@ -240,6 +268,7 @@ app.openapi(createMaintenanceRecordRoute, async (c) => {
     title,
     performedAt,
     ...(notes !== undefined ? { notes } : {}),
+    ...(taskId !== undefined ? { taskId: MaintenanceTaskId.from(taskId) } : {}),
   });
   if (!result.ok) throw result.error;
   return c.json(serializeMaintenanceRecord(result.value), 201);
@@ -257,6 +286,58 @@ app.openapi(listMaintenanceRecordsRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json({ maintenanceRecords: result.value.map(serializeMaintenanceRecord) }, 200);
+});
+
+// ── Maintenance task endpoints ───────────────────────────────────────────────
+
+app.openapi(createMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId } = c.req.valid("param");
+  const { title, intervalValue, intervalUnit, lastCompletedDate } = c.req.valid("json");
+  const result = await new CreateMaintenanceTask(
+    new D1AssetRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+    c.get("eventBus"),
+    new SystemUtcDateProvider(),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+    title,
+    intervalValue,
+    intervalUnit,
+    ...(lastCompletedDate !== undefined ? { lastCompletedDate } : {}),
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeMaintenanceTask(result.value), 201);
+});
+
+app.openapi(listMaintenanceTasksRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId } = c.req.valid("param");
+  const result = await new ListMaintenanceTasks(
+    new D1AssetRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ maintenanceTasks: result.value.map(serializeMaintenanceTask) }, 200);
+});
+
+app.openapi(deleteMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, taskId } = c.req.valid("param");
+  const result = await new DeleteMaintenanceTask(
+    new D1MaintenanceTaskRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({
+    taskId: MaintenanceTaskId.from(taskId),
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.body(null, 204);
 });
 
 export default app;

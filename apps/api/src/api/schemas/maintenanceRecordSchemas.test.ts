@@ -47,6 +47,7 @@ describe("maintenance record schemas", () => {
         title: "Changed oil",
         performedAt: "2026-06-09",
         notes: null,
+        taskId: null,
         createdAt: "2026-06-09T18:25:24.887Z",
       }).success,
     ).toBe(true);

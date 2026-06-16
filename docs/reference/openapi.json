@@ -26,7 +26,7 @@
     },
     {
       "name": "Maintenance",
-      "description": "Create and read asset maintenance records owned by the caller"
+      "description": "Create and read maintenance records and tasks for assets owned by the caller"
     }
   ],
   "components": {
@@ -330,6 +330,12 @@
             "nullable": true,
             "example": "Used 7 quarts of synthetic oil."
           },
+          "taskId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -342,6 +348,7 @@
           "title",
           "performedAt",
           "notes",
+          "taskId",
           "createdAt"
         ]
       },
@@ -364,6 +371,11 @@
             "type": "string",
             "maxLength": 1000,
             "example": "Used 7 quarts of 5W-20 synthetic oil."
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
           }
         },
         "required": [
@@ -383,6 +395,118 @@
         },
         "required": [
           "maintenanceRecords"
+        ]
+      },
+      "MaintenanceTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "title": {
+            "type": "string",
+            "example": "Replace furnace filter"
+          },
+          "intervalValue": {
+            "type": "integer",
+            "example": 2
+          },
+          "intervalUnit": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "example": "month"
+          },
+          "lastCompletedDate": {
+            "type": "string",
+            "nullable": true,
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-04-11"
+          },
+          "nextDue": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-11"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-11T18:25:24.887Z"
+          }
+        },
+        "required": [
+          "id",
+          "assetId",
+          "title",
+          "intervalValue",
+          "intervalUnit",
+          "lastCompletedDate",
+          "nextDue",
+          "createdAt"
+        ]
+      },
+      "CreateMaintenanceTaskBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Replace furnace filter"
+          },
+          "intervalValue": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 2
+          },
+          "intervalUnit": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "example": "month"
+          },
+          "lastCompletedDate": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-04-11"
+          }
+        },
+        "required": [
+          "title",
+          "intervalValue",
+          "intervalUnit"
+        ]
+      },
+      "MaintenanceTaskListResponse": {
+        "type": "object",
+        "properties": {
+          "maintenanceTasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MaintenanceTask"
+            }
+          }
+        },
+        "required": [
+          "maintenanceTasks"
         ]
       }
     },
@@ -717,6 +841,240 @@
           },
           "404": {
             "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/maintenance-tasks": {
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Create a maintenance task",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMaintenanceTaskBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Maintenance task created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceTask"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset is archived",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "List maintenance tasks for an asset",
+        "description": "Returns tasks ordered by nextDue ascending (soonest due first). Archived asset tasks remain readable.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The asset's maintenance tasks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceTaskListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/maintenance-tasks/{taskId}": {
+      "delete": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Delete a maintenance task",
+        "description": "Permanently removes the task. Linked maintenance records are preserved with taskId set to null.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "required": true,
+            "name": "taskId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Task deleted"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The task belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
             "content": {
               "application/json": {
                 "schema": {

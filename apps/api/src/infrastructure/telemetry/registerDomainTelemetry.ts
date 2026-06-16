@@ -2,12 +2,16 @@ import type { EventBus } from "../../application/ports/EventBus.ts";
 import { AnalyticsEngineTelemetrySink } from "./AnalyticsEngineTelemetrySink.ts";
 import { AssetCreatedTelemetryHandler } from "./asset/AssetCreatedTelemetryHandler.ts";
 import { MaintenanceRecordCreatedTelemetryHandler } from "./maintenance/MaintenanceRecordCreatedTelemetryHandler.ts";
+import { MaintenanceTaskAdvancedTelemetryHandler } from "./maintenance/MaintenanceTaskAdvancedTelemetryHandler.ts";
+import { MaintenanceTaskCreatedTelemetryHandler } from "./maintenance/MaintenanceTaskCreatedTelemetryHandler.ts";
+import { MaintenanceTaskDeletedTelemetryHandler } from "./maintenance/MaintenanceTaskDeletedTelemetryHandler.ts";
 import { UserProvisionedTelemetryHandler } from "./user/UserProvisionedTelemetryHandler.ts";
 
 export function registerDomainTelemetry(deps: {
   eventBus: EventBus;
   assetDomainDataset: AnalyticsEngineDataset;
   maintenanceDomainDataset: AnalyticsEngineDataset;
+  maintenanceTaskDomainDataset: AnalyticsEngineDataset;
   userDomainDataset: AnalyticsEngineDataset;
 }): void {
   const assetDomainSink = new AnalyticsEngineTelemetrySink(deps.assetDomainDataset);
@@ -18,4 +22,11 @@ export function registerDomainTelemetry(deps: {
 
   const maintenanceDomainSink = new AnalyticsEngineTelemetrySink(deps.maintenanceDomainDataset);
   deps.eventBus.subscribe(new MaintenanceRecordCreatedTelemetryHandler(maintenanceDomainSink));
+
+  const maintenanceTaskDomainSink = new AnalyticsEngineTelemetrySink(
+    deps.maintenanceTaskDomainDataset,
+  );
+  deps.eventBus.subscribe(new MaintenanceTaskCreatedTelemetryHandler(maintenanceTaskDomainSink));
+  deps.eventBus.subscribe(new MaintenanceTaskDeletedTelemetryHandler(maintenanceTaskDomainSink));
+  deps.eventBus.subscribe(new MaintenanceTaskAdvancedTelemetryHandler(maintenanceTaskDomainSink));
 }
