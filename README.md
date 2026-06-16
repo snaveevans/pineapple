@@ -42,10 +42,11 @@ pnpm type-check
 pnpm -r test
 ```
 
-Local secrets live in `apps/api/.dev.vars` (gitignored). Set `DEV_AUTH_EMAIL`
-there to bypass the login flow during development. The API dev script supplies
-the required `ENVIRONMENT=development` runtime marker; production defaults to
-`ENVIRONMENT=production` and rejects the bypass. See
+Local secrets live in `apps/api/.dev.vars` (gitignored). Set `ENVIRONMENT=development`
+and `DEV_AUTH_EMAIL=...` there to bypass the login flow during development (so
+things like POST /api/assets work without Google OAuth). The dev script + .dev.vars
+supply the marker; production defaults to `ENVIRONMENT=production` and rejects
+the bypass. See
 [`docs/guides/getting-started.md`](docs/guides/getting-started.md) for the full
 setup, including Google OAuth.
 

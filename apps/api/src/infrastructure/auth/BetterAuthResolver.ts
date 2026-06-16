@@ -16,9 +16,10 @@ import type { Auth } from "./auth.ts";
  * decoupled — Better Auth's `user` table is auth infrastructure; the domain
  * `users` table is what the rest of the app references.
  *
- * LOCAL DEV: pass `devEmail` (from DEV_AUTH_EMAIL in .dev.vars) to skip the
- * session check entirely. The bypass is honored only when `environment` is
- * exactly "development"; any other configuration fails closed.
+ * LOCAL DEV preference:
+ * 1. Real session from cookie (if present and valid) — cookie wins.
+ * 2. DEV_AUTH_EMAIL bypass from .dev.vars (only if ENVIRONMENT=development).
+ * 3. Otherwise the normal no-session UnauthorizedError.
  */
 export class BetterAuthResolver implements AuthenticatedUserResolver {
   constructor(
@@ -42,15 +43,36 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
   }
 
   async #resolveEmail(request: Request): Promise<Email> {
-    if (!this.devEmail) return this.#resolveFromSession(request);
-
-    if (this.environment !== "development") {
-      throw new InvariantError(
-        "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
-      );
+    // Prefer a real Better Auth session if the request carries one (e.g. the
+    // better-auth.session_token cookie the user is sending). This lets
+    // authenticated requests (with valid cookie) use the real user from the
+    // session, even if the local dev bypass is configured.
+    try {
+      const session = await this.auth.api.getSession({ headers: request.headers });
+      if (session?.user?.email) {
+        const raw = session.user.email;
+        if (typeof raw === "string" && raw.length > 0) {
+          return Email.from(raw);
+        }
+      }
+    } catch {
+      // ignore and fall through to dev bypass or error
     }
 
-    return Email.from(this.devEmail);
+    // Fallback to local dev bypass (from .dev.vars). Only honored in dev env.
+    const devEmail = this.devEmail?.trim();
+    if (devEmail) {
+      if (this.environment !== "development") {
+        throw new InvariantError(
+          "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
+        );
+      }
+      return Email.from(devEmail);
+    }
+
+    // No session and no bypass → the session resolver will throw the proper
+    // UnauthorizedError with the "sign in via /api/auth/..." message.
+    return this.#resolveFromSession(request);
   }
 
   /** Production: read the verified Better Auth session and extract the email. */

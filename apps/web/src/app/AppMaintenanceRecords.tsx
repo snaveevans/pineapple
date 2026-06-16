@@ -10,6 +10,14 @@ import {
   type MaintenanceRecord,
   type MaintenanceRecordListResponse,
 } from "../api/maintenanceRecords.ts";
+import {
+  listMaintenanceTasks,
+  createMaintenanceTask,
+  deleteMaintenanceTask,
+  maintenanceTasksQueryKey,
+  type MaintenanceTask,
+  type CreateMaintenanceTaskBody,
+} from "../api/maintenanceTasks.ts";
 import { Icon } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
@@ -53,6 +61,60 @@ function relAgo(s: string): string {
   if (mo < 12) return `${mo} months ago`;
   const yr = Math.floor(mo / 12);
   return `${yr} ${yr > 1 ? "years" : "year"} ago`;
+}
+
+// ─── task helpers (client display, match prototype logic) ────────────────────
+
+type TaskStatus = "overdue" | "soon" | "ok";
+
+function taskStatus(nextDue: string): TaskStatus {
+  const n = Math.round((ymdToUTC(todayDateOnly()) - ymdToUTC(nextDue)) / 86400000);
+  if (n > 0) return "overdue";
+  if (n >= -14) return "soon";
+  return "ok";
+}
+
+function fmtInterval(value: number, unit: string): string {
+  return value === 1 ? `Every ${unit}` : `Every ${value} ${unit}s`;
+}
+
+function nextDueLabel(nextDue: string): string {
+  const n = Math.round((ymdToUTC(todayDateOnly()) - ymdToUTC(nextDue)) / 86400000);
+  if (n > 0) return `Overdue · ${n === 1 ? "1 day" : n + " days"}`;
+  if (n === 0) return "Due today";
+  const ahead = -n;
+  if (ahead === 1) return "Due tomorrow";
+  if (ahead <= 14) return `Due in ${ahead} days`;
+  const parts = nextDue.split("-").map(Number);
+  const y = parts[0]!, m = parts[1]!, d = parts[2]!;
+  const todayY = Number(todayDateOnly().slice(0, 4));
+  if (y === todayY) return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${d}`;
+  return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${y}`;
+}
+
+function addIntervalClient(dateStr: string, value: number, unit: "day" | "week" | "month" | "year"): string {
+  // Simple client version for optimistic create preview (not used for persistence)
+  const [y, m, d] = dateStr.split("-").map(Number);
+  let yy = y!, mm = m!, dd = d!;
+  if (unit === "day" || unit === "week") {
+    const mult = unit === "week" ? 7 : 1;
+    const ms = ymdToUTC(dateStr) + value * mult * 86400000;
+    const dt = new Date(ms);
+    return [
+      dt.getUTCFullYear(),
+      String(dt.getUTCMonth() + 1).padStart(2, "0"),
+      String(dt.getUTCDate()).padStart(2, "0"),
+    ].join("-");
+  }
+  if (unit === "month") {
+    mm += value;
+    while (mm > 12) { mm -= 12; yy += 1; }
+  } else {
+    yy += value;
+  }
+  const cap = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+  dd = Math.min(dd, cap);
+  return [yy, String(mm).padStart(2, "0"), String(dd).padStart(2, "0")].join("-");
 }
 
 type GroupedRecord = MaintenanceRecord & { sameDay: boolean };
@@ -254,6 +316,353 @@ function MRErrorState({
   );
 }
 
+// ─── Overview / Schedule / Recent (ported & adapted from design) ─────────────
+
+function MRHealthSummary({ tasks }: { tasks: MaintenanceTask[] }) {
+  const overdue = tasks.filter((tk) => taskStatus(tk.nextDue) === "overdue").length;
+  const soon = tasks.filter((tk) => taskStatus(tk.nextDue) === "soon").length;
+  const ok = tasks.filter((tk) => taskStatus(tk.nextDue) === "ok").length;
+  if (tasks.length === 0) return null;
+  return (
+    <div className="mr-health-row" role="status" aria-label="Task health summary">
+      {overdue > 0 && (
+        <div className="mr-health-chip mr-health-chip-overdue">
+          <span className="mr-health-chip-dot" />
+          <span className="mr-health-chip-val">{overdue}</span>
+          <span className="mr-health-chip-lbl">{overdue === 1 ? "task overdue" : "tasks overdue"}</span>
+        </div>
+      )}
+      {soon > 0 && (
+        <div className="mr-health-chip mr-health-chip-soon">
+          <span className="mr-health-chip-dot" />
+          <span className="mr-health-chip-val">{soon}</span>
+          <span className="mr-health-chip-lbl">{soon === 1 ? "due soon" : "due soon"}</span>
+        </div>
+      )}
+      {ok > 0 && (
+        <div className="mr-health-chip mr-health-chip-ok">
+          <span className="mr-health-chip-dot" />
+          <span className="mr-health-chip-val">{ok}</span>
+          <span className="mr-health-chip-lbl">on schedule</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MRRecentActivity({ records, onViewAll }: { records: MaintenanceRecord[]; onViewAll: () => void }) {
+  const recent = [...records].slice(0, 3);
+  return (
+    <div className="mr-recent">
+      <div className="mr-recent-head">
+        <span className="mr-hist-title">Recent activity</span>
+        <button className="mr-recent-viewall" onClick={onViewAll}>
+          View all <Icon name="chevron-right" size={13} stroke={2.2} />
+        </button>
+      </div>
+      {recent.length === 0 ? (
+        <div className="mr-recent-nil">
+          <Icon name="clock-sm" size={15} color="var(--hf-ink-faint)" stroke={1.6} />
+          No records yet — log maintenance from the button above.
+        </div>
+      ) : (
+        <div className="mr-recent-list">
+          {recent.map((r) => (
+            <div className="mr-recent-row" key={r.id}>
+              <div className="mr-recent-dot-col">
+                <span className="mr-recent-dot" />
+                <span className="mr-recent-line" />
+              </div>
+              <div className="mr-recent-body">
+                <div className="mr-recent-title-row">
+                  <span className="mr-recent-title">{r.title}</span>
+                  {r.taskId && (
+                    <span className="mr-tl-task-badge">
+                      <Icon name="calendar" size={11} stroke={2} />Scheduled
+                    </span>
+                  )}
+                </div>
+                <div className="mr-recent-meta">
+                  {fmtDate(r.performedAt)}
+                  <span className="mr-recent-sep">·</span>
+                  <span className="mr-recent-ago">{relAgo(r.performedAt)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (id: string) => void; onDelete: (id: string) => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const s = taskStatus(task.nextDue);
+  return (
+    <div className="mr-task-card" data-status={s}>
+      <div className="mr-task-card-main">
+        <span className="mr-task-dot" data-status={s} />
+        <div className="mr-task-info">
+          <div className="mr-task-title">{task.title}</div>
+          <div className="mr-task-interval">{fmtInterval(task.intervalValue, task.intervalUnit)}</div>
+        </div>
+      </div>
+      <div className="mr-task-card-right">
+        <span className={`mr-due-badge mr-due-badge-${s}`}>
+          <Icon name={s === "overdue" ? "alert" : s === "soon" ? "clock-sm" : "check"} size={11} stroke={2} />
+          {nextDueLabel(task.nextDue)}
+        </span>
+        {confirming ? (
+          <div className="mr-task-confirm">
+            <span className="mr-task-confirm-txt">Delete task?</span>
+            <button className="mr-btn mr-task-confirm-yes" onClick={() => { onDelete(task.id); setConfirming(false); }}>Delete</button>
+            <button className="mr-btn mr-btn-ghost mr-task-confirm-no" onClick={() => setConfirming(false)}>Cancel</button>
+          </div>
+        ) : (
+          <div className="mr-task-actions">
+            <button className="mr-btn mr-btn-primary mr-task-log-btn" onClick={() => onLog(task.id)}>
+              <Icon name="check" size={13} stroke={2.3} />Log
+            </button>
+            <button className="mr-task-del-btn" onClick={() => setConfirming(true)} aria-label="Delete task">
+              <Icon name="x" size={14} stroke={2.1} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MRTaskEmpty({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="mr-task-empty">
+      <Icon name="calendar" size={18} color="var(--hf-ink-faint)" stroke={1.6} />
+      <span>No scheduled tasks — <button className="mr-task-empty-link" onClick={onAdd}>add one</button> to track recurring work.</span>
+    </div>
+  );
+}
+
+function MRTaskLoading() {
+  return (
+    <div className="mr-task-skel" aria-busy="true" aria-label="Loading tasks">
+      {[0, 1, 2].map((i) => (
+        <div className="mr-task-skel-row" key={i}>
+          <span className="mr-skel-dot" />
+          <span className="mr-skel mr-skel-w70" style={{ height: 13 }} />
+          <span className="mr-skel" style={{ width: 90, height: 22, borderRadius: 999 }} />
+          <span className="mr-skel" style={{ width: 54, height: 30, borderRadius: 8 }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MRScheduleSection({
+  tasks,
+  isLoading,
+  onLog,
+  onDelete,
+  onAdd,
+}: {
+  tasks: MaintenanceTask[];
+  isLoading: boolean;
+  onLog: (id: string) => void;
+  onDelete: (id: string) => void;
+  onAdd: () => void;
+}) {
+  const sorted = [...tasks].sort((a, b) => (a.nextDue < b.nextDue ? -1 : 1));
+  const overdueCount = sorted.filter((t) => taskStatus(t.nextDue) === "overdue").length;
+  return (
+    <div className="mr-schedule">
+      <div className="mr-schedule-head">
+        <div className="mr-schedule-head-left">
+          <span className="mr-hist-title">Schedule</span>
+          {overdueCount > 0 ? (
+            <span className="mr-due-badge mr-due-badge-overdue">{overdueCount} overdue</span>
+          ) : (
+            <span className="mr-hist-meta">{tasks.length} {tasks.length === 1 ? "task" : "tasks"}</span>
+          )}
+        </div>
+        <button className="mr-btn mr-btn-secondary mr-schedule-add-btn" onClick={onAdd}>
+          <Icon name="plus" size={14} stroke={2.2} />Add task
+        </button>
+      </div>
+      {isLoading && <MRTaskLoading />}
+      {!isLoading && sorted.length === 0 && <MRTaskEmpty onAdd={onAdd} />}
+      {!isLoading && sorted.length > 0 && (
+        <div className="mr-task-list">
+          {sorted.map((t) => (
+            <MRTaskCard key={t.id} task={t} onLog={onLog} onDelete={onDelete} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MROverviewTab({
+  tasks,
+  records,
+  tasksLoading,
+  onLogFromTask,
+  onDeleteTask,
+  onAddTask,
+  onViewAll,
+}: {
+  tasks: MaintenanceTask[];
+  records: MaintenanceRecord[];
+  tasksLoading: boolean;
+  onLogFromTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onAddTask: () => void;
+  onViewAll: () => void;
+}) {
+  return (
+    <div className="mr-overview">
+      <MRHealthSummary tasks={tasks} />
+      <MRScheduleSection
+        tasks={tasks}
+        isLoading={tasksLoading}
+        onLog={onLogFromTask}
+        onDelete={onDeleteTask}
+        onAdd={onAddTask}
+      />
+      <MRRecentActivity records={records} onViewAll={onViewAll} />
+    </div>
+  );
+}
+
+// ─── Task create form (simple drawer/sheet version) ──────────────────────────
+
+const TASK_TITLE_MAX = 100;
+const TASK_UNITS: Array<{ value: "day" | "week" | "month" | "year"; label: string }> = [
+  { value: "day", label: "Day" },
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+  { value: "year", label: "Year" },
+];
+
+interface MRCreateTaskFormProps {
+  asset: AssetPresentation;
+  variant: "drawer" | "sheet";
+  onClose: () => void;
+  onCreated: (task: MaintenanceTask) => void;
+}
+
+function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFormProps) {
+  const [title, setTitle] = useState("");
+  const [iv, setIv] = useState("3");
+  const [unit, setUnit] = useState<"day" | "week" | "month" | "year">("month");
+  const [lastDate, setLastDate] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [banner, setBanner] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { titleRef.current?.focus(); }, []);
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    const t = title.trim();
+    if (!t) e.title = "Title is required.";
+    else if (t.length > TASK_TITLE_MAX) e.title = `Title must be ${TASK_TITLE_MAX} characters or fewer.`;
+    const n = parseInt(iv, 10);
+    if (!iv || isNaN(n) || n < 1 || !Number.isInteger(n)) e.iv = "Must be a positive whole number.";
+    if (lastDate && lastDate > todayDateOnly()) e.last = "Must be today or earlier.";
+    return e;
+  };
+
+  const mutation = useMutation({
+    mutationFn: (body: CreateMaintenanceTaskBody) => createMaintenanceTask(asset.id, body),
+    onSuccess: (task) => onCreated(task),
+    onError: (err) => setBanner(err instanceof Error ? err.message : "Failed to save task."),
+  });
+
+  const submit = () => {
+    if (mutation.isPending) return;
+    const e = validate();
+    setErrors(e);
+    if (Object.keys(e).length) {
+      setBanner("Please fix the highlighted fields before saving.");
+      return;
+    }
+    setBanner(null);
+    const n = parseInt(iv, 10);
+    const body: CreateMaintenanceTaskBody = {
+      title: title.trim(),
+      intervalValue: n,
+      intervalUnit: unit,
+      ...(lastDate ? { lastCompletedDate: lastDate } : {}),
+    };
+    mutation.mutate(body);
+  };
+
+  const clear = (f: string) => setErrors((prev) => { const n = { ...prev }; delete n[f]; return n; });
+
+  return (
+    <div className={`mr-form mr-form-${variant}`}>
+      {variant === "sheet" && <div className="mr-sheet-grab" />}
+      <div className="mr-form-head">
+        <div className="mr-form-head-txt">
+          <div className="mr-form-title">Add scheduled task</div>
+          <div className="mr-form-sub">{asset.name}</div>
+        </div>
+        <button className="mr-form-close" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={15} stroke={2.2} />
+        </button>
+      </div>
+      <div className="mr-form-body">
+        {banner && (
+          <div className="mr-banner" role="alert">
+            <Icon name="alert" size={15} stroke={2} /><span>{banner}</span>
+          </div>
+        )}
+        <div className="mr-field">
+          <div className="mr-field-top">
+            <label className="mr-field-label" htmlFor="mt-title">Title <span className="mr-req">*</span></label>
+            <span className={`mr-field-count ${title.length > TASK_TITLE_MAX ? "over" : ""}`}>{title.length}/{TASK_TITLE_MAX}</span>
+          </div>
+          <input id="mt-title" ref={titleRef} type="text" className={`mr-input ${errors.title ? "err" : ""}`}
+            placeholder='e.g. "Replace furnace filter"' maxLength={TASK_TITLE_MAX + 20}
+            value={title} onChange={(e) => { setTitle(e.target.value); clear("title"); if (banner) setBanner(null); }} />
+          {errors.title && <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.title}</div>}
+        </div>
+        <div className="mr-field">
+          <div className="mr-field-top">
+            <label className="mr-field-label">Repeat every <span className="mr-req">*</span></label>
+          </div>
+          <div className="mr-interval-row">
+            <input id="mt-iv" type="number" min="1" step="1" className={`mr-input mr-interval-num ${errors.iv ? "err" : ""}`}
+              value={iv} onChange={(e) => { setIv(e.target.value); clear("iv"); if (banner) setBanner(null); }} />
+            <div className="mr-unit-seg" role="group" aria-label="Interval unit">
+              {TASK_UNITS.map((u) => (
+                <button key={u.value} type="button" className={`mr-unit-btn ${unit === u.value ? "active" : ""}`}
+                  onClick={() => setUnit(u.value)}>{u.label}</button>
+              ))}
+            </div>
+          </div>
+          {errors.iv && <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.iv}</div>}
+        </div>
+        <div className="mr-field">
+          <div className="mr-field-top">
+            <label className="mr-field-label" htmlFor="mt-last">Last completed</label>
+          </div>
+          <input id="mt-last" type="date" max={todayDateOnly()} className={`mr-input mr-input-date ${errors.last ? "err" : ""}`}
+            value={lastDate} onChange={(e) => { setLastDate(e.target.value); clear("last"); if (banner) setBanner(null); }} />
+          {errors.last ? <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.last}</div> :
+            <div className="mr-field-hint">Optional — when was this last done? Leave blank to start counting from today.</div>}
+        </div>
+      </div>
+      <div className="mr-form-actions">
+        <button className="mr-btn mr-btn-ghost" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
+        <button className="mr-btn mr-btn-primary mr-btn-save" onClick={submit} disabled={mutation.isPending}>
+          {mutation.isPending ? <><span className="mr-spinner" />Saving…</> : <><Icon name="check" size={15} stroke={2.4} />Save task</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── form ────────────────────────────────────────────────────────────────────
 
 const TITLE_MAX = 100;
@@ -281,12 +690,15 @@ interface MRFormProps {
   variant: "drawer" | "sheet";
   onClose: () => void;
   onSaved: (record: MaintenanceRecord) => void;
+  tasks?: MaintenanceTask[];
+  preselectedTaskId?: string | null;
 }
 
-function MRForm({ asset, assetId, variant, onClose, onSaved }: MRFormProps) {
+function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], preselectedTaskId = null }: MRFormProps) {
   const [title, setTitle] = useState("");
   const [performedAt, setPerformedAt] = useState(todayDateOnly());
   const [notes, setNotes] = useState("");
+  const [taskId, setTaskId] = useState<string>(preselectedTaskId || "");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -301,6 +713,7 @@ function MRForm({ asset, assetId, variant, onClose, onSaved }: MRFormProps) {
         title: title.trim(),
         performedAt,
         ...(notes.trim() ? { notes: notes.trim() } : {}),
+        ...(taskId ? { taskId } : {}),
       }),
     onSuccess: (record) => onSaved(record),
     onError: (err) =>
@@ -326,6 +739,9 @@ function MRForm({ asset, assetId, variant, onClose, onSaved }: MRFormProps) {
     setBanner(null);
     mutation.mutate();
   };
+
+  const effectiveTasks = tasks; // already for this asset
+  const isPreselected = !!preselectedTaskId;
 
   return (
     <div className={`mr-form mr-form-${variant}`}>
@@ -406,6 +822,29 @@ function MRForm({ asset, assetId, variant, onClose, onSaved }: MRFormProps) {
             )}
           </div>
 
+          {effectiveTasks.length > 0 && (
+            <div className="mr-field">
+              <label className="mr-field-label" htmlFor="mr-task-link">Linked task</label>
+              <select
+                id="mr-task-link"
+                className="mr-input mr-select"
+                value={taskId}
+                onChange={(e) => setTaskId(e.target.value)}
+                disabled={isPreselected}
+              >
+                <option value="">— None —</option>
+                {effectiveTasks.map((t) => (
+                  <option key={t.id} value={t.id}>{t.title}</option>
+                ))}
+              </select>
+              <div className="mr-field-hint">
+                {isPreselected
+                  ? "Linked from schedule — saving will advance the next-due date."
+                  : "Optionally link this record to a scheduled task."}
+              </div>
+            </div>
+          )}
+
           <div className="mr-field">
             <div className="mr-field-top">
               <label className="mr-field-label" htmlFor="mr-notes">Notes</label>
@@ -482,6 +921,9 @@ export function AppMaintenanceRecords() {
   }, []);
 
   const [formOpen, setFormOpen] = useState(false);
+  const [logFromTaskId, setLogFromTaskId] = useState<string | null>(null);
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"overview" | "maintenance">("overview");
   const [density, setDensity] = useState<"timeline" | "table">("timeline");
 
   const assetQuery = useQuery({
@@ -501,13 +943,22 @@ export function AppMaintenanceRecords() {
       !(err instanceof ApiError && err.status === 401) && count < 2,
   });
 
+  const tasksQuery = useQuery({
+    queryKey: maintenanceTasksQueryKey(assetId),
+    queryFn: () => listMaintenanceTasks(assetId),
+    enabled: !!assetId && assetQuery.isSuccess,
+    retry: (count, err) =>
+      !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && count < 2,
+  });
+
   // Redirect on 401
   useEffect(() => {
     const isUnauth =
       (assetQuery.error instanceof ApiError && assetQuery.error.status === 401) ||
-      (recordsQuery.error instanceof ApiError && recordsQuery.error.status === 401);
+      (recordsQuery.error instanceof ApiError && recordsQuery.error.status === 401) ||
+      (tasksQuery.error instanceof ApiError && tasksQuery.error.status === 401);
     if (isUnauth) void navigate(paths.login(), { replace: true });
-  }, [assetQuery.error, recordsQuery.error, navigate]);
+  }, [assetQuery.error, recordsQuery.error, tasksQuery.error, navigate]);
 
   const asset = assetQuery.data ? toAssetPresentation(assetQuery.data) : null;
 
@@ -516,6 +967,11 @@ export function AppMaintenanceRecords() {
     [recordsQuery.data],
   );
   const groups = useMemo(() => groupByYear(sorted), [sorted]);
+
+  const tasks = useMemo(
+    () => (tasksQuery.data?.maintenanceTasks ?? []),
+    [tasksQuery.data],
+  );
 
   const effectiveDensity = isMobile ? "timeline" : density;
 
@@ -526,7 +982,40 @@ export function AppMaintenanceRecords() {
         maintenanceRecords: [record, ...(old?.maintenanceRecords ?? [])],
       }),
     );
+    // Backend advanced the linked task if applicable; refetch to get updated nextDue
+    if (record.taskId) {
+      void queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(assetId) });
+    }
     setFormOpen(false);
+    setLogFromTaskId(null);
+    // Surface the new record by switching to Maintenance tab (unless was from task log in overview)
+    if (!logFromTaskId) setActiveTab("maintenance");
+  };
+
+  const openLogForm = (fromTaskId: string | null = null) => {
+    setLogFromTaskId(fromTaskId);
+    setFormOpen(true);
+  };
+
+  const handleTaskCreated = (task: MaintenanceTask) => {
+    queryClient.setQueryData(
+      maintenanceTasksQueryKey(assetId),
+      (old: any) => ({ maintenanceTasks: [task, ...((old?.maintenanceTasks) ?? [])] }),
+    );
+    setTaskFormOpen(false);
+  };
+
+  const handleTaskDeleted = async (taskId: string) => {
+    try {
+      await deleteMaintenanceTask(assetId, taskId);
+      queryClient.setQueryData(
+        maintenanceTasksQueryKey(assetId),
+        (old: any) => ({ maintenanceTasks: (old?.maintenanceTasks ?? []).filter((t: MaintenanceTask) => t.id !== taskId) }),
+      );
+    } catch (e) {
+      // Let the UI show via re-fetch on error; simple approach: refetch
+      void queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(assetId) });
+    }
   };
 
   // ── derive page title
@@ -565,7 +1054,7 @@ export function AppMaintenanceRecords() {
     );
   }
 
-  // ── history area
+  // ── history area (Maintenance tab)
   const renderHistory = () => {
     if (recordsQuery.isPending) return <MRLoading density={effectiveDensity} />;
     if (recordsQuery.isError)
@@ -576,7 +1065,7 @@ export function AppMaintenanceRecords() {
         />
       );
     if (sorted.length === 0)
-      return <MREmpty assetName={asset?.name ?? "this asset"} onAdd={() => setFormOpen(true)} />;
+      return <MREmpty assetName={asset?.name ?? "this asset"} onAdd={() => openLogForm()} />;
     return effectiveDensity === "table"
       ? <MRTable groups={groups} />
       : <MRTimeline groups={groups} />;
@@ -614,12 +1103,25 @@ export function AppMaintenanceRecords() {
     </div>
   );
 
+  // ── overview block
+  const overviewBlock = asset ? (
+    <MROverviewTab
+      tasks={tasks}
+      records={sorted}
+      tasksLoading={tasksQuery.isPending}
+      onLogFromTask={(tid) => openLogForm(tid)}
+      onDeleteTask={handleTaskDeleted}
+      onAddTask={() => setTaskFormOpen(true)}
+      onViewAll={() => setActiveTab("maintenance")}
+    />
+  ) : null;
+
   const overlayVariant: "drawer" | "sheet" = isMobile ? "sheet" : "drawer";
   const showMobileAddBar =
     isMobile &&
     !assetQuery.isError &&
-    recordsQuery.isSuccess &&
-    sorted.length > 0;
+    (activeTab === "maintenance" ? (recordsQuery.isSuccess && sorted.length > 0) : true) &&
+    !taskFormOpen;
 
   return (
     <div ref={rootRef} className="hf mr-root" data-density={effectiveDensity}>
@@ -649,7 +1151,7 @@ export function AppMaintenanceRecords() {
               {!recordsQuery.isPending && (
                 <button
                   className="mr-btn mr-btn-primary mr-hero-add"
-                  onClick={() => setFormOpen(true)}
+                  onClick={() => openLogForm()}
                 >
                   <Icon name="plus" size={16} stroke={2.2} />Log maintenance
                 </button>
@@ -673,9 +1175,20 @@ export function AppMaintenanceRecords() {
 
           {/* tabs */}
           <div className="mr-tabs" role="tablist">
-            {/* TODO: wire Overview tab when that panel is built */}
-            <button className="mr-tab" role="tab" aria-selected="false">Overview</button>
-            <button className="mr-tab active" role="tab" aria-selected="true">
+            <button
+              className={`mr-tab ${activeTab === "overview" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "overview"}
+              onClick={() => setActiveTab("overview")}
+            >
+              Overview
+            </button>
+            <button
+              className={`mr-tab ${activeTab === "maintenance" ? "active" : ""}`}
+              role="tab"
+              aria-selected={activeTab === "maintenance"}
+              onClick={() => setActiveTab("maintenance")}
+            >
               Maintenance{" "}
               <span className="mr-tab-count">
                 {recordsQuery.isSuccess ? sorted.length : "—"}
@@ -683,12 +1196,14 @@ export function AppMaintenanceRecords() {
             </button>
           </div>
 
-          {/* history or full-page error */}
+          {/* content or full-page error */}
           {assetQuery.isError ? (
             <MRErrorState
               kind="error"
               onRetry={() => void assetQuery.refetch()}
             />
+          ) : activeTab === "overview" ? (
+            overviewBlock
           ) : (
             histBlock
           )}
@@ -699,7 +1214,7 @@ export function AppMaintenanceRecords() {
         <div className="mr-addbar">
           <button
             className="mr-btn mr-btn-primary mr-addbar-btn"
-            onClick={() => setFormOpen(true)}
+            onClick={() => openLogForm()}
           >
             <Icon name="plus" size={17} stroke={2.2} />Add record
           </button>
@@ -710,14 +1225,30 @@ export function AppMaintenanceRecords() {
 
       {formOpen && asset && (
         <div className={`mr-overlay mr-overlay-${overlayVariant}`}>
-          <div className="mr-scrim" onClick={() => setFormOpen(false)} />
+          <div className="mr-scrim" onClick={() => { setFormOpen(false); setLogFromTaskId(null); }} />
           <div className={`mr-overlay-panel-${overlayVariant}`}>
             <MRForm
               asset={asset}
               assetId={assetId}
               variant={overlayVariant}
-              onClose={() => setFormOpen(false)}
+              onClose={() => { setFormOpen(false); setLogFromTaskId(null); }}
               onSaved={handleSaved}
+              tasks={tasks}
+              preselectedTaskId={logFromTaskId}
+            />
+          </div>
+        </div>
+      )}
+
+      {taskFormOpen && asset && (
+        <div className={`mr-overlay mr-overlay-${overlayVariant}`}>
+          <div className="mr-scrim" onClick={() => setTaskFormOpen(false)} />
+          <div className={`mr-overlay-panel-${overlayVariant}`}>
+            <MRCreateTaskForm
+              asset={asset}
+              variant={overlayVariant}
+              onClose={() => setTaskFormOpen(false)}
+              onCreated={handleTaskCreated}
             />
           </div>
         </div>

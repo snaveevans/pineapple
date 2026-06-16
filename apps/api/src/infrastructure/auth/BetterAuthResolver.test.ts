@@ -37,7 +37,9 @@ describe("BetterAuthResolver", () => {
     const user = await resolver.resolve(new Request("http://localhost/api/assets"));
 
     expect(user.email).toBe(Email.from("dev@example.com"));
-    expect(getSession).not.toHaveBeenCalled();
+    // New logic: we always probe getSession first (in case a real cookie is present),
+    // then fall back to the dev bypass since the probe returned no session.
+    expect(getSession).toHaveBeenCalledOnce();
     expect(findByEmail).toHaveBeenCalledWith(Email.from("dev@example.com"));
     expect(save).toHaveBeenCalledWith(user);
   });
@@ -54,7 +56,8 @@ describe("BetterAuthResolver", () => {
         resolver.resolve(new Request("https://pineapple.example/api/assets")),
       ).rejects.toBeInstanceOf(InvariantError);
 
-      expect(getSession).not.toHaveBeenCalled();
+      // Probe in the try block happens; then we hit the guard before using bypass.
+      expect(getSession).toHaveBeenCalledOnce();
       expect(findByEmail).not.toHaveBeenCalled();
       expect(save).not.toHaveBeenCalled();
     },
@@ -74,6 +77,7 @@ describe("BetterAuthResolver", () => {
         resolver.resolve(new Request("https://pineapple.example/api/assets")),
       ).resolves.toBe(existingUser);
 
+      // The try getSession succeeds and we return the real user immediately.
       expect(getSession).toHaveBeenCalledOnce();
       expect(findByEmail).toHaveBeenCalledWith(Email.from("session@example.com"));
       expect(save).not.toHaveBeenCalled();
@@ -89,7 +93,8 @@ describe("BetterAuthResolver", () => {
       resolver.resolve(new Request("https://pineapple.example/api/assets")),
     ).rejects.toBeInstanceOf(UnauthorizedError);
 
-    expect(getSession).toHaveBeenCalledOnce();
+    // getSession is probed in the try (null), then #resolveFromSession calls it again and throws.
+    expect(getSession).toHaveBeenCalledTimes(2);
     expect(findByEmail).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
   });
