@@ -14,9 +14,9 @@ import {
 } from "@snaveevans/pineapple-shared";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
-import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
+import type { MaintenanceRecordWriter } from "../ports/MaintenanceRecordWriter.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
 
 export type CreateMaintenanceRecordCommand = {
@@ -31,7 +31,7 @@ export type CreateMaintenanceRecordCommand = {
 export class CreateMaintenanceRecord {
   constructor(
     private readonly assets: AssetRepository,
-    private readonly records: MaintenanceRecordRepository,
+    private readonly records: MaintenanceRecordWriter,
     private readonly tasks: MaintenanceTaskRepository,
     private readonly eventBus: EventBus,
     private readonly dates: UtcDateProvider,
@@ -71,21 +71,16 @@ export class CreateMaintenanceRecord {
         ...(command.taskId !== undefined ? { taskId: command.taskId } : {}),
         todayUtc: this.dates.today(),
       });
-      await this.records.save(record);
 
-      // Advance the task in the DB before publishing any events so both writes
-      // succeed before side effects fire.
-      let advanced = false;
-      if (task !== null) {
-        advanced = task.advance(record.performedAt, record.id, command.requesterId);
-        if (advanced) {
-          await this.tasks.save(task);
-        }
-      }
+      const advancedTask =
+        task !== null && task.advance(record.performedAt, record.id, command.requesterId)
+          ? task
+          : null;
+      await this.records.save(record, advancedTask);
 
       await this.eventBus.publishAll(record.pullEvents());
-      if (task !== null && advanced) {
-        await this.eventBus.publishAll(task.pullEvents());
+      if (advancedTask !== null) {
+        await this.eventBus.publishAll(advancedTask.pullEvents());
       }
 
       return ok(record);

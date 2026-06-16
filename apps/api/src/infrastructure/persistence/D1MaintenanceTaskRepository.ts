@@ -18,6 +18,34 @@ type MaintenanceTaskRow = {
 const SELECT_COLUMNS =
   "id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at";
 
+export function prepareMaintenanceTaskSave(
+  db: D1Database,
+  task: MaintenanceTask,
+): D1PreparedStatement {
+  // ON CONFLICT only updates the mutable tracking fields (last_completed_date, next_due).
+  // title, interval_value, and interval_unit are immutable after creation; no update path exists.
+  return db
+    .prepare(
+      `INSERT INTO maintenance_tasks
+         (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         last_completed_date = excluded.last_completed_date,
+         next_due = excluded.next_due`,
+    )
+    .bind(
+      task.id,
+      task.assetId,
+      task.ownerId,
+      task.title,
+      task.intervalValue,
+      task.intervalUnit,
+      task.lastCompletedDate,
+      task.nextDue,
+      task.createdAt.toISOString(),
+    );
+}
+
 export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
   constructor(private readonly db: D1Database) {}
 
@@ -43,29 +71,7 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
   }
 
   async save(task: MaintenanceTask): Promise<void> {
-    // ON CONFLICT only updates the mutable tracking fields (last_completed_date, next_due).
-    // title, interval_value, and interval_unit are immutable after creation; no update path exists.
-    await this.db
-      .prepare(
-        `INSERT INTO maintenance_tasks
-           (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           last_completed_date = excluded.last_completed_date,
-           next_due = excluded.next_due`,
-      )
-      .bind(
-        task.id,
-        task.assetId,
-        task.ownerId,
-        task.title,
-        task.intervalValue,
-        task.intervalUnit,
-        task.lastCompletedDate,
-        task.nextDue,
-        task.createdAt.toISOString(),
-      )
-      .run();
+    await prepareMaintenanceTaskSave(this.db, task).run();
   }
 
   async delete(taskId: MaintenanceTaskId): Promise<void> {
