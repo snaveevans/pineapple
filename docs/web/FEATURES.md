@@ -50,7 +50,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 ## User Profile & Onboarding
 
-**Route:** Post-auth onboarding guard; later profile editing route/control TBD
+**Route:** `/onboarding` (post-auth guard on `/app/*`); later profile editing route/control TBD
 **Goal:** Require authenticated users to confirm or enter a display name before showing the authenticated app, then let them update that name later.
 
 **Key states:**

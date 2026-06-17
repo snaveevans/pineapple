@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
+import { getUserProfile, isOnboardingComplete } from "../api/userProfile";
 import { paths } from "../routes";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
@@ -258,14 +259,22 @@ export function AuthFlow() {
   }, []);
 
   // On load (and after returning from Google) check whether a session exists.
-  // If a session is found, navigate directly to the app dashboard.
+  // Incomplete onboarding goes to /onboarding; otherwise enter the app.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/auth/get-session", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { user?: SessionUser } | null) => {
-        if (!cancelled && data?.user) {
-          void navigate(paths.appHome, { replace: true });
+      .then(async (data: { user?: SessionUser } | null) => {
+        if (cancelled || !data?.user) return;
+        try {
+          const profile = await getUserProfile();
+          if (cancelled) return;
+          void navigate(
+            isOnboardingComplete(profile) ? paths.appHome : paths.onboarding(),
+            { replace: true },
+          );
+        } catch {
+          // profile fetch failed — stay on login form
         }
       })
       .catch(() => {
