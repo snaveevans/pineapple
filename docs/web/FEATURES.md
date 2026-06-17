@@ -68,7 +68,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Provider session data can seed the first value, but later provider sign-ins must not overwrite the Pineapple profile name
 - The route guard is a UX control only; the API deliberately remains accessible to authenticated users with incomplete onboarding for now
 - A future multi-client or security requirement may require API middleware that limits incomplete users to auth and self-profile endpoints
-- Personalized greetings use the saved domain profile name, not provider session data
+- The dashboard greeting and profile avatar initial use the saved domain profile name, not provider session data or email
 
 **Spec:** [`docs/specs/features/user-profile.md`](../specs/features/user-profile.md)
 
