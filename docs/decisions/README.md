@@ -60,3 +60,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0006](0006-deployment-platform.md)                              | Deployment platform                              | accepted |
 | [0007](0007-api-validation-boundary.md)                          | API validation boundary                          | accepted |
 | [0008](0008-documentation-method.md)                             | Documentation method                             | accepted |
+| [0009](0009-computed-fields-belong-in-api-read-models.md)        | Computed fields belong in API read models        | accepted |
