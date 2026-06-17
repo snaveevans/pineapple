@@ -30,7 +30,7 @@ The Create Asset feature lets an authenticated user add a new asset to their fle
 - [ ] Selecting a type clears any existing validation errors and shows the type-specific field section
 - [ ] All types require an **Asset name** field
 - [ ] **Vehicle** fields: Make (req), Model (req), Year (req), VIN (opt, 17 chars)
-- [ ] **Property** fields: Street (req), City (req), State (req, dropdown), Postal (req), Country (req, dropdown), Nickname (opt)
+- [ ] **Property** fields: Street (req), City (req), State (req, text), Postal (req), Country (req, dropdown), Nickname (opt)
 - [ ] **Equipment** fields: Manufacturer (opt), Model number (opt), Serial number (opt)
 - [ ] Year must be a whole number between 1900 and current year + 1; out-of-range values show a specific error
 - [ ] VIN, if entered, must be exactly 17 characters; a partial VIN (non-empty, non-17) blocks save
@@ -69,7 +69,7 @@ The Create Asset feature lets an authenticated user add a new asset to their fle
 
 ## Flags
 
-**REVIEW NEEDED — State dropdown limited to western US:** The state field is a dropdown with only OR, WA, CA, ID, NV, AZ. This may be intentional for the target user base or an early-stage placeholder. There is no free-text fallback for users in other states.
+**RESOLVED — State is free-text:** The state field is a text input so users can enter US states, Canadian provinces, or Mexican estados in whatever form matches their address.
 
 **REVIEW NEEDED — Country dropdown limited to three countries:** Country is a dropdown of "United States", "Canada", "Mexico". No free-text fallback.
 

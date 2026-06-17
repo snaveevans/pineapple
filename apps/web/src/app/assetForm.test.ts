@@ -31,6 +31,7 @@ describe("toCreateAssetBody", () => {
         nickname: " ",
         street: " 12 Oak St ",
         city: " Portland ",
+        state: " OR ",
         postal: " 97204 ",
       }),
     ).toEqual({
@@ -65,6 +66,18 @@ describe("toCreateAssetBody", () => {
 });
 
 describe("validateAssetForm", () => {
+  it("requires state for a property", () => {
+    const errors = validateAssetForm("property", {
+      ...EMPTY_ASSET_FORM,
+      name: "Cabin",
+      street: "12 Oak St",
+      city: "Portland",
+      postal: "97204",
+    });
+
+    expect(errors.state).toBe("Required.");
+  });
+
   it("rejects a vehicle year beyond the API limit", () => {
     const errors = validateAssetForm("vehicle", {
       ...EMPTY_ASSET_FORM,
