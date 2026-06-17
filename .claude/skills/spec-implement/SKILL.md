@@ -9,11 +9,11 @@ Do NOT expect a command argument. Work out which spec to implement from git stat
 
 ```!
 echo "── Uncommitted spec changes ──"
-git status --porcelain -- 'apps/*/specs/**/*.md'
+git status --porcelain -- 'docs/specs/**/*.md'
 echo "── Spec files changed vs main ──"
-git diff --name-only main -- 'apps/*/specs/**/*.md' 2>/dev/null
+git diff --name-only main -- 'docs/specs/**/*.md' 2>/dev/null
 echo "── Recently committed specs ──"
-git log --oneline -10 --name-only -- 'apps/*/specs/**/*.md' 2>/dev/null
+git log --oneline -10 --name-only -- 'docs/specs/**/*.md' 2>/dev/null
 ```
 
 Use the output to pick the target and the mode:
@@ -27,11 +27,8 @@ Propose the spec file(s) and the mode you inferred in one line and confirm with 
 
 ## Pre-flight (both modes)
 
-Specs are organized by package (see `docs/specs/SPECS.md`). A feature may have an
-API capability spec (`apps/api/specs/features/[name].md`), a web UX spec
-(`apps/web/specs/features/[name].md`), or both. Read **every** spec that exists for
-the feature — the API spec drives the backend layers, the web spec drives the
-frontend. Then verify each:
+Specs live in `docs/specs/features/` (see `docs/specs/SPECS.md`). Read the spec for
+the feature before proceeding. Then verify:
 
 1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec-author` first to complete the spec.
 2. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
@@ -73,13 +70,11 @@ Implement only the delta between the spec's last committed state and its current
 
 **1. Get the spec diff**
 
-Run a diff against the spec file(s) you identified in **Find the target spec** (substitute the detected path; a full-stack feature has one per package, so run it for each):
+Run a diff against the spec file identified in **Find the target spec** (substitute the detected path):
 
 ```
 git diff main -- "<detected-spec-path>" 2>/dev/null || git diff HEAD~1 -- "<detected-spec-path>" 2>/dev/null || echo "No diff found — spec may not have changed since main"
 ```
-
-A full-stack feature may show a diff in both the API and web specs. Interpret each.
 
 If no diff is found, ask the user to confirm which version of the spec changed and how.
 

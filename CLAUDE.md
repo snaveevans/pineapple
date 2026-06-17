@@ -121,6 +121,7 @@ secrets, never committed.
 - **API contract** → [`docs/reference/api.md`](docs/reference/api.md), `docs/reference/openapi.json`
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
 - **Product behavior / features** → [`docs/specs/SPECS.md`](docs/specs/SPECS.md)
+- **Web app feature intent** → [`docs/web/FEATURES.md`](docs/web/FEATURES.md)
 - **How we document** → [`docs/README.md`](docs/README.md)
 
 ## Workflow
@@ -128,3 +129,7 @@ secrets, never committed.
 Work on a branch, open a PR (CI must pass), merge → auto-deploys to Cloudflare.
 Don't commit to `main` directly. End commit messages with the Co-Authored-By
 trailer.
+
+When making a meaningful change to `apps/web` — adding a screen, changing a user
+flow, adding or removing a feature — read `docs/web/FEATURES.md` and update it to
+reflect the current state.
