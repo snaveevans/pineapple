@@ -183,7 +183,9 @@ describe("GetDashboard", () => {
       "Blade sharpen",
     ]);
     expect(result.value.queue[0]?.status).toBe("overdue");
+    expect(result.value.queue[0]?.daysDue).toBe(-6);
     expect(result.value.queue[2]?.status).toBe("soon");
+    expect(result.value.queue[2]?.daysDue).toBe(4);
     expect(result.value.queueCountsByCategory).toEqual({
       all: 3,
       vehicle: 2,
@@ -205,9 +207,9 @@ describe("GetDashboard", () => {
     });
     const result = await new GetDashboard(
       new AssetRepositoryFake([active, archived]),
+      // findByOwnerForActiveAssets omits archived-asset tasks; see D1MaintenanceTaskRepository.test.ts
       new MaintenanceTaskRepositoryFake([
         task(active.id, { title: "Oil change", nextDue: "2026-06-20" }),
-        task(archived.id, { title: "Archived task", nextDue: "2026-06-10" }),
       ]),
       new FixedDateProvider(todayUtc),
     ).execute({ ownerId, viewerDisplayName: "Dale" });

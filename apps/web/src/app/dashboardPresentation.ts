@@ -1,4 +1,3 @@
-import { calendarDaysBetween } from "@snaveevans/pineapple-shared";
 import type { AssetType, DashboardQueueItem } from "../api/dashboard.ts";
 import type { IconName } from "../design/Icon.tsx";
 import type { AssetCategory, AssetStatus } from "../design/hf.tsx";
@@ -61,15 +60,14 @@ export function formatFleetSubline(todayUtc: string, total: number): string {
   return `${formatDashboardDate(todayUtc)} · ${total} ${noun} in your fleet`;
 }
 
-export function formatDueLabel(nextDue: string, todayUtc: string): string {
-  const daysAhead = calendarDaysBetween(todayUtc, nextDue);
-  if (daysAhead < 0) {
-    const overdueDays = -daysAhead;
+export function formatDueLabel(daysDue: number): string {
+  if (daysDue < 0) {
+    const overdueDays = -daysDue;
     return overdueDays === 1 ? "Overdue · 1 day" : `Overdue · ${overdueDays} days`;
   }
-  if (daysAhead === 0) return "Today";
-  if (daysAhead === 1) return "Tomorrow";
-  return `In ${daysAhead} days`;
+  if (daysDue === 0) return "Today";
+  if (daysDue === 1) return "Tomorrow";
+  return `In ${daysDue} days`;
 }
 
 export function formatLastService(lastCompletedDate: string | null): string {
@@ -107,10 +105,7 @@ function iconForAssetType(type: AssetType): IconName {
   }
 }
 
-export function toQueuePresentation(
-  item: DashboardQueueItem,
-  todayUtc: string,
-): DashboardQueuePresentation {
+export function toQueuePresentation(item: DashboardQueueItem): DashboardQueuePresentation {
   return {
     taskId: item.taskId,
     assetId: item.assetId,
@@ -119,7 +114,7 @@ export function toQueuePresentation(
     category: item.assetType,
     icon: iconForAssetType(item.assetType),
     service: item.taskTitle,
-    due: formatDueLabel(item.nextDue, todayUtc),
+    due: formatDueLabel(item.daysDue),
     status: item.status,
     last: formatLastService(item.lastCompletedDate),
     recurs: formatRecurrence(item.intervalValue, item.intervalUnit),

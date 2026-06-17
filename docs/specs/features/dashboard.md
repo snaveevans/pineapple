@@ -45,7 +45,7 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 - [ ] Only active, non-archived assets owned by the caller are included in fleet totals, category counts, health counts, and queue items
 - [ ] Tasks belonging to archived assets are excluded from the dashboard queue, even though asset-scoped task history may remain readable elsewhere
 - [ ] The response includes a viewer display name suitable for the greeting, derived from the authenticated session profile when available
-- [ ] The response includes `todayUtc` or an equivalent server-side date basis used to calculate task urgency; date-only calculations must follow the maintenance date rules in [maintenance-task.md](./maintenance-task.md)
+- [ ] The response includes `todayUtc`, the server-side calendar date used to calculate task urgency; date-only calculations must follow the maintenance date rules in [maintenance-task.md](./maintenance-task.md)
 - [ ] Fleet totals include the total active asset count and counts for the supported asset types: vehicle, equipment, and property
 - [ ] Fleet health counts are computed per asset by that asset's most urgent scheduled task: overdue wins over due soon, due soon wins over on track
 - [ ] Assets with no scheduled maintenance tasks are counted separately from on-track assets so the dashboard can avoid presenting "no schedule" as healthy service status

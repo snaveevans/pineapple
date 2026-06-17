@@ -1,4 +1,5 @@
 import {
+  calendarDaysBetween,
   type DomainError,
   DomainError as DomainErrorClass,
   ok,
@@ -29,6 +30,7 @@ export type DashboardFleetTotals = {
 export type DashboardFleetHealth = {
   overdue: number;
   soon: number;
+  /** Task-level "ok" is surfaced as onTrack here; assets without tasks are unscheduled. */
   onTrack: number;
   unscheduled: number;
 };
@@ -45,6 +47,8 @@ export type DashboardQueueItem = {
   taskTitle: string;
   nextDue: string;
   status: TaskUrgencyStatus;
+  /** Signed calendar-day distance from todayUtc to nextDue; negative means overdue. */
+  daysDue: number;
   intervalValue: number;
   intervalUnit: MaintenanceTask["intervalUnit"];
   lastCompletedDate: string | null;
@@ -72,6 +76,7 @@ type EnrichedTask = {
   task: MaintenanceTask;
   asset: Asset;
   status: TaskUrgencyStatus;
+  daysDue: number;
 };
 
 export class GetDashboard {
@@ -118,17 +123,12 @@ function enrichTasks(
   assetById: Map<string, Asset>,
   todayUtc: string,
 ): EnrichedTask[] {
-  const enriched: EnrichedTask[] = [];
-  for (const task of tasks) {
-    const asset = assetById.get(task.assetId);
-    if (!asset) continue;
-    enriched.push({
-      task,
-      asset,
-      status: deriveTaskStatus(task.nextDue, todayUtc),
-    });
-  }
-  return enriched;
+  return tasks.map((task) => ({
+    task,
+    asset: assetById.get(task.assetId)!,
+    status: deriveTaskStatus(task.nextDue, todayUtc),
+    daysDue: calendarDaysBetween(todayUtc, task.nextDue),
+  }));
 }
 
 function buildFleetTotals(assets: Asset[]): DashboardFleetTotals {
@@ -172,11 +172,12 @@ function buildFleetHealth(assets: Asset[], enriched: EnrichedTask[]): DashboardF
 }
 
 function buildQueue(enriched: EnrichedTask[]): DashboardQueueItem[] {
-  const queue = enriched.map(({ task, asset, status }) => ({
+  const queue = enriched.map(({ task, asset, status, daysDue }) => ({
     taskId: task.id,
     taskTitle: task.title,
     nextDue: task.nextDue,
     status,
+    daysDue,
     intervalValue: task.intervalValue,
     intervalUnit: task.intervalUnit,
     lastCompletedDate: task.lastCompletedDate,

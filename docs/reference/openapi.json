@@ -638,6 +638,11 @@
             "description": "Derived from nextDue and todayUtc using calendar-day rules",
             "example": "soon"
           },
+          "daysDue": {
+            "type": "integer",
+            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+            "example": -3
+          },
           "intervalValue": {
             "type": "integer",
             "example": 3
@@ -688,6 +693,7 @@
           "taskTitle",
           "nextDue",
           "status",
+          "daysDue",
           "intervalValue",
           "intervalUnit",
           "lastCompletedDate",

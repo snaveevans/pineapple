@@ -224,9 +224,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
 
   const queue = useMemo(() => {
     if (!dashboardQuery.data) return [];
-    return dashboardQuery.data.queue.map((item) =>
-      toQueuePresentation(item, dashboardQuery.data!.todayUtc),
-    );
+    return dashboardQuery.data.queue.map((item) => toQueuePresentation(item));
   }, [dashboardQuery.data]);
 
   const filteredQueue = useMemo(

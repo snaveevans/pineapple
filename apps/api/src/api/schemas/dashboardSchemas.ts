@@ -45,6 +45,10 @@ export const DashboardQueueItemSchema = z
     taskTitle: z.string().openapi({ example: "Oil change + tire rotation" }),
     nextDue: DateOnlySchema,
     status: TaskUrgencyStatusSchema,
+    daysDue: z.number().int().openapi({
+      example: -3,
+      description: "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+    }),
     intervalValue: z.number().int().openapi({ example: 3 }),
     intervalUnit: IntervalUnitSchema,
     lastCompletedDate: DateOnlySchema.nullable().openapi({ example: "2026-03-14" }),

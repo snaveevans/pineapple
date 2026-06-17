@@ -29,6 +29,7 @@ export type DashboardQueueItem = {
   taskTitle: string;
   nextDue: string;
   status: TaskUrgencyStatus;
+  daysDue: number;
   intervalValue: number;
   intervalUnit: "day" | "week" | "month" | "year";
   lastCompletedDate: string | null;
