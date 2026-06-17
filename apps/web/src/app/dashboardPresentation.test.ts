@@ -1,10 +1,6 @@
+import { calendarDaysBetween } from "@snaveevans/pineapple-shared";
 import { describe, expect, it } from "vitest";
-import {
-  calendarDaysBetween,
-  formatDueLabel,
-  formatFleetSubline,
-  formatRecurrence,
-} from "./dashboardPresentation.ts";
+import { formatDueLabel, formatFleetSubline, formatRecurrence } from "./dashboardPresentation.ts";
 
 describe("dashboardPresentation", () => {
   const todayUtc = "2026-06-16";

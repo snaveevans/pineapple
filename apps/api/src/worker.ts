@@ -55,9 +55,7 @@ import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
-import type { DashboardResponseSchema } from "./api/schemas/dashboardSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
-import type { DashboardReadModel } from "./application/usecases/GetDashboard.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import type { z } from "@hono/zod-openapi";
 
@@ -232,12 +230,6 @@ function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSch
 
 // ── Dashboard endpoint ───────────────────────────────────────────────────────
 
-function serializeDashboard(
-  dashboard: DashboardReadModel,
-): z.infer<typeof DashboardResponseSchema> {
-  return dashboard;
-}
-
 app.openapi(getDashboardRoute, async (c) => {
   const user = c.get("user");
   const result = await new GetDashboard(
@@ -249,7 +241,7 @@ app.openapi(getDashboardRoute, async (c) => {
     viewerDisplayName: user.name,
   });
   if (!result.ok) throw result.error;
-  return c.json(serializeDashboard(result.value), 200);
+  return c.json(result.value, 200);
 });
 
 // ── User profile endpoints ───────────────────────────────────────────────────

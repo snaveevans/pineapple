@@ -7,12 +7,10 @@ const AssetTypeSchema = z
 
 const IntervalUnitSchema = z.enum(["day", "week", "month", "year"]).openapi({ example: "month" });
 
-const TaskUrgencyStatusSchema = z
-  .enum(["overdue", "soon", "ok"])
-  .openapi({
-    example: "soon",
-    description: "Derived from nextDue and todayUtc using calendar-day rules",
-  });
+const TaskUrgencyStatusSchema = z.enum(["overdue", "soon", "ok"]).openapi({
+  example: "soon",
+  description: "Derived from nextDue and todayUtc using calendar-day rules",
+});
 
 export const DashboardFleetTotalsSchema = z
   .object({
@@ -32,6 +30,15 @@ export const DashboardFleetHealthSchema = z
   })
   .openapi("DashboardFleetHealth");
 
+export const DashboardQueueCountsSchema = z
+  .object({
+    all: z.number().int().nonnegative().openapi({ example: 5 }),
+    vehicle: z.number().int().nonnegative().openapi({ example: 2 }),
+    equipment: z.number().int().nonnegative().openapi({ example: 2 }),
+    property: z.number().int().nonnegative().openapi({ example: 1 }),
+  })
+  .openapi("DashboardQueueCounts");
+
 export const DashboardQueueItemSchema = z
   .object({
     taskId: z.string().uuid().openapi({ example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }),
@@ -50,19 +57,17 @@ export const DashboardQueueItemSchema = z
 
 export const DashboardResponseSchema = z
   .object({
-    viewerDisplayName: z
-      .string()
-      .nullable()
-      .openapi({
-        example: "Dale",
-        description: "Authenticated user's display name when available",
-      }),
+    viewerDisplayName: z.string().nullable().openapi({
+      example: "Dale",
+      description: "Authenticated user's display name when available",
+    }),
     todayUtc: DateOnlySchema.openapi({
       example: "2026-06-16",
       description: "Server-side UTC calendar date used for urgency calculations",
     }),
     fleetTotals: DashboardFleetTotalsSchema,
     fleetHealth: DashboardFleetHealthSchema,
+    queueCountsByCategory: DashboardQueueCountsSchema,
     queue: z.array(DashboardQueueItemSchema),
   })
   .openapi("DashboardResponse");

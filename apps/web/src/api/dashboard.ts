@@ -17,6 +17,13 @@ export type DashboardFleetHealth = {
   unscheduled: number;
 };
 
+export type DashboardQueueCounts = {
+  all: number;
+  vehicle: number;
+  equipment: number;
+  property: number;
+};
+
 export type DashboardQueueItem = {
   taskId: string;
   taskTitle: string;
@@ -36,6 +43,7 @@ export type DashboardResponse = {
   todayUtc: string;
   fleetTotals: DashboardFleetTotals;
   fleetHealth: DashboardFleetHealth;
+  queueCountsByCategory: DashboardQueueCounts;
   queue: DashboardQueueItem[];
 };
 

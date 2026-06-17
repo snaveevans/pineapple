@@ -102,6 +102,7 @@ describe("GetDashboard", () => {
       todayUtc,
       fleetTotals: { total: 0, vehicle: 0, equipment: 0, property: 0 },
       fleetHealth: { overdue: 0, soon: 0, onTrack: 0, unscheduled: 0 },
+      queueCountsByCategory: { all: 0, vehicle: 0, equipment: 0, property: 0 },
       queue: [],
     });
   });
@@ -183,6 +184,12 @@ describe("GetDashboard", () => {
     ]);
     expect(result.value.queue[0]?.status).toBe("overdue");
     expect(result.value.queue[2]?.status).toBe("soon");
+    expect(result.value.queueCountsByCategory).toEqual({
+      all: 3,
+      vehicle: 2,
+      equipment: 1,
+      property: 0,
+    });
   });
 
   it("excludes archived assets from totals and queue", async () => {

@@ -33,6 +33,13 @@ export type DashboardFleetHealth = {
   unscheduled: number;
 };
 
+export type DashboardQueueCounts = {
+  all: number;
+  vehicle: number;
+  equipment: number;
+  property: number;
+};
+
 export type DashboardQueueItem = {
   taskId: string;
   taskTitle: string;
@@ -52,12 +59,19 @@ export type DashboardReadModel = {
   todayUtc: string;
   fleetTotals: DashboardFleetTotals;
   fleetHealth: DashboardFleetHealth;
+  queueCountsByCategory: DashboardQueueCounts;
   queue: DashboardQueueItem[];
 };
 
 export type GetDashboardQuery = {
   ownerId: UserId;
   viewerDisplayName: string | null;
+};
+
+type EnrichedTask = {
+  task: MaintenanceTask;
+  asset: Asset;
+  status: TaskUrgencyStatus;
 };
 
 export class GetDashboard {
@@ -70,25 +84,26 @@ export class GetDashboard {
   async execute(query: GetDashboardQuery): Promise<Result<DashboardReadModel, DomainError>> {
     try {
       const todayUtc = this.dates.today();
-      const activeAssets = (await this.assets.findByOwner(query.ownerId)).filter(
-        (asset) => asset.archivedAt === null,
-      );
-      const activeAssetIds = new Set(activeAssets.map((asset) => asset.id));
-      const assetById = new Map(activeAssets.map((asset) => [asset.id, asset]));
-      const tasks = (await this.tasks.findByOwnerForActiveAssets(query.ownerId)).filter((task) =>
-        activeAssetIds.has(task.assetId),
-      );
+      const [allAssets, tasks] = await Promise.all([
+        this.assets.findByOwner(query.ownerId),
+        this.tasks.findByOwnerForActiveAssets(query.ownerId),
+      ]);
 
-      const tasksByAsset = groupTasksByAsset(tasks);
+      const activeAssets = allAssets.filter((asset) => asset.archivedAt === null);
+      const assetById = new Map(activeAssets.map((asset) => [asset.id, asset]));
+      const enriched = enrichTasks(tasks, assetById, todayUtc);
+
       const fleetTotals = buildFleetTotals(activeAssets);
-      const fleetHealth = buildFleetHealth(activeAssets, tasksByAsset, todayUtc);
-      const queue = buildQueue(tasks, assetById, todayUtc);
+      const fleetHealth = buildFleetHealth(activeAssets, enriched);
+      const queue = buildQueue(enriched);
+      const queueCountsByCategory = buildQueueCounts(queue);
 
       return ok({
         viewerDisplayName: query.viewerDisplayName,
         todayUtc,
         fleetTotals,
         fleetHealth,
+        queueCountsByCategory,
         queue,
       });
     } catch (error) {
@@ -98,14 +113,22 @@ export class GetDashboard {
   }
 }
 
-function groupTasksByAsset(tasks: MaintenanceTask[]): Map<string, MaintenanceTask[]> {
-  const grouped = new Map<string, MaintenanceTask[]>();
+function enrichTasks(
+  tasks: MaintenanceTask[],
+  assetById: Map<string, Asset>,
+  todayUtc: string,
+): EnrichedTask[] {
+  const enriched: EnrichedTask[] = [];
   for (const task of tasks) {
-    const existing = grouped.get(task.assetId) ?? [];
-    existing.push(task);
-    grouped.set(task.assetId, existing);
+    const asset = assetById.get(task.assetId);
+    if (!asset) continue;
+    enriched.push({
+      task,
+      asset,
+      status: deriveTaskStatus(task.nextDue, todayUtc),
+    });
   }
-  return grouped;
+  return enriched;
 }
 
 function buildFleetTotals(assets: Asset[]): DashboardFleetTotals {
@@ -119,11 +142,14 @@ function buildFleetTotals(assets: Asset[]): DashboardFleetTotals {
   );
 }
 
-function buildFleetHealth(
-  assets: Asset[],
-  tasksByAsset: Map<string, MaintenanceTask[]>,
-  todayUtc: string,
-): DashboardFleetHealth {
+function buildFleetHealth(assets: Asset[], enriched: EnrichedTask[]): DashboardFleetHealth {
+  const statusesByAsset = new Map<string, TaskUrgencyStatus[]>();
+  for (const { task, status } of enriched) {
+    const existing = statusesByAsset.get(task.assetId) ?? [];
+    existing.push(status);
+    statusesByAsset.set(task.assetId, existing);
+  }
+
   const health: DashboardFleetHealth = {
     overdue: 0,
     soon: 0,
@@ -132,10 +158,7 @@ function buildFleetHealth(
   };
 
   for (const asset of assets) {
-    const assetTasks = tasksByAsset.get(asset.id) ?? [];
-    const mostUrgent = mostUrgentTaskStatus(
-      assetTasks.map((task) => deriveTaskStatus(task.nextDue, todayUtc)),
-    );
+    const mostUrgent = mostUrgentTaskStatus(statusesByAsset.get(asset.id) ?? []);
     if (mostUrgent === null) {
       health.unscheduled++;
       continue;
@@ -148,30 +171,20 @@ function buildFleetHealth(
   return health;
 }
 
-function buildQueue(
-  tasks: MaintenanceTask[],
-  assetById: Map<string, Asset>,
-  todayUtc: string,
-): DashboardQueueItem[] {
-  const queue: DashboardQueueItem[] = [];
-
-  for (const task of tasks) {
-    const asset = assetById.get(task.assetId);
-    if (!asset) continue;
-    queue.push({
-      taskId: task.id,
-      taskTitle: task.title,
-      nextDue: task.nextDue,
-      status: deriveTaskStatus(task.nextDue, todayUtc),
-      intervalValue: task.intervalValue,
-      intervalUnit: task.intervalUnit,
-      lastCompletedDate: task.lastCompletedDate,
-      createdAt: task.createdAt.toISOString(),
-      assetId: asset.id,
-      assetName: asset.name,
-      assetType: asset.type,
-    });
-  }
+function buildQueue(enriched: EnrichedTask[]): DashboardQueueItem[] {
+  const queue = enriched.map(({ task, asset, status }) => ({
+    taskId: task.id,
+    taskTitle: task.title,
+    nextDue: task.nextDue,
+    status,
+    intervalValue: task.intervalValue,
+    intervalUnit: task.intervalUnit,
+    lastCompletedDate: task.lastCompletedDate,
+    createdAt: task.createdAt.toISOString(),
+    assetId: asset.id,
+    assetName: asset.name,
+    assetType: asset.type,
+  }));
 
   return queue.sort((left, right) => {
     const urgency = compareTaskUrgency(left.status, right.status);
@@ -179,4 +192,15 @@ function buildQueue(
     if (left.nextDue !== right.nextDue) return left.nextDue < right.nextDue ? -1 : 1;
     return left.createdAt < right.createdAt ? -1 : left.createdAt > right.createdAt ? 1 : 0;
   });
+}
+
+function buildQueueCounts(queue: DashboardQueueItem[]): DashboardQueueCounts {
+  return queue.reduce<DashboardQueueCounts>(
+    (counts, item) => {
+      counts.all++;
+      counts[item.assetType]++;
+      return counts;
+    },
+    { all: 0, vehicle: 0, equipment: 0, property: 0 },
+  );
 }

@@ -6,7 +6,7 @@ import { createMaintenanceRecord, maintenanceRecordsQueryKey } from "../api/main
 import { maintenanceTasksQueryKey } from "../api/maintenanceTasks.ts";
 import { ApiError } from "../api/client.ts";
 import { Icon } from "../design/Icon.tsx";
-import { HFAssetIcon, HFStatusPill, type AssetStatus } from "../design/hf.tsx";
+import { HFAssetIcon, HFStatusPill } from "../design/hf.tsx";
 import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
 import {
   type DashboardCategoryFilter,
@@ -247,21 +247,6 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
   const selected = filteredQueue.find((item) => item.taskId === selectedTaskId) ?? filteredQueue[0];
   const isNextUp = selected?.taskId === filteredQueue[0]?.taskId;
 
-  const categoryCounts = useMemo(
-    () => ({
-      all: queue.length,
-      vehicle: queue.filter((item) => item.category === "vehicle").length,
-      equipment: queue.filter((item) => item.category === "equipment").length,
-      property: queue.filter((item) => item.category === "property").length,
-    }),
-    [queue],
-  );
-
-  const chipCount = (id: DashboardCategoryFilter) => {
-    if (id === "all") return categoryCounts.all;
-    return categoryCounts[id];
-  };
-
   if (dashboardQuery.isPending) {
     return (
       <div className={`hf hf-app hf-mobile-${mobileMode}`}>
@@ -351,7 +336,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                 onClick={() => setCategory(filter.id)}
               >
                 {filter.label}
-                <span className="hf-chip-count">{chipCount(filter.id)}</span>
+                <span className="hf-chip-count">{dashboard.queueCountsByCategory[filter.id]}</span>
               </button>
             ))}
           </div>
@@ -383,7 +368,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
           />
         ) : (
           <div className="hf-grid">
-            <section className="hf-detail-card" data-status={selected.status as AssetStatus}>
+            <section className="hf-detail-card" data-status={selected.status}>
               <HFDetailBody
                 item={selected}
                 isNextUp={isNextUp}
