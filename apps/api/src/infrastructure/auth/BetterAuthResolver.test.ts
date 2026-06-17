@@ -94,7 +94,7 @@ describe("BetterAuthResolver", () => {
     ).rejects.toBeInstanceOf(UnauthorizedError);
 
     // getSession is probed in the try (null), then #resolveFromSession calls it again and throws.
-    expect(getSession).toHaveBeenCalledTimes(2);
+    expect(getSession).toHaveBeenCalledTimes(1);
     expect(findByEmail).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
   });

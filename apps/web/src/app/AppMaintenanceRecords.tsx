@@ -89,7 +89,7 @@ function nextDueLabel(nextDue: string): string {
   const y = parts[0]!, m = parts[1]!, d = parts[2]!;
   const todayY = Number(todayDateOnly().slice(0, 4));
   if (y === todayY) return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${d}`;
-  return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${y}`;
+  return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${d}, ${y}`;
 }
 
 function addIntervalClient(dateStr: string, value: number, unit: "day" | "week" | "month" | "year"): string {
@@ -170,11 +170,11 @@ function MRTimeline({ groups }: { groups: YearGroup[] }) {
                 <div className="mr-tl-date-inline">
                   {fmtDate(r.performedAt)}
                   <span className="mr-tl-ago-inline">· {relAgo(r.performedAt)}</span>
-                  {r.sameDay && <span className="mr-sameday">same day</span>}
+                  {r.sameDay && <span className="mr-tl-sameday">same day</span>}
                 </div>
                 <div className="mr-tl-title">
                   {r.title}
-                  {r.sameDay && <span className="mr-sameday mr-tl-sameday-wide">same day</span>}
+                  {r.sameDay && <span className="mr-tl-sameday mr-tl-sameday-wide">same day</span>}
                 </div>
                 {r.notes && <p className="mr-tl-notes">{r.notes}</p>}
               </div>
@@ -206,7 +206,7 @@ function MRTable({ groups }: { groups: YearGroup[] }) {
               </span>
               <span className="mr-td mr-td-work" role="cell">
                 {r.title}
-                {r.sameDay && <span className="mr-sameday">same day</span>}
+                {r.sameDay && <span className="mr-tl-sameday">same day</span>}
               </span>
               <span className="mr-td mr-td-notes" role="cell">
                 {r.notes || <span className="mr-td-dim">—</span>}
@@ -566,8 +566,8 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
     const t = title.trim();
     if (!t) e.title = "Title is required.";
     else if (t.length > TASK_TITLE_MAX) e.title = `Title must be ${TASK_TITLE_MAX} characters or fewer.`;
-    const n = parseInt(iv, 10);
-    if (!iv || isNaN(n) || n < 1 || !Number.isInteger(n)) e.iv = "Must be a positive whole number.";
+    const n = Number(iv);
+    if (!iv || isNaN(n) || n < 1 || !Number.isInteger(n) || iv.includes('.')) e.iv = "Must be a positive whole number.";
     if (lastDate && lastDate > todayDateOnly()) e.last = "Must be today or earlier.";
     return e;
   };
@@ -587,7 +587,7 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
       return;
     }
     setBanner(null);
-    const n = parseInt(iv, 10);
+    const n = Number(iv);
     const body: CreateMaintenanceTaskBody = {
       title: title.trim(),
       intervalValue: n,
@@ -925,6 +925,7 @@ export function AppMaintenanceRecords() {
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "maintenance">("overview");
   const [density, setDensity] = useState<"timeline" | "table">("timeline");
+  const [taskDeleteError, setTaskDeleteError] = useState<string | null>(null);
 
   const assetQuery = useQuery({
     queryKey: assetQueryKey(assetId),
@@ -940,7 +941,7 @@ export function AppMaintenanceRecords() {
     queryFn: () => listMaintenanceRecords(assetId),
     enabled: !!assetId && assetQuery.isSuccess,
     retry: (count, err) =>
-      !(err instanceof ApiError && err.status === 401) && count < 2,
+      !(err instanceof ApiError && (err.status === 401 || err.status === 403 || err.status === 404)) && count < 2,
   });
 
   const tasksQuery = useQuery({
@@ -1000,12 +1001,18 @@ export function AppMaintenanceRecords() {
   const handleTaskCreated = (task: MaintenanceTask) => {
     queryClient.setQueryData(
       maintenanceTasksQueryKey(assetId),
-      (old: any) => ({ maintenanceTasks: [task, ...((old?.maintenanceTasks) ?? [])] }),
+      (old: any) => {
+        const existing = (old?.maintenanceTasks ?? []) as MaintenanceTask[];
+        // ID-based dedup in case of double onSuccess (e.g. slow network + retry)
+        const withoutDup = existing.filter((t) => t.id !== task.id);
+        return { maintenanceTasks: [task, ...withoutDup] };
+      },
     );
     setTaskFormOpen(false);
   };
 
   const handleTaskDeleted = async (taskId: string) => {
+    setTaskDeleteError(null);
     try {
       await deleteMaintenanceTask(assetId, taskId);
       queryClient.setQueryData(
@@ -1013,7 +1020,8 @@ export function AppMaintenanceRecords() {
         (old: any) => ({ maintenanceTasks: (old?.maintenanceTasks ?? []).filter((t: MaintenanceTask) => t.id !== taskId) }),
       );
     } catch (e) {
-      // Let the UI show via re-fetch on error; simple approach: refetch
+      const msg = e instanceof Error ? e.message : "Failed to delete task. Please try again.";
+      setTaskDeleteError(msg);
       void queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(assetId) });
     }
   };
@@ -1121,7 +1129,8 @@ export function AppMaintenanceRecords() {
     isMobile &&
     !assetQuery.isError &&
     (activeTab === "maintenance" ? (recordsQuery.isSuccess && sorted.length > 0) : true) &&
-    !taskFormOpen;
+    !taskFormOpen &&
+    !formOpen;
 
   return (
     <div ref={rootRef} className="hf mr-root" data-density={effectiveDensity}>
@@ -1170,6 +1179,20 @@ export function AppMaintenanceRecords() {
               <div className="mr-hero-id">
                 <h1 className="mr-hero-name">Asset</h1>
               </div>
+            </div>
+          )}
+
+          {taskDeleteError && (
+            <div className="mr-banner" role="alert">
+              <Icon name="alert" size={15} stroke={2} />
+              <span>{taskDeleteError}</span>
+              <button
+                className="mr-btn mr-btn-ghost"
+                style={{ marginLeft: "auto", fontSize: "12px", padding: "2px 8px" }}
+                onClick={() => setTaskDeleteError(null)}
+              >
+                Dismiss
+              </button>
             </div>
           )}
 
