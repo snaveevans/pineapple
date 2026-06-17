@@ -1,7 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
 import { Icon, type IconName } from "../design/Icon";
 import { HFAssetIcon, HFStatusPill, type AssetCategory, type AssetStatus } from "../design/hf";
 import { HFTopBar, HFBottomNav } from "./AppChrome";
+import { formatDashboardGreeting } from "./profilePresentation";
 
 // FieldOps — Home (Master / Detail). The authenticated app shell: a top bar,
 // greeting + fleet stats, category filters, and a master/detail grid (detail
@@ -241,7 +244,7 @@ function HFDetailBody({
 }
 
 /* ============ greeting + stat row ============ */
-function HFGreeting() {
+function HFGreeting({ displayName }: { displayName: string | null | undefined }) {
   const counts = HF_ASSETS.reduce(
     (acc, a) => {
       acc[a.status]++;
@@ -253,7 +256,7 @@ function HFGreeting() {
     <div className="hf-greeting">
       <div className="hf-greeting-text">
         <h1 className="hf-h1">
-          Hey Jess <span className="hf-wave">·</span>
+          {formatDashboardGreeting(displayName)} <span className="hf-wave">·</span>
         </h1>
         <div className="hf-greeting-sub">Tuesday · May 19, 2026 · 6 assets in your fleet</div>
       </div>
@@ -277,6 +280,10 @@ function HFGreeting() {
 
 /* ============ main: master/detail ============ */
 export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
+  const { data: profile } = useQuery({
+    queryKey: userProfileQueryKey,
+    queryFn: getUserProfile,
+  });
   const sorted = [...HF_ASSETS].sort((a, b) => a.dueDays - b.dueDays);
   const [selId, setSelId] = useState(sorted[0]?.id ?? "");
   const selected = HF_ASSETS.find((a) => a.id === selId) ?? sorted[0];
@@ -292,7 +299,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     <div className={`hf hf-app hf-mobile-${mobileMode}`}>
       <HFTopBar />
       <main className="hf-main hf-shell">
-        <HFGreeting />
+        <HFGreeting displayName={profile?.name} />
 
         <div className="hf-filters">
           <div className="hf-filter-chips">

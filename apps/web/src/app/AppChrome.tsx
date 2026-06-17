@@ -1,7 +1,10 @@
+import { useQuery } from "@tanstack/react-query";
 import { NavLink } from "react-router";
+import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
 import { Icon, type IconName } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { paths } from "../routes";
+import { profileAvatarInitial } from "./profilePresentation";
 
 // Shared authenticated-app chrome: the desktop top bar and the mobile bottom
 // tab bar. Ported from the FieldOps prototype (hifi.jsx). Both the Home
@@ -26,6 +29,11 @@ const HF_NAV: NavItem[] = [
 ];
 
 export function HFTopBar() {
+  const { data: profile } = useQuery({
+    queryKey: userProfileQueryKey,
+    queryFn: getUserProfile,
+  });
+
   return (
     <header className="hf-topbar">
       <div className="hf-topbar-left">
@@ -65,7 +73,9 @@ export function HFTopBar() {
           <Icon name="bell" size={16} />
           <span className="hf-badge">3</span>
         </button>
-        <div className="hf-avatar">J</div>
+        <div className="hf-avatar" title={profile?.name ?? undefined}>
+          {profileAvatarInitial(profile?.name)}
+        </div>
       </div>
     </header>
   );
