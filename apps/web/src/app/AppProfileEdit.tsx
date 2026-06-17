@@ -7,6 +7,8 @@ import { Icon } from "../design/Icon";
 import { paths } from "../routes";
 import {
   DISPLAY_NAME_MAX_LENGTH,
+  NAME_REQUIRED_MESSAGE,
+  NAME_TOO_LONG_MESSAGE,
   toProfileFormError,
   validateDisplayName,
   type DisplayNameFieldError,
@@ -20,7 +22,13 @@ import "./styles/profile-edit.css";
 
 function GoogleG({ size = 14 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 18 18" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 18 18"
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
       <path
         fill="#4285F4"
         d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.71-1.57 2.68-3.89 2.68-6.62z"
@@ -62,7 +70,11 @@ export function AppProfileEdit() {
   const [showSaved, setShowSaved] = useState(false);
   const [apiError, setApiError] = useState(false);
 
-  const { data: profile, isLoading, error } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
     retry: (failureCount, queryError) => {
@@ -101,8 +113,7 @@ export function AppProfileEdit() {
         void navigate(paths.login(), { replace: true });
         return;
       }
-      const mapped =
-        mutationError instanceof ApiError ? toProfileFormError(mutationError) : null;
+      const mapped = mutationError instanceof ApiError ? toProfileFormError(mutationError) : null;
       if (mapped) {
         setFieldError(mapped);
         setApiError(false);
@@ -160,7 +171,7 @@ export function AppProfileEdit() {
       <HFTopBar />
 
       <div className="hf-aa-crumb">
-        <Link to={paths.appHome}>Account</Link>
+        <Link to={paths.appHome}>Dashboard</Link>
         <span className="hf-aa-crumb-sep">
           <Icon name="chevron-right" size={13} />
         </span>
@@ -232,9 +243,7 @@ export function AppProfileEdit() {
               {hasFieldError ? (
                 <span className="hf-field-error" role="alert">
                   <Icon name="alert" size={12} stroke={2} />
-                  {fieldError === "empty"
-                    ? "Name is required."
-                    : "Name must be 100 characters or less."}
+                  {fieldError === "empty" ? NAME_REQUIRED_MESSAGE : NAME_TOO_LONG_MESSAGE}
                 </span>
               ) : (
                 fieldSubText && <span className="pe-field-sub">{fieldSubText}</span>

@@ -5,6 +5,7 @@ import { getUserProfile, isOnboardingComplete, userProfileQueryKey } from "../ap
 import { ApiError } from "../api/client";
 import { paths } from "../routes";
 import { OnboardingLoading } from "./OnboardingLoading";
+import { safeReturnTo } from "./returnTo";
 
 import "../auth/styles/auth.css";
 
@@ -12,7 +13,11 @@ export function OnboardingGuard() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: profile, isLoading, error } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
     retry: (failureCount, queryError) => {
@@ -30,7 +35,7 @@ export function OnboardingGuard() {
   useEffect(() => {
     if (!profile || isLoading) return;
     if (!isOnboardingComplete(profile)) {
-      const returnTo = `${location.pathname}${location.search}`;
+      const returnTo = safeReturnTo(`${location.pathname}${location.search}`);
       void navigate(paths.onboarding(returnTo), { replace: true });
     }
   }, [profile, isLoading, location.pathname, location.search, navigate]);

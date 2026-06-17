@@ -29,7 +29,6 @@ import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRe
 import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
-import { GetUserProfile } from "./application/usecases/GetUserProfile.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
@@ -229,13 +228,9 @@ function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSch
 
 // ── User profile endpoints ───────────────────────────────────────────────────
 
-app.openapi(getUserProfileRoute, async (c) => {
-  const user = c.get("user");
-  const result = await new GetUserProfile(new D1UserRepository(c.env.DB)).execute({
-    userId: user.id,
-  });
-  if (!result.ok) throw result.error;
-  return c.json(serializeUserProfile(result.value), 200);
+app.openapi(getUserProfileRoute, (c) => {
+  // BetterAuthResolver already hydrated the domain User for this request.
+  return c.json(serializeUserProfile(c.get("user")), 200);
 });
 
 app.openapi(updateUserProfileRoute, async (c) => {

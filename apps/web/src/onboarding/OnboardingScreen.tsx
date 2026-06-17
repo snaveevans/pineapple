@@ -11,14 +11,17 @@ import {
 import { ApiError } from "../api/client";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
-import { paths, routePaths } from "../routes";
+import { paths } from "../routes";
 import {
   DISPLAY_NAME_MAX_LENGTH,
+  NAME_REQUIRED_MESSAGE,
+  NAME_TOO_LONG_MESSAGE,
   toProfileFormError,
   validateDisplayName,
   type DisplayNameFieldError,
 } from "./onboardingForm";
 import { OnboardingLoading } from "./OnboardingLoading";
+import { safeReturnTo } from "./returnTo";
 
 import "../design/styles/hifi.css";
 import "../auth/styles/auth.css";
@@ -96,18 +99,13 @@ function OnboardingBrand() {
   );
 }
 
-function OnboardingCard({
-  profile,
-  returnTo,
-}: {
-  profile: UserProfile;
-  returnTo: string;
-}) {
+function OnboardingCard({ profile, returnTo }: { profile: UserProfile; returnTo: string }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const hasPrefill = profile.name !== null && profile.name.length > 0;
   const [name, setName] = useState(profile.name ?? "");
   const [fieldError, setFieldError] = useState<DisplayNameFieldError | null>(null);
+  const [apiError, setApiError] = useState(false);
 
   const mutation = useMutation({
     mutationFn: (nextName: string) => updateUserProfile(nextName),
@@ -121,16 +119,21 @@ function OnboardingCard({
         return;
       }
       const mapped = error instanceof ApiError ? toProfileFormError(error) : null;
-      if (mapped) setFieldError(mapped);
+      if (mapped) {
+        setFieldError(mapped);
+        setApiError(false);
+        return;
+      }
+      setApiError(true);
     },
   });
 
   const charCount = name.length;
   const helperText =
     fieldError === "empty"
-      ? "Name is required."
+      ? NAME_REQUIRED_MESSAGE
       : fieldError === "too-long"
-        ? "Name must be 100 characters or less."
+        ? NAME_TOO_LONG_MESSAGE
         : hasPrefill
           ? "Imported from your Google account — keep it or change it."
           : "This is how you'll appear on your dashboard and profile.";
@@ -147,6 +150,7 @@ function OnboardingCard({
       return;
     }
     setFieldError(null);
+    setApiError(false);
     mutation.mutate(result.value);
   };
 
@@ -197,6 +201,7 @@ function OnboardingCard({
           onChange={(event) => {
             setName(event.target.value);
             if (fieldError) setFieldError(null);
+            if (apiError) setApiError(false);
           }}
           placeholder="Your name"
           disabled={mutation.isPending}
@@ -205,6 +210,12 @@ function OnboardingCard({
         />
         <p className={"ob-helper" + (fieldError ? " ob-helper-error" : "")}>{helperText}</p>
       </div>
+
+      {apiError && (
+        <p className="ob-helper ob-helper-error" role="alert">
+          Something went wrong — please try again in a moment.
+        </p>
+      )}
 
       <button className="ob-submit" type="submit" disabled={mutation.isPending}>
         {mutation.isPending ? (
@@ -223,16 +234,6 @@ function OnboardingCard({
   );
 }
 
-function safeReturnTo(value: string | null): string {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return paths.appHome;
-  }
-  if (value.startsWith(routePaths.onboarding)) {
-    return paths.appHome;
-  }
-  return value;
-}
-
 export function OnboardingScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -242,7 +243,11 @@ export function OnboardingScreen() {
     document.title = "FieldOps — Set up your profile";
   }, []);
 
-  const { data: profile, isLoading, error } = useQuery({
+  const {
+    data: profile,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
     retry: (failureCount, queryError) => {

@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import { ErrorResponseSchema } from "./assetSchemas.ts";
 
 export const UserProfileResponseSchema = z
   .object({
@@ -22,5 +21,3 @@ export const UpdateUserProfileBodySchema = z
       .openapi({ example: "DIYer Dale" }),
   })
   .openapi("UpdateUserProfileBody");
-
-export { ErrorResponseSchema };

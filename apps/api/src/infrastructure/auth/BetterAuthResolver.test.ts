@@ -80,9 +80,10 @@ describe("BetterAuthResolver", () => {
         existingUser,
       });
 
-      await expect(
-        resolver.resolve(new Request("https://pineapple.example/api/assets")),
-      ).resolves.toBe(existingUser);
+      const resolved = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+
+      expect(resolved).toBe(existingUser);
+      expect(resolved.name).toBe("Existing Dale");
 
       expect(getSession).toHaveBeenCalledOnce();
       expect(findByEmail).toHaveBeenCalledWith(Email.from("session@example.com"));

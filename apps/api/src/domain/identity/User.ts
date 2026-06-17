@@ -3,6 +3,7 @@ import type { DomainEvent } from "../events/DomainEvent.ts";
 import { UserNameUpdated } from "./events/UserNameUpdated.ts";
 import { UserOnboardingCompleted } from "./events/UserOnboardingCompleted.ts";
 
+// Keep in sync with DISPLAY_NAME_MAX_LENGTH in apps/web/src/onboarding/onboardingForm.ts
 export const DISPLAY_NAME_MAX_LENGTH = 100;
 
 export class User {
