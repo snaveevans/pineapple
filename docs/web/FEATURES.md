@@ -91,6 +91,8 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Category filter chips and "Add service" button are present in the UI but not yet functional
 - 401 from the API (when wired) should redirect to `/login`
 
+**Spec:** [`docs/specs/features/dashboard.md`](../specs/features/dashboard.md)
+
 ---
 
 ## Asset Library
