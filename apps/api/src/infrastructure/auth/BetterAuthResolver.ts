@@ -16,9 +16,10 @@ import type { Auth } from "./auth.ts";
  * decoupled — Better Auth's `user` table is auth infrastructure; the domain
  * `users` table is what the rest of the app references.
  *
- * LOCAL DEV: pass `devEmail` (from DEV_AUTH_EMAIL in .dev.vars) to skip the
- * session check entirely. The bypass is honored only when `environment` is
- * exactly "development"; any other configuration fails closed.
+ * LOCAL DEV preference:
+ * 1. Real session from cookie (if present and valid) — cookie wins.
+ * 2. DEV_AUTH_EMAIL bypass from .dev.vars (only if ENVIRONMENT=development).
+ * 3. Otherwise the normal no-session UnauthorizedError.
  */
 export class BetterAuthResolver implements AuthenticatedUserResolver {
   constructor(
@@ -42,32 +43,37 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
   }
 
   async #resolveEmail(request: Request): Promise<Email> {
-    if (!this.devEmail) return this.#resolveFromSession(request);
-
-    if (this.environment !== "development") {
-      throw new InvariantError(
-        "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
-      );
+    // Do a single getSession call. Prefer real session if present (cookie wins
+    // over dev bypass). Then dev fallback. This avoids the previous double
+    // getSession in the unauthenticated no-bypass case.
+    let session: { user?: { email?: string } } | null = null;
+    try {
+      session = await this.auth.api.getSession({ headers: request.headers });
+    } catch {
+      // ignore; treat as no session
     }
 
-    return Email.from(this.devEmail);
-  }
-
-  /** Production: read the verified Better Auth session and extract the email. */
-  async #resolveFromSession(request: Request): Promise<Email> {
-    const session = await this.auth.api.getSession({
-      headers: request.headers,
-    });
-    if (!session) {
-      throw new UnauthorizedError(
-        "No active session — sign in via /api/auth/sign-in/social (provider: google)",
-      );
+    if (session?.user?.email) {
+      const raw = session.user.email;
+      if (typeof raw === "string" && raw.length > 0) {
+        return Email.from(raw);
+      }
     }
 
-    const rawEmail = session.user.email;
-    if (typeof rawEmail !== "string" || rawEmail.length === 0) {
-      throw new InvariantError("Better Auth session is missing the user email");
+    // Fallback to local dev bypass (from .dev.vars). Only honored in dev env.
+    const devEmail = this.devEmail?.trim();
+    if (devEmail) {
+      if (this.environment !== "development") {
+        throw new InvariantError(
+          "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
+        );
+      }
+      return Email.from(devEmail);
     }
-    return Email.from(rawEmail);
+
+    // No session and no bypass → throw the proper UnauthorizedError.
+    throw new UnauthorizedError(
+      "No active session — sign in via /api/auth/sign-in/social (provider: google)",
+    );
   }
 }

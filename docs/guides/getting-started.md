@@ -36,9 +36,11 @@ BETTER_AUTH_SECRET=dev-only-change-me
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
-# Dev bypass: treat every request as this user, skipping the login flow.
-# The API dev script supplies ENVIRONMENT=development; other environments reject it.
-DEV_AUTH_EMAIL=you@example.com
+# Dev bypass (treat every request as this user, skipping the login flow + cookies).
+# Add this (and ENVIRONMENT) to use the bypass so writes like POST /api/assets
+# work without a real Google session. wrangler dev loads .dev.vars automatically.
+ENVIRONMENT=development
+DEV_AUTH_EMAIL=dev@example.com
 
 # OAuth callbacks should return through Vite's same-origin /api proxy.
 BETTER_AUTH_URL=http://localhost:5173
@@ -53,9 +55,9 @@ pnpm --filter @snaveevans/pineapple-api dev   # http://localhost:8787
 pnpm --filter @snaveevans/pineapple-web dev   # http://localhost:5173
 ```
 
-The API dev script passes `ENVIRONMENT=development` directly to Wrangler.
-Production uses the committed `ENVIRONMENT=production` binding. Do not add the
-environment marker to `.dev.vars`.
+The pnpm dev script (and .dev.vars) ensure `ENVIRONMENT=development` locally
+so the DEV_AUTH_EMAIL bypass guard passes. Production uses the committed
+`ENVIRONMENT=production` binding (and CI rejects any DEV_AUTH_EMAIL secret).
 
 The browser should use `http://localhost:5173`. Vite proxies same-origin
 `/api/*` requests to the API Worker. Try it:

@@ -6,6 +6,7 @@ export type MaintenanceRecord = {
   title: string;
   performedAt: string;
   notes: string | null;
+  taskId: string | null;
   createdAt: string;
 };
 
@@ -17,6 +18,7 @@ export type CreateMaintenanceRecordBody = {
   title: string;
   performedAt: string;
   notes?: string;
+  taskId?: string;
 };
 
 export const maintenanceRecordsQueryKey = (assetId: string) =>

@@ -21,5 +21,8 @@ GOOGLE_CLIENT_SECRET=""
 # Local dev only: trust the web dev server origin (web :5173 ≠ API :8787).
 DEV_WEB_ORIGIN="http://localhost:5173"
 
-# Optional: bypass auth locally by hardcoding a session email (skips Google).
-# DEV_AUTH_EMAIL="you@example.com"
+# Dev bypass (recommended for local testing of writes like asset creation
+# without setting up/running the full Google OAuth flow). wrangler dev will
+# load these so the guard in auth passes and a synthetic user is used.
+ENVIRONMENT=development
+DEV_AUTH_EMAIL=dev@example.com
