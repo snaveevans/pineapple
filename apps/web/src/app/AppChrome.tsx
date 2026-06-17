@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { NavLink } from "react-router";
+import { NavLink, useLocation } from "react-router";
 import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
 import { Icon, type IconName } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
@@ -29,6 +29,8 @@ const HF_NAV: NavItem[] = [
 ];
 
 export function HFTopBar() {
+  const location = useLocation();
+  const profileActive = location.pathname === paths.profile;
   const { data: profile } = useQuery({
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
@@ -73,9 +75,13 @@ export function HFTopBar() {
           <Icon name="bell" size={16} />
           <span className="hf-badge">3</span>
         </button>
-        <div className="hf-avatar" title={profile?.name ?? undefined}>
+        <NavLink
+          to={paths.profile}
+          className={`hf-avatar${profileActive ? " hf-avatar-ring" : ""}`}
+          title={profile?.name ?? "Profile settings"}
+        >
           {profileAvatarInitial(profile?.name)}
-        </div>
+        </NavLink>
       </div>
     </header>
   );

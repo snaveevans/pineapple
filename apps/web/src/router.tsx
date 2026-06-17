@@ -4,6 +4,7 @@ import { AppAddAsset } from "./app/AppAddAsset";
 import { AppAssets } from "./app/AppAssets";
 import { AppHome } from "./app/AppHome";
 import { AppMaintenanceRecords } from "./app/AppMaintenanceRecords";
+import { AppProfileEdit } from "./app/AppProfileEdit";
 import { MarketingHome } from "./marketing/MarketingHome";
 import { OnboardingGuard } from "./onboarding/OnboardingGuard";
 import { OnboardingScreen } from "./onboarding/OnboardingScreen";
@@ -18,6 +19,7 @@ export const router = createBrowserRouter([
     element: <OnboardingGuard />,
     children: [
       { index: true, element: <AppHome /> },
+      { path: "profile", element: <AppProfileEdit /> },
       { path: "assets", element: <AppAssets /> },
       { path: "assets/new", element: <AppAddAsset /> },
       { path: "assets/:assetId/maintenance", element: <AppMaintenanceRecords /> },
