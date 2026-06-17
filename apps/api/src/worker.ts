@@ -29,6 +29,8 @@ import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRe
 import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
+import { GetUserProfile } from "./application/usecases/GetUserProfile.ts";
+import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -39,17 +41,20 @@ import {
   createMaintenanceRecordRoute,
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
+  getUserProfileRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
   listMaintenanceRecordsRoute,
   listMaintenanceTasksRoute,
+  updateUserProfileRoute,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
 import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
+import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import type { z } from "@hono/zod-openapi";
 
@@ -212,6 +217,39 @@ app.use("/api/*", async (c, next) => {
   const user = await resolver.resolve(c.req.raw);
   c.set("user", user);
   await next();
+});
+
+function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSchema> {
+  return {
+    email: user.email,
+    name: user.name,
+    onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
+  };
+}
+
+// ── User profile endpoints ───────────────────────────────────────────────────
+
+app.openapi(getUserProfileRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new GetUserProfile(new D1UserRepository(c.env.DB)).execute({
+    userId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(updateUserProfileRoute, async (c) => {
+  const user = c.get("user");
+  const { name } = c.req.valid("json");
+  const result = await new UpdateUserProfile(
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({
+    userId: user.id,
+    name,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeUserProfile(result.value), 200);
 });
 
 // ── Asset endpoints ──────────────────────────────────────────────────────────

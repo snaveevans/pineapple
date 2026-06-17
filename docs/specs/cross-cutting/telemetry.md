@@ -132,6 +132,8 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `POST /api/assets`                               | `CreateAsset`             |
 | `GET /api/assets`                                | `ListAssets`              |
 | `GET /api/assets/{id}`                           | `GetAsset`                |
+| `GET /api/users/me`                              | `GetUserProfile`          |
+| `PATCH /api/users/me`                            | `UpdateUserProfile`       |
 | `POST /api/assets/{assetId}/maintenance-records` | `CreateMaintenanceRecord` |
 | `GET /api/assets/{assetId}/maintenance-records`  | `ListMaintenanceRecords`  |
 | `GET /health`                                    | `Health`                  |

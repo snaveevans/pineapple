@@ -109,6 +109,12 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   if (pathname.startsWith("/api/auth/")) {
     return { operation: "Auth", routePattern: "/api/auth/*" };
   }
+  if (pathname === "/api/users/me" && method === "GET") {
+    return { operation: "GetUserProfile", routePattern: "/api/users/me" };
+  }
+  if (pathname === "/api/users/me" && method === "PATCH") {
+    return { operation: "UpdateUserProfile", routePattern: "/api/users/me" };
+  }
   if (pathname === "/api/assets" && method === "POST") {
     return { operation: "CreateAsset", routePattern: "/api/assets" };
   }
