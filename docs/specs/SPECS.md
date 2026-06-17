@@ -37,13 +37,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [maintenance-record.md](./features/maintenance-record.md) | Maintenance | draft  |
 | [maintenance-task.md](./features/maintenance-task.md)     | Maintenance | draft  |
 | [marketing-home.md](./features/marketing-home.md)         | Marketing   | active |
-
-Package-owned specs:
-
-| Spec                                                              | Package  | Area       | Status |
-| ----------------------------------------------------------------- | -------- | ---------- | ------ |
-| [API user profile](../../apps/api/specs/features/user-profile.md) | apps/api | Identity   | draft  |
-| [Web user profile](../../apps/web/specs/features/user-profile.md) | apps/web | Onboarding | draft  |
+| [user-profile.md](./features/user-profile.md)             | Identity    | draft  |
 
 ## Directory Structure
 
@@ -66,25 +60,12 @@ docs/specs/
     validation.md
   features/
     [feature-name].md
-
-apps/api/specs/
-  SPECS.md
-  features/
-    [api-capability-name].md
-
-apps/web/specs/
-  SPECS.md
-  features/
-    [ux-feature-name].md
 ```
 
 ## Workflow
 
-**Starting a new feature:** copy `templates/feature-spec.template.md` into the
-owning package's `specs/features/` directory, fill it out before writing code,
-then link it from that package's `specs/SPECS.md` and from this index. API
-capabilities belong to `apps/api`; web UX belongs to `apps/web`. Full-stack
-features have one cross-linked spec in each package.
+**Starting a new feature:** copy `templates/feature-spec.template.md` into
+`features/`, fill it out before writing code, then link it here.
 
 **Retroactively documenting existing code:** use the prompt in
 `prompts/retro-feature.md`, review the output, and file it as a spec.

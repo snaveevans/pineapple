@@ -9,8 +9,8 @@ date: 2026-06-11
 
 **Status:** `draft`
 **Owner:** product and engineering
-**Counterpart:** [Web user profile and onboarding UX](../../../web/specs/features/user-profile.md)
-**Related Specs:** [authentication](../../../../docs/specs/cross-cutting/authentication.md), [permissions](../../../../docs/specs/cross-cutting/permissions.md), [validation](../../../../docs/specs/cross-cutting/validation.md), [error handling](../../../../docs/specs/cross-cutting/error-handling.md), [telemetry](../../../../docs/specs/cross-cutting/telemetry.md)
+**Related Specs:** [authentication](../cross-cutting/authentication.md), [permissions](../cross-cutting/permissions.md), [validation](../cross-cutting/validation.md), [error handling](../cross-cutting/error-handling.md), [telemetry](../cross-cutting/telemetry.md)
+**Web UX Intent:** [User Profile & Onboarding](../../web/FEATURES.md#user-profile--onboarding)
 
 ---
 
@@ -18,7 +18,7 @@ date: 2026-06-11
 
 The user profile capability gives each authenticated domain user a user-controlled display name. On first provisioning, Pineapple copies a valid name from the identity provider but requires the user to confirm or replace it before onboarding is considered complete. Later provider sessions never overwrite the confirmed domain profile.
 
-Authentication email remains provider-controlled and read-only. It identifies the account but is never used or transformed into a display name.
+Authentication email remains provider-controlled and read-only. It identifies the account but is never used or transformed into a display name. UX intent for onboarding and later profile editing lives in [docs/web/FEATURES.md](../../web/FEATURES.md#user-profile--onboarding).
 
 ## Current Behavior
 
@@ -90,7 +90,7 @@ The endpoints derive the target `UserId` from the authenticated session. They do
 | `GET /api/users/me`   | `GetUserProfile`    |
 | `PATCH /api/users/me` | `UpdateUserProfile` |
 
-Both route patterns must be added to `createTechnicalTelemetryMiddleware` and the operation mapping in [telemetry](../../../../docs/specs/cross-cutting/telemetry.md).
+Both route patterns must be added to `createTechnicalTelemetryMiddleware` and the operation mapping in [telemetry](../cross-cutting/telemetry.md).
 
 **Domain events:**
 
@@ -129,7 +129,7 @@ Both route patterns must be added to `createTechnicalTelemetryMiddleware` and th
 
 ## Out of Scope
 
-- Profile or onboarding user interface; see the counterpart web spec.
+- Profile or onboarding user interface; see [docs/web/FEATURES.md](../../web/FEATURES.md#user-profile--onboarding).
 - Editing email, authentication provider data, avatar, or other account fields.
 - Deriving a display name from the email local-part.
 - Team profiles, roles, delegates, or administrators editing another user's profile.
