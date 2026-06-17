@@ -31,22 +31,22 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
   ) {}
 
   async resolve(request: Request): Promise<User> {
-    const email = await this.#resolveEmail(request);
+    const session = await this.#resolveSession(request);
 
-    let user = await this.users.findByEmail(email);
+    let user = await this.users.findByEmail(session.email);
     if (!user) {
-      user = User.create(email);
+      user = User.create(session.email, session.providerName);
       await this.users.save(user);
       await this.eventBus?.publish(UserProvisioned({ userId: user.id }));
     }
     return user;
   }
 
-  async #resolveEmail(request: Request): Promise<Email> {
-    // Do a single getSession call. Prefer real session if present (cookie wins
-    // over dev bypass). Then dev fallback. This avoids the previous double
-    // getSession in the unauthenticated no-bypass case.
-    let session: { user?: { email?: string } } | null = null;
+  async #resolveSession(request: Request): Promise<{
+    email: Email;
+    providerName: string | null;
+  }> {
+    let session: { user?: { email?: string; name?: string | null } } | null = null;
     try {
       session = await this.auth.api.getSession({ headers: request.headers });
     } catch {
@@ -56,11 +56,11 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
     if (session?.user?.email) {
       const raw = session.user.email;
       if (typeof raw === "string" && raw.length > 0) {
-        return Email.from(raw);
+        const providerName = typeof session.user.name === "string" ? session.user.name : null;
+        return { email: Email.from(raw), providerName };
       }
     }
 
-    // Fallback to local dev bypass (from .dev.vars). Only honored in dev env.
     const devEmail = this.devEmail?.trim();
     if (devEmail) {
       if (this.environment !== "development") {
@@ -68,10 +68,9 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
           "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
         );
       }
-      return Email.from(devEmail);
+      return { email: Email.from(devEmail), providerName: null };
     }
 
-    // No session and no bypass → throw the proper UnauthorizedError.
     throw new UnauthorizedError(
       "No active session — sign in via /api/auth/sign-in/social (provider: google)",
     );

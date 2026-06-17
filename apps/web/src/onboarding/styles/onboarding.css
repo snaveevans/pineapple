@@ -1,0 +1,235 @@
+/* FieldOps — Onboarding (set up your profile).
+   Split layout reuses .au tokens from auth.css; this file adds .ob-* form pieces. */
+
+.ob-card {
+  width: 100%;
+  max-width: 380px;
+}
+
+.ob-sub {
+  margin: 0 0 20px;
+  font-size: 15px;
+  color: var(--hf-ink-soft);
+  line-height: 1.5;
+}
+
+.ob-email-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  background: var(--hf-surface-2);
+  border: 1px solid var(--hf-line-soft);
+  border-radius: var(--hf-r);
+  margin-bottom: 22px;
+  overflow: hidden;
+}
+.ob-email-icon {
+  color: var(--hf-ink-faint);
+  flex-shrink: 0;
+  display: flex;
+}
+.ob-email-text {
+  font-size: 12.5px;
+  color: var(--hf-ink-soft);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ob-email-addr {
+  font-family: var(--hf-mono);
+  font-size: 12px;
+  color: var(--hf-ink);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.ob-field {
+  margin-bottom: 20px;
+}
+.ob-field-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.ob-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+.ob-char-count {
+  font-family: var(--hf-mono);
+  font-size: 11px;
+  color: var(--hf-ink-faint);
+  letter-spacing: 0.02em;
+}
+.ob-char-near-limit {
+  color: var(--hf-warn);
+}
+.ob-char-at-limit {
+  color: var(--hf-bad);
+}
+
+.ob-input {
+  display: block;
+  width: 100%;
+  height: 50px;
+  padding: 0 14px;
+  border: 1.5px solid var(--hf-line);
+  border-radius: 11px;
+  font-family: var(--hf-sans);
+  font-size: 15.5px;
+  color: var(--hf-ink);
+  background: var(--hf-surface);
+  outline: none;
+  letter-spacing: -0.005em;
+  transition:
+    border-color 120ms,
+    box-shadow 120ms;
+}
+.ob-input::placeholder {
+  color: var(--hf-ink-faint);
+}
+.ob-input:focus {
+  border-color: var(--hf-ink);
+  box-shadow: 0 0 0 3px oklch(22% 0.015 70 / 0.08);
+}
+.ob-input.ob-input-error {
+  border-color: var(--hf-bad);
+  box-shadow: 0 0 0 3px oklch(52% 0.18 28 / 0.1);
+}
+.ob-input:disabled {
+  background: var(--hf-surface-2);
+  color: var(--hf-ink-soft);
+  cursor: not-allowed;
+}
+
+.ob-helper {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--hf-ink-faint);
+  line-height: 1.45;
+}
+.ob-helper-error {
+  color: var(--hf-bad);
+}
+
+.ob-submit {
+  width: 100%;
+  height: 50px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: var(--hf-ink);
+  border: 1px solid oklch(18% 0.015 70);
+  color: #fff;
+  font-family: var(--hf-sans);
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--hf-shadow-1);
+  transition:
+    background 120ms,
+    box-shadow 120ms,
+    transform 80ms;
+  letter-spacing: -0.01em;
+}
+.ob-submit:hover:not(:disabled) {
+  background: oklch(28% 0.015 70);
+  box-shadow: var(--hf-shadow-2);
+}
+.ob-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.ob-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.ob-btn-spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  animation: ob-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes ob-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ob-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+.ob-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid var(--hf-line);
+  border-top-color: var(--hf-ink);
+  animation: ob-spin 0.85s linear infinite;
+}
+.ob-loading-text {
+  font-size: 14px;
+  color: var(--hf-ink-soft);
+  margin: 0;
+}
+
+.ob-mini-thumb {
+  width: 100%;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ob-mini-thumb-lawn {
+  background: oklch(95% 0.04 145);
+  color: oklch(38% 0.1 145);
+}
+.ob-mini-body {
+  padding: 10px 12px 12px;
+}
+.ob-mini-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--hf-ink);
+}
+.ob-mini-meta {
+  margin-top: 2px;
+  font-family: var(--hf-mono);
+  font-size: 10.5px;
+  color: var(--hf-ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ob-pill-warn {
+  background: var(--hf-warn-bg);
+  color: oklch(45% 0.13 75);
+  border-color: oklch(88% 0.06 75);
+}
+
+.ob-asset-icon-vehicle {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: oklch(96% 0.025 240);
+  color: oklch(40% 0.1 240);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

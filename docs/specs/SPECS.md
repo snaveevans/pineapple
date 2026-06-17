@@ -37,6 +37,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [maintenance-record.md](./features/maintenance-record.md) | Maintenance | draft  |
 | [maintenance-task.md](./features/maintenance-task.md)     | Maintenance | draft  |
 | [marketing-home.md](./features/marketing-home.md)         | Marketing   | active |
+| [user-profile.md](./features/user-profile.md)             | Identity    | draft  |
 
 ## Directory Structure
 

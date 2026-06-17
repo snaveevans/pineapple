@@ -48,6 +48,32 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 ---
 
+## User Profile & Onboarding
+
+**Route:** `/onboarding` (post-auth guard on `/app/*`); profile editing at `/app/profile` (avatar in top bar)
+**Goal:** Require authenticated users to confirm or enter a display name before showing the authenticated app, then let them update that name later.
+
+**Key states:**
+
+- Loading: after authentication, fetch `GET /api/users/me` before rendering authenticated routes
+- Incomplete onboarding with provider name: prefill the name field and require explicit confirmation
+- Incomplete onboarding without provider name: show an empty required name field
+- Saving: disable duplicate submits while `PATCH /api/users/me` is in flight
+- Complete: enter the originally requested authenticated route, or `/app` by default
+- Later profile edit: read and update the same domain profile name
+
+**Non-obvious behavior:**
+
+- Email identifies the account but is never displayed as, or transformed into, the user's name
+- Provider session data can seed the first value, but later provider sign-ins must not overwrite the Pineapple profile name
+- The route guard is a UX control only; the API deliberately remains accessible to authenticated users with incomplete onboarding for now
+- A future multi-client or security requirement may require API middleware that limits incomplete users to auth and self-profile endpoints
+- The dashboard greeting and profile avatar initial use the saved domain profile name, not provider session data or email
+
+**Spec:** [`docs/specs/features/user-profile.md`](../specs/features/user-profile.md)
+
+---
+
 ## Dashboard (Home)
 
 **Route:** `/app`

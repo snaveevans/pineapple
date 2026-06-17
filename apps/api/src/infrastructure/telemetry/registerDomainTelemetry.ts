@@ -5,6 +5,8 @@ import { MaintenanceRecordCreatedTelemetryHandler } from "./maintenance/Maintena
 import { MaintenanceTaskAdvancedTelemetryHandler } from "./maintenance/MaintenanceTaskAdvancedTelemetryHandler.ts";
 import { MaintenanceTaskCreatedTelemetryHandler } from "./maintenance/MaintenanceTaskCreatedTelemetryHandler.ts";
 import { MaintenanceTaskDeletedTelemetryHandler } from "./maintenance/MaintenanceTaskDeletedTelemetryHandler.ts";
+import { UserNameUpdatedTelemetryHandler } from "./user/UserNameUpdatedTelemetryHandler.ts";
+import { UserOnboardingCompletedTelemetryHandler } from "./user/UserOnboardingCompletedTelemetryHandler.ts";
 import { UserProvisionedTelemetryHandler } from "./user/UserProvisionedTelemetryHandler.ts";
 
 export function registerDomainTelemetry(deps: {
@@ -19,6 +21,8 @@ export function registerDomainTelemetry(deps: {
 
   const userDomainSink = new AnalyticsEngineTelemetrySink(deps.userDomainDataset);
   deps.eventBus.subscribe(new UserProvisionedTelemetryHandler(userDomainSink));
+  deps.eventBus.subscribe(new UserOnboardingCompletedTelemetryHandler(userDomainSink));
+  deps.eventBus.subscribe(new UserNameUpdatedTelemetryHandler(userDomainSink));
 
   const maintenanceDomainSink = new AnalyticsEngineTelemetrySink(deps.maintenanceDomainDataset);
   deps.eventBus.subscribe(new MaintenanceRecordCreatedTelemetryHandler(maintenanceDomainSink));

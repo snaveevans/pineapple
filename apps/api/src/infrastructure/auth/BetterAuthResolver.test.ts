@@ -9,11 +9,19 @@ function createHarness(options: {
   environment?: string | undefined;
   devEmail?: string;
   sessionEmail?: string;
+  sessionName?: string | null;
   existingUser?: User;
 }) {
-  const getSession = vi
-    .fn()
-    .mockResolvedValue(options.sessionEmail ? { user: { email: options.sessionEmail } } : null);
+  const getSession = vi.fn().mockResolvedValue(
+    options.sessionEmail
+      ? {
+          user: {
+            email: options.sessionEmail,
+            ...(options.sessionName !== undefined ? { name: options.sessionName } : {}),
+          },
+        }
+      : null,
+  );
   const findByEmail = vi.fn().mockResolvedValue(options.existingUser ?? null);
   const save = vi.fn().mockResolvedValue(undefined);
   const auth = { api: { getSession } } as unknown as Auth;
@@ -37,8 +45,7 @@ describe("BetterAuthResolver", () => {
     const user = await resolver.resolve(new Request("http://localhost/api/assets"));
 
     expect(user.email).toBe(Email.from("dev@example.com"));
-    // New logic: we always probe getSession first (in case a real cookie is present),
-    // then fall back to the dev bypass since the probe returned no session.
+    expect(user.name).toBeNull();
     expect(getSession).toHaveBeenCalledOnce();
     expect(findByEmail).toHaveBeenCalledWith(Email.from("dev@example.com"));
     expect(save).toHaveBeenCalledWith(user);
@@ -56,7 +63,6 @@ describe("BetterAuthResolver", () => {
         resolver.resolve(new Request("https://pineapple.example/api/assets")),
       ).rejects.toBeInstanceOf(InvariantError);
 
-      // Probe in the try block happens; then we hit the guard before using bypass.
       expect(getSession).toHaveBeenCalledOnce();
       expect(findByEmail).not.toHaveBeenCalled();
       expect(save).not.toHaveBeenCalled();
@@ -66,23 +72,51 @@ describe("BetterAuthResolver", () => {
   it.each(["production", "development"])(
     "uses the verified session without DEV_AUTH_EMAIL in %s",
     async (environment) => {
-      const existingUser = User.create(Email.from("session@example.com"));
+      const existingUser = User.create(Email.from("session@example.com"), "Existing Dale");
       const { resolver, getSession, findByEmail, save } = createHarness({
         environment,
         sessionEmail: "session@example.com",
+        sessionName: "New Google Name",
         existingUser,
       });
 
-      await expect(
-        resolver.resolve(new Request("https://pineapple.example/api/assets")),
-      ).resolves.toBe(existingUser);
+      const resolved = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
 
-      // The try getSession succeeds and we return the real user immediately.
+      expect(resolved).toBe(existingUser);
+      expect(resolved.name).toBe("Existing Dale");
+
       expect(getSession).toHaveBeenCalledOnce();
       expect(findByEmail).toHaveBeenCalledWith(Email.from("session@example.com"));
       expect(save).not.toHaveBeenCalled();
     },
   );
+
+  it("copies a trimmed provider name when provisioning a new user", async () => {
+    const { resolver, save } = createHarness({
+      environment: "production",
+      sessionEmail: "new@example.com",
+      sessionName: "  Dale  ",
+    });
+
+    const user = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+
+    expect(user.name).toBe("Dale");
+    expect(user.onboardingCompletedAt).toBeNull();
+    expect(save).toHaveBeenCalledWith(user);
+  });
+
+  it("stores a null name when the provider name is blank", async () => {
+    const { resolver, save } = createHarness({
+      environment: "production",
+      sessionEmail: "new@example.com",
+      sessionName: "   ",
+    });
+
+    const user = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+
+    expect(user.name).toBeNull();
+    expect(save).toHaveBeenCalledWith(user);
+  });
 
   it("rejects a request without DEV_AUTH_EMAIL or an active session", async () => {
     const { resolver, getSession, findByEmail, save } = createHarness({
@@ -93,7 +127,6 @@ describe("BetterAuthResolver", () => {
       resolver.resolve(new Request("https://pineapple.example/api/assets")),
     ).rejects.toBeInstanceOf(UnauthorizedError);
 
-    // getSession is probed in the try (null), then #resolveFromSession calls it again and throws.
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(findByEmail).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();

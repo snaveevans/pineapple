@@ -73,6 +73,26 @@ describe("buildApiRequestTelemetryDataPoint", () => {
   });
 
   it.each([
+    ["GET", "GetUserProfile"],
+    ["PATCH", "UpdateUserProfile"],
+  ])("maps %s /api/users/me to %s", (method, operation) => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method,
+        pathname: "/api/users/me",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: [operation],
+      blobs: [operation, "/api/users/me", method, "2xx", "200", "success", "none", "true", "v1"],
+    });
+  });
+
+  it.each([
     ["POST", "CreateMaintenanceRecord"],
     ["GET", "ListMaintenanceRecords"],
   ])("maps %s maintenance routes to %s", (method, operation) => {

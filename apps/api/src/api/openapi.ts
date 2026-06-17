@@ -21,6 +21,10 @@ import {
   MaintenanceTaskParamsSchema,
   MaintenanceTaskResponseSchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
+import {
+  UpdateUserProfileBodySchema,
+  UserProfileResponseSchema,
+} from "./schemas/userProfileSchemas.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenAPI route specs (metadata only — no handlers, no infrastructure).
@@ -57,6 +61,10 @@ export const openApiConfig = {
     {
       name: "Maintenance",
       description: "Create and read maintenance records and tasks for assets owned by the caller",
+    },
+    {
+      name: "Users",
+      description: "Read and update the authenticated user's domain profile",
     },
   ],
 };
@@ -291,6 +299,56 @@ export const listMaintenanceTasksRoute = createRoute({
   },
 });
 
+export const getUserProfileRoute = createRoute({
+  method: "get",
+  path: "/api/users/me",
+  tags: ["Users"],
+  summary: "Get my profile",
+  description:
+    "Returns the authenticated domain user's profile, including email, display name, and onboarding state.",
+  security: [cookieAuth],
+  responses: {
+    200: {
+      description: "The caller's profile",
+      content: { "application/json": { schema: UserProfileResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const updateUserProfileRoute = createRoute({
+  method: "patch",
+  path: "/api/users/me",
+  tags: ["Users"],
+  summary: "Update my profile",
+  description:
+    "Updates the caller's display name. Completes onboarding on the first successful update.",
+  security: [cookieAuth],
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: UpdateUserProfileBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated profile",
+      content: { "application/json": { schema: UserProfileResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const deleteMaintenanceTaskRoute = createRoute({
   method: "delete",
   path: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
@@ -352,6 +410,8 @@ export function getApiDocument() {
   doc.openapi(createMaintenanceTaskRoute, stub);
   doc.openapi(listMaintenanceTasksRoute, stub);
   doc.openapi(deleteMaintenanceTaskRoute, stub);
+  doc.openapi(getUserProfileRoute, stub);
+  doc.openapi(updateUserProfileRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }

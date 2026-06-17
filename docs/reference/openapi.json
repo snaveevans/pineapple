@@ -27,6 +27,10 @@
     {
       "name": "Maintenance",
       "description": "Create and read maintenance records and tasks for assets owned by the caller"
+    },
+    {
+      "name": "Users",
+      "description": "Read and update the authenticated user's domain profile"
     }
   ],
   "components": {
@@ -507,6 +511,44 @@
         },
         "required": [
           "maintenanceTasks"
+        ]
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "dale@example.com"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "example": "Dale"
+          },
+          "onboardingCompletedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "example": "2026-06-11T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "onboardingCompletedAt"
+        ]
+      },
+      "UpdateUserProfileBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "DIYer Dale"
+          }
+        },
+        "required": [
+          "name"
         ]
       }
     },
@@ -1075,6 +1117,96 @@
           },
           "404": {
             "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Get my profile",
+        "description": "Returns the authenticated domain user's profile, including email, display name, and onboarding state.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Update my profile",
+        "description": "Updates the caller's display name. Completes onboarding on the first successful update.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserProfileBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
             "content": {
               "application/json": {
                 "schema": {
