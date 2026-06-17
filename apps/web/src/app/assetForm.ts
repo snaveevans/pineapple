@@ -28,7 +28,7 @@ export const EMPTY_ASSET_FORM: AssetForm = {
   nickname: "",
   street: "",
   city: "",
-  state: "OR",
+  state: "",
   postal: "",
   country: "United States",
   manufacturer: "",

@@ -292,10 +292,10 @@ function HFPropertyFields({
           onChange={setField("city")}
           error={errors.city}
         />
-        <HFSelectField
+        <HFTextField
           label="State"
           required
-          options={["OR", "WA", "CA", "ID", "NV", "AZ"]}
+          placeholder="OR, BC, Jalisco"
           value={form.state}
           onChange={setField("state")}
           error={errors.state}
