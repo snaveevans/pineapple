@@ -132,6 +132,7 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `POST /api/assets`                               | `CreateAsset`             |
 | `GET /api/assets`                                | `ListAssets`              |
 | `GET /api/assets/{id}`                           | `GetAsset`                |
+| `GET /api/dashboard`                             | `GetDashboard`            |
 | `GET /api/users/me`                              | `GetUserProfile`          |
 | `PATCH /api/users/me`                            | `UpdateUserProfile`       |
 | `POST /api/assets/{assetId}/maintenance-records` | `CreateMaintenanceRecord` |
@@ -167,10 +168,10 @@ A complete Analytics Engine outage will produce `console.error` log entries but 
 
 ## Exceptions
 
-| Feature                                | Deviation                 | Reason                                                                           |
-| -------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Frontend                               | No telemetry              | Client-side instrumentation not yet implemented                                  |
-| Read operations (GetAsset, ListAssets) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal |
+| Feature                                              | Deviation                 | Reason                                                                           |
+| ---------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
+| Frontend                                             | No telemetry              | Client-side instrumentation not yet implemented                                  |
+| Read operations (GetAsset, ListAssets, GetDashboard) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal |
 
 ## Anti-Patterns
 

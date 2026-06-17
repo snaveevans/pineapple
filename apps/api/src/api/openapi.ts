@@ -21,6 +21,7 @@ import {
   MaintenanceTaskParamsSchema,
   MaintenanceTaskResponseSchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
+import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
 import {
   UpdateUserProfileBodySchema,
   UserProfileResponseSchema,
@@ -65,6 +66,10 @@ export const openApiConfig = {
     {
       name: "Users",
       description: "Read and update the authenticated user's domain profile",
+    },
+    {
+      name: "Dashboard",
+      description: "Authenticated home-screen read model for fleet health and maintenance queue",
     },
   ],
 };
@@ -299,6 +304,26 @@ export const listMaintenanceTasksRoute = createRoute({
   },
 });
 
+export const getDashboardRoute = createRoute({
+  method: "get",
+  path: "/api/dashboard",
+  tags: ["Dashboard"],
+  summary: "Get my dashboard",
+  description:
+    "Returns fleet totals, maintenance health counts, and the cross-asset maintenance queue for the authenticated user in a single response.",
+  security: [cookieAuth],
+  responses: {
+    200: {
+      description: "The caller's dashboard read model",
+      content: { "application/json": { schema: DashboardResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const getUserProfileRoute = createRoute({
   method: "get",
   path: "/api/users/me",
@@ -410,6 +435,7 @@ export function getApiDocument() {
   doc.openapi(createMaintenanceTaskRoute, stub);
   doc.openapi(listMaintenanceTasksRoute, stub);
   doc.openapi(deleteMaintenanceTaskRoute, stub);
+  doc.openapi(getDashboardRoute, stub);
   doc.openapi(getUserProfileRoute, stub);
   doc.openapi(updateUserProfileRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);

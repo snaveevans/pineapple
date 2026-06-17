@@ -29,6 +29,7 @@ import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRe
 import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
+import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
@@ -40,6 +41,7 @@ import {
   createMaintenanceRecordRoute,
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
+  getDashboardRoute,
   getUserProfileRoute,
   getAssetRoute,
   healthRoute,
@@ -53,7 +55,9 @@ import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
+import type { DashboardResponseSchema } from "./api/schemas/dashboardSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
+import type { DashboardReadModel } from "./application/usecases/GetDashboard.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import type { z } from "@hono/zod-openapi";
 
@@ -225,6 +229,28 @@ function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSch
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
   };
 }
+
+// ── Dashboard endpoint ───────────────────────────────────────────────────────
+
+function serializeDashboard(
+  dashboard: DashboardReadModel,
+): z.infer<typeof DashboardResponseSchema> {
+  return dashboard;
+}
+
+app.openapi(getDashboardRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new GetDashboard(
+    new D1AssetRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+    new SystemUtcDateProvider(),
+  ).execute({
+    ownerId: user.id,
+    viewerDisplayName: user.name,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeDashboard(result.value), 200);
+});
 
 // ── User profile endpoints ───────────────────────────────────────────────────
 

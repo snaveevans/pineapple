@@ -81,15 +81,23 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 **Key states:**
 
-- Urgency-sorted queue of assets with overdue/soon/ok status indicators
+- Loading: fetches `GET /api/dashboard` before rendering fleet stats and queue
+- Empty fleet: prompts the user to add their first asset
+- Assets without scheduled tasks: fleet totals render; queue empty state points to the asset library
+- Populated: urgency-sorted maintenance queue with overdue/soon/on-track status from the API
 - Detail card (desktop) or inline expand (mobile) for the selected queue item
-- Actions on the detail: Mark complete, Reschedule, Snooze (UI present; not yet wired to API)
+- Filtered empty: category filter active but no matching queue rows
+- Error: dashboard-level error with retry
+- Mark complete: creates a linked maintenance record for the selected task and refetches dashboard + asset maintenance data
 
 **Non-obvious behavior:**
 
-- Currently renders hardcoded prototype data — not yet connected to the live API
-- Category filter chips and "Add service" button are present in the UI but not yet functional
-- 401 from the API (when wired) should redirect to `/login`
+- Initial render uses one dashboard read model — no fan-out across assets and per-asset task endpoints
+- Status buckets and fleet health counts come from the API; the client formats due-date copy only
+- Category filter chips filter the returned queue client-side without a new request
+- Reschedule, Snooze, and Add service remain disabled placeholders until future specs land
+- Task detail fields not yet in the maintenance-task API (estimated time, location, assignee, notes) are not shown from live data
+- 401 from the API redirects to `/login`
 
 **Spec:** [`docs/specs/features/dashboard.md`](../specs/features/dashboard.md)
 

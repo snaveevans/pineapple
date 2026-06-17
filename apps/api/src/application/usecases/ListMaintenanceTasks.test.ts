@@ -30,6 +30,9 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve(this.tasks);
   }
+  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+    return Promise.resolve([]);
+  }
   findById(): Promise<MaintenanceTask | null> {
     return Promise.resolve(null);
   }

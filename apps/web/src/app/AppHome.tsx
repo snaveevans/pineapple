@@ -1,154 +1,39 @@
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
-import { Icon, type IconName } from "../design/Icon";
-import { HFAssetIcon, HFStatusPill, type AssetCategory, type AssetStatus } from "../design/hf";
-import { HFTopBar, HFBottomNav } from "./AppChrome";
-import { formatDashboardGreeting } from "./profilePresentation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router";
+import { dashboardQueryKey, getDashboard } from "../api/dashboard.ts";
+import { createMaintenanceRecord, maintenanceRecordsQueryKey } from "../api/maintenanceRecords.ts";
+import { maintenanceTasksQueryKey } from "../api/maintenanceTasks.ts";
+import { ApiError } from "../api/client.ts";
+import { Icon } from "../design/Icon.tsx";
+import { HFAssetIcon, HFStatusPill, type AssetStatus } from "../design/hf.tsx";
+import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
+import {
+  type DashboardCategoryFilter,
+  type DashboardQueuePresentation,
+  filterQueueByCategory,
+  formatFleetSubline,
+  toQueuePresentation,
+} from "./dashboardPresentation.ts";
+import { formatDashboardGreeting as formatGreeting } from "./profilePresentation.ts";
+import { paths } from "../routes.ts";
 
-// FieldOps — Home (Master / Detail). The authenticated app shell: a top bar,
-// greeting + fleet stats, category filters, and a master/detail grid (detail
-// card on the left, urgency-sorted queue on the right). On mobile the detail
-// card collapses and the selected queue row expands inline. Ported from the
-// FieldOps design prototype (Master Detail.html / hifi.jsx); styling comes from
-// the shared .hf tokens in styles/hifi.css.
 import "../design/styles/hifi.css";
 
-/* ============ data ============ */
-interface Asset {
-  id: string;
-  name: string;
-  category: AssetCategory;
-  icon: IconName;
-  service: string;
-  due: string;
-  dueDays: number;
-  status: AssetStatus;
-  last: string;
-  meter: string;
-  recurs: string;
-  est: string;
-  where: string;
-  notes: string;
-  assignee: string;
-}
-
-const HF_ASSETS: Asset[] = [
-  {
-    id: "MOWER-A",
-    name: "Toro ZTR Mower",
-    category: "equipment",
-    icon: "mower",
-    service: "Blade sharpen + belt check",
-    due: "Overdue · 3 days",
-    dueDays: -3,
-    status: "overdue",
-    last: "Apr 02",
-    meter: "312 hrs",
-    recurs: "Every 50 hrs",
-    est: "45 min",
-    where: "Shed B",
-    notes:
-      "Belt was squealing on the last run. Sharpen both blades while you're in there.",
-    assignee: "Self",
-  },
-  {
-    id: "TRK-04",
-    name: "Ford F-150 · Truck #4",
-    category: "vehicle",
-    icon: "truck",
-    service: "Oil change + tire rotation",
-    due: "In 2 days",
-    dueDays: 2,
-    status: "soon",
-    last: "Feb 14",
-    meter: "48,210 mi",
-    recurs: "Every 5,000 mi",
-    est: "30 min",
-    where: "Joe's Auto",
-    notes: "Front-left tire wearing fast — flag it for replacement next cycle.",
-    assignee: "Joe's Auto",
-  },
-  {
-    id: "PROP-12",
-    name: "12 Oak St · HVAC",
-    category: "property",
-    icon: "home",
-    service: "Quarterly HVAC inspection",
-    due: "In 5 days",
-    dueDays: 5,
-    status: "soon",
-    last: "Feb 22",
-    meter: "—",
-    recurs: "Quarterly",
-    est: "1 hr",
-    where: "On-site visit",
-    notes:
-      "Filter sizes: 16×25×1. Tenant prefers morning appointments — text before heading out.",
-    assignee: "Mike R.",
-  },
-  {
-    id: "LAWN-A",
-    name: "Riverside Lawn",
-    category: "lawn",
-    icon: "leaf",
-    service: "Spring fertilizer treatment",
-    due: "In 9 days",
-    dueDays: 9,
-    status: "ok",
-    last: "Mar 11",
-    meter: "—",
-    recurs: "Spring + Fall",
-    est: "2 hrs",
-    where: "Riverside",
-    notes: "Slow-release N. Avoid the day before or of forecasted rain.",
-    assignee: "Self",
-  },
-  {
-    id: "VAN-02",
-    name: "Sprinter Van #2",
-    category: "vehicle",
-    icon: "van",
-    service: "Annual state safety inspection",
-    due: "In 14 days",
-    dueDays: 14,
-    status: "ok",
-    last: "Nov 20",
-    meter: "82,400 mi",
-    recurs: "Annual",
-    est: "1 hr",
-    where: "DMV-cert shop",
-    notes: "Inspection sticker expires end of the month — don't let it lapse.",
-    assignee: "Joe's Auto",
-  },
-  {
-    id: "GEN-1",
-    name: "Generac 22kW Genny",
-    category: "equipment",
-    icon: "bolt",
-    service: "Annual load test + oil",
-    due: "In 21 days",
-    dueDays: 21,
-    status: "ok",
-    last: "May 03 ’25",
-    meter: "118 hrs",
-    recurs: "Annual",
-    est: "2 hrs",
-    where: "On-site",
-    notes: "Coordinate with tenants — there's a ~30 min power dip during the test.",
-    assignee: "Self",
-  },
-];
-
-/* ============ detail body (shared by hero card + inline expand) ============ */
 function HFDetailBody({
-  asset,
+  item,
   compact = false,
   isNextUp = false,
+  onMarkComplete,
+  completing = false,
+  completeError,
 }: {
-  asset: Asset;
+  item: DashboardQueuePresentation;
   compact?: boolean;
   isNextUp?: boolean;
+  onMarkComplete: () => void;
+  completing?: boolean;
+  completeError?: string | null;
 }) {
   return (
     <div className="hf-detail-body" data-compact={compact}>
@@ -159,18 +44,16 @@ function HFDetailBody({
               <Icon name="arrow-right" size={12} stroke={2.2} />
               {isNextUp ? "Next up" : "Selected"}
             </span>
-            <HFStatusPill status={asset.status} due={asset.due} />
+            <HFStatusPill status={item.status} due={item.due} />
           </div>
           <div className="hf-asset-row">
-            <HFAssetIcon asset={asset} size={56} />
+            <HFAssetIcon asset={item} size={56} />
             <div className="hf-asset-id">
-              <h2 className="hf-asset-name">{asset.name}</h2>
+              <h2 className="hf-asset-name">{item.name}</h2>
               <div className="hf-asset-meta">
-                <span className="hf-mono">{asset.id}</span>
+                <span className="hf-mono">{item.displayId}</span>
                 <span className="hf-dot-sep" />
-                <span>{asset.meter}</span>
-                <span className="hf-dot-sep" />
-                <span>last service {asset.last}</span>
+                <span>last service {item.last}</span>
               </div>
             </div>
           </div>
@@ -180,7 +63,7 @@ function HFDetailBody({
 
       <div className="hf-service-block">
         <div className="hf-label">Service due</div>
-        <div className="hf-service-name">{asset.service}</div>
+        <div className="hf-service-name">{item.service}</div>
       </div>
 
       <div className="hf-meta-grid">
@@ -188,89 +71,73 @@ function HFDetailBody({
           <Icon name="repeat" size={14} color="var(--hf-ink-faint)" />
           <div className="hf-meta-text">
             <div className="hf-label-sm">Recurs</div>
-            <div className="hf-meta-val">{asset.recurs}</div>
-          </div>
-        </div>
-        <div className="hf-meta-item">
-          <Icon name="clock-sm" size={14} color="var(--hf-ink-faint)" />
-          <div className="hf-meta-text">
-            <div className="hf-label-sm">Est. time</div>
-            <div className="hf-meta-val">{asset.est}</div>
-          </div>
-        </div>
-        <div className="hf-meta-item">
-          <Icon name="pin" size={14} color="var(--hf-ink-faint)" />
-          <div className="hf-meta-text">
-            <div className="hf-label-sm">Where</div>
-            <div className="hf-meta-val">{asset.where}</div>
-          </div>
-        </div>
-        <div className="hf-meta-item">
-          <Icon name="wrench" size={14} color="var(--hf-ink-faint)" />
-          <div className="hf-meta-text">
-            <div className="hf-label-sm">Assigned</div>
-            <div className="hf-meta-val">{asset.assignee}</div>
+            <div className="hf-meta-val">{item.recurs}</div>
           </div>
         </div>
       </div>
 
-      <div className="hf-notes">
-        <div className="hf-label">Notes</div>
-        <p className="hf-notes-text">{asset.notes}</p>
-      </div>
+      {completeError ? (
+        <p className="hf-notes-text" role="alert" style={{ color: "var(--hf-bad)" }}>
+          <Icon name="alert" size={14} stroke={2} /> {completeError}
+        </p>
+      ) : null}
 
       <div className="hf-actions">
-        <button className="hf-btn hf-btn-primary">
+        <button
+          className="hf-btn hf-btn-primary"
+          onClick={onMarkComplete}
+          disabled={completing}
+        >
           <Icon name="check" size={14} stroke={2.2} />
-          Mark complete
+          {completing ? "Saving…" : "Mark complete"}
         </button>
-        <button className="hf-btn hf-btn-secondary">
+        <button className="hf-btn hf-btn-secondary" disabled title="Coming soon">
           <Icon name="calendar" size={14} />
           Reschedule
         </button>
-        <button className="hf-btn hf-btn-ghost">
+        <button className="hf-btn hf-btn-ghost" disabled title="Coming soon">
           <Icon name="snooze" size={14} />
           Snooze
         </button>
         {!compact && (
-          <button className="hf-btn hf-btn-ghost hf-btn-end">
+          <Link className="hf-btn hf-btn-ghost hf-btn-end" to={paths.assetMaintenance(item.assetId)}>
             View asset
             <Icon name="chevron-right" size={14} />
-          </button>
+          </Link>
         )}
       </div>
     </div>
   );
 }
 
-/* ============ greeting + stat row ============ */
-function HFGreeting({ displayName }: { displayName: string | null | undefined }) {
-  const counts = HF_ASSETS.reduce(
-    (acc, a) => {
-      acc[a.status]++;
-      return acc;
-    },
-    { overdue: 0, soon: 0, ok: 0 } as Record<AssetStatus, number>,
-  );
+function HFGreeting({
+  displayName,
+  subline,
+  health,
+}: {
+  displayName: string | null | undefined;
+  subline: string;
+  health: { overdue: number; soon: number; onTrack: number };
+}) {
   return (
     <div className="hf-greeting">
       <div className="hf-greeting-text">
         <h1 className="hf-h1">
-          {formatDashboardGreeting(displayName)} <span className="hf-wave">·</span>
+          {formatGreeting(displayName)} <span className="hf-wave">·</span>
         </h1>
-        <div className="hf-greeting-sub">Tuesday · May 19, 2026 · 6 assets in your fleet</div>
+        <div className="hf-greeting-sub">{subline}</div>
       </div>
       <div className="hf-stats">
         <div className="hf-stat hf-stat-bad">
-          <div className="hf-stat-val">{counts.overdue}</div>
+          <div className="hf-stat-val">{health.overdue}</div>
           <div className="hf-stat-lbl">Overdue</div>
         </div>
         <div className="hf-stat hf-stat-warn">
-          <div className="hf-stat-val">{counts.soon}</div>
+          <div className="hf-stat-val">{health.soon}</div>
           <div className="hf-stat-lbl">Due soon</div>
         </div>
         <div className="hf-stat hf-stat-ok">
-          <div className="hf-stat-val">{counts.ok}</div>
+          <div className="hf-stat-val">{health.onTrack}</div>
           <div className="hf-stat-lbl">On track</div>
         </div>
       </div>
@@ -278,97 +145,307 @@ function HFGreeting({ displayName }: { displayName: string | null | undefined })
   );
 }
 
-/* ============ main: master/detail ============ */
+function HFDashboardState({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="hf-assets-state">
+      <div className="hf-assets-state-title">{title}</div>
+      <div className="hf-assets-state-sub">{description}</div>
+      {action}
+    </div>
+  );
+}
+
+const CATEGORY_FILTERS: { id: DashboardCategoryFilter; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "vehicle", label: "Vehicles" },
+  { id: "equipment", label: "Equipment" },
+  { id: "property", label: "Properties" },
+];
+
 export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
-  const { data: profile } = useQuery({
-    queryKey: userProfileQueryKey,
-    queryFn: getUserProfile,
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [category, setCategory] = useState<DashboardCategoryFilter>("all");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+
+  const dashboardQuery = useQuery({
+    queryKey: dashboardQueryKey,
+    queryFn: getDashboard,
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 401) && failureCount < 2,
   });
-  const sorted = [...HF_ASSETS].sort((a, b) => a.dueDays - b.dueDays);
-  const [selId, setSelId] = useState(sorted[0]?.id ?? "");
-  const selected = HF_ASSETS.find((a) => a.id === selId) ?? sorted[0];
-  const isNextUp = selId === sorted[0]?.id;
+
+  const completeMutation = useMutation({
+    mutationFn: async (item: DashboardQueuePresentation) => {
+      const dashboard = dashboardQuery.data;
+      if (!dashboard) throw new Error("Dashboard is not loaded");
+      return createMaintenanceRecord(item.assetId, {
+        title: item.service,
+        performedAt: dashboard.todayUtc,
+        taskId: item.taskId,
+      });
+    },
+    onSuccess: async (_record, item) => {
+      setCompleteError(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: dashboardQueryKey }),
+        queryClient.invalidateQueries({ queryKey: maintenanceRecordsQueryKey(item.assetId) }),
+        queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(item.assetId) }),
+      ]);
+    },
+    onError: async (error) => {
+      if (error instanceof ApiError && error.status === 401) {
+        navigate(paths.login(), { replace: true });
+        return;
+      }
+      setCompleteError(error instanceof Error ? error.message : "Could not mark task complete.");
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+    },
+  });
 
   useEffect(() => {
     document.title = "FieldOps — Home";
   }, []);
 
-  if (!selected) return null;
+  useEffect(() => {
+    if (dashboardQuery.error instanceof ApiError && dashboardQuery.error.status === 401) {
+      navigate(paths.login(), { replace: true });
+    }
+  }, [dashboardQuery.error, navigate]);
+
+  const queue = useMemo(() => {
+    if (!dashboardQuery.data) return [];
+    return dashboardQuery.data.queue.map((item) =>
+      toQueuePresentation(item, dashboardQuery.data!.todayUtc),
+    );
+  }, [dashboardQuery.data]);
+
+  const filteredQueue = useMemo(
+    () => filterQueueByCategory(queue, category),
+    [queue, category],
+  );
+
+  useEffect(() => {
+    if (filteredQueue.length === 0) {
+      setSelectedTaskId(null);
+      return;
+    }
+    if (!selectedTaskId || !filteredQueue.some((item) => item.taskId === selectedTaskId)) {
+      setSelectedTaskId(filteredQueue[0]!.taskId);
+    }
+  }, [filteredQueue, selectedTaskId]);
+
+  const selected = filteredQueue.find((item) => item.taskId === selectedTaskId) ?? filteredQueue[0];
+  const isNextUp = selected?.taskId === filteredQueue[0]?.taskId;
+
+  const categoryCounts = useMemo(
+    () => ({
+      all: queue.length,
+      vehicle: queue.filter((item) => item.category === "vehicle").length,
+      equipment: queue.filter((item) => item.category === "equipment").length,
+      property: queue.filter((item) => item.category === "property").length,
+    }),
+    [queue],
+  );
+
+  const chipCount = (id: DashboardCategoryFilter) => {
+    if (id === "all") return categoryCounts.all;
+    return categoryCounts[id];
+  };
+
+  if (dashboardQuery.isPending) {
+    return (
+      <div className={`hf hf-app hf-mobile-${mobileMode}`}>
+        <HFTopBar />
+        <main className="hf-main hf-shell">
+          <HFDashboardState
+            title="Loading dashboard"
+            description="Fetching your fleet health and maintenance queue..."
+          />
+        </main>
+        <HFBottomNav />
+      </div>
+    );
+  }
+
+  if (dashboardQuery.isError) {
+    return (
+      <div className={`hf hf-app hf-mobile-${mobileMode}`}>
+        <HFTopBar />
+        <main className="hf-main hf-shell">
+          <HFDashboardState
+            title="Dashboard could not be loaded"
+            description={dashboardQuery.error.message}
+            action={
+              <button
+                className="hf-btn hf-btn-secondary"
+                onClick={() => void dashboardQuery.refetch()}
+              >
+                Try again
+              </button>
+            }
+          />
+        </main>
+        <HFBottomNav />
+      </div>
+    );
+  }
+
+  const dashboard = dashboardQuery.data;
+
+  if (dashboard.fleetTotals.total === 0) {
+    return (
+      <div className={`hf hf-app hf-mobile-${mobileMode}`}>
+        <HFTopBar />
+        <main className="hf-main hf-shell">
+          <HFGreeting
+            displayName={dashboard.viewerDisplayName}
+            subline={formatFleetSubline(dashboard.todayUtc, 0)}
+            health={{ overdue: 0, soon: 0, onTrack: 0 }}
+          />
+          <HFDashboardState
+            title="No assets yet"
+            description="Add your first vehicle, property, or piece of equipment to start tracking maintenance."
+            action={
+              <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
+                <Icon name="plus" size={14} stroke={2.2} />
+                Add asset
+              </Link>
+            }
+          />
+        </main>
+        <HFBottomNav />
+      </div>
+    );
+  }
 
   return (
     <div className={`hf hf-app hf-mobile-${mobileMode}`}>
       <HFTopBar />
       <main className="hf-main hf-shell">
-        <HFGreeting displayName={profile?.name} />
+        <HFGreeting
+          displayName={dashboard.viewerDisplayName}
+          subline={formatFleetSubline(dashboard.todayUtc, dashboard.fleetTotals.total)}
+          health={{
+            overdue: dashboard.fleetHealth.overdue,
+            soon: dashboard.fleetHealth.soon,
+            onTrack: dashboard.fleetHealth.onTrack,
+          }}
+        />
 
         <div className="hf-filters">
           <div className="hf-filter-chips">
-            <button className="hf-chip active">
-              All <span className="hf-chip-count">6</span>
-            </button>
-            <button className="hf-chip">
-              Vehicles <span className="hf-chip-count">2</span>
-            </button>
-            <button className="hf-chip">
-              Equipment <span className="hf-chip-count">2</span>
-            </button>
-            <button className="hf-chip">
-              Properties <span className="hf-chip-count">1</span>
-            </button>
-            <button className="hf-chip">
-              Grounds <span className="hf-chip-count">1</span>
-            </button>
+            {CATEGORY_FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                className={`hf-chip ${category === filter.id ? "active" : ""}`}
+                onClick={() => setCategory(filter.id)}
+              >
+                {filter.label}
+                <span className="hf-chip-count">{chipCount(filter.id)}</span>
+              </button>
+            ))}
           </div>
-          <button className="hf-btn hf-btn-secondary hf-btn-sm">
+          <button className="hf-btn hf-btn-secondary hf-btn-sm" disabled title="Coming soon">
             <Icon name="plus" size={14} stroke={2} />
             Add service
           </button>
         </div>
 
-        <div className="hf-grid">
-          {/* detail card */}
-          <section className="hf-detail-card" data-status={selected.status}>
-            <HFDetailBody asset={selected} isNextUp={isNextUp} />
-          </section>
+        {queue.length === 0 ? (
+          <HFDashboardState
+            title="No scheduled maintenance yet"
+            description="Add maintenance tasks to your assets so the dashboard can track what's due next."
+            action={
+              <Link className="hf-btn hf-btn-primary" to={paths.assets}>
+                Go to assets
+              </Link>
+            }
+          />
+        ) : filteredQueue.length === 0 || !selected ? (
+          <HFDashboardState
+            title="No tasks in this category"
+            description="Try another filter to see scheduled maintenance for that asset type."
+            action={
+              <button className="hf-btn hf-btn-secondary" onClick={() => setCategory("all")}>
+                Show all tasks
+              </button>
+            }
+          />
+        ) : (
+          <div className="hf-grid">
+            <section className="hf-detail-card" data-status={selected.status as AssetStatus}>
+              <HFDetailBody
+                item={selected}
+                isNextUp={isNextUp}
+                onMarkComplete={() => {
+                  setCompleteError(null);
+                  completeMutation.mutate(selected);
+                }}
+                completing={completeMutation.isPending}
+                completeError={completeError}
+              />
+            </section>
 
-          {/* queue */}
-          <section className="hf-queue">
-            <div className="hf-queue-head">
-              <h3 className="hf-h3">Queue</h3>
-              <span className="hf-mono hf-ink-faint">By urgency · {HF_ASSETS.length}</span>
-            </div>
-            <ul className="hf-queue-list">
-              {sorted.map((a) => {
-                const isSel = a.id === selId;
-                return (
-                  <li
-                    key={a.id}
-                    className={`hf-row ${isSel ? "selected" : ""}`}
-                    data-status={a.status}
-                    onClick={() => setSelId(a.id)}
-                  >
-                    <div className="hf-row-summary">
-                      <HFAssetIcon asset={a} size={36} />
-                      <div className="hf-row-text">
-                        <div className="hf-row-name">{a.name}</div>
-                        <div className="hf-row-sub">{a.service}</div>
+            <section className="hf-queue">
+              <div className="hf-queue-head">
+                <h3 className="hf-h3">Queue</h3>
+                <span className="hf-mono hf-ink-faint">
+                  By urgency · {filteredQueue.length}
+                </span>
+              </div>
+              <ul className="hf-queue-list">
+                {filteredQueue.map((item) => {
+                  const isSel = item.taskId === selectedTaskId;
+                  return (
+                    <li
+                      key={item.taskId}
+                      className={`hf-row ${isSel ? "selected" : ""}`}
+                      data-status={item.status}
+                      onClick={() => setSelectedTaskId(item.taskId)}
+                    >
+                      <div className="hf-row-summary">
+                        <HFAssetIcon asset={item} size={36} />
+                        <div className="hf-row-text">
+                          <div className="hf-row-name">{item.name}</div>
+                          <div className="hf-row-sub">{item.service}</div>
+                        </div>
+                        <div className="hf-row-right">
+                          <div className="hf-row-due">{item.due}</div>
+                          <span className="hf-status-dot" data-status={item.status} />
+                        </div>
                       </div>
-                      <div className="hf-row-right">
-                        <div className="hf-row-due">{a.due}</div>
-                        <span className="hf-status-dot" data-status={a.status} />
-                      </div>
-                    </div>
-                    {isSel && (
-                      <div className="hf-row-detail">
-                        <HFDetailBody asset={a} compact isNextUp={isNextUp} />
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        </div>
+                      {isSel && (
+                        <div className="hf-row-detail">
+                          <HFDetailBody
+                            item={item}
+                            compact
+                            isNextUp={isNextUp}
+                            onMarkComplete={() => {
+                              setCompleteError(null);
+                              completeMutation.mutate(item);
+                            }}
+                            completing={completeMutation.isPending}
+                            completeError={completeError}
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          </div>
+        )}
       </main>
       <HFBottomNav />
     </div>

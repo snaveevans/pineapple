@@ -62,6 +62,21 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
     return result.results.map((row) => this.#rowToTask(row));
   }
 
+  async findByOwnerForActiveAssets(ownerId: UserId): Promise<MaintenanceTask[]> {
+    const result = await this.db
+      .prepare(
+        `SELECT t.id, t.asset_id, t.owner_id, t.title, t.interval_value, t.interval_unit,
+                t.last_completed_date, t.next_due, t.created_at
+         FROM maintenance_tasks t
+         INNER JOIN assets a ON a.id = t.asset_id
+         WHERE t.owner_id = ? AND a.archived_at IS NULL
+         ORDER BY t.next_due ASC, t.created_at ASC`,
+      )
+      .bind(ownerId)
+      .all<MaintenanceTaskRow>();
+    return result.results.map((row) => this.#rowToTask(row));
+  }
+
   async findById(id: MaintenanceTaskId): Promise<MaintenanceTask | null> {
     const row = await this.db
       .prepare(`SELECT ${SELECT_COLUMNS} FROM maintenance_tasks WHERE id = ?`)
