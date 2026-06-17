@@ -1,6 +1,7 @@
 import { apiRequest } from "./client.ts";
 
 export type IntervalUnit = "day" | "week" | "month" | "year";
+export type TaskUrgencyStatus = "overdue" | "soon" | "ok";
 
 export type MaintenanceTask = {
   id: string;
@@ -10,6 +11,8 @@ export type MaintenanceTask = {
   intervalUnit: IntervalUnit;
   lastCompletedDate: string | null;
   nextDue: string;
+  status: TaskUrgencyStatus;
+  daysDue: number;
   createdAt: string;
 };
 

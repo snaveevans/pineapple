@@ -1,84 +1,126 @@
 ---
 name: dashboard
-description: Work-in-progress authenticated home screen for fleet overview and future service queue workflows
+description: Authenticated home screen read model for fleet health and the cross-asset maintenance queue
 metadata:
   type: feature
 ---
 
 # Dashboard
 
-**Status:** wip
+**Status:** draft
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-06-03
-**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md)
+**Last Updated:** 2026-06-17
+**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [maintenance-task.md](./maintenance-task.md), [maintenance-record.md](./maintenance-record.md)
 
 ---
 
 ## Summary
 
-The Dashboard is the work-in-progress authenticated home screen at `/app`. It is intended to become the operator's "what needs attention now" view, with fleet-wide status counters and a service queue. The current screen is a prototype backed by placeholder data, so this spec records the intended direction without treating the feature as finished.
+The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. The first API-backed version is read-oriented: it can launch existing maintenance flows and can mark a time-based task complete through the existing maintenance-record creation endpoint, but rescheduling, snoozing, reminders, and richer service-task metadata are future work.
 
-This feature is not a current priority. Do not use this spec as a completion checklist until the unresolved WIP gaps are reviewed and promoted into active requirements.
+## Implementation Notes
+
+`apps/web/src/app/AppHome.tsx` currently renders hardcoded prototype data. The desired API behavior below intentionally replaces that mock rather than preserving it. The existing mock is useful only as evidence of required capabilities:
+
+- The dashboard needs one protected read model instead of browser-side fan-out across `GET /api/assets` and per-asset task endpoints.
+- The supported asset categories remain `vehicle`, `equipment`, and `property`; the mock's `lawn` / `Grounds` category is not part of this spec.
+- The current maintenance-task model supports time-based schedules only. Meter readings, mileage/hour recurrence, estimated time, location, assignee, and task notes are future task-model work.
+- `Mark complete` can use the existing linked maintenance-record flow. `Reschedule`, `Snooze`, and dashboard-level task creation need future specs before they become live actions.
 
 ## User Stories
 
-- As an **authenticated user**, I can **see how many assets are overdue, due soon, and on track** so that **I know the health of my fleet at a glance**
-- As a **user**, I can **see the highest-urgency service item by default** so that **I know what to act on first without searching**
-- As a **user**, I can **click any queue item to see its full service detail** so that **I can review notes, timing, and next steps in one view**
-- As a **user**, I can **eventually filter the queue by asset category** so that **I can focus on a subset of my fleet**
-- As a **user**, I can **eventually complete, reschedule, or snooze service items** so that **I can close out work and advance the schedule**
+- As an **authenticated owner-operator**, I can **open the dashboard and see fleet maintenance health from live data** so that **I know whether anything needs attention now**
+- As an **authenticated owner-operator**, I can **see active asset totals and category counts** so that **I understand what the dashboard is summarizing**
+- As an **authenticated owner-operator**, I can **see overdue and upcoming maintenance tasks across all active assets in urgency order** so that **I can act on the right task first**
+- As an **authenticated owner-operator with no assets or no scheduled tasks**, I can **see an explicit empty state** so that **I know whether to add an asset or add maintenance tasks**
+- As an **authenticated owner-operator**, I can **start completion for a due task from the dashboard** so that **completed work advances the existing maintenance schedule**
 
-## Acceptance Criteria
+## API Requirements
 
-- [ ] The dashboard displays a greeting, date, and total fleet count
-- [ ] Three stat counters are shown: Overdue, Due soon, On track
-- [ ] The service queue is ordered from most urgent to least urgent
-- [ ] The most urgent item is selected by default when the page loads
-- [ ] Clicking a queue row selects that item and shows its detail
-- [ ] The detail view shows: status label, asset name, asset ID, meter reading, last service date, service description, recurrence interval, estimated time, location/where, assignee, notes
-- [ ] Category filter chips may be present as visual placeholders, but filtering is not required for the WIP version
-- [ ] Service action controls may be present as visual placeholders, but they must not imply completed service workflows
-- [ ] On mobile, the selected queue row expands inline to show compact service details
-- [ ] The page title is set to "FieldOps — Home"
+### Dashboard read model
+
+- [ ] Add `GET /api/dashboard` as a protected application API endpoint
+- [ ] The endpoint returns the caller's dashboard state in a single response; the web app must not need to call `GET /api/assets` and then fan out to per-asset task endpoints for initial dashboard render
+- [ ] The endpoint uses the resolved authenticated `User.id` as the ownership input; no `ownerId` is accepted from the request
+- [ ] Only active, non-archived assets owned by the caller are included in fleet totals, category counts, health counts, and queue items
+- [ ] Tasks belonging to archived assets are excluded from the dashboard queue, even though asset-scoped task history may remain readable elsewhere
+- [ ] The response includes a viewer display name suitable for the greeting, derived from the authenticated session profile when available
+- [ ] The response includes `todayUtc`, the server-side calendar date used to calculate task urgency; date-only calculations must follow the maintenance date rules in [maintenance-task.md](./maintenance-task.md)
+- [ ] Fleet totals include the total active asset count and counts for the supported asset types: vehicle, equipment, and property
+- [ ] Fleet health counts are computed per asset by that asset's most urgent scheduled task: overdue wins over due soon, due soon wins over on track
+- [ ] Assets with no scheduled maintenance tasks are counted separately from on-track assets so the dashboard can avoid presenting "no schedule" as healthy service status
+- [ ] The maintenance queue contains scheduled maintenance tasks across all active assets, not one synthesized row per asset
+- [ ] Each queue item includes enough task and asset summary data to render the queue row and selected-detail panel without an additional asset lookup
+- [ ] Queue items are sorted by urgency first, then by `nextDue` ascending, then by task creation time for stable ordering
+- [ ] The dashboard does not include `Grounds` / `lawn` category data unless a future asset-type spec and API contract add that type
+- [ ] The dashboard does not include meter readings, mileage/hour intervals, estimated time, location, assignee, or free-form task notes until those fields are added to the maintenance-task contract
+
+### Status calculation
+
+- [ ] A task is `overdue` when `nextDue` is before `todayUtc`
+- [ ] A task is `soon` when `nextDue` is today or within the next 7 calendar days
+- [ ] A task is `ok` when `nextDue` is more than 7 calendar days after `todayUtc`
+- [ ] The relative due-day value is calculated with date-only calendar arithmetic, not timestamp subtraction through user-local time zones
+- [ ] Due labels such as "Overdue · 3 days", "Today", "Tomorrow", or "In 5 days" may be formatted by the frontend from the API's date/status data; the API should not be required to return presentation copy
+
+### Dashboard actions
+
+- [ ] Selecting a queue item is frontend state; the API does not persist or return a selected item
+- [ ] The default selected item is the first queue item after urgency sorting
+- [ ] Category filtering is frontend state for the first API-backed version; the dashboard response must contain category and count data needed to filter the returned queue without a new request
+- [ ] `Mark complete` for a time-based task uses `POST /api/assets/{assetId}/maintenance-records` with the selected `taskId`, as defined in [maintenance-record.md](./maintenance-record.md) and [maintenance-task.md](./maintenance-task.md)
+- [ ] After successful completion, the frontend invalidates the dashboard read model and the affected asset's maintenance records/tasks
+- [ ] `Reschedule`, `Snooze`, dashboard-level `Add service`, and richer task-detail editing remain placeholders until the maintenance-task API is extended
+
+## Validation & Ownership
+
+**Authentication:** The dashboard is available only to authenticated users. A missing or invalid session returns 401 through the shared authentication middleware.
+
+**Permissions:** Dashboard data is scoped entirely by the resolved `User.id`. Collection queries must filter by owner and active asset state. The response must never expose another user's assets, tasks, maintenance records, `ownerId`, or auth-provider identifiers.
+
+**Validation:** `GET /api/dashboard` has no request body. If query parameters are added later for server-side filtering or pagination, they must be validated at the Zod HTTP edge and reflected in the generated OpenAPI document.
+
+**Date-only behavior:** Dashboard status calculations use the same date-only conventions as maintenance tasks. `nextDue` is a `YYYY-MM-DD` value; urgency is derived from calendar dates rather than timestamps.
 
 ## Edge Cases & Error States
 
-| Scenario                                   | Expected Behavior                                                                       |
-| ------------------------------------------ | --------------------------------------------------------------------------------------- |
-| Empty fleet (no assets / no service queue) | [NOT SPECIFIED: no empty state has been defined for the WIP version]                    |
-| All assets on track (no overdue or soon)   | Overdue and Due soon counters show 0                                                    |
-| Selected item is the most-urgent item      | Detail card header shows "Next up" instead of "Selected"                                |
-| Mobile viewport                            | Detail card is hidden; selected queue row expands inline with compact detail            |
-| Action buttons clicked                     | [NOT SPECIFIED: service actions are future work]                                        |
-| Filter chips clicked                       | [NOT SPECIFIED: filtering is future work]                                               |
-| "Add service" clicked                      | [NOT SPECIFIED: service creation is future work]                                        |
-| "View asset" clicked                       | [NOT SPECIFIED: navigates to asset detail, but the destination page does not yet exist] |
+| Scenario                                                      | Expected Behavior                                                                                                                              |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| No valid session                                              | API returns 401; frontend redirects to `/login` through the shared API-client behavior                                                         |
+| User has zero active assets                                   | Dashboard renders an empty fleet state with a primary path to add an asset; all counts are 0 and queue is empty                                |
+| User has active assets but no scheduled tasks                 | Fleet totals/category counts render; queue empty state prompts the user to add scheduled maintenance; unscheduled asset count reflects the gap |
+| All scheduled tasks are on track                              | Overdue and due-soon counts are 0; queue still shows upcoming tasks ordered by `nextDue`                                                       |
+| Multiple tasks on one asset                                   | The queue may show multiple rows for that asset; fleet health counts the asset once using its most urgent task                                 |
+| Task due today                                                | Status is `soon`; frontend may render "Today"                                                                                                  |
+| Task from archived asset                                      | Excluded from dashboard queue and health counts                                                                                                |
+| Asset type is not one of the supported API types              | Not possible under the current asset schema; dashboard must not synthesize `lawn`/`grounds`                                                    |
+| Dashboard request fails with non-401 error                    | Frontend shows a dashboard-level error state with retry                                                                                        |
+| Queue becomes empty after filtering                           | Frontend shows a filtered-empty state; this is not an API error                                                                                |
+| Linked task completion succeeds                               | New maintenance record appears in asset history; task advances per [maintenance-task.md](./maintenance-task.md); dashboard is refetched        |
+| Linked task completion returns 409 because asset was archived | Completion error is shown and dashboard is refetched so archived data disappears                                                               |
+
+## Telemetry
+
+**Request telemetry:** `GET /api/dashboard` maps to the `GetDashboard` operation via `createTechnicalTelemetryMiddleware`. Implementing the endpoint requires adding this route to the operation-name mapping and updating [telemetry.md](../cross-cutting/telemetry.md).
+
+**Domain events:** None for the dashboard read model. Reads do not publish domain events. Completing a task from the dashboard uses the existing `CreateMaintenanceRecord` operation and may publish the existing `MaintenanceRecordCreated` and `MaintenanceTaskAdvanced` domain events.
 
 ## Flags
 
-**NOT SPECIFIED — Empty state:** No empty state has been defined for a dashboard with no assets or no service queue.
+**FOLLOW-UP NEEDED — Maintenance task detail fields:** The prototype shows estimated time, location/where, assignee/vendor, and notes. These fields do not exist in the maintenance-task API or D1 schema. Add them through [maintenance-task.md](./maintenance-task.md) before rendering them from live data.
 
-**NOT SPECIFIED — Action behavior:** "Mark complete", "Reschedule", "Snooze", and "View asset" represent the future interaction model but are not part of the completed feature yet.
+**FOLLOW-UP NEEDED — Distance/hour-based schedules:** The prototype includes mile/hour readings and recurrence. This remains phase 2 and must follow the discriminator guidance in [maintenance-task.md](./maintenance-task.md), not an ad hoc `"mile"` or `"hour"` addition to the time interval enum.
 
-**NOT SPECIFIED — Filter chip behavior:** The intended behavior is to filter the queue to a single category; the count in the "All" chip should reflect the total.
+**FOLLOW-UP NEEDED — Reschedule and snooze:** The prototype includes these actions, but no task mutation semantics exist. A future spec should define whether these are task updates, one-off overrides, or separate scheduled exceptions.
 
-**NOT SPECIFIED — Real data integration:** When real data is wired, the following must be resolved: the data model for service schedule (due dates, recurrence, last-service meter), how urgency is computed, how status (overdue/soon/ok) is derived, and what user name appears in the greeting.
-
-**REVIEW NEEDED — "Lawn" / "Grounds" category:** The dashboard includes a "Grounds" category that does not correspond to any creatable asset type (which are vehicle, property, equipment). It is unclear whether "Grounds" is a planned fourth type or prototype-only category.
-
-**REVIEW NEEDED — Placeholder user identity:** The greeting uses a placeholder user name and date. The finished feature needs to define how the authenticated user's name and current date should appear.
-
-**REVIEW NEEDED — Roadmap user stories in current spec:** Several user stories use "eventually" phrasing (filter the queue, complete/reschedule/snooze items). These describe future work, not the current WIP feature. They should be moved to a roadmap section or a separate future spec to avoid inflating the apparent scope.
-
-**NOT SPECIFIED — Telemetry contract not referenced:** When real data is wired and API endpoints are added, each must be registered in the operation name mapping and any new domain events must have telemetry handlers, per the `telemetry.md` integration contract. This spec does not currently reference `telemetry.md`.
-
-**NOT SPECIFIED — Error handling cross-cutting spec not referenced:** When real data is wired, the dashboard will make API calls whose error states must be documented per `error-handling.md`. The spec does not currently reference `error-handling.md` and no error states are defined for any data-loading scenario.
+**FOLLOW-UP NEEDED — Dashboard-level task creation:** The prototype's "Add service" button needs a concrete entry path, target asset selection behavior, and field set before it becomes an API-backed workflow.
 
 ## Out of Scope
 
-- Service scheduling data model and CRUD (prerequisite for the real data layer)
-- Reminder delivery (notifications, email)
-- Multi-user or team assignment beyond the `assignee` display field
-- Completed service history view
-- Snooze and reschedule dialogs
-- Asset detail page ("View asset" destination)
+- Adding a fourth `lawn` / `grounds` asset type
+- Mileage/hour meter tracking and distance-based maintenance schedules
+- Reminder delivery through notifications, email, or background jobs
+- Reschedule, snooze, or bulk task management
+- Editing task detail fields from the dashboard
+- Team assignment, delegation, or multi-user visibility
+- Frontend interaction telemetry

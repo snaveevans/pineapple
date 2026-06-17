@@ -2,7 +2,13 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { AssetId, DomainError, MaintenanceTaskId } from "@snaveevans/pineapple-shared";
+import {
+  addCalendarDays,
+  AssetId,
+  calendarDaysBetween,
+  DomainError,
+  MaintenanceTaskId,
+} from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -29,6 +35,7 @@ import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRe
 import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
+import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
@@ -40,6 +47,7 @@ import {
   createMaintenanceRecordRoute,
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
+  getDashboardRoute,
   getUserProfileRoute,
   getAssetRoute,
   healthRoute,
@@ -55,6 +63,7 @@ import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceR
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
+import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
@@ -152,7 +161,9 @@ function serializeMaintenanceRecord(
 
 function serializeMaintenanceTask(
   task: MaintenanceTask,
+  todayUtc: string,
 ): z.infer<typeof MaintenanceTaskResponseSchema> {
+  const sevenDaysOut = addCalendarDays(todayUtc, 7);
   return {
     id: task.id,
     assetId: task.assetId,
@@ -161,6 +172,8 @@ function serializeMaintenanceTask(
     intervalUnit: task.intervalUnit,
     lastCompletedDate: task.lastCompletedDate,
     nextDue: task.nextDue,
+    status: deriveTaskStatus(task.nextDue, todayUtc, sevenDaysOut),
+    daysDue: calendarDaysBetween(todayUtc, task.nextDue),
     createdAt: task.createdAt.toISOString(),
   };
 }
@@ -225,6 +238,22 @@ function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSch
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
   };
 }
+
+// ── Dashboard endpoint ───────────────────────────────────────────────────────
+
+app.openapi(getDashboardRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new GetDashboard(
+    new D1AssetRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+    new SystemUtcDateProvider(),
+  ).execute({
+    ownerId: user.id,
+    viewerDisplayName: user.name,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(result.value, 200);
+});
 
 // ── User profile endpoints ───────────────────────────────────────────────────
 
@@ -341,12 +370,14 @@ app.openapi(createMaintenanceTaskRoute, async (c) => {
     ...(lastCompletedDate !== undefined ? { lastCompletedDate } : {}),
   });
   if (!result.ok) throw result.error;
-  return c.json(serializeMaintenanceTask(result.value), 201);
+  const todayUtc = new SystemUtcDateProvider().today();
+  return c.json(serializeMaintenanceTask(result.value, todayUtc), 201);
 });
 
 app.openapi(listMaintenanceTasksRoute, async (c) => {
   const user = c.get("user");
   const { assetId } = c.req.valid("param");
+  const todayUtc = new SystemUtcDateProvider().today();
   const result = await new ListMaintenanceTasks(
     new D1AssetRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
@@ -355,7 +386,10 @@ app.openapi(listMaintenanceTasksRoute, async (c) => {
     requesterId: user.id,
   });
   if (!result.ok) throw result.error;
-  return c.json({ maintenanceTasks: result.value.map(serializeMaintenanceTask) }, 200);
+  return c.json(
+    { maintenanceTasks: result.value.map((task) => serializeMaintenanceTask(task, todayUtc)) },
+    200,
+  );
 });
 
 app.openapi(deleteMaintenanceTaskRoute, async (c) => {

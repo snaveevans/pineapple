@@ -9,8 +9,8 @@ metadata:
 
 **Status:** draft
 **Owner:** [unknown - assign on review]
-**Last Updated:** 2026-06-10
-**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-record.md](./maintenance-record.md)
+**Last Updated:** 2026-06-17
+**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-record.md](./maintenance-record.md), [dashboard.md](./dashboard.md)
 
 ---
 
@@ -51,6 +51,7 @@ The Maintenance Task feature lets an authenticated owner-operator define schedul
 - [ ] The list use case returns only tasks for an asset owned by the authenticated user
 - [ ] Each task in the response includes `id`, `assetId`, `title`, `intervalValue`, `intervalUnit`, `lastCompletedDate` (nullable), `nextDue`, and `createdAt`; `ownerId` is never exposed
 - [ ] Tasks are returned in ascending `nextDue` order (soonest due first)
+- [ ] The dashboard's cross-asset queue is exposed through [dashboard.md](./dashboard.md), not by requiring the web app to call this asset-scoped endpoint once per asset
 
 ### Task deletion
 
@@ -194,6 +195,8 @@ Published only when `record.performedAt > task.lastCompletedDate` (i.e. when `ne
 
 **FOLLOW-UP NEEDED — Mileage-based intervals (Phase 2):** The original user stories include "change oil every 5,000 miles." Odometer tracking and mileage-based `nextDue` computation are out of scope for phase 1. When implementing, do NOT simply add `"mile"` to the `intervalUnit` enum — time tasks carry `lastCompletedDate`/`nextDue` (dates) while distance tasks would need `lastCompletedOdometer`/`nextDueMileage` (integers). Introduce a `type: "time" | "distance"` discriminator and treat them as two explicit shapes. Existing time-based tasks require no changes.
 
+**FOLLOW-UP NEEDED — Dashboard detail fields:** The dashboard prototype displays estimated duration, location/where, assignee/vendor, and task notes. Those fields are not part of the current maintenance-task contract and must be specified here before the dashboard can render them from live API data.
+
 **FOLLOW-UP NEEDED — Cross-cutting time spec:** Same flag as [maintenance-record.md](./maintenance-record.md). Date-only arithmetic for `nextDue` computation — especially month and year intervals — should be revisited when a cross-cutting time spec is authored.
 
 ## Out of Scope
@@ -201,7 +204,7 @@ Published only when `record.performedAt > task.lastCompletedDate` (i.e. when `ne
 - Mileage/odometer-based intervals (Phase 2)
 - Editing a task's title or interval after creation
 - Reminders and push/email notifications when maintenance is due
-- A global "upcoming maintenance" view across all assets
+- A standalone schedule/task-management screen beyond the dashboard read model
 - Archiving or disabling tasks (only hard delete is supported in this iteration)
 - Automatic record creation triggered by tasks
 - Bulk task management

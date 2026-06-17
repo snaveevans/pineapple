@@ -31,6 +31,10 @@
     {
       "name": "Users",
       "description": "Read and update the authenticated user's domain profile"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Authenticated home-screen read model for fleet health and maintenance queue"
     }
   ],
   "components": {
@@ -445,6 +449,21 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "example": "2026-06-11"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "overdue",
+              "soon",
+              "ok"
+            ],
+            "description": "Derived from nextDue and todayUtc using calendar-day rules",
+            "example": "soon"
+          },
+          "daysDue": {
+            "type": "integer",
+            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+            "example": 5
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -459,6 +478,8 @@
           "intervalUnit",
           "lastCompletedDate",
           "nextDue",
+          "status",
+          "daysDue",
           "createdAt"
         ]
       },
@@ -511,6 +532,233 @@
         },
         "required": [
           "maintenanceTasks"
+        ]
+      },
+      "DashboardFleetTotals": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 6
+          },
+          "vehicle": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "equipment": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "property": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          }
+        },
+        "required": [
+          "total",
+          "vehicle",
+          "equipment",
+          "property"
+        ]
+      },
+      "DashboardFleetHealth": {
+        "type": "object",
+        "properties": {
+          "overdue": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "soon": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "onTrack": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "unscheduled": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "required": [
+          "overdue",
+          "soon",
+          "onTrack",
+          "unscheduled"
+        ]
+      },
+      "DashboardQueueCounts": {
+        "type": "object",
+        "properties": {
+          "all": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 5
+          },
+          "vehicle": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "equipment": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "property": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "required": [
+          "all",
+          "vehicle",
+          "equipment",
+          "property"
+        ]
+      },
+      "DashboardQueueItem": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "taskTitle": {
+            "type": "string",
+            "example": "Oil change + tire rotation"
+          },
+          "nextDue": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-09"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "overdue",
+              "soon",
+              "ok"
+            ],
+            "description": "Derived from nextDue and todayUtc using calendar-day rules",
+            "example": "soon"
+          },
+          "daysDue": {
+            "type": "integer",
+            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+            "example": -3
+          },
+          "intervalValue": {
+            "type": "integer",
+            "example": 3
+          },
+          "intervalUnit": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "example": "month"
+          },
+          "lastCompletedDate": {
+            "type": "string",
+            "nullable": true,
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-03-14"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-01-15T12:00:00.000Z"
+          },
+          "assetId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "assetName": {
+            "type": "string",
+            "example": "Ford F-150 · Truck #4"
+          },
+          "assetType": {
+            "type": "string",
+            "enum": [
+              "vehicle",
+              "property",
+              "equipment"
+            ],
+            "example": "vehicle"
+          }
+        },
+        "required": [
+          "taskId",
+          "taskTitle",
+          "nextDue",
+          "status",
+          "daysDue",
+          "intervalValue",
+          "intervalUnit",
+          "lastCompletedDate",
+          "createdAt",
+          "assetId",
+          "assetName",
+          "assetType"
+        ]
+      },
+      "DashboardResponse": {
+        "type": "object",
+        "properties": {
+          "viewerDisplayName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Authenticated user's display name when available",
+            "example": "Dale"
+          },
+          "todayUtc": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Server-side UTC calendar date used for urgency calculations",
+            "example": "2026-06-16"
+          },
+          "fleetTotals": {
+            "$ref": "#/components/schemas/DashboardFleetTotals"
+          },
+          "fleetHealth": {
+            "$ref": "#/components/schemas/DashboardFleetHealth"
+          },
+          "queueCountsByCategory": {
+            "$ref": "#/components/schemas/DashboardQueueCounts"
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardQueueItem"
+            }
+          }
+        },
+        "required": [
+          "viewerDisplayName",
+          "todayUtc",
+          "fleetTotals",
+          "fleetHealth",
+          "queueCountsByCategory",
+          "queue"
         ]
       },
       "UserProfile": {
@@ -1117,6 +1365,42 @@
           },
           "404": {
             "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Get my dashboard",
+        "description": "Returns fleet totals, maintenance health counts, and the cross-asset maintenance queue for the authenticated user in a single response.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's dashboard read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DashboardResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
             "content": {
               "application/json": {
                 "schema": {

@@ -66,6 +66,12 @@ repositories live in `worker.ts`. Keep it that way.
   schemas in `api/schemas/` use `z` from `@hono/zod-openapi` and carry
   `.openapi()` metadata — they are the single source for both validation and
   the generated API spec.
+- **Computed fields belong in the API:** derived values — status labels
+  (`overdue`/`soon`/`ok`), counts per bucket, available filter categories —
+  are computed in the application layer and included in read model responses.
+  Clients render what the API gives them; they do not recompute business logic
+  from raw data. UI-only state (which filter is selected, hover state) stays in
+  the client. (ADR-0009)
 
 ## API documentation is generated — don't hand-edit the spec
 

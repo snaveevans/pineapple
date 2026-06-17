@@ -72,6 +72,33 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     });
   });
 
+  it("maps GET /api/dashboard to GetDashboard", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "GET",
+        pathname: "/api/dashboard",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["GetDashboard"],
+      blobs: [
+        "GetDashboard",
+        "/api/dashboard",
+        "GET",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v1",
+      ],
+    });
+  });
+
   it.each([
     ["GET", "GetUserProfile"],
     ["PATCH", "UpdateUserProfile"],
