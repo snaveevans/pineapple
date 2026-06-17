@@ -63,33 +63,25 @@ function relAgo(s: string): string {
   return `${yr} ${yr > 1 ? "years" : "year"} ago`;
 }
 
-// ─── task helpers (client display, match prototype logic) ────────────────────
-
-type TaskStatus = "overdue" | "soon" | "ok";
-
-function taskStatus(nextDue: string): TaskStatus {
-  const n = Math.round((ymdToUTC(todayDateOnly()) - ymdToUTC(nextDue)) / 86400000);
-  if (n > 0) return "overdue";
-  if (n >= -14) return "soon";
-  return "ok";
-}
+// ─── task helpers (presentation only — status/daysDue come from the API) ─────
 
 function fmtInterval(value: number, unit: string): string {
   return value === 1 ? `Every ${unit}` : `Every ${value} ${unit}s`;
 }
 
-function nextDueLabel(nextDue: string): string {
-  const n = Math.round((ymdToUTC(todayDateOnly()) - ymdToUTC(nextDue)) / 86400000);
-  if (n > 0) return `Overdue · ${n === 1 ? "1 day" : n + " days"}`;
-  if (n === 0) return "Due today";
-  const ahead = -n;
-  if (ahead === 1) return "Due tomorrow";
-  if (ahead <= 14) return `Due in ${ahead} days`;
+function nextDueLabel(daysDue: number, nextDue: string): string {
+  if (daysDue < 0) {
+    const overdueDays = -daysDue;
+    return overdueDays === 1 ? "Overdue · 1 day" : `Overdue · ${overdueDays} days`;
+  }
+  if (daysDue === 0) return "Due today";
+  if (daysDue === 1) return "Due tomorrow";
+  if (daysDue <= 14) return `Due in ${daysDue} days`;
   const parts = nextDue.split("-").map(Number);
   const y = parts[0]!, m = parts[1]!, d = parts[2]!;
   const todayY = Number(todayDateOnly().slice(0, 4));
-  if (y === todayY) return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${d}`;
-  return `Due ${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][m-1]} ${d}, ${y}`;
+  if (y === todayY) return `Due ${MONTHS_SHORT[m - 1]} ${d}`;
+  return `Due ${MONTHS_SHORT[m - 1]} ${d}, ${y}`;
 }
 
 function addIntervalClient(dateStr: string, value: number, unit: "day" | "week" | "month" | "year"): string {
@@ -319,9 +311,9 @@ function MRErrorState({
 // ─── Overview / Schedule / Recent (ported & adapted from design) ─────────────
 
 function MRHealthSummary({ tasks }: { tasks: MaintenanceTask[] }) {
-  const overdue = tasks.filter((tk) => taskStatus(tk.nextDue) === "overdue").length;
-  const soon = tasks.filter((tk) => taskStatus(tk.nextDue) === "soon").length;
-  const ok = tasks.filter((tk) => taskStatus(tk.nextDue) === "ok").length;
+  const overdue = tasks.filter((tk) => tk.status === "overdue").length;
+  const soon = tasks.filter((tk) => tk.status === "soon").length;
+  const ok = tasks.filter((tk) => tk.status === "ok").length;
   if (tasks.length === 0) return null;
   return (
     <div className="mr-health-row" role="status" aria-label="Task health summary">
@@ -398,7 +390,7 @@ function MRRecentActivity({ records, onViewAll }: { records: MaintenanceRecord[]
 
 function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (id: string) => void; onDelete: (id: string) => void }) {
   const [confirming, setConfirming] = useState(false);
-  const s = taskStatus(task.nextDue);
+  const s = task.status;
   return (
     <div className="mr-task-card" data-status={s}>
       <div className="mr-task-card-main">
@@ -411,7 +403,7 @@ function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (
       <div className="mr-task-card-right">
         <span className={`mr-due-badge mr-due-badge-${s}`}>
           <Icon name={s === "overdue" ? "alert" : s === "soon" ? "clock-sm" : "check"} size={11} stroke={2} />
-          {nextDueLabel(task.nextDue)}
+          {nextDueLabel(task.daysDue, task.nextDue)}
         </span>
         {confirming ? (
           <div className="mr-task-confirm">
@@ -472,7 +464,7 @@ function MRScheduleSection({
   onAdd: () => void;
 }) {
   const sorted = [...tasks].sort((a, b) => (a.nextDue < b.nextDue ? -1 : 1));
-  const overdueCount = sorted.filter((t) => taskStatus(t.nextDue) === "overdue").length;
+  const overdueCount = sorted.filter((t) => t.status === "overdue").length;
   return (
     <div className="mr-schedule">
       <div className="mr-schedule-head">

@@ -8,9 +8,12 @@ const URGENCY_RANK: Record<TaskUrgencyStatus, number> = {
   ok: 2,
 };
 
-export function deriveTaskStatus(nextDue: string, todayUtc: string): TaskUrgencyStatus {
+export function deriveTaskStatus(
+  nextDue: string,
+  todayUtc: string,
+  sevenDaysOut = addCalendarDays(todayUtc, 7),
+): TaskUrgencyStatus {
   if (nextDue < todayUtc) return "overdue";
-  const sevenDaysOut = addCalendarDays(todayUtc, 7);
   if (nextDue <= sevenDaysOut) return "soon";
   return "ok";
 }

@@ -163,6 +163,10 @@ function HFDashboardState({
   );
 }
 
+function todayUtcDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 const CATEGORY_FILTERS: { id: DashboardCategoryFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "vehicle", label: "Vehicles" },
@@ -175,7 +179,11 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
   const queryClient = useQueryClient();
   const [category, setCategory] = useState<DashboardCategoryFilter>("all");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null);
+  const [completeError, setCompleteError] = useState<{
+    taskId: string;
+    message: string;
+  } | null>(null);
 
   const dashboardQuery = useQuery({
     queryKey: dashboardQueryKey,
@@ -186,15 +194,19 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
 
   const completeMutation = useMutation({
     mutationFn: async (item: DashboardQueuePresentation) => {
-      const dashboard = dashboardQuery.data;
-      if (!dashboard) throw new Error("Dashboard is not loaded");
+      if (!dashboardQuery.data) throw new Error("Dashboard is not loaded");
       return createMaintenanceRecord(item.assetId, {
         title: item.service,
-        performedAt: dashboard.todayUtc,
+        performedAt: todayUtcDate(),
         taskId: item.taskId,
       });
     },
+    onMutate: (item) => {
+      setCompletingTaskId(item.taskId);
+      setCompleteError(null);
+    },
     onSuccess: async (_record, item) => {
+      setCompletingTaskId(null);
       setCompleteError(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: dashboardQueryKey }),
@@ -202,12 +214,16 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
         queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(item.assetId) }),
       ]);
     },
-    onError: async (error) => {
+    onError: async (error, item) => {
+      setCompletingTaskId(null);
       if (error instanceof ApiError && error.status === 401) {
         navigate(paths.login(), { replace: true });
         return;
       }
-      setCompleteError(error instanceof Error ? error.message : "Could not mark task complete.");
+      setCompleteError({
+        taskId: item.taskId,
+        message: error instanceof Error ? error.message : "Could not mark task complete.",
+      });
       await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
     },
   });
@@ -244,6 +260,9 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
 
   const selected = filteredQueue.find((item) => item.taskId === selectedTaskId) ?? filteredQueue[0];
   const isNextUp = selected?.taskId === filteredQueue[0]?.taskId;
+
+  const completeErrorFor = (taskId: string) =>
+    completeError?.taskId === taskId ? completeError.message : null;
 
   if (dashboardQuery.isPending) {
     return (
@@ -370,12 +389,9 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
               <HFDetailBody
                 item={selected}
                 isNextUp={isNextUp}
-                onMarkComplete={() => {
-                  setCompleteError(null);
-                  completeMutation.mutate(selected);
-                }}
-                completing={completeMutation.isPending}
-                completeError={completeError}
+                onMarkComplete={() => completeMutation.mutate(selected)}
+                completing={completingTaskId === selected.taskId}
+                completeError={completeErrorFor(selected.taskId)}
               />
             </section>
 
@@ -394,7 +410,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                       key={item.taskId}
                       className={`hf-row ${isSel ? "selected" : ""}`}
                       data-status={item.status}
-                      onClick={() => setSelectedTaskId(item.taskId)}
+                      onClick={() => {
+                        setSelectedTaskId(item.taskId);
+                        setCompleteError(null);
+                      }}
                     >
                       <div className="hf-row-summary">
                         <HFAssetIcon asset={item} size={36} />
@@ -413,12 +432,9 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                             item={item}
                             compact
                             isNextUp={isNextUp}
-                            onMarkComplete={() => {
-                              setCompleteError(null);
-                              completeMutation.mutate(item);
-                            }}
-                            completing={completeMutation.isPending}
-                            completeError={completeError}
+                            onMarkComplete={() => completeMutation.mutate(item)}
+                            completing={completingTaskId === item.taskId}
+                            completeError={completeErrorFor(item.taskId)}
                           />
                         </div>
                       )}

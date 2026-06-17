@@ -194,6 +194,32 @@ describe("GetDashboard", () => {
     });
   });
 
+  it("omits tasks whose asset is absent from the active asset snapshot", async () => {
+    const truck = vehicle("Active truck");
+    const archived = Asset.reconstitute({
+      id: AssetId.generate(),
+      ownerId,
+      name: "Archived truck",
+      metadata: { kind: "vehicle", make: "Ford", model: "Transit", year: 2019 },
+      archivedAt: new Date("2026-05-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+    });
+    const result = await new GetDashboard(
+      new AssetRepositoryFake([truck, archived]),
+      new MaintenanceTaskRepositoryFake([
+        task(truck.id, { title: "Active task", nextDue: "2026-06-20" }),
+        task(archived.id, { title: "Orphan task", nextDue: "2026-06-10" }),
+      ]),
+      new FixedDateProvider(todayUtc),
+    ).execute({ ownerId, viewerDisplayName: "Dale" });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.queue).toHaveLength(1);
+    expect(result.value.queue[0]?.taskTitle).toBe("Active task");
+  });
+
   it("excludes archived assets from totals and queue", async () => {
     const active = vehicle("Active truck");
     const archived = Asset.reconstitute({

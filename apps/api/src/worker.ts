@@ -2,7 +2,13 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
 import { secureHeaders } from "hono/secure-headers";
-import { AssetId, DomainError, MaintenanceTaskId } from "@snaveevans/pineapple-shared";
+import {
+  addCalendarDays,
+  AssetId,
+  calendarDaysBetween,
+  DomainError,
+  MaintenanceTaskId,
+} from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -57,6 +63,7 @@ import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceR
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
+import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
 
 type Bindings = AuthEnv & {
@@ -154,7 +161,9 @@ function serializeMaintenanceRecord(
 
 function serializeMaintenanceTask(
   task: MaintenanceTask,
+  todayUtc: string,
 ): z.infer<typeof MaintenanceTaskResponseSchema> {
+  const sevenDaysOut = addCalendarDays(todayUtc, 7);
   return {
     id: task.id,
     assetId: task.assetId,
@@ -163,6 +172,8 @@ function serializeMaintenanceTask(
     intervalUnit: task.intervalUnit,
     lastCompletedDate: task.lastCompletedDate,
     nextDue: task.nextDue,
+    status: deriveTaskStatus(task.nextDue, todayUtc, sevenDaysOut),
+    daysDue: calendarDaysBetween(todayUtc, task.nextDue),
     createdAt: task.createdAt.toISOString(),
   };
 }
@@ -359,12 +370,14 @@ app.openapi(createMaintenanceTaskRoute, async (c) => {
     ...(lastCompletedDate !== undefined ? { lastCompletedDate } : {}),
   });
   if (!result.ok) throw result.error;
-  return c.json(serializeMaintenanceTask(result.value), 201);
+  const todayUtc = new SystemUtcDateProvider().today();
+  return c.json(serializeMaintenanceTask(result.value, todayUtc), 201);
 });
 
 app.openapi(listMaintenanceTasksRoute, async (c) => {
   const user = c.get("user");
   const { assetId } = c.req.valid("param");
+  const todayUtc = new SystemUtcDateProvider().today();
   const result = await new ListMaintenanceTasks(
     new D1AssetRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
@@ -373,7 +386,10 @@ app.openapi(listMaintenanceTasksRoute, async (c) => {
     requesterId: user.id,
   });
   if (!result.ok) throw result.error;
-  return c.json({ maintenanceTasks: result.value.map(serializeMaintenanceTask) }, 200);
+  return c.json(
+    { maintenanceTasks: result.value.map((task) => serializeMaintenanceTask(task, todayUtc)) },
+    200,
+  );
 });
 
 app.openapi(deleteMaintenanceTaskRoute, async (c) => {

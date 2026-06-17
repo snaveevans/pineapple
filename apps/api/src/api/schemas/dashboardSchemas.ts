@@ -1,16 +1,11 @@
 import { z } from "@hono/zod-openapi";
-import { DateOnlySchema } from "./shared.ts";
+import { DateOnlySchema, TaskUrgencyStatusSchema } from "./shared.ts";
 
 const AssetTypeSchema = z
   .enum(["vehicle", "property", "equipment"])
   .openapi({ example: "vehicle" });
 
 const IntervalUnitSchema = z.enum(["day", "week", "month", "year"]).openapi({ example: "month" });
-
-const TaskUrgencyStatusSchema = z.enum(["overdue", "soon", "ok"]).openapi({
-  example: "soon",
-  description: "Derived from nextDue and todayUtc using calendar-day rules",
-});
 
 export const DashboardFleetTotalsSchema = z
   .object({

@@ -44,4 +44,8 @@ describe("calendarDaysBetween", () => {
     expect(calendarDaysBetween("2026-06-10", "2026-06-16")).toBe(6);
     expect(calendarDaysBetween("2026-06-16", "2026-06-10")).toBe(-6);
   });
+
+  it("handles multi-year distances", () => {
+    expect(calendarDaysBetween("2023-06-16", "2026-06-16")).toBe(1096);
+  });
 });

@@ -1,4 +1,5 @@
 import {
+  addCalendarDays,
   calendarDaysBetween,
   type DomainError,
   DomainError as DomainErrorClass,
@@ -123,12 +124,19 @@ function enrichTasks(
   assetById: Map<string, Asset>,
   todayUtc: string,
 ): EnrichedTask[] {
-  return tasks.map((task) => ({
-    task,
-    asset: assetById.get(task.assetId)!,
-    status: deriveTaskStatus(task.nextDue, todayUtc),
-    daysDue: calendarDaysBetween(todayUtc, task.nextDue),
-  }));
+  const sevenDaysOut = addCalendarDays(todayUtc, 7);
+  const enriched: EnrichedTask[] = [];
+  for (const task of tasks) {
+    const asset = assetById.get(task.assetId);
+    if (!asset) continue;
+    enriched.push({
+      task,
+      asset,
+      status: deriveTaskStatus(task.nextDue, todayUtc, sevenDaysOut),
+      daysDue: calendarDaysBetween(todayUtc, task.nextDue),
+    });
+  }
+  return enriched;
 }
 
 function buildFleetTotals(assets: Asset[]): DashboardFleetTotals {

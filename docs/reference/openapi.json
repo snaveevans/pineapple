@@ -449,6 +449,21 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "example": "2026-06-11"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "overdue",
+              "soon",
+              "ok"
+            ],
+            "description": "Derived from nextDue and todayUtc using calendar-day rules",
+            "example": "soon"
+          },
+          "daysDue": {
+            "type": "integer",
+            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+            "example": 5
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -463,6 +478,8 @@
           "intervalUnit",
           "lastCompletedDate",
           "nextDue",
+          "status",
+          "daysDue",
           "createdAt"
         ]
       },

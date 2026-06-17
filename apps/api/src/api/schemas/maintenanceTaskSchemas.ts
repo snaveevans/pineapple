@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { DateOnlySchema } from "./shared.ts";
+import { DateOnlySchema, TaskUrgencyStatusSchema } from "./shared.ts";
 
 const IntervalUnitSchema = z.enum(["day", "week", "month", "year"]).openapi({ example: "month" });
 
@@ -57,6 +57,11 @@ export const MaintenanceTaskResponseSchema = z
     intervalUnit: IntervalUnitSchema,
     lastCompletedDate: DateOnlySchema.nullable().openapi({ example: "2026-04-11" }),
     nextDue: DateOnlySchema.openapi({ example: "2026-06-11" }),
+    status: TaskUrgencyStatusSchema,
+    daysDue: z.number().int().openapi({
+      example: 5,
+      description: "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+    }),
     createdAt: z.string().datetime().openapi({ example: "2026-06-11T18:25:24.887Z" }),
   })
   .openapi("MaintenanceTask");
