@@ -22,6 +22,15 @@ import { Icon } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
 import { toAssetPresentation, type AssetPresentation } from "./assetPresentation.ts";
+import {
+  EMPTY_MAINTENANCE_TASK_FORM,
+  TASK_TITLE_MAX,
+  TASK_UNITS,
+  todayDateOnly,
+  toCreateMaintenanceTaskBody,
+  validateMaintenanceTaskForm,
+  type MaintenanceTaskFormValues,
+} from "./maintenanceTaskForm.ts";
 import { paths } from "../routes.ts";
 
 import "../design/styles/hifi.css";
@@ -34,10 +43,6 @@ const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-function todayDateOnly(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function ymdToUTC(s: string): number {
   const parts = s.split("-").map(Number);
@@ -82,31 +87,6 @@ function nextDueLabel(daysDue: number, nextDue: string): string {
   const todayY = Number(todayDateOnly().slice(0, 4));
   if (y === todayY) return `Due ${MONTHS_SHORT[m - 1]} ${d}`;
   return `Due ${MONTHS_SHORT[m - 1]} ${d}, ${y}`;
-}
-
-function addIntervalClient(dateStr: string, value: number, unit: "day" | "week" | "month" | "year"): string {
-  // Simple client version for optimistic create preview (not used for persistence)
-  const [y, m, d] = dateStr.split("-").map(Number);
-  let yy = y!, mm = m!, dd = d!;
-  if (unit === "day" || unit === "week") {
-    const mult = unit === "week" ? 7 : 1;
-    const ms = ymdToUTC(dateStr) + value * mult * 86400000;
-    const dt = new Date(ms);
-    return [
-      dt.getUTCFullYear(),
-      String(dt.getUTCMonth() + 1).padStart(2, "0"),
-      String(dt.getUTCDate()).padStart(2, "0"),
-    ].join("-");
-  }
-  if (unit === "month") {
-    mm += value;
-    while (mm > 12) { mm -= 12; yy += 1; }
-  } else {
-    yy += value;
-  }
-  const cap = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
-  dd = Math.min(dd, cap);
-  return [yy, String(mm).padStart(2, "0"), String(dd).padStart(2, "0")].join("-");
 }
 
 type GroupedRecord = MaintenanceRecord & { sameDay: boolean };
@@ -527,14 +507,6 @@ function MROverviewTab({
 
 // ─── Task create form (simple drawer/sheet version) ──────────────────────────
 
-const TASK_TITLE_MAX = 100;
-const TASK_UNITS: Array<{ value: "day" | "week" | "month" | "year"; label: string }> = [
-  { value: "day", label: "Day" },
-  { value: "week", label: "Week" },
-  { value: "month", label: "Month" },
-  { value: "year", label: "Year" },
-];
-
 interface MRCreateTaskFormProps {
   asset: AssetPresentation;
   variant: "drawer" | "sheet";
@@ -543,26 +515,12 @@ interface MRCreateTaskFormProps {
 }
 
 function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFormProps) {
-  const [title, setTitle] = useState("");
-  const [iv, setIv] = useState("3");
-  const [unit, setUnit] = useState<"day" | "week" | "month" | "year">("month");
-  const [lastDate, setLastDate] = useState("");
+  const [values, setValues] = useState<MaintenanceTaskFormValues>(EMPTY_MAINTENANCE_TASK_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { titleRef.current?.focus(); }, []);
-
-  const validate = () => {
-    const e: Record<string, string> = {};
-    const t = title.trim();
-    if (!t) e.title = "Title is required.";
-    else if (t.length > TASK_TITLE_MAX) e.title = `Title must be ${TASK_TITLE_MAX} characters or fewer.`;
-    const n = Number(iv);
-    if (!iv || isNaN(n) || n < 1 || !Number.isInteger(n) || iv.includes('.')) e.iv = "Must be a positive whole number.";
-    if (lastDate && lastDate > todayDateOnly()) e.last = "Must be today or earlier.";
-    return e;
-  };
 
   const mutation = useMutation({
     mutationFn: (body: CreateMaintenanceTaskBody) => createMaintenanceTask(asset.id, body),
@@ -572,24 +530,37 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
 
   const submit = () => {
     if (mutation.isPending) return;
-    const e = validate();
-    setErrors(e);
-    if (Object.keys(e).length) {
+    const nextErrors = validateMaintenanceTaskForm(values);
+    const mappedErrors: Record<string, string> = {};
+    if (nextErrors.title) mappedErrors.title = nextErrors.title;
+    if (nextErrors.intervalValue) mappedErrors.iv = nextErrors.intervalValue;
+    if (nextErrors.lastCompletedDate) mappedErrors.last = nextErrors.lastCompletedDate;
+    setErrors(mappedErrors);
+    if (Object.keys(mappedErrors).length) {
       setBanner("Please fix the highlighted fields before saving.");
       return;
     }
     setBanner(null);
-    const n = Number(iv);
-    const body: CreateMaintenanceTaskBody = {
-      title: title.trim(),
-      intervalValue: n,
-      intervalUnit: unit,
-      ...(lastDate ? { lastCompletedDate: lastDate } : {}),
-    };
-    mutation.mutate(body);
+    mutation.mutate(toCreateMaintenanceTaskBody(values));
   };
 
-  const clear = (f: string) => setErrors((prev) => { const n = { ...prev }; delete n[f]; return n; });
+  const clear = (field: string) =>
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  const updateValue = <K extends keyof MaintenanceTaskFormValues>(
+    field: K,
+    value: MaintenanceTaskFormValues[K],
+  ) => {
+    setValues((prev) => ({ ...prev, [field]: value }));
+    const errorKey =
+      field === "intervalValue" ? "iv" : field === "lastCompletedDate" ? "last" : field;
+    clear(errorKey);
+    if (banner) setBanner(null);
+  };
 
   return (
     <div className={`mr-form mr-form-${variant}`}>
@@ -612,11 +583,11 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
         <div className="mr-field">
           <div className="mr-field-top">
             <label className="mr-field-label" htmlFor="mt-title">Title <span className="mr-req">*</span></label>
-            <span className={`mr-field-count ${title.length > TASK_TITLE_MAX ? "over" : ""}`}>{title.length}/{TASK_TITLE_MAX}</span>
+            <span className={`mr-field-count ${values.title.length > TASK_TITLE_MAX ? "over" : ""}`}>{values.title.length}/{TASK_TITLE_MAX}</span>
           </div>
           <input id="mt-title" ref={titleRef} type="text" className={`mr-input ${errors.title ? "err" : ""}`}
             placeholder='e.g. "Replace furnace filter"' maxLength={TASK_TITLE_MAX + 20}
-            value={title} onChange={(e) => { setTitle(e.target.value); clear("title"); if (banner) setBanner(null); }} />
+            value={values.title} onChange={(e) => updateValue("title", e.target.value)} />
           {errors.title && <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.title}</div>}
         </div>
         <div className="mr-field">
@@ -625,11 +596,11 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
           </div>
           <div className="mr-interval-row">
             <input id="mt-iv" type="number" min="1" step="1" className={`mr-input mr-interval-num ${errors.iv ? "err" : ""}`}
-              value={iv} onChange={(e) => { setIv(e.target.value); clear("iv"); if (banner) setBanner(null); }} />
+              value={values.intervalValue} onChange={(e) => updateValue("intervalValue", e.target.value)} />
             <div className="mr-unit-seg" role="group" aria-label="Interval unit">
               {TASK_UNITS.map((u) => (
-                <button key={u.value} type="button" className={`mr-unit-btn ${unit === u.value ? "active" : ""}`}
-                  onClick={() => setUnit(u.value)}>{u.label}</button>
+                <button key={u.value} type="button" className={`mr-unit-btn ${values.intervalUnit === u.value ? "active" : ""}`}
+                  onClick={() => updateValue("intervalUnit", u.value)}>{u.label}</button>
               ))}
             </div>
           </div>
@@ -640,7 +611,7 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
             <label className="mr-field-label" htmlFor="mt-last">Last completed</label>
           </div>
           <input id="mt-last" type="date" max={todayDateOnly()} className={`mr-input mr-input-date ${errors.last ? "err" : ""}`}
-            value={lastDate} onChange={(e) => { setLastDate(e.target.value); clear("last"); if (banner) setBanner(null); }} />
+            value={values.lastCompletedDate} onChange={(e) => updateValue("lastCompletedDate", e.target.value)} />
           {errors.last ? <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.last}</div> :
             <div className="mr-field-hint">Optional — when was this last done? Leave blank to start counting from today.</div>}
         </div>

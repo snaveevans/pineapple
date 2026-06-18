@@ -89,13 +89,15 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Filtered empty: category filter active but no matching queue rows
 - Error: dashboard-level error with retry
 - Mark complete: creates a linked maintenance record for the selected task and refetches dashboard + asset maintenance data
+- Add service: drawer modal to create a recurring maintenance task for any asset; defaults to the currently selected queue item's asset when one is selected
 
 **Non-obvious behavior:**
 
 - Initial render uses one dashboard read model — no fan-out across assets and per-asset task endpoints
 - Status buckets and fleet health counts come from the API; the client formats due-date copy only
 - Category filter chips filter the returned queue client-side without a new request
-- Reschedule, Snooze, and Add service remain disabled placeholders until future specs land
+- Add service fetches the asset list on demand when opened; task creation reuses the same validation and API contract as the asset maintenance task form
+- Reschedule and Snooze remain disabled placeholders until future specs land
 - Task detail fields not yet in the maintenance-task API (estimated time, location, assignee, notes) are not shown from live data
 - 401 from the API redirects to `/login`
 

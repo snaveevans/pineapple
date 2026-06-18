@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { assetsQueryKey, listAssets } from "../api/assets.ts";
 import { dashboardQueryKey, getDashboard } from "../api/dashboard.ts";
 import { createMaintenanceRecord, maintenanceRecordsQueryKey } from "../api/maintenanceRecords.ts";
 import { maintenanceTasksQueryKey } from "../api/maintenanceTasks.ts";
@@ -15,6 +16,8 @@ import {
   formatFleetSubline,
   toQueuePresentation,
 } from "./dashboardPresentation.ts";
+import { toAssetPresentation } from "./assetPresentation.ts";
+import { AddServiceModal } from "./AddServiceModal.tsx";
 import { formatDashboardGreeting as formatGreeting } from "./profilePresentation.ts";
 import { paths } from "../routes.ts";
 
@@ -184,10 +187,19 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     taskId: string;
     message: string;
   } | null>(null);
+  const [addServiceOpen, setAddServiceOpen] = useState(false);
 
   const dashboardQuery = useQuery({
     queryKey: dashboardQueryKey,
     queryFn: getDashboard,
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 401) && failureCount < 2,
+  });
+
+  const assetsQuery = useQuery({
+    queryKey: assetsQueryKey,
+    queryFn: listAssets,
+    enabled: addServiceOpen,
     retry: (failureCount, error) =>
       !(error instanceof ApiError && error.status === 401) && failureCount < 2,
   });
@@ -238,6 +250,12 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     }
   }, [dashboardQuery.error, navigate]);
 
+  useEffect(() => {
+    if (assetsQuery.error instanceof ApiError && assetsQuery.error.status === 401) {
+      navigate(paths.login(), { replace: true });
+    }
+  }, [assetsQuery.error, navigate]);
+
   const queue = useMemo(() => {
     if (!dashboardQuery.data) return [];
     return dashboardQuery.data.queue.map((item) => toQueuePresentation(item));
@@ -263,6 +281,18 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
 
   const completeErrorFor = (taskId: string) =>
     completeError?.taskId === taskId ? completeError.message : null;
+
+  const assetPresentations = useMemo(
+    () => (assetsQuery.data?.assets ?? []).map(toAssetPresentation),
+    [assetsQuery.data],
+  );
+
+  const handleServiceSaved = async (task: { assetId: string }) => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: dashboardQueryKey }),
+      queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(task.assetId) }),
+    ]);
+  };
 
   if (dashboardQuery.isPending) {
     return (
@@ -357,7 +387,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
               </button>
             ))}
           </div>
-          <button className="hf-btn hf-btn-secondary hf-btn-sm" disabled title="Coming soon">
+          <button
+            className="hf-btn hf-btn-secondary hf-btn-sm"
+            onClick={() => setAddServiceOpen(true)}
+          >
             <Icon name="plus" size={14} stroke={2} />
             Add service
           </button>
@@ -447,6 +480,69 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
         )}
       </main>
       <HFBottomNav />
+
+      {addServiceOpen && dashboardQuery.data && (
+        assetsQuery.isPending ? (
+          <div className="hf-svc-overlay">
+            <div className="hf-svc-scrim" />
+            <div className="hf-svc-drawer" role="dialog" aria-modal="true" aria-label="Add a service">
+              <div className="hf-svc-head">
+                <div>
+                  <div className="hf-svc-title">Add a service</div>
+                  <div className="hf-svc-sub">Schedule recurring work for an asset.</div>
+                </div>
+              </div>
+              <div className="hf-svc-body">
+                <HFDashboardState
+                  title="Loading assets"
+                  description="Fetching your fleet so you can choose where to schedule this service…"
+                />
+              </div>
+            </div>
+          </div>
+        ) : assetsQuery.isError ? (
+          <div className="hf-svc-overlay">
+            <div className="hf-svc-scrim" onClick={() => setAddServiceOpen(false)} />
+            <div className="hf-svc-drawer" role="dialog" aria-modal="true" aria-label="Add a service">
+              <div className="hf-svc-head">
+                <div>
+                  <div className="hf-svc-title">Add a service</div>
+                  <div className="hf-svc-sub">Schedule recurring work for an asset.</div>
+                </div>
+                <button
+                  className="hf-icon-btn"
+                  onClick={() => setAddServiceOpen(false)}
+                  aria-label="Close"
+                >
+                  <Icon name="x" size={16} stroke={2} />
+                </button>
+              </div>
+              <div className="hf-svc-body">
+                <HFDashboardState
+                  title="Assets could not be loaded"
+                  description={assetsQuery.error.message}
+                  action={
+                    <button
+                      className="hf-btn hf-btn-secondary"
+                      onClick={() => void assetsQuery.refetch()}
+                    >
+                      Try again
+                    </button>
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        ) : assetPresentations.length > 0 ? (
+          <AddServiceModal
+            assets={assetPresentations}
+            defaultAssetId={selected?.assetId ?? null}
+            todayUtc={dashboardQuery.data.todayUtc}
+            onClose={() => setAddServiceOpen(false)}
+            onSaved={(task) => void handleServiceSaved(task)}
+          />
+        ) : null
+      )}
     </div>
   );
 }
