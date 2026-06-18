@@ -6,6 +6,7 @@ import {
   UnauthorizedError,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
+import type { User } from "../../domain/identity/User.ts";
 
 export type ApiRequestTelemetryDataPoint = {
   indexes: string[];
@@ -18,7 +19,7 @@ export interface ApiRequestTelemetrySink {
 }
 
 type TelemetryVariables = {
-  user?: unknown;
+  user?: User;
 };
 
 type TelemetryRecord = {
@@ -28,6 +29,8 @@ type TelemetryRecord = {
   durationMs: number;
   requestSizeBytes: number;
   authenticated: boolean;
+  country: string;
+  userId: string;
   error: unknown;
 };
 
@@ -60,6 +63,8 @@ export function createTechnicalTelemetryMiddleware<TEnv extends { Variables: Tel
         durationMs: performance.now() - start,
         requestSizeBytes: requestSizeBytes(c.req.header("content-length")),
         authenticated: c.var.user !== undefined,
+        country: requestCountry(c.req.raw.cf),
+        userId: requestUserId(c.var.user),
         error,
       });
 
@@ -87,10 +92,25 @@ export function buildApiRequestTelemetryDataPoint(
       outcome(record.status),
       errorName(record.error),
       record.authenticated ? "true" : "false",
-      "v1",
+      "v2",
+      record.country,
+      record.userId,
     ],
     doubles: [record.durationMs, 1, record.status, record.requestSizeBytes],
   };
+}
+
+export function requestCountry(cf: CfProperties<unknown> | undefined): string {
+  if (cf !== undefined && "country" in cf) {
+    const country = cf.country;
+    if (typeof country === "string" && country.length > 0) return country;
+  }
+  return "unknown";
+}
+
+export function requestUserId(user: User | undefined): string {
+  if (user === undefined) return "anonymous";
+  return user.id;
 }
 
 function routeTelemetry(method: string, pathname: string): RouteTelemetry {
