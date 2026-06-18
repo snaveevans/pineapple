@@ -53,7 +53,9 @@ Both systems write to Cloudflare Analytics Engine using the same envelope:
 | `blobs[5]`   | `outcome`            | `"success"`, `"failure"`, `"error"`                                                            |
 | `blobs[6]`   | `error_name`         | Error constructor name, `"unknown"` for non-`Error` values, or `"none"` when no error occurred |
 | `blobs[7]`   | `authenticated`      | `"true"` or `"false"`                                                                          |
-| `blobs[8]`   | `schema_version`     | `"v1"`                                                                                         |
+| `blobs[8]`   | `schema_version`     | `"v2"`                                                                                         |
+| `blobs[9]`   | `country`            | ISO 3166-1 alpha-2 (e.g. `"US"`, `"GB"`) or `"unknown"`                                        |
+| `blobs[10]`  | `user_id`            | Authenticated `UserId` UUID, or `"anonymous"` if unauthenticated                               |
 | `doubles[0]` | `duration_ms`        | Duration (ms)                                                                                  |
 | `doubles[1]` | `count`              | Always `1`                                                                                     |
 | `doubles[2]` | `status_code_number` | HTTP status code (numeric)                                                                     |
@@ -168,10 +170,10 @@ A complete Analytics Engine outage will produce `console.error` log entries but 
 
 ## Exceptions
 
-| Feature                                              | Deviation                 | Reason                                                                           |
-| ---------------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------- |
-| Frontend                                             | No telemetry              | Client-side instrumentation not yet implemented                                  |
-| Read operations (GetAsset, ListAssets, GetDashboard) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal |
+| Feature                                              | Deviation                 | Reason                                                                                          |
+| ---------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| Frontend page views                                  | Cloudflare Web Analytics  | Anonymous page view data available in the Cloudflare Dashboard; not written to Analytics Engine |
+| Read operations (GetAsset, ListAssets, GetDashboard) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal                |
 
 ## Anti-Patterns
 
@@ -187,5 +189,5 @@ A complete Analytics Engine outage will produce `console.error` log entries but 
 
 - **`actor_id` (`blobs[5]`) always equals `owner_id` (`blobs[3]`) today.** `actor_id` records who performed the action, which is semantically distinct from who owns the entity. In a system where only the owner can act, the two are the same. When delegation or assignment is introduced — where one user acts on another's behalf — `actor_id` will diverge from `owner_id`. The field is intentionally reserved for this future case.
 - **No request correlation across the two systems.** A domain event data point cannot be linked to the API request that produced it — there is no trace ID or correlation ID shared between them. **Planned:** generate a request-scoped correlation ID in the telemetry middleware, thread it through to domain events via the use case, and include it in both data points.
-- **No frontend telemetry.** User-facing errors and interactions are invisible unless they produce an API call that fails. **Planned:** define what frontend events are worth capturing before implementing, to avoid instrumenting noise.
+
 - **Telemetry is always active in all environments.** There is no reduced or disabled telemetry mode for local development — `wrangler dev` writes to Miniflare's Analytics Engine emulation at the same 100% sample rate as production. This is acceptable now but should be revisited if local test runs begin polluting a shared dev dataset.

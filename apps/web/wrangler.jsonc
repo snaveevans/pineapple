@@ -16,4 +16,9 @@
   "observability": {
     "enabled": true,
   },
+  // Public site identifier for Cloudflare Web Analytics (not a secret).
+  // Obtain from Dashboard → Web Analytics → pineapple.tylerevans.co → Site Token.
+  "vars": {
+    "CF_WEB_ANALYTICS_TOKEN": "e3cf4d25c6274c26a34ca6c7307ff5e8",
+  },
 }
