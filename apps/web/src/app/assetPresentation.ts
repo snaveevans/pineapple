@@ -2,6 +2,11 @@ import type { AssetResponse, AssetType } from "../api/assets";
 import type { IconName } from "../design/Icon";
 import type { AssetCategory } from "../design/hf";
 
+export function categoryLabel(category: AssetCategory): string {
+  if (category === "lawn") return "Grounds";
+  return assetTypeLabel(category);
+}
+
 export type AssetPresentation = {
   id: string;
   displayId: string;
