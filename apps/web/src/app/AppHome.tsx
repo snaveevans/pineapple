@@ -166,10 +166,6 @@ function HFDashboardState({
   );
 }
 
-function todayUtcDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 const CATEGORY_FILTERS: { id: DashboardCategoryFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "vehicle", label: "Vehicles" },
@@ -209,7 +205,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
       if (!dashboardQuery.data) throw new Error("Dashboard is not loaded");
       return createMaintenanceRecord(item.assetId, {
         title: item.service,
-        performedAt: todayUtcDate(),
+        performedAt: dashboardQuery.data.todayUtc,
         taskId: item.taskId,
       });
     },
@@ -288,10 +284,14 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
   );
 
   const handleServiceSaved = async (task: { assetId: string }) => {
-    await Promise.all([
+    const results = await Promise.allSettled([
       queryClient.invalidateQueries({ queryKey: dashboardQueryKey }),
       queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(task.assetId) }),
     ]);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) {
+      throw failed.reason;
+    }
   };
 
   if (dashboardQuery.isPending) {
@@ -484,13 +484,20 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
       {addServiceOpen && dashboardQuery.data && (
         assetsQuery.isPending ? (
           <div className="hf-svc-overlay">
-            <div className="hf-svc-scrim" />
+            <div className="hf-svc-scrim" onClick={() => setAddServiceOpen(false)} />
             <div className="hf-svc-drawer" role="dialog" aria-modal="true" aria-label="Add a service">
               <div className="hf-svc-head">
                 <div>
                   <div className="hf-svc-title">Add a service</div>
                   <div className="hf-svc-sub">Schedule recurring work for an asset.</div>
                 </div>
+                <button
+                  className="hf-icon-btn"
+                  onClick={() => setAddServiceOpen(false)}
+                  aria-label="Close"
+                >
+                  <Icon name="x" size={16} stroke={2} />
+                </button>
               </div>
               <div className="hf-svc-body">
                 <HFDashboardState
@@ -539,9 +546,45 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
             defaultAssetId={selected?.assetId ?? null}
             todayUtc={dashboardQuery.data.todayUtc}
             onClose={() => setAddServiceOpen(false)}
-            onSaved={(task) => void handleServiceSaved(task)}
+            onSaved={handleServiceSaved}
           />
-        ) : null
+        ) : (
+          <div className="hf-svc-overlay">
+            <div className="hf-svc-scrim" onClick={() => setAddServiceOpen(false)} />
+            <div className="hf-svc-drawer" role="dialog" aria-modal="true" aria-label="Add a service">
+              <div className="hf-svc-head">
+                <div>
+                  <div className="hf-svc-title">Add a service</div>
+                  <div className="hf-svc-sub">Schedule recurring work for an asset.</div>
+                </div>
+                <button
+                  className="hf-icon-btn"
+                  onClick={() => setAddServiceOpen(false)}
+                  aria-label="Close"
+                >
+                  <Icon name="x" size={16} stroke={2} />
+                </button>
+              </div>
+              <div className="hf-svc-body">
+                <HFDashboardState
+                  title="No assets available"
+                  description="Add an asset before scheduling a service."
+                  action={
+                    <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
+                      <Icon name="plus" size={14} stroke={2.2} />
+                      Add asset
+                    </Link>
+                  }
+                />
+              </div>
+              <div className="hf-svc-foot">
+                <button className="hf-btn hf-btn-primary" onClick={() => setAddServiceOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )
       )}
     </div>
   );

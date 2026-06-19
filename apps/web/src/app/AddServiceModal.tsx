@@ -9,18 +9,13 @@ import {
 import { Icon } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { paths } from "../routes.ts";
-import { assetTypeLabel, type AssetPresentation } from "./assetPresentation.ts";
-import type { AssetCategory } from "../design/hf.tsx";
-
-function categoryLabel(category: AssetCategory): string {
-  if (category === "lawn") return "Grounds";
-  return assetTypeLabel(category);
-}
+import { categoryLabel, type AssetPresentation } from "./assetPresentation.ts";
 import {
   EMPTY_MAINTENANCE_TASK_FORM,
   formatIntervalPhrase,
   formatPreviewDueDate,
   previewNextDueDate,
+  resolveAssetId,
   TASK_TITLE_MAX,
   TASK_UNITS,
   toCreateMaintenanceTaskBody,
@@ -36,7 +31,7 @@ type AddServiceModalProps = {
   defaultAssetId?: string | null;
   todayUtc: string;
   onClose: () => void;
-  onSaved: (task: MaintenanceTask) => void;
+  onSaved: (task: MaintenanceTask) => void | Promise<void>;
 };
 
 export function AddServiceModal({
@@ -48,7 +43,7 @@ export function AddServiceModal({
 }: AddServiceModalProps) {
   const navigate = useNavigate();
   const titleRef = useRef<HTMLInputElement>(null);
-  const [assetId, setAssetId] = useState(defaultAssetId || assets[0]?.id || "");
+  const [assetId, setAssetId] = useState(() => resolveAssetId(assets, defaultAssetId));
   const [pickingAsset, setPickingAsset] = useState(false);
   const [values, setValues] = useState<MaintenanceTaskFormValues>(EMPTY_MAINTENANCE_TASK_FORM);
   const [errors, setErrors] = useState<MaintenanceTaskFormErrors>({});
@@ -56,9 +51,14 @@ export function AddServiceModal({
   const [savedTask, setSavedTask] = useState<MaintenanceTask | null>(null);
 
   const asset = useMemo(
-    () => assets.find((item) => item.id === assetId) ?? assets[0] ?? null,
+    () => assets.find((item) => item.id === assetId) ?? null,
     [assets, assetId],
   );
+
+  useEffect(() => {
+    if (assets.some((item) => item.id === assetId)) return;
+    setAssetId(resolveAssetId(assets, defaultAssetId));
+  }, [assets, assetId, defaultAssetId]);
 
   useEffect(() => {
     titleRef.current?.focus();
@@ -66,12 +66,19 @@ export function AddServiceModal({
 
   const mutation = useMutation({
     mutationFn: () => {
-      if (!asset) throw new Error("Choose an asset before saving.");
-      return createMaintenanceTask(asset.id, toCreateMaintenanceTaskBody(values));
+      const target = assets.find((item) => item.id === assetId);
+      if (!target) throw new Error("Choose an asset before saving.");
+      return createMaintenanceTask(target.id, toCreateMaintenanceTaskBody(values));
     },
-    onSuccess: (task) => {
+    onSuccess: async (task) => {
       setSavedTask(task);
-      onSaved(task);
+      try {
+        await onSaved(task);
+      } catch {
+        setBanner(
+          "Service saved, but the dashboard could not refresh. Close and reopen if the queue looks stale.",
+        );
+      }
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 401) {
@@ -91,6 +98,7 @@ export function AddServiceModal({
   }, [mutation.isPending, onClose]);
 
   const nextDue = previewNextDueDate(values, todayUtc);
+  const formDisabled = mutation.isPending;
 
   const clearError = (field: keyof MaintenanceTaskFormErrors) => {
     setErrors((prev) => {
@@ -111,7 +119,7 @@ export function AddServiceModal({
   };
 
   const submit = () => {
-    if (mutation.isPending || !asset) return;
+    if (formDisabled || !asset) return;
     const nextErrors = validateMaintenanceTaskForm(values, todayUtc);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) return;
@@ -123,7 +131,7 @@ export function AddServiceModal({
 
   return (
     <div className="hf-svc-overlay">
-      <div className="hf-svc-scrim" onClick={() => !mutation.isPending && onClose()} />
+      <div className="hf-svc-scrim" onClick={() => !formDisabled && onClose()} />
       <div
         className="hf-svc-drawer"
         role="dialog"
@@ -143,7 +151,7 @@ export function AddServiceModal({
             className="hf-icon-btn"
             onClick={onClose}
             aria-label="Close"
-            disabled={mutation.isPending}
+            disabled={formDisabled}
           >
             <Icon name="x" size={16} stroke={2} />
           </button>
@@ -187,6 +195,7 @@ export function AddServiceModal({
                       role="option"
                       aria-selected={item.id === assetId}
                       className={`hf-svc-picker-row ${item.id === assetId ? "active" : ""}`}
+                      disabled={formDisabled}
                       onClick={() => {
                         setAssetId(item.id);
                         setPickingAsset(false);
@@ -211,6 +220,7 @@ export function AddServiceModal({
                 <button
                   type="button"
                   className="hf-svc-asset"
+                  disabled={formDisabled}
                   onClick={() => setPickingAsset(true)}
                 >
                   <HFAssetIcon asset={{ category: asset.cat, icon: asset.icon }} size={40} />
@@ -245,6 +255,7 @@ export function AddServiceModal({
                 placeholder='e.g. "Replace furnace filter"'
                 maxLength={TASK_TITLE_MAX + 20}
                 value={values.title}
+                disabled={formDisabled}
                 onChange={(event) => updateValue("title", event.target.value)}
               />
               {errors.title && (
@@ -266,6 +277,7 @@ export function AddServiceModal({
                   step="1"
                   className={`hf-input hf-mono-input hf-svc-num ${errors.intervalValue ? "is-invalid" : ""}`}
                   value={values.intervalValue}
+                  disabled={formDisabled}
                   onChange={(event) => updateValue("intervalValue", event.target.value)}
                 />
                 <div className="hf-seg" role="group" aria-label="Interval unit">
@@ -274,6 +286,7 @@ export function AddServiceModal({
                       key={unit.value}
                       type="button"
                       className={`hf-seg-btn ${values.intervalUnit === unit.value ? "active" : ""}`}
+                      disabled={formDisabled}
                       onClick={() => updateValue("intervalUnit", unit.value)}
                     >
                       {unit.label}
@@ -299,6 +312,7 @@ export function AddServiceModal({
                 max={todayUtc}
                 className={`hf-input ${errors.lastCompletedDate ? "is-invalid" : ""}`}
                 value={values.lastCompletedDate}
+                disabled={formDisabled}
                 onChange={(event) => updateValue("lastCompletedDate", event.target.value)}
               />
               {errors.lastCompletedDate ? (
@@ -332,14 +346,14 @@ export function AddServiceModal({
               <button
                 className="hf-btn hf-btn-ghost"
                 onClick={onClose}
-                disabled={mutation.isPending}
+                disabled={formDisabled}
               >
                 Cancel
               </button>
               <button
                 className="hf-btn hf-btn-primary"
                 onClick={submit}
-                disabled={mutation.isPending}
+                disabled={formDisabled || !asset}
               >
                 {mutation.isPending ? (
                   <>

@@ -3,6 +3,7 @@ import {
   addIntervalDate,
   formatIntervalPhrase,
   previewNextDueDate,
+  resolveAssetId,
   toCreateMaintenanceTaskBody,
   validateMaintenanceTaskForm,
 } from "./maintenanceTaskForm.ts";
@@ -103,8 +104,24 @@ describe("toCreateMaintenanceTaskBody", () => {
 });
 
 describe("formatIntervalPhrase", () => {
-  it("pluralizes units when needed", () => {
-    expect(formatIntervalPhrase(3, "month")).toBe("every 3 months");
-    expect(formatIntervalPhrase(1, "year")).toBe("every 1 year");
+  it("matches maintenance task card phrasing", () => {
+    expect(formatIntervalPhrase(3, "month")).toBe("Every 3 months");
+    expect(formatIntervalPhrase(1, "year")).toBe("Every year");
+  });
+});
+
+describe("resolveAssetId", () => {
+  const assets = [{ id: "a" }, { id: "b" }];
+
+  it("uses a valid preferred id", () => {
+    expect(resolveAssetId(assets, "b")).toBe("b");
+  });
+
+  it("falls back to the first asset when preferred id is missing", () => {
+    expect(resolveAssetId(assets, "missing")).toBe("a");
+  });
+
+  it("treats empty string as absent", () => {
+    expect(resolveAssetId(assets, "")).toBe("a");
   });
 });

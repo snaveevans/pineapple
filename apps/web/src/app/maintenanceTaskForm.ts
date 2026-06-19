@@ -36,7 +36,7 @@ function ymdParts(value: string): [number, number, number] {
   return [year ?? 0, month ?? 1, day ?? 1];
 }
 
-function ymdToUTC(value: string): number {
+export function ymdToUTC(value: string): number {
   const [year, month, day] = ymdParts(value);
   return Date.UTC(year, month - 1, day);
 }
@@ -104,8 +104,20 @@ export function formatPreviewDueDate(dateStr: string): string {
 }
 
 export function formatIntervalPhrase(intervalValue: number, intervalUnit: IntervalUnit): string {
-  const unit = intervalUnit + (intervalValue > 1 ? "s" : "");
-  return `every ${intervalValue} ${unit}`;
+  if (intervalValue === 1) {
+    return `Every ${intervalUnit}`;
+  }
+  return `Every ${intervalValue} ${intervalUnit}s`;
+}
+
+export function resolveAssetId(
+  assets: ReadonlyArray<{ id: string }>,
+  preferredId?: string | null,
+): string {
+  if (preferredId && assets.some((asset) => asset.id === preferredId)) {
+    return preferredId;
+  }
+  return assets[0]?.id ?? "";
 }
 
 export function validateMaintenanceTaskForm(

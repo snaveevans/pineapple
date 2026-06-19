@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../api/client.ts";
 import { getAsset, assetQueryKey } from "../api/assets.ts";
+import { dashboardQueryKey, getDashboard } from "../api/dashboard.ts";
 import {
   listMaintenanceRecords,
   createMaintenanceRecord,
@@ -24,11 +25,13 @@ import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
 import { toAssetPresentation, type AssetPresentation } from "./assetPresentation.ts";
 import {
   EMPTY_MAINTENANCE_TASK_FORM,
+  formatIntervalPhrase,
   TASK_TITLE_MAX,
   TASK_UNITS,
   todayDateOnly,
   toCreateMaintenanceTaskBody,
   validateMaintenanceTaskForm,
+  ymdToUTC,
   type MaintenanceTaskFormValues,
 } from "./maintenanceTaskForm.ts";
 import { paths } from "../routes.ts";
@@ -43,11 +46,6 @@ const MONTHS_SHORT = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
-
-function ymdToUTC(s: string): number {
-  const parts = s.split("-").map(Number);
-  return Date.UTC(parts[0]!, parts[1]! - 1, parts[2]!);
-}
 
 function fmtDate(s: string): string {
   const parts = s.split("-").map(Number);
@@ -69,10 +67,6 @@ function relAgo(s: string): string {
 }
 
 // ─── task helpers (presentation only — status/daysDue come from the API) ─────
-
-function fmtInterval(value: number, unit: string): string {
-  return value === 1 ? `Every ${unit}` : `Every ${value} ${unit}s`;
-}
 
 function nextDueLabel(daysDue: number, nextDue: string): string {
   if (daysDue < 0) {
@@ -377,7 +371,7 @@ function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (
         <span className="mr-task-dot" data-status={s} />
         <div className="mr-task-info">
           <div className="mr-task-title">{task.title}</div>
-          <div className="mr-task-interval">{fmtInterval(task.intervalValue, task.intervalUnit)}</div>
+          <div className="mr-task-interval">{formatIntervalPhrase(task.intervalValue, task.intervalUnit)}</div>
         </div>
       </div>
       <div className="mr-task-card-right">
@@ -509,12 +503,13 @@ function MROverviewTab({
 
 interface MRCreateTaskFormProps {
   asset: AssetPresentation;
+  todayUtc: string;
   variant: "drawer" | "sheet";
   onClose: () => void;
   onCreated: (task: MaintenanceTask) => void;
 }
 
-function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFormProps) {
+function MRCreateTaskForm({ asset, todayUtc, variant, onClose, onCreated }: MRCreateTaskFormProps) {
   const [values, setValues] = useState<MaintenanceTaskFormValues>(EMPTY_MAINTENANCE_TASK_FORM);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [banner, setBanner] = useState<string | null>(null);
@@ -530,7 +525,7 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
 
   const submit = () => {
     if (mutation.isPending) return;
-    const nextErrors = validateMaintenanceTaskForm(values);
+    const nextErrors = validateMaintenanceTaskForm(values, todayUtc);
     const mappedErrors: Record<string, string> = {};
     if (nextErrors.title) mappedErrors.title = nextErrors.title;
     if (nextErrors.intervalValue) mappedErrors.iv = nextErrors.intervalValue;
@@ -610,7 +605,7 @@ function MRCreateTaskForm({ asset, variant, onClose, onCreated }: MRCreateTaskFo
           <div className="mr-field-top">
             <label className="mr-field-label" htmlFor="mt-last">Last completed</label>
           </div>
-          <input id="mt-last" type="date" max={todayDateOnly()} className={`mr-input mr-input-date ${errors.last ? "err" : ""}`}
+          <input id="mt-last" type="date" max={todayUtc} className={`mr-input mr-input-date ${errors.last ? "err" : ""}`}
             value={values.lastCompletedDate} onChange={(e) => updateValue("lastCompletedDate", e.target.value)} />
           {errors.last ? <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.last}</div> :
             <div className="mr-field-hint">Optional — when was this last done? Leave blank to start counting from today.</div>}
@@ -914,6 +909,16 @@ export function AppMaintenanceRecords() {
     retry: (count, err) =>
       !(err instanceof ApiError && (err.status === 401 || err.status === 403)) && count < 2,
   });
+
+  const dashboardTodayQuery = useQuery({
+    queryKey: dashboardQueryKey,
+    queryFn: getDashboard,
+    enabled: taskFormOpen,
+    staleTime: 60_000,
+    select: (data) => data.todayUtc,
+  });
+
+  const taskFormTodayUtc = dashboardTodayQuery.data ?? todayDateOnly();
 
   // Redirect on 401
   useEffect(() => {
@@ -1232,6 +1237,7 @@ export function AppMaintenanceRecords() {
           <div className={`mr-overlay-panel-${overlayVariant}`}>
             <MRCreateTaskForm
               asset={asset}
+              todayUtc={taskFormTodayUtc}
               variant={overlayVariant}
               onClose={() => setTaskFormOpen(false)}
               onCreated={handleTaskCreated}
