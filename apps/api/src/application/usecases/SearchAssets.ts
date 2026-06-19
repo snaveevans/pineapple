@@ -127,6 +127,7 @@ function toSearchResult(asset: Asset): SearchAssetResult {
   };
 }
 
+// Mirrors Asset Library card summaries; keep aligned with docs/specs/features/asset-library.md.
 function summaryFor(metadata: AssetMetadata): string {
   switch (metadata.kind) {
     case "vehicle":

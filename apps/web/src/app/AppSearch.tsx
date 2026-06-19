@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { ApiError } from "../api/client";
@@ -35,6 +35,15 @@ export function AppSearch({ open, onClose }: { open: boolean; onClose: () => voi
   const [retryKey, setRetryKey] = useState(0);
   const isMobile = useMediaQuery(MOBILE_MEDIA);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const retry = useCallback(() => setRetryKey((key) => key + 1), []);
+
+  const openResult = useCallback(
+    (result: SearchResult) => {
+      onClose();
+      void navigate(paths.assetMaintenance(result.id));
+    },
+    [navigate, onClose],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -42,6 +51,15 @@ export function AppSearch({ open, onClose }: { open: boolean; onClose: () => voi
     setState(INITIAL_STATE);
     setSelectedIndex(0);
     window.setTimeout(() => inputRef.current?.focus(), 0);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -110,12 +128,7 @@ export function AppSearch({ open, onClose }: { open: boolean; onClose: () => voi
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, isMobile, state.status, state.results, selectedIndex, onClose]);
-
-  function openResult(result: SearchResult) {
-    onClose();
-    void navigate(paths.assetMaintenance(result.id));
-  }
+  }, [open, isMobile, state.status, state.results, selectedIndex, onClose, openResult]);
 
   if (!open) return null;
 
@@ -127,7 +140,7 @@ export function AppSearch({ open, onClose }: { open: boolean; onClose: () => voi
       inputRef={inputRef}
       onClose={onClose}
       onSelect={openResult}
-      onRetry={() => setRetryKey((key) => key + 1)}
+      onRetry={retry}
     />
   ) : (
     <SearchPalette
@@ -139,7 +152,7 @@ export function AppSearch({ open, onClose }: { open: boolean; onClose: () => voi
       setSelectedIndex={setSelectedIndex}
       onClose={onClose}
       onSelect={openResult}
-      onRetry={() => setRetryKey((key) => key + 1)}
+      onRetry={retry}
     />
   );
 
@@ -331,16 +344,8 @@ function SearchResultsBody({
   const rowRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useEffect(() => {
-    const element = rowRefs.current[selectedIndex];
-    const parent = element?.parentElement;
-    if (!element || !parent) return;
-    const top = element.offsetTop;
-    const bottom = top + element.offsetHeight;
-    if (top < parent.scrollTop) parent.scrollTop = top - 8;
-    else if (bottom > parent.scrollTop + parent.clientHeight) {
-      parent.scrollTop = bottom - parent.clientHeight + 8;
-    }
-  }, [selectedIndex]);
+    rowRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest" });
+  }, [selectedIndex, state.results]);
 
   if (state.status === "loading") return <SearchSkeleton />;
 

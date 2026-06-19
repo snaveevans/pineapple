@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useLocation } from "react-router";
 import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
@@ -34,22 +34,29 @@ export function HFTopBar() {
   const location = useLocation();
   const profileActive = location.pathname === paths.profile;
   const [searchOpen, setSearchOpen] = useState(false);
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const { data: profile } = useQuery({
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
   });
 
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    window.setTimeout(() => searchButtonRef.current?.focus(), 0);
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        setSearchOpen(true);
+        openSearch();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [openSearch]);
 
   return (
     <>
@@ -85,11 +92,12 @@ export function HFTopBar() {
         </div>
         <div className="hf-topbar-right">
           <button
+            ref={searchButtonRef}
             type="button"
             className="hf-icon-btn"
             title="Search"
             aria-label="Search assets"
-            onClick={() => setSearchOpen(true)}
+            onClick={openSearch}
           >
             <Icon name="search" size={16} />
           </button>
@@ -106,7 +114,7 @@ export function HFTopBar() {
           </NavLink>
         </div>
       </header>
-      <AppSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <AppSearch open={searchOpen} onClose={closeSearch} />
     </>
   );
 }
