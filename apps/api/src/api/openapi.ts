@@ -22,6 +22,7 @@ import {
   MaintenanceTaskResponseSchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
 import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
+import { SearchAssetsQuerySchema, SearchAssetsResponseSchema } from "./schemas/searchSchemas.ts";
 import {
   UpdateUserProfileBodySchema,
   UserProfileResponseSchema,
@@ -159,6 +160,34 @@ export const getAssetRoute = createRoute({
     },
     404: {
       description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const searchAssetsRoute = createRoute({
+  method: "get",
+  path: "/api/search",
+  tags: ["Assets"],
+  summary: "Search my assets",
+  description: "Returns up to 20 active assets owned by the caller that match the free-text query.",
+  security: [cookieAuth],
+  request: { query: SearchAssetsQuerySchema },
+  responses: {
+    200: {
+      description: "Matching assets",
+      content: { "application/json": { schema: SearchAssetsResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    500: {
+      description: "Unexpected server error",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
@@ -430,6 +459,7 @@ export function getApiDocument() {
   doc.openapi(createAssetRoute, stub);
   doc.openapi(listAssetsRoute, stub);
   doc.openapi(getAssetRoute, stub);
+  doc.openapi(searchAssetsRoute, stub);
   doc.openapi(createMaintenanceRecordRoute, stub);
   doc.openapi(listMaintenanceRecordsRoute, stub);
   doc.openapi(createMaintenanceTaskRoute, stub);

@@ -36,6 +36,7 @@ import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceT
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
+import { SearchAssets } from "./application/usecases/SearchAssets.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
@@ -54,6 +55,7 @@ import {
   listAssetsRoute,
   listMaintenanceRecordsRoute,
   listMaintenanceTasksRoute,
+  searchAssetsRoute,
   updateUserProfileRoute,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
@@ -310,6 +312,17 @@ app.openapi(getAssetRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(serializeAsset(result.value), 200);
+});
+
+app.openapi(searchAssetsRoute, async (c) => {
+  const user = c.get("user");
+  const { q } = c.req.valid("query");
+  const result = await new SearchAssets(new D1AssetRepository(c.env.DB)).execute({
+    ownerId: user.id,
+    q,
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ results: result.value }, 200);
 });
 
 // ── Maintenance record endpoints ────────────────────────────────────────────
