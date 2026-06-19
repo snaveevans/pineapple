@@ -1,4 +1,4 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-06-17
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-06-18
 
 # Spec Index
 
@@ -33,6 +33,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [sign-in.md](./features/sign-in.md)                           | Auth          | review |
 | [create-asset.md](./features/create-asset.md)                 | Assets        | draft  |
 | [asset-library.md](./features/asset-library.md)               | Assets        | draft  |
+| [app-search.md](./features/app-search.md)                     | Assets        | draft  |
 | [dashboard.md](./features/dashboard.md)                       | Home          | draft  |
 | [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | draft  |
 | [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | draft  |

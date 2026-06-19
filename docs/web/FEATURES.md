@@ -125,6 +125,38 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 ---
 
+## App Search
+
+**Route:** global app-shell affordance (no dedicated route required); available across `/app/*`
+**Goal:** Let the user jump straight to one of their assets from anywhere in the authenticated app, instead of navigating to the library and scanning.
+
+**Entry points:**
+
+- Desktop top-bar search button (currently a dead button in `AppChrome.tsx` — to be wired)
+- **`cmd+k` keyboard shortcut on macOS opens search** (firm requirement)
+- Mobile entry point: not yet present in the bottom nav — left to design
+
+**Key states:**
+
+- Closed/idle: not shown
+- Typing: debounced; loading indicator while the request is in flight
+- Results: ranked list from `GET /api/search?q=…` — each row shows name, type, and a summary line; selecting a result navigates to that asset's maintenance page (`/app/assets/:id/maintenance`)
+- No matches: clear "no matches" empty state (a 200 with an empty array, not an error)
+- Error: retryable error state
+- Unauthenticated (401): redirect to `/login`
+
+**Non-obvious behavior:**
+
+- The client debounces input and **suppresses the API call until there is ≥1 non-space character** — the API's 422 on an empty query is a safety net, not the normal path
+- Results arrive **pre-ranked and pre-summarized** from the API; the client renders them and does not recompute ordering or the summary line (ADR-0009)
+- `cmd+k` is intercepted globally and must not collide with the browser's own shortcuts
+- The presentation (command palette overlay vs. dedicated page) and the mobile entry point are design decisions, not fixed by the spec
+- This is distinct from the disabled inline search input on the Asset Library toolbar, which remains unwired
+
+**Spec:** [`docs/specs/features/app-search.md`](../specs/features/app-search.md)
+
+---
+
 ## Add Asset
 
 **Route:** `/app/assets/new`
