@@ -132,9 +132,9 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 **Entry points:**
 
-- Desktop top-bar search button (currently a dead button in `AppChrome.tsx` — to be wired)
-- **`cmd+k` keyboard shortcut on macOS opens search** (firm requirement)
-- Mobile entry point: not yet present in the bottom nav — left to design
+- Desktop top-bar search button
+- **`cmd+k` keyboard shortcut on macOS opens search**; `ctrl+k` does the same on non-macOS keyboards
+- Mobile top-bar search button opens a full-screen search sheet
 
 **Key states:**
 
@@ -150,7 +150,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - The client debounces input and **suppresses the API call until there is ≥1 non-space character** — the API's 422 on an empty query is a safety net, not the normal path
 - Results arrive **pre-ranked and pre-summarized** from the API; the client renders them and does not recompute ordering or the summary line (ADR-0009)
 - `cmd+k` is intercepted globally and must not collide with the browser's own shortcuts
-- The presentation (command palette overlay vs. dedicated page) and the mobile entry point are design decisions, not fixed by the spec
+- Desktop presentation is a command palette overlay; mobile presentation is a full-screen sheet
 - This is distinct from the disabled inline search input on the Asset Library toolbar, which remains unwired
 
 **Spec:** [`docs/specs/features/app-search.md`](../specs/features/app-search.md)
