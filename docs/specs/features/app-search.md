@@ -2,14 +2,14 @@
 audience: engineering, product
 purpose: a global, server-side asset search endpoint that lets a user find one of their assets by name or key metadata from anywhere in the app
 source: this file
-date: 2026-06-18
+date: 2026-06-21
 ---
 
 # App Search
 
-**Status:** `draft`
+**Status:** active
 **Owner:** engineering
-**Last Updated:** 2026-06-18
+**Last Updated:** 2026-06-21
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [permissions.md](../cross-cutting/permissions.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md)
 
 ---
@@ -21,13 +21,10 @@ gives the authenticated user a single endpoint — `GET /api/search?q=…` — t
 their own assets matching a free-text query against the asset name and its key
 metadata, ranked and ready to render as a jump list. The search is global to the
 authenticated app shell rather than tied to a single screen, and returns a lightweight
-result model (id, name, type, and a computed summary line) sized for a result row that
-deep-links into the asset.
-
-This spec covers the **API capability only**. All web UX — the top-bar entry point, the
-`cmd+k` shortcut, the result presentation (palette vs. page), the loading/empty/error
-visuals, and any mobile entry point — is intentionally deferred to design and documented
-in [`docs/web/FEATURES.md`](../../web/FEATURES.md).
+result model (id, name, type, and a computed summary line) displayed in a global app-shell
+search UI that deep-links into the asset. The desktop UI is a command palette opened from the
+top bar or `cmd+k` / `ctrl+k`; mobile uses a full-screen search sheet. The detailed web
+interaction behavior is documented in [`docs/web/FEATURES.md`](../../web/FEATURES.md).
 
 ## User Stories
 
@@ -51,6 +48,10 @@ in [`docs/web/FEATURES.md`](../../web/FEATURES.md).
 - [ ] Results are capped at **20**; there is no pagination
 - [ ] No matches (or the user has no assets at all) returns **200** with an empty results array — never 404
 - [ ] A successful response is wrapped in a `{ results: [...] }` envelope (mirrors `{ assets: [...] }`)
+- [ ] The authenticated app shell exposes a top-bar search entry point and a `cmd+k` / `ctrl+k` shortcut
+- [ ] Desktop search renders a keyboard-navigable command palette; mobile search renders a full-screen sheet
+- [ ] The UI debounces non-empty input, presents loading, empty, error, and ranked-result states, and opens a selected asset's maintenance page
+- [ ] A 401 response closes search and replaces the current route with `/login`; other request failures expose a retryable error state
 - [ ] Validation happens at the **Zod HTTP edge** (ADR-0007); the request/response schemas live in `apps/api/src/api/schemas/` and are the source for `openapi.json`
 - [ ] `GET /api/search` maps to the **`SearchAssets`** operation in `technicalTelemetry.ts` (it falls through to `Unknown` until added)
 - [ ] The **raw query string is never written to telemetry** (PII anti-pattern — see [telemetry.md](../cross-cutting/telemetry.md))
@@ -126,7 +127,6 @@ here**. It may later call this same endpoint, but wiring it is a separate change
 
 ## Out of Scope
 
-- **All web UX** — top-bar entry point, the `cmd+k` shortcut, palette-vs-page presentation, loading/empty/error visuals, and any mobile entry point. These live in [`docs/web/FEATURES.md`](../../web/FEATURES.md).
 - Searching maintenance tasks, service records, users, or any entity other than assets
 - Fuzzy / typo-tolerant matching, stemming, or synonyms
 - Pagination, infinite scroll, or a total-match count beyond the returned results
@@ -134,7 +134,3 @@ here**. It may later call this same endpoint, but wiring it is a separate change
 - Including archived assets, or a toggle to include them
 - Full-text search infrastructure (e.g. SQLite FTS5); case-insensitive substring matching is sufficient at current fleet scale — revisit if fleets grow large
 - Wiring the Asset Library inline toolbar search input
-
-## Open Questions
-
-- [ ] Confirm the minimum effective query length. The contract requires ≥1 non-space char (422 below that); the client is expected to debounce. Owner: engineering — resolve before implementation if a 2-char floor is preferred.

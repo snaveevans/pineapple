@@ -143,6 +143,18 @@ describe("SearchAssets", () => {
     expect(results).toEqual([]);
   });
 
+  it("matches each search term within one searchable field", async () => {
+    const vehicle = asset({
+      id: "00000000-0000-0000-0000-000000000017",
+      name: "Work Truck",
+      metadata: { kind: "vehicle", make: "Ram", model: "2500", year: 2021 },
+    });
+
+    const { results } = await search([vehicle], "truck ram");
+
+    expect(results.map((result) => result.id)).toEqual([vehicle.id]);
+  });
+
   it("returns computed summaries using Asset Library formatting", async () => {
     const assets = [
       asset({

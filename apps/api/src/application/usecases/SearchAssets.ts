@@ -58,14 +58,10 @@ function searchTerms(query: string): string[] {
 }
 
 function matchesAllTerms(asset: Asset, terms: string[]): boolean {
-  const searchable = searchableText(asset);
-  return terms.every((term) => searchable.includes(term));
-}
-
-function searchableText(asset: Asset): string {
-  return searchableParts(asset.metadata, asset.name)
-    .map((part) => part.toLowerCase())
-    .join(" ");
+  const searchablePartsByField = searchableParts(asset.metadata, asset.name).map((part) =>
+    part.toLowerCase(),
+  );
+  return terms.every((term) => searchablePartsByField.some((part) => part.includes(term)));
 }
 
 function searchableParts(metadata: AssetMetadata, name: string): string[] {

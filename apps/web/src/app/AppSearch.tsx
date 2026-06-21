@@ -26,6 +26,7 @@ const TYPE_ICON: Record<SearchResult["type"], IconName> = {
 };
 
 const MOBILE_MEDIA = "(max-width: 580px)";
+const SEARCH_DEBOUNCE_MS = 280;
 
 export function AppSearch({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ export function AppSearch({ open, onClose }: { open: boolean; onClose: () => voi
             error: error instanceof Error ? error.message : "Search could not run",
           });
         });
-    }, 280);
+    }, SEARCH_DEBOUNCE_MS);
 
     return () => {
       window.clearTimeout(timeout);
@@ -374,12 +375,14 @@ function SearchResultsBody({
           <Icon name="search" size={20} stroke={1.8} />
         </div>
         <div className="hfs-state-title">Search your assets</div>
-        <div className="hfs-state-sub">Try a name, make, model, address, VIN, or serial number.</div>
+        <div className="hfs-state-sub">
+          Try a name, make, model, address, VIN, or serial number.
+        </div>
       </div>
     );
   }
 
-  if (state.results.length === 0) {
+  if (state.status === "empty") {
     return (
       <div className="hfs-state">
         <div className="hfs-state-icon">
@@ -494,7 +497,7 @@ function highlight(text: string, query: string): ReactNode {
   const parts = text.split(new RegExp(`(${pattern})`, "gi"));
   const termSet = new Set(terms);
 
-  return parts.map((part, index) =>
+  return parts.filter(Boolean).map((part, index) =>
     part && termSet.has(part.toLowerCase()) ? (
       <mark key={`${part}-${index}`} className="hfs-mark">
         {part}
