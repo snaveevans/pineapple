@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useLocation } from "react-router";
 import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
@@ -5,6 +6,7 @@ import { Icon, type IconName } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { paths } from "../routes";
 import { profileAvatarInitial } from "./profilePresentation";
+import { AppSearch } from "./AppSearch";
 
 // Shared authenticated-app chrome: the desktop top bar and the mobile bottom
 // tab bar. Ported from the FieldOps prototype (hifi.jsx). Both the Home
@@ -31,59 +33,89 @@ const HF_NAV: NavItem[] = [
 export function HFTopBar() {
   const location = useLocation();
   const profileActive = location.pathname === paths.profile;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const { data: profile } = useQuery({
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
   });
 
+  const openSearch = useCallback(() => setSearchOpen(true), []);
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    window.setTimeout(() => searchButtonRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openSearch();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [openSearch]);
+
   return (
-    <header className="hf-topbar">
-      <div className="hf-topbar-left">
-        <div className="hf-logo">
-          <div className="hf-logo-mark">
-            <Brandmark size={15} color="white" />
+    <>
+      <header className="hf-topbar">
+        <div className="hf-topbar-left">
+          <div className="hf-logo">
+            <div className="hf-logo-mark">
+              <Brandmark size={15} color="white" />
+            </div>
+            <span className="hf-logo-text">FieldOps</span>
           </div>
-          <span className="hf-logo-text">FieldOps</span>
+          <nav className="hf-nav-top">
+            {HF_NAV.map((n) =>
+              n.to ? (
+                <NavLink
+                  key={n.id}
+                  to={n.to}
+                  end={n.end ?? false}
+                  className={({ isActive }) => `hf-nav-tab ${isActive ? "active" : ""}`}
+                  title={n.label}
+                >
+                  <Icon name={n.icon} size={16} />
+                  <span className="hf-nav-label">{n.label}</span>
+                </NavLink>
+              ) : (
+                <span key={n.id} className="hf-nav-tab" title={n.label} aria-disabled="true">
+                  <Icon name={n.icon} size={16} />
+                  <span className="hf-nav-label">{n.label}</span>
+                </span>
+              ),
+            )}
+          </nav>
         </div>
-        <nav className="hf-nav-top">
-          {HF_NAV.map((n) =>
-            n.to ? (
-              <NavLink
-                key={n.id}
-                to={n.to}
-                end={n.end ?? false}
-                className={({ isActive }) => `hf-nav-tab ${isActive ? "active" : ""}`}
-                title={n.label}
-              >
-                <Icon name={n.icon} size={16} />
-                <span className="hf-nav-label">{n.label}</span>
-              </NavLink>
-            ) : (
-              <span key={n.id} className="hf-nav-tab" title={n.label} aria-disabled="true">
-                <Icon name={n.icon} size={16} />
-                <span className="hf-nav-label">{n.label}</span>
-              </span>
-            ),
-          )}
-        </nav>
-      </div>
-      <div className="hf-topbar-right">
-        <button className="hf-icon-btn" title="Search">
-          <Icon name="search" size={16} />
-        </button>
-        <button className="hf-icon-btn hf-icon-btn-badge" title="Notifications">
-          <Icon name="bell" size={16} />
-          <span className="hf-badge">3</span>
-        </button>
-        <NavLink
-          to={paths.profile}
-          className={`hf-avatar${profileActive ? " hf-avatar-ring" : ""}`}
-          title={profile?.name ?? "Profile settings"}
-        >
-          {profileAvatarInitial(profile?.name)}
-        </NavLink>
-      </div>
-    </header>
+        <div className="hf-topbar-right">
+          <button
+            ref={searchButtonRef}
+            type="button"
+            className="hf-icon-btn"
+            title="Search"
+            aria-label="Search assets"
+            onClick={openSearch}
+          >
+            <Icon name="search" size={16} />
+          </button>
+          <button type="button" className="hf-icon-btn hf-icon-btn-badge" title="Notifications">
+            <Icon name="bell" size={16} />
+            <span className="hf-badge">3</span>
+          </button>
+          <NavLink
+            to={paths.profile}
+            className={`hf-avatar${profileActive ? " hf-avatar-ring" : ""}`}
+            title={profile?.name ?? "Profile settings"}
+          >
+            {profileAvatarInitial(profile?.name)}
+          </NavLink>
+        </div>
+      </header>
+      <AppSearch open={searchOpen} onClose={closeSearch} />
+    </>
   );
 }
 

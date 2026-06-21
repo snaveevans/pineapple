@@ -135,6 +135,7 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `GET /api/assets`                                | `ListAssets`              |
 | `GET /api/assets/{id}`                           | `GetAsset`                |
 | `GET /api/dashboard`                             | `GetDashboard`            |
+| `GET /api/search`                                | `SearchAssets`            |
 | `GET /api/users/me`                              | `GetUserProfile`          |
 | `PATCH /api/users/me`                            | `UpdateUserProfile`       |
 | `POST /api/assets/{assetId}/maintenance-records` | `CreateMaintenanceRecord` |
@@ -170,10 +171,10 @@ A complete Analytics Engine outage will produce `console.error` log entries but 
 
 ## Exceptions
 
-| Feature                                              | Deviation                 | Reason                                                                                          |
-| ---------------------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
-| Frontend page views                                  | Cloudflare Web Analytics  | Anonymous page view data available in the Cloudflare Dashboard; not written to Analytics Engine |
-| Read operations (GetAsset, ListAssets, GetDashboard) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal                |
+| Feature                                                            | Deviation                 | Reason                                                                                          |
+| ------------------------------------------------------------------ | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| Frontend page views                                                | Cloudflare Web Analytics  | Anonymous page view data available in the Cloudflare Dashboard; not written to Analytics Engine |
+| Read operations (GetAsset, ListAssets, GetDashboard, SearchAssets) | No domain event telemetry | Reads do not produce domain events; request telemetry provides sufficient signal                |
 
 ## Anti-Patterns
 

@@ -132,6 +132,9 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   if (pathname === "/api/dashboard" && method === "GET") {
     return { operation: "GetDashboard", routePattern: "/api/dashboard" };
   }
+  if (pathname === "/api/search" && method === "GET") {
+    return { operation: "SearchAssets", routePattern: "/api/search" };
+  }
   if (pathname === "/api/users/me" && method === "GET") {
     return { operation: "GetUserProfile", routePattern: "/api/users/me" };
   }

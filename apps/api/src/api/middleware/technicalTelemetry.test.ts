@@ -180,6 +180,37 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     });
   });
 
+  it("maps GET /api/search to SearchAssets", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "GET",
+        pathname: "/api/search",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["SearchAssets"],
+      blobs: [
+        "SearchAssets",
+        "/api/search",
+        "GET",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
   it.each([
     ["GET", "GetUserProfile"],
     ["PATCH", "UpdateUserProfile"],
@@ -324,5 +355,24 @@ describe("createTechnicalTelemetryMiddleware", () => {
     expect(response.status).toBe(200);
     expect(written[0]?.blobs[9]).toBe("unknown");
     expect(written[0]?.blobs[10]).toBe("anonymous");
+  });
+
+  it("does not include the raw search query in telemetry", async () => {
+    const written: ApiRequestTelemetryDataPoint[] = [];
+    const app = new Hono<{ Variables: { user?: User } }>();
+    app.use(
+      "*",
+      createTechnicalTelemetryMiddleware(() => ({ write: (dp) => written.push(dp) })),
+    );
+    app.get("/api/search", (c) => {
+      c.set("user", testUser);
+      return c.json({ results: [] }, 200);
+    });
+
+    const response = await app.request("http://localhost/api/search?q=secret-vin-123");
+
+    expect(response.status).toBe(200);
+    expect(written[0]?.indexes).toEqual(["SearchAssets"]);
+    expect(written[0]?.blobs).not.toContain("secret-vin-123");
   });
 });
