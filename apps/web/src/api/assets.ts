@@ -41,8 +41,16 @@ export type AssetResponse = {
   updatedAt: string;
 };
 
+export type AssetCategoryCounts = {
+  all: number;
+  vehicle: number;
+  equipment: number;
+  property: number;
+};
+
 export type AssetListResponse = {
   assets: AssetResponse[];
+  counts: AssetCategoryCounts;
 };
 
 export type CreateAssetBody = {

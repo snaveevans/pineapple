@@ -23,49 +23,12 @@
   gap: 8px;
 }
 
-/* ============ Toolbar (search + chips + view toggle) ============ */
+/* ============ Toolbar (filter chips + view toggle) ============ */
 .hf-assets-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 320px) 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: center;
   gap: 12px;
-}
-
-.hf-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--hf-surface);
-  border: 1px solid var(--hf-line);
-  border-radius: 8px;
-  height: 36px;
-}
-.hf-search:focus-within {
-  border-color: var(--hf-ink);
-  box-shadow: 0 0 0 1px var(--hf-ink);
-}
-.hf-search-input {
-  flex: 1;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  color: var(--hf-ink);
-}
-.hf-search-input::placeholder {
-  color: var(--hf-ink-faint);
-}
-.hf-kbd {
-  font-family: var(--hf-mono);
-  font-size: 10px;
-  padding: 2px 6px;
-  background: var(--hf-surface-2);
-  border: 1px solid var(--hf-line);
-  border-radius: 4px;
-  color: var(--hf-ink-faint);
-  letter-spacing: 0.04em;
 }
 
 .hf-assets-toolbar .hf-filter-chips {
@@ -105,12 +68,8 @@
   background: var(--hf-ink);
   color: var(--hf-surface);
 }
-.hf-assets-toolbar-disabled :disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
-}
 
-/* ============ The grid ============ */
+/* ============ The grid / list swap ============ */
 .hf-asset-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -119,6 +78,22 @@
 .hf-asset-rows {
   display: none;
 } /* default: card grid layout */
+
+.hf-assets-page[data-view="list"] .hf-asset-grid {
+  display: none;
+}
+.hf-assets-page[data-view="list"] .hf-asset-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hf-asset-card,
+.hf-asset-row,
+.hf-row-add {
+  color: inherit;
+  text-decoration: none;
+}
 
 /* ============ The card ============ */
 .hf-asset-card {
@@ -281,14 +256,6 @@
   border-top: 1px dashed var(--hf-line);
   padding-top: 10px;
 }
-.hf-asset-summary {
-  padding: 8px 14px 14px;
-  margin-top: auto;
-  border-top: 1px dashed var(--hf-line);
-  color: var(--hf-ink-soft);
-  font-size: 12.5px;
-  line-height: 1.35;
-}
 .hf-asset-footer-text {
   display: flex;
   flex-direction: column;
@@ -296,7 +263,8 @@
   min-width: 0;
   flex: 1;
 }
-.hf-asset-next {
+.hf-asset-next,
+.hf-asset-summary {
   font-size: 12.5px;
   font-weight: 500;
   color: var(--hf-ink);
@@ -410,8 +378,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
 }
 .hf-asset-row-top {
   display: flex;
@@ -424,6 +392,17 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 10px;
+}
+.hf-asset-row-go {
+  align-self: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--hf-ink-faint);
+}
+.hf-asset-row:hover .hf-asset-row-go {
+  color: var(--hf-ink-soft);
 }
 .hf-asset-next-mobile {
   display: flex;
@@ -439,10 +418,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.hf-asset-row-summary {
+.hf-asset-summary-row {
   color: var(--hf-ink-soft);
-  font-size: 12.5px;
-  line-height: 1.35;
 }
 
 .hf-row-add {
@@ -467,28 +444,78 @@
 
 /* ============ Loading, error, and empty states ============ */
 .hf-assets-state {
-  min-height: 240px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 32px;
+  text-align: center;
+  gap: 10px;
+  padding: 64px 24px;
+  min-height: 320px;
+}
+.hf-assets-state-inline {
+  padding: 48px 24px;
+  min-height: 0;
   border: 1px dashed var(--hf-line);
   border-radius: var(--hf-r-lg);
-  background: var(--hf-surface);
-  text-align: center;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 16px, rgba(20, 18, 14, 0.02) 16px 17px),
+    var(--hf-surface);
+}
+.hf-assets-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--hf-surface-2);
+  color: var(--hf-ink-soft);
+  border: 1px solid var(--hf-line);
+  margin-bottom: 2px;
+}
+.hf-assets-state-icon[data-tone="bad"] {
+  background: oklch(96% 0.04 28);
+  color: var(--hf-bad);
+  border-color: oklch(88% 0.05 28);
 }
 .hf-assets-state-title {
   color: var(--hf-ink);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 .hf-assets-state-sub {
-  max-width: 420px;
-  margin-bottom: 4px;
+  max-width: 340px;
   color: var(--hf-ink-soft);
   font-size: 13px;
+  line-height: 1.5;
+}
+.hf-assets-state .hf-btn {
+  margin-top: 6px;
+}
+.hf-assets-state-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.hf-assets-spinner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2.5px solid var(--hf-line);
+  border-top-color: var(--hf-ink);
+  animation: hf-assets-spin 0.7s linear infinite;
+}
+@keyframes hf-assets-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hf-assets-spinner {
+    animation-duration: 2s;
+  }
 }
 
 /* ===================================================================
@@ -503,13 +530,8 @@
   }
   .hf-assets-toolbar {
     grid-template-columns: 1fr auto;
-    grid-template-areas:
-      "search  end"
-      "chips   chips";
+    grid-template-areas: "chips end";
     row-gap: 10px;
-  }
-  .hf-search {
-    grid-area: search;
   }
   .hf-filter-chips {
     grid-area: chips;
@@ -528,20 +550,17 @@
 
 /* MOBILE (≤580px on app container): swap grid for horizontal rows */
 @container hfapp (max-width: 580px) {
-  .hf-assets-page .hf-asset-grid {
+  .hf-assets-page[data-view] .hf-asset-grid {
     display: none;
   }
-  .hf-assets-page .hf-asset-rows {
+  .hf-assets-page[data-view] .hf-asset-rows {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
   .hf-assets-toolbar {
     grid-template-columns: 1fr;
-    grid-template-areas:
-      "search"
-      "chips"
-      "end";
+    grid-template-areas: "chips";
     gap: 10px;
   }
   .hf-assets-toolbar-end {
