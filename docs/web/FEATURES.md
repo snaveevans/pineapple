@@ -108,20 +108,28 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 ## Asset Library
 
 **Route:** `/app/assets`
-**Goal:** Let the user see all their assets and navigate to any asset's maintenance history.
+**Goal:** Let the user browse all their assets, narrow the list by category, and navigate to any asset's maintenance history.
 
 **Key states:**
 
-- Loading: skeleton/loading state while fetching
-- Empty: prompt to add first asset with a direct link to the add form
-- Populated: grid view (default) and row view; each card links to `/app/assets/:id/maintenance`
+- Loading: loading state while fetching; toolbar controls hidden
+- Empty (no assets owned): prompt to add first asset with a direct link to the add form; no toolbar shown
+- Populated: grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`
+- Filtered: a category chip is active; the loaded list is narrowed to that asset type
+- Filtered empty: the selected category has no matching assets (library is otherwise non-empty); message names the category with a way to clear the filter or add an asset
 - Error: inline error message with a "Try again" retry button
 
 **Non-obvious behavior:**
 
-- Search input and category filter chips render but are disabled (not yet implemented)
-- View toggle (grid/list) renders but is disabled
+- There is **no inline search box** on this screen — finding a specific asset is handled by global [App Search](#app-search) (`cmd/ctrl+K` or the top-bar button)
+- Category filter chips show **per-category counts that come from the API**; selecting a chip filters the **already-loaded** list **client-side** with no refetch — the same pattern as the Dashboard queue filter. The selected category is ephemeral client state and is never sent to the API
+- A category chip with a count of `0` still renders and is selectable (leads to the filtered-empty state)
+- Grid/list view toggle appears only on wider/desktop viewports, defaults to grid, and the choice **persists across visits in the same browser**; mobile always uses the row list and hides the toggle
+- The header count copy is grammatically correct: "1 thing you take care of" vs. "N things you take care of"
+- Toolbar controls (chips + view toggle) appear only once the list has loaded with at least one asset; there are no disabled/placeholder controls
 - 401 response redirects to `/login` without retrying
+
+**Spec:** [`docs/specs/features/asset-library.md`](../specs/features/asset-library.md)
 
 ---
 
@@ -151,7 +159,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Results arrive **pre-ranked and pre-summarized** from the API; the client renders them and does not recompute ordering or the summary line (ADR-0009)
 - `cmd+k` is intercepted globally and must not collide with the browser's own shortcuts
 - Desktop presentation is a command palette overlay; mobile presentation is a full-screen sheet
-- This is distinct from the disabled inline search input on the Asset Library toolbar, which remains unwired
+- App Search is the **only** asset-search affordance — the Asset Library has no inline search box; its toolbar is for category filtering and grid/list view only
 
 **Spec:** [`docs/specs/features/app-search.md`](../specs/features/app-search.md)
 
