@@ -300,7 +300,13 @@ app.openapi(listAssetsRoute, async (c) => {
     ownerId: user.id,
   });
   if (!result.ok) throw result.error;
-  return c.json({ assets: result.value.map(serializeAsset) }, 200);
+  return c.json(
+    {
+      assets: result.value.assets.map(serializeAsset),
+      counts: result.value.counts,
+    },
+    200,
+  );
 });
 
 app.openapi(getAssetRoute, async (c) => {

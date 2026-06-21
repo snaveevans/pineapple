@@ -95,8 +95,20 @@ export const AssetResponseSchema = z
   })
   .openapi("Asset");
 
+export const AssetCategoryCountsSchema = z
+  .object({
+    all: z.number().int().nonnegative().openapi({ example: 6 }),
+    vehicle: z.number().int().nonnegative().openapi({ example: 2 }),
+    equipment: z.number().int().nonnegative().openapi({ example: 3 }),
+    property: z.number().int().nonnegative().openapi({ example: 1 }),
+  })
+  .openapi("AssetCategoryCounts");
+
 export const AssetListResponseSchema = z
-  .object({ assets: z.array(AssetResponseSchema) })
+  .object({
+    assets: z.array(AssetResponseSchema),
+    counts: AssetCategoryCountsSchema,
+  })
   .openapi("AssetListResponse");
 
 export const CreatedAssetResponseSchema = z

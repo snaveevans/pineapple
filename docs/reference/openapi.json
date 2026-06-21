@@ -296,6 +296,37 @@
           "updatedAt"
         ]
       },
+      "AssetCategoryCounts": {
+        "type": "object",
+        "properties": {
+          "all": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 6
+          },
+          "vehicle": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "equipment": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 3
+          },
+          "property": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          }
+        },
+        "required": [
+          "all",
+          "vehicle",
+          "equipment",
+          "property"
+        ]
+      },
       "AssetListResponse": {
         "type": "object",
         "properties": {
@@ -304,10 +335,14 @@
             "items": {
               "$ref": "#/components/schemas/Asset"
             }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AssetCategoryCounts"
           }
         },
         "required": [
-          "assets"
+          "assets",
+          "counts"
         ]
       },
       "SearchResult": {
@@ -929,7 +964,7 @@
           "Assets"
         ],
         "summary": "List my assets",
-        "description": "Returns the caller's active (non-archived) assets.",
+        "description": "Returns the caller's active (non-archived) assets and their counts by category.",
         "security": [
           {
             "cookieAuth": []
