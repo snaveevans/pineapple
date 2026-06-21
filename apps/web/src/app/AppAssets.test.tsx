@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useQuery } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../api/client";
 import { ASSET_VIEW_STORAGE_KEY } from "./assetLibraryPresentation";
 import { AppAssets } from "./AppAssets";
 
@@ -35,11 +36,10 @@ const useQueryMock = vi.mocked(useQuery);
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let assetsQueryResult: unknown;
 
-beforeEach(() => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
-  window.localStorage.clear();
-  useQueryMock.mockReturnValue({
+function successfulAssetsQuery() {
+  return {
     data: {
       assets: [
         {
@@ -67,7 +67,14 @@ beforeEach(() => {
     isError: false,
     error: null,
     refetch: vi.fn(),
-  } as never);
+  };
+}
+
+beforeEach(() => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.clear();
+  assetsQueryResult = successfulAssetsQuery();
+  useQueryMock.mockImplementation(() => assetsQueryResult as never);
 });
 
 afterEach(async () => {
@@ -78,6 +85,7 @@ afterEach(async () => {
   root = null;
   container = null;
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -86,6 +94,12 @@ async function renderAssets() {
   document.body.append(container);
   root = createRoot(container);
 
+  await act(async () => {
+    root?.render(<AppAssets />);
+  });
+}
+
+async function rerenderAssets() {
   await act(async () => {
     root?.render(<AppAssets />);
   });
@@ -115,7 +129,9 @@ describe("AppAssets", () => {
   });
 
   it("switches to list view and persists the choice", async () => {
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
     await renderAssets();
+    expect(setItem).not.toHaveBeenCalledWith(ASSET_VIEW_STORAGE_KEY, "grid");
     const listButton = document.querySelector<HTMLButtonElement>('button[aria-label="List view"]');
     if (listButton === null) throw new Error("List view button was not rendered");
 
@@ -125,5 +141,45 @@ describe("AppAssets", () => {
 
     expect(document.querySelector(".hf-assets-page")?.getAttribute("data-view")).toBe("list");
     expect(window.localStorage.getItem(ASSET_VIEW_STORAGE_KEY)).toBe("list");
+    expect(setItem).toHaveBeenCalledWith(ASSET_VIEW_STORAGE_KEY, "list");
+  });
+
+  it("shows the specific request error and clears a filter before retrying", async () => {
+    await renderAssets();
+    await clickButton("Properties0");
+
+    assetsQueryResult = {
+      data: undefined,
+      isPending: false,
+      isError: true,
+      error: new Error("Asset service is unavailable"),
+      refetch: vi.fn(),
+    };
+    await rerenderAssets();
+
+    expect(document.body.textContent).toContain("Asset service is unavailable");
+
+    await clickButton("Try again");
+    assetsQueryResult = successfulAssetsQuery();
+    await rerenderAssets();
+
+    expect(document.body.textContent).toContain("Truck");
+    expect(document.body.textContent).not.toContain("No properties yet");
+  });
+
+  it("renders a redirect status instead of blank content for 401 responses", async () => {
+    assetsQueryResult = {
+      data: undefined,
+      isPending: false,
+      isError: true,
+      error: new ApiError(401, { error: "Unauthorized" }),
+      refetch: vi.fn(),
+    };
+
+    await renderAssets();
+
+    expect(document.body.textContent).toContain("Redirecting to sign in");
+    expect(document.body.textContent).not.toContain("Try again");
+    expect(navigate).toHaveBeenCalledWith("/login", { replace: true });
   });
 });

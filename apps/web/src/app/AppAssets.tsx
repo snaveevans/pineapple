@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { assetsQueryKey, listAssets, type AssetCategoryCounts } from "../api/assets";
@@ -28,6 +28,31 @@ const HF_CAT_LABELS: Record<AssetCategory, string> = {
   property: "Property",
   lawn: "Grounds",
 };
+
+const ASSET_MOBILE_BREAKPOINT = 580;
+
+function useMobileAssetLayout(pageRef: RefObject<HTMLDivElement | null>): boolean {
+  const [isMobileLayout, setIsMobileLayout] = useState(false);
+
+  useLayoutEffect(() => {
+    const page = pageRef.current;
+    if (page === null) return;
+
+    const update = () => setIsMobileLayout(page.clientWidth <= ASSET_MOBILE_BREAKPOINT);
+    update();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", update);
+      return () => window.removeEventListener("resize", update);
+    }
+
+    const observer = new ResizeObserver(update);
+    observer.observe(page);
+    return () => observer.disconnect();
+  }, [pageRef]);
+
+  return isMobileLayout;
+}
 
 function HFAssetGridCard({ asset }: { asset: AssetPresentation }) {
   return (
@@ -172,20 +197,27 @@ function HFAssetsLoading() {
   );
 }
 
-function HFAssetsError({ onRetry }: { onRetry: () => void }) {
+function HFAssetsError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="hf-assets-state">
       <div className="hf-assets-state-icon" data-tone="bad">
         <Icon name="alert" size={26} stroke={1.8} />
       </div>
       <div className="hf-assets-state-title">Assets could not be loaded</div>
-      <div className="hf-assets-state-sub">
-        Something went wrong on our end. Check your connection and try again.
-      </div>
+      <div className="hf-assets-state-sub">{message || "Something went wrong on our end."}</div>
       <button type="button" className="hf-btn hf-btn-primary" onClick={onRetry}>
         <Icon name="repeat" size={14} stroke={2} />
         Try again
       </button>
+    </div>
+  );
+}
+
+function HFAssetsRedirecting() {
+  return (
+    <div className="hf-assets-state" role="status">
+      <span className="hf-assets-spinner" />
+      <div className="hf-assets-state-title">Redirecting to sign in</div>
     </div>
   );
 }
@@ -231,6 +263,7 @@ function HFAssetsFilteredEmpty({ category, onClear }: { category: string; onClea
 
 export function AppAssets() {
   const navigate = useNavigate();
+  const pageRef = useRef<HTMLDivElement>(null);
   const [activeFilter, setActiveFilter] = useState<AssetFilter>("all");
   const [view, setView] = useState<AssetView>(() => {
     try {
@@ -239,6 +272,8 @@ export function AppAssets() {
       return "grid";
     }
   });
+  const persistedView = useRef(view);
+  const isMobileLayout = useMobileAssetLayout(pageRef);
   const assetsQuery = useQuery({
     queryKey: assetsQueryKey,
     queryFn: listAssets,
@@ -251,8 +286,10 @@ export function AppAssets() {
   }, []);
 
   useEffect(() => {
+    if (persistedView.current === view) return;
     try {
       window.localStorage.setItem(ASSET_VIEW_STORAGE_KEY, view);
+      persistedView.current = view;
     } catch {
       // Persisting a visual preference is optional (for example, private browsing may reject it).
     }
@@ -264,15 +301,22 @@ export function AppAssets() {
     }
   }, [assetsQuery.error, navigate]);
 
-  const assets = (assetsQuery.data?.assets ?? []).map(toAssetPresentation);
+  const sourceAssets = assetsQuery.data?.assets;
+  const assets = useMemo(() => (sourceAssets ?? []).map(toAssetPresentation), [sourceAssets]);
   const counts = assetsQuery.data?.counts;
-  const shownAssets = filterAssets(assets, activeFilter);
+  const shownAssets = useMemo(() => filterAssets(assets, activeFilter), [assets, activeFilter]);
   const isUnauthorized = assetsQuery.error instanceof ApiError && assetsQuery.error.status === 401;
   const hasAssets = assets.length > 0;
   const showToolbar = !assetsQuery.isPending && !assetsQuery.isError && hasAssets && counts !== undefined;
+  const showRows = isMobileLayout || view === "list";
+
+  const retryAssets = () => {
+    setActiveFilter("all");
+    void assetsQuery.refetch();
+  };
 
   return (
-    <div className="hf hf-app hf-assets-page" data-view={view}>
+    <div ref={pageRef} className="hf hf-app hf-assets-page" data-view={view}>
       <HFTopBar />
       <main className="hf-main hf-shell">
         <HFAssetsHeader count={counts?.all ?? 0} showCount={!assetsQuery.isPending && !assetsQuery.isError} />
@@ -288,8 +332,10 @@ export function AppAssets() {
 
         {assetsQuery.isPending ? (
           <HFAssetsLoading />
-        ) : isUnauthorized ? null : assetsQuery.isError ? (
-          <HFAssetsError onRetry={() => void assetsQuery.refetch()} />
+        ) : isUnauthorized ? (
+          <HFAssetsRedirecting />
+        ) : assetsQuery.isError ? (
+          <HFAssetsError message={assetsQuery.error.message} onRetry={retryAssets} />
         ) : !hasAssets ? (
           <HFAssetsEmpty />
         ) : shownAssets.length === 0 ? (
@@ -298,14 +344,7 @@ export function AppAssets() {
             onClear={() => setActiveFilter("all")}
           />
         ) : (
-          <>
-            <div className="hf-asset-grid">
-              {shownAssets.map((asset) => (
-                <HFAssetGridCard key={asset.id} asset={asset} />
-              ))}
-              <HFAddCard />
-            </div>
-
+          showRows ? (
             <div className="hf-asset-rows">
               {shownAssets.map((asset) => (
                 <HFAssetRowCard key={asset.id} asset={asset} />
@@ -315,7 +354,14 @@ export function AppAssets() {
                 Add an asset
               </Link>
             </div>
-          </>
+          ) : (
+            <div className="hf-asset-grid">
+              {shownAssets.map((asset) => (
+                <HFAssetGridCard key={asset.id} asset={asset} />
+              ))}
+              <HFAddCard />
+            </div>
+          )
         )}
       </main>
       <HFBottomNav />

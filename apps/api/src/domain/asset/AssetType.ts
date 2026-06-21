@@ -1,2 +1,1 @@
-export const ASSET_TYPES = ["vehicle", "property", "equipment"] as const;
-export type AssetType = (typeof ASSET_TYPES)[number];
+export { ASSET_TYPES, type AssetType } from "@snaveevans/pineapple-shared";

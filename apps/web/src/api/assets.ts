@@ -1,6 +1,7 @@
+import type { AssetCategoryCounts, AssetType } from "@snaveevans/pineapple-shared";
 import { apiRequest } from "./client";
 
-export type AssetType = "vehicle" | "property" | "equipment";
+export type { AssetCategoryCounts, AssetType } from "@snaveevans/pineapple-shared";
 
 export type VehicleMetadata = {
   kind: "vehicle";
@@ -39,13 +40,6 @@ export type AssetResponse = {
   archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
-};
-
-export type AssetCategoryCounts = {
-  all: number;
-  vehicle: number;
-  equipment: number;
-  property: number;
 };
 
 export type AssetListResponse = {

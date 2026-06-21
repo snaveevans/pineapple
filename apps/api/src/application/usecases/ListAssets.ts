@@ -1,4 +1,6 @@
 import {
+  createAssetCategoryCounts,
+  type AssetCategoryCounts,
   type DomainError,
   DomainError as DomainErrorClass,
   ok,
@@ -11,13 +13,6 @@ import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 
 export type ListAssetsQuery = {
   ownerId: UserId;
-};
-
-export type AssetCategoryCounts = {
-  all: number;
-  vehicle: number;
-  equipment: number;
-  property: number;
 };
 
 export type AssetListReadModel = {
@@ -42,12 +37,10 @@ export class ListAssets {
 }
 
 function buildAssetCategoryCounts(assets: Asset[]): AssetCategoryCounts {
-  return assets.reduce<AssetCategoryCounts>(
-    (counts, asset) => {
-      counts.all++;
-      counts[asset.type]++;
-      return counts;
-    },
-    { all: 0, vehicle: 0, equipment: 0, property: 0 },
-  );
+  const counts = createAssetCategoryCounts();
+  for (const asset of assets) {
+    counts.all++;
+    counts[asset.type]++;
+  }
+  return counts;
 }

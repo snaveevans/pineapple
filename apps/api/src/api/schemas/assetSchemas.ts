@@ -2,7 +2,7 @@
 // metadata. This is the single source of truth for both runtime validation
 // AND the generated OpenAPI spec — change a rule here and the docs follow.
 import { z } from "@hono/zod-openapi";
-import { ASSET_TYPES } from "../../domain/asset/AssetType.ts";
+import { ASSET_TYPES, type AssetType } from "../../domain/asset/AssetType.ts";
 
 // ── Asset metadata (discriminated by `kind`) ─────────────────────────────────
 
@@ -95,12 +95,15 @@ export const AssetResponseSchema = z
   })
   .openapi("Asset");
 
+const AssetCategoryCountSchema = z.number().int().nonnegative().openapi({ example: 1 });
+const AssetCategoryCountProperties = Object.fromEntries(
+  ASSET_TYPES.map((type) => [type, AssetCategoryCountSchema]),
+) as Record<AssetType, typeof AssetCategoryCountSchema>;
+
 export const AssetCategoryCountsSchema = z
   .object({
     all: z.number().int().nonnegative().openapi({ example: 6 }),
-    vehicle: z.number().int().nonnegative().openapi({ example: 2 }),
-    equipment: z.number().int().nonnegative().openapi({ example: 3 }),
-    property: z.number().int().nonnegative().openapi({ example: 1 }),
+    ...AssetCategoryCountProperties,
   })
   .openapi("AssetCategoryCounts");
 

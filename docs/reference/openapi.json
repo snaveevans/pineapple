@@ -307,14 +307,14 @@
           "vehicle": {
             "type": "integer",
             "minimum": 0,
-            "example": 2
-          },
-          "equipment": {
-            "type": "integer",
-            "minimum": 0,
-            "example": 3
+            "example": 1
           },
           "property": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 1
+          },
+          "equipment": {
             "type": "integer",
             "minimum": 0,
             "example": 1
@@ -323,8 +323,8 @@
         "required": [
           "all",
           "vehicle",
-          "equipment",
-          "property"
+          "property",
+          "equipment"
         ]
       },
       "AssetListResponse": {
