@@ -121,9 +121,9 @@ a given query and dataset.
 The literal `type` enum (`vehicle` / `property` / `equipment`) is intentionally **not** a
 free-text match target; a type filter/facet belongs to a future filtering spec.
 
-**REVIEW NEEDED — Relationship to the Asset Library toolbar search:** The disabled search input
-on `/app/assets` (flagged `NOT SPECIFIED — Search` in `asset-library.md`) is **out of scope
-here**. It may later call this same endpoint, but wiring it is a separate change.
+**RESOLVED — Relationship to the Asset Library toolbar search:** The previously disabled search
+input on `/app/assets` is being **removed**, not wired — App Search is the single asset-search
+affordance. See [asset-library.md](./asset-library.md) (Out of Scope) for that decision.
 
 ## Out of Scope
 
@@ -133,4 +133,4 @@ here**. It may later call this same endpoint, but wiring it is a separate change
 - Sorting or filter controls (type facets, status, date)
 - Including archived assets, or a toggle to include them
 - Full-text search infrastructure (e.g. SQLite FTS5); case-insensitive substring matching is sufficient at current fleet scale — revisit if fleets grow large
-- Wiring the Asset Library inline toolbar search input
+- The Asset Library inline toolbar search input — being removed in favor of App Search (see [asset-library.md](./asset-library.md))

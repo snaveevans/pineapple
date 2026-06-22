@@ -32,7 +32,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | ------------------------------------------------------------- | ------------- | ------ |
 | [sign-in.md](./features/sign-in.md)                           | Auth          | review |
 | [create-asset.md](./features/create-asset.md)                 | Assets        | draft  |
-| [asset-library.md](./features/asset-library.md)               | Assets        | draft  |
+| [asset-library.md](./features/asset-library.md)               | Assets        | review |
 | [app-search.md](./features/app-search.md)                     | Assets        | draft  |
 | [dashboard.md](./features/dashboard.md)                       | Home          | draft  |
 | [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | draft  |

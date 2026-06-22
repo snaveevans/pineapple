@@ -124,7 +124,8 @@ export const listAssetsRoute = createRoute({
   path: "/api/assets",
   tags: ["Assets"],
   summary: "List my assets",
-  description: "Returns the caller's active (non-archived) assets.",
+  description:
+    "Returns the caller's active (non-archived) assets and their counts by category.",
   security: [cookieAuth],
   responses: {
     200: {

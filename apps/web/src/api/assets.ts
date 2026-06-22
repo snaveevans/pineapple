@@ -1,6 +1,7 @@
+import type { AssetCategoryCounts, AssetType } from "@snaveevans/pineapple-shared";
 import { apiRequest } from "./client";
 
-export type AssetType = "vehicle" | "property" | "equipment";
+export type { AssetCategoryCounts, AssetType } from "@snaveevans/pineapple-shared";
 
 export type VehicleMetadata = {
   kind: "vehicle";
@@ -43,6 +44,7 @@ export type AssetResponse = {
 
 export type AssetListResponse = {
   assets: AssetResponse[];
+  counts: AssetCategoryCounts;
 };
 
 export type CreateAssetBody = {
