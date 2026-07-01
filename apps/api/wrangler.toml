@@ -61,6 +61,11 @@ dataset = "pineapple_maintenance_task_domain_events"
 binding = "API_REQUEST_TELEMETRY"
 dataset = "pineapple_api_request_events"
 
+# Queues are declared here but NOT created by `wrangler deploy` — it only binds
+# to queues that already exist and hard-fails if one is missing. Provisioning is
+# handled as IaC by the "Ensure Queues exist" step in .github/workflows/deploy.yml,
+# which idempotently creates any queue named below before deploying. To add a
+# queue: declare it here AND add its name to that step's loop.
 [[queues.producers]]
 binding = "ACTIVITY_HISTORY_QUEUE"
 queue = "pineapple-activity-history"
