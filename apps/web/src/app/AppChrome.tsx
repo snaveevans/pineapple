@@ -9,24 +9,22 @@ import { profileAvatarInitial } from "./profilePresentation";
 import { AppSearch } from "./AppSearch";
 
 // Shared authenticated-app chrome: the desktop top bar and the mobile bottom
-// tab bar. Ported from the FieldOps prototype (hifi.jsx). Both the Home
-// (master/detail), Assets, and History pages render this, so nav lives here.
-// Tabs that have a real page carry a route; placeholders (Schedule) don't.
+// tab bar. Ported from the FieldOps prototype (hifi.jsx). Home, Assets, and
+// History pages render this, so nav lives here.
 
-export type AppNav = "home" | "assets" | "schedule" | "history";
+export type AppNav = "home" | "assets" | "history";
 
 interface NavItem {
   id: AppNav;
   label: string;
   icon: IconName;
-  to?: string;
+  to: string;
   end?: boolean;
 }
 
 const HF_NAV: NavItem[] = [
   { id: "home", label: "Home", icon: "home-nav", to: paths.appHome, end: true },
   { id: "assets", label: "Assets", icon: "grid", to: paths.assets },
-  { id: "schedule", label: "Schedule", icon: "calendar" },
   { id: "history", label: "History", icon: "clock", to: paths.history },
 ];
 
@@ -69,25 +67,18 @@ export function HFTopBar() {
             <span className="hf-logo-text">FieldOps</span>
           </div>
           <nav className="hf-nav-top">
-            {HF_NAV.map((n) =>
-              n.to ? (
-                <NavLink
-                  key={n.id}
-                  to={n.to}
-                  end={n.end ?? false}
-                  className={({ isActive }) => `hf-nav-tab ${isActive ? "active" : ""}`}
-                  title={n.label}
-                >
-                  <Icon name={n.icon} size={16} />
-                  <span className="hf-nav-label">{n.label}</span>
-                </NavLink>
-              ) : (
-                <span key={n.id} className="hf-nav-tab" title={n.label} aria-disabled="true">
-                  <Icon name={n.icon} size={16} />
-                  <span className="hf-nav-label">{n.label}</span>
-                </span>
-              ),
-            )}
+            {HF_NAV.map((n) => (
+              <NavLink
+                key={n.id}
+                to={n.to}
+                end={n.end ?? false}
+                className={({ isActive }) => `hf-nav-tab ${isActive ? "active" : ""}`}
+                title={n.label}
+              >
+                <Icon name={n.icon} size={16} />
+                <span className="hf-nav-label">{n.label}</span>
+              </NavLink>
+            ))}
           </nav>
         </div>
         <div className="hf-topbar-right">
@@ -122,28 +113,21 @@ export function HFTopBar() {
 export function HFBottomNav() {
   return (
     <nav className="hf-nav-bottom">
-      {HF_NAV.map((n) =>
-        n.to ? (
-          <NavLink
-            key={n.id}
-            to={n.to}
-            end={n.end ?? false}
-            className={({ isActive }) => `hf-nav-bottom-tab ${isActive ? "active" : ""}`}
-          >
-            {({ isActive }) => (
-              <>
-                <Icon name={n.icon} size={20} stroke={isActive ? 2 : 1.5} />
-                <span>{n.label}</span>
-              </>
-            )}
-          </NavLink>
-        ) : (
-          <span key={n.id} className="hf-nav-bottom-tab" aria-disabled="true">
-            <Icon name={n.icon} size={20} stroke={1.5} />
-            <span>{n.label}</span>
-          </span>
-        ),
-      )}
+      {HF_NAV.map((n) => (
+        <NavLink
+          key={n.id}
+          to={n.to}
+          end={n.end ?? false}
+          className={({ isActive }) => `hf-nav-bottom-tab ${isActive ? "active" : ""}`}
+        >
+          {({ isActive }) => (
+            <>
+              <Icon name={n.icon} size={20} stroke={isActive ? 2 : 1.5} />
+              <span>{n.label}</span>
+            </>
+          )}
+        </NavLink>
+      ))}
     </nav>
   );
 }
