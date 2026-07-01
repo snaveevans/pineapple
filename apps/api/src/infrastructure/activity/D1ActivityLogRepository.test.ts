@@ -54,7 +54,9 @@ describe("D1ActivityLogRepository", () => {
     await new D1ActivityLogRepository(db).recordEvent(event);
 
     expect(statements).toHaveLength(1);
-    expect(statements[0]?.query).toContain("INSERT OR IGNORE INTO activity_entries");
+    expect(statements[0]?.query).toContain("INSERT INTO activity_entries");
+    expect(statements[0]?.query).toContain("ON CONFLICT(source_event_id) DO NOTHING");
+    expect(statements[0]?.query).not.toContain("INSERT OR IGNORE");
     expect(statements[0]?.values).toEqual([
       event.id,
       event.id,

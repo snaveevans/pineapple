@@ -82,10 +82,11 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
 
     await this.db
       .prepare(
-        `INSERT OR IGNORE INTO activity_entries
+        `INSERT INTO activity_entries
            (id, source_event_id, owner_id, actor_id, type, occurred_at,
             asset_id, asset_name, asset_type, title, performed_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(source_event_id) DO NOTHING`,
       )
       .bind(
         entry.id,
