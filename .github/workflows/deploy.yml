@@ -135,9 +135,8 @@ jobs:
       - name: Ensure Queues exist (production)
         working-directory: apps/api
         run: |
-          existing="$(pnpm wrangler queues list --format json | jq -r '.[].queue_name')"
           for q in pineapple-activity-history pineapple-activity-history-dlq; do
-            if grep -qxF "$q" <<<"$existing"; then
+            if pnpm wrangler queues info "$q" >/dev/null 2>&1; then
               echo "Queue $q already exists"
             else
               echo "Creating queue $q"
