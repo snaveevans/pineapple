@@ -74,6 +74,24 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 ---
 
+## Authenticated App Shell
+
+**Route:** `/app/*`
+**Goal:** Give authenticated users consistent access to the main app destinations and account-level controls from every app screen.
+
+**Key states:**
+
+- Desktop: top bar shows the FieldOps brand, route tabs for Home, Assets, and History, plus search, notifications, and profile controls
+- Mobile: bottom tab bar shows the same Home, Assets, and History destinations
+- Active route: the matching tab is highlighted for the current page
+
+**Non-obvious behavior:**
+
+- The shell exposes only destinations with implemented routes; there is no disabled Schedule placeholder tab
+- Scheduled maintenance workflows remain available from Dashboard and asset maintenance screens until a dedicated Schedule route is specified and built
+
+---
+
 ## Dashboard (Home)
 
 **Route:** `/app`
