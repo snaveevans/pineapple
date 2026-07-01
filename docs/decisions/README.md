@@ -63,3 +63,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0009](0009-computed-fields-belong-in-api-read-models.md)        | Computed fields belong in API read models        | accepted |
 | [0010](0010-smart-events-for-durable-consumers.md)               | Smart Events for durable consumers               | accepted |
 | [0011](0011-reliable-event-delivery-via-cloudflare-queues.md)    | Reliable event delivery via Cloudflare Queues    | accepted |
+| [0012](0012-transactional-email-via-cloudflare-email-sending.md) | Transactional email via Cloudflare Email Sending | accepted |
