@@ -132,16 +132,25 @@ jobs:
       # if a queue named in wrangler.toml is missing. Reconcile first: create any
       # queue the Worker references that doesn't exist yet. Idempotent — existing
       # queues are left untouched, so this is safe to run on every deploy.
+      #
+      # `wrangler queues info` exits 1 both when a queue is missing AND on other
+      # errors (auth, network), so we don't blindly create on any failure — that
+      # would turn a transient error into a spurious "queue already exists" crash.
+      # Only the specific "does not exist" message triggers a create; anything
+      # else fails the step loudly.
       - name: Ensure Queues exist (production)
         working-directory: apps/api
         run: |
-          existing="$(pnpm wrangler queues list --format json | jq -r '.[].queue_name')"
           for q in pineapple-activity-history pineapple-activity-history-dlq; do
-            if grep -qxF "$q" <<<"$existing"; then
+            if info="$(pnpm wrangler queues info "$q" 2>&1)"; then
               echo "Queue $q already exists"
-            else
+            elif grep -q "does not exist" <<<"$info"; then
               echo "Creating queue $q"
               pnpm wrangler queues create "$q"
+            else
+              echo "::error::Unexpected error checking queue $q"
+              echo "$info"
+              exit 1
             fi
           done
 
