@@ -1,4 +1,5 @@
 import type { CreateMaintenanceTaskBody, IntervalUnit } from "../api/maintenanceTasks.ts";
+import { formatShortDate, ymdParts, ymdToUTC } from "./dateFormat.ts";
 
 export const TASK_TITLE_MAX = 100;
 
@@ -29,16 +30,6 @@ export const EMPTY_MAINTENANCE_TASK_FORM: MaintenanceTaskFormValues = {
 
 export function todayDateOnly(): string {
   return new Date().toISOString().slice(0, 10);
-}
-
-function ymdParts(value: string): [number, number, number] {
-  const [year, month, day] = value.split("-").map(Number);
-  return [year ?? 0, month ?? 1, day ?? 1];
-}
-
-export function ymdToUTC(value: string): number {
-  const [year, month, day] = ymdParts(value);
-  return Date.UTC(year, month - 1, day);
 }
 
 export function addIntervalDate(dateStr: string, value: number, unit: IntervalUnit): string {
@@ -93,14 +84,7 @@ export function previewNextDueDate(
 }
 
 export function formatPreviewDueDate(dateStr: string): string {
-  const [year, month, day] = ymdParts(dateStr);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatShortDate(dateStr);
 }
 
 export function formatIntervalPhrase(intervalValue: number, intervalUnit: IntervalUnit): string {

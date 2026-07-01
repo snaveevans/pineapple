@@ -10,8 +10,8 @@ import { AppSearch } from "./AppSearch";
 
 // Shared authenticated-app chrome: the desktop top bar and the mobile bottom
 // tab bar. Ported from the FieldOps prototype (hifi.jsx). Both the Home
-// (master/detail) and Assets pages render this, so nav lives here. Tabs that
-// have a real page carry a route; placeholders (Schedule, History) don't.
+// (master/detail), Assets, and History pages render this, so nav lives here.
+// Tabs that have a real page carry a route; placeholders (Schedule) don't.
 
 export type AppNav = "home" | "assets" | "schedule" | "history";
 
@@ -27,7 +27,7 @@ const HF_NAV: NavItem[] = [
   { id: "home", label: "Home", icon: "home-nav", to: paths.appHome, end: true },
   { id: "assets", label: "Assets", icon: "grid", to: paths.assets },
   { id: "schedule", label: "Schedule", icon: "calendar" },
-  { id: "history", label: "History", icon: "clock" },
+  { id: "history", label: "History", icon: "clock", to: paths.history },
 ];
 
 export function HFTopBar() {

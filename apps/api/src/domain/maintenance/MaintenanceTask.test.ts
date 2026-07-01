@@ -10,6 +10,8 @@ import { MaintenanceTask } from "./MaintenanceTask.ts";
 const assetId = AssetId.generate();
 const ownerId = UserId.generate();
 const actorId = ownerId;
+const assetName = "House";
+const assetType = "property" as const;
 const today = "2026-06-11";
 
 function makeTask(overrides: Partial<Parameters<typeof MaintenanceTask.create>[0]> = {}) {
@@ -17,6 +19,8 @@ function makeTask(overrides: Partial<Parameters<typeof MaintenanceTask.create>[0
     assetId,
     ownerId,
     actorId,
+    assetName,
+    assetType,
     title: "Replace furnace filter",
     intervalValue: 2,
     intervalUnit: "month",
@@ -46,7 +50,15 @@ describe("MaintenanceTask.create", () => {
     const task = makeTask();
     const events = task.pullEvents();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "MaintenanceTaskCreated", assetId, ownerId, actorId });
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskCreated",
+      assetId,
+      ownerId,
+      actorId,
+      assetName,
+      assetType,
+      title: "Replace furnace filter",
+    });
   });
 
   it("clears events after pullEvents", () => {
@@ -93,7 +105,9 @@ describe("MaintenanceTask.advance", () => {
   it("advances lastCompletedDate and nextDue when performedAt is newer", () => {
     const task = makeTask({ lastCompletedDate: "2026-04-11" });
     const recordId = MaintenanceRecordId.generate();
-    const result = task.advance("2026-06-11", recordId, actorId);
+    expect(task.willAdvance("2026-06-11")).toBe(true);
+
+    const result = task.advance("2026-06-11", recordId, actorId, { assetName, assetType });
 
     expect(result).toBe(true);
     expect(task.lastCompletedDate).toBe("2026-06-11");
@@ -104,16 +118,27 @@ describe("MaintenanceTask.advance", () => {
     const task = makeTask({ lastCompletedDate: "2026-04-11" });
     task.pullEvents(); // clear create event
     const recordId = MaintenanceRecordId.generate();
-    task.advance("2026-06-11", recordId, actorId);
+    task.advance("2026-06-11", recordId, actorId, { assetName, assetType });
     const events = task.pullEvents();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "MaintenanceTaskAdvanced", performedAt: "2026-06-11" });
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskAdvanced",
+      assetName,
+      assetType,
+      title: "Replace furnace filter",
+      performedAt: "2026-06-11",
+    });
   });
 
   it("does not advance when performedAt equals lastCompletedDate", () => {
     const task = makeTask({ lastCompletedDate: "2026-06-11" });
     task.pullEvents(); // clear create event
-    const result = task.advance("2026-06-11", MaintenanceRecordId.generate(), actorId);
+    expect(task.willAdvance("2026-06-11")).toBe(false);
+
+    const result = task.advance("2026-06-11", MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
     expect(result).toBe(false);
     expect(task.nextDue).toBe("2026-08-11");
     expect(task.pullEvents()).toHaveLength(0);
@@ -121,14 +146,24 @@ describe("MaintenanceTask.advance", () => {
 
   it("does not advance when performedAt is older than lastCompletedDate", () => {
     const task = makeTask({ lastCompletedDate: "2026-06-11" });
-    const result = task.advance("2026-05-01", MaintenanceRecordId.generate(), actorId);
+    expect(task.willAdvance("2026-05-01")).toBe(false);
+
+    const result = task.advance("2026-05-01", MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
     expect(result).toBe(false);
     expect(task.lastCompletedDate).toBe("2026-06-11");
   });
 
   it("advances when lastCompletedDate is null (first ever record)", () => {
     const task = makeTask();
-    const result = task.advance("2026-06-01", MaintenanceRecordId.generate(), actorId);
+    expect(task.willAdvance("2026-06-01")).toBe(true);
+
+    const result = task.advance("2026-06-01", MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
     expect(result).toBe(true);
     expect(task.lastCompletedDate).toBe("2026-06-01");
   });
@@ -138,10 +173,18 @@ describe("MaintenanceTask.remove", () => {
   it("emits MaintenanceTaskDeleted", () => {
     const task = makeTask();
     task.pullEvents(); // clear create event
-    task.remove(actorId);
+    task.remove(actorId, { assetName, assetType });
     const events = task.pullEvents();
     expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({ type: "MaintenanceTaskDeleted", assetId, ownerId, actorId });
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskDeleted",
+      assetId,
+      ownerId,
+      actorId,
+      assetName,
+      assetType,
+      title: "Replace furnace filter",
+    });
   });
 });
 
@@ -151,6 +194,8 @@ describe("addInterval calendar arithmetic", () => {
       assetId,
       ownerId,
       actorId,
+      assetName,
+      assetType,
       title: "T",
       intervalValue: 30,
       intervalUnit: "day",
@@ -164,6 +209,8 @@ describe("addInterval calendar arithmetic", () => {
       assetId,
       ownerId,
       actorId,
+      assetName,
+      assetType,
       title: "T",
       intervalValue: 2,
       intervalUnit: "week",
@@ -177,6 +224,8 @@ describe("addInterval calendar arithmetic", () => {
       assetId,
       ownerId,
       actorId,
+      assetName,
+      assetType,
       title: "T",
       intervalValue: 1,
       intervalUnit: "month",
@@ -190,6 +239,8 @@ describe("addInterval calendar arithmetic", () => {
       assetId,
       ownerId,
       actorId,
+      assetName,
+      assetType,
       title: "T",
       intervalValue: 1,
       intervalUnit: "year",

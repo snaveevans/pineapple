@@ -72,6 +72,14 @@ repositories live in `worker.ts`. Keep it that way.
   Clients render what the API gives them; they do not recompute business logic
   from raw data. UI-only state (which filter is selected, hover state) stays in
   the client. (ADR-0009)
+- **Smart Events (ADR-0009 at the event boundary):** domain events consumed by
+  **durable** handlers (projections, audit/History, future async workers) carry the
+  descriptive **state** and producer-owned **derived conclusions** those consumers
+  need — so a consumer never re-reads the source or re-derives business logic. Carry
+  domain state and conclusions, never presentation copy; cross-aggregate fields (e.g.
+  an asset name on a maintenance event) are assembled in the application layer, not by
+  an aggregate. Telemetry handlers stay thin selective readers and must not write the
+  PII-bearing fields to Analytics Engine. (ADR-0010)
 
 ## API documentation is generated — don't hand-edit the spec
 

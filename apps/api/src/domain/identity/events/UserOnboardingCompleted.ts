@@ -1,5 +1,5 @@
 import type { UserId } from "@snaveevans/pineapple-shared";
-import type { DomainEvent } from "../../events/DomainEvent.ts";
+import { createDomainEventMetadata, type DomainEvent } from "../../events/DomainEvent.ts";
 
 export type UserOnboardingCompleted = DomainEvent & {
   type: "UserOnboardingCompleted";
@@ -7,7 +7,7 @@ export type UserOnboardingCompleted = DomainEvent & {
 };
 
 export const UserOnboardingCompleted = (props: { userId: UserId }): UserOnboardingCompleted => ({
+  ...createDomainEventMetadata(),
   type: "UserOnboardingCompleted",
   userId: props.userId,
-  occurredAt: new Date(),
 });

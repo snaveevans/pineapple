@@ -1,4 +1,5 @@
 export { AssetId } from "./types/AssetId.ts";
+export { ActivityEntryId } from "./types/ActivityEntryId.ts";
 export { MaintenanceRecordId } from "./types/MaintenanceRecordId.ts";
 export { MaintenanceTaskId } from "./types/MaintenanceTaskId.ts";
 export { UserId } from "./types/UserId.ts";

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { AssetId, InvariantError, UserId, ValidationError } from "@snaveevans/pineapple-shared";
+import type { AssetType } from "../asset/AssetType.ts";
 import { MaintenanceRecord } from "./MaintenanceRecord.ts";
 
 describe("MaintenanceRecord", () => {
   const assetId = AssetId.generate();
   const ownerId = UserId.generate();
+  const assetName = "Truck";
+  const assetType: AssetType = "vehicle";
 
   function create(
     overrides: Partial<Parameters<typeof MaintenanceRecord.create>[0]> = {},
@@ -13,6 +16,8 @@ describe("MaintenanceRecord", () => {
       assetId,
       ownerId,
       actorId: ownerId,
+      assetName,
+      assetType,
       title: "Changed oil",
       performedAt: "2026-06-09",
       todayUtc: "2026-06-09",
@@ -32,7 +37,12 @@ describe("MaintenanceRecord", () => {
         assetId,
         ownerId,
         actorId: ownerId,
+        assetName,
+        assetType,
+        title: "Changed oil",
         performedAt: "2026-06-09",
+        taskId: null,
+        activityEntryType: "maintenance_logged",
       }),
     ]);
   });

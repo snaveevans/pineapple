@@ -165,6 +165,36 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 ---
 
+## Activity History
+
+**Route:** `/app/history`
+**Goal:** Let the user review a durable, cross-asset timeline of actions they have taken across their fleet.
+
+**Key states:**
+
+- Loading: fetches `GET /api/activity` before rendering the feed
+- Empty account history: explains that future asset, maintenance, and task actions will appear
+- Populated: reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, relative time, and absolute time
+- Filtered: type chips and a single asset selector refetch the server-side filtered feed
+- Search: inline search narrows the currently loaded history entries by title or asset name only; it does not query the API or search unloaded pages
+- Filtered empty: active filters/search remain visible and can be cleared
+- Pagination: "Load older" requests the next cursor while preserving active filters
+- Error: feed-level retry state
+
+**Non-obvious behavior:**
+
+- The first API page returns the activity page, available filters, counts, and cursor in one read model; cursor pages preserve those first-page filters while loading older entries
+- The client does not filter a preloaded history locally for type or asset filters
+- The History search field is intentionally labeled as loaded-history search and only narrows fetched pages client-side
+- Filter counts come from the caller's complete history, not the current filtered view
+- Deleted tasks and archived/renamed assets still render from the event snapshot
+- Completing a scheduled task by logging work appears as one `task_completed` row, not as both completed and logged rows
+- 401 response redirects to `/login`
+
+**Spec:** [`docs/specs/features/activity-history.md`](../specs/features/activity-history.md)
+
+---
+
 ## Add Asset
 
 **Route:** `/app/assets/new`

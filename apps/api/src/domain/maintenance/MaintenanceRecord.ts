@@ -6,9 +6,13 @@ import {
   type UserId,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
+import type { AssetType } from "../asset/AssetType.ts";
 import type { DomainEvent } from "../events/DomainEvent.ts";
 import { validateDateOnly } from "./DateOnly.ts";
-import { MaintenanceRecordCreated } from "./events/MaintenanceRecordCreated.ts";
+import {
+  MaintenanceRecordCreated,
+  type MaintenanceRecordActivityEntryType,
+} from "./events/MaintenanceRecordCreated.ts";
 
 export class MaintenanceRecord {
   private _domainEvents: DomainEvent[] = [];
@@ -28,10 +32,13 @@ export class MaintenanceRecord {
     assetId: AssetId;
     ownerId: UserId;
     actorId: UserId;
+    assetName: string;
+    assetType: AssetType;
     title: string;
     performedAt: string;
     notes?: string;
     taskId?: MaintenanceTaskId;
+    activityEntryType?: MaintenanceRecordActivityEntryType;
     todayUtc: string;
   }): MaintenanceRecord {
     const title = props.title.trim();
@@ -71,7 +78,13 @@ export class MaintenanceRecord {
         assetId: record.assetId,
         ownerId: record.ownerId,
         actorId: props.actorId,
+        assetName: props.assetName,
+        assetType: props.assetType,
+        title: record.title,
         performedAt: record.performedAt,
+        taskId: record.taskId,
+        activityEntryType:
+          props.activityEntryType !== undefined ? props.activityEntryType : "maintenance_logged",
       }),
     );
     return record;

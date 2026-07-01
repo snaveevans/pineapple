@@ -24,6 +24,9 @@ ENVIRONMENT = "production"
 enabled = true
 head_sampling_rate = 1
 
+[triggers]
+crons = ["*/15 * * * *"]
+
 # Auth config is provided as SECRETS (not committed here):
 #   wrangler secret put BETTER_AUTH_SECRET
 #   wrangler secret put GOOGLE_CLIENT_ID
@@ -57,3 +60,23 @@ dataset = "pineapple_maintenance_task_domain_events"
 [[analytics_engine_datasets]]
 binding = "API_REQUEST_TELEMETRY"
 dataset = "pineapple_api_request_events"
+
+[[queues.producers]]
+binding = "ACTIVITY_HISTORY_QUEUE"
+queue = "pineapple-activity-history"
+
+[[queues.consumers]]
+queue = "pineapple-activity-history"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "pineapple-activity-history-dlq"
+
+[[queues.consumers]]
+queue = "pineapple-activity-history-dlq"
+max_batch_size = 10
+max_batch_timeout = 5
+# Terminal DLQ: if D1 dead-letter persistence fails through these retries,
+# ActivityQueueConsumer emits a terminal error log before the platform exhausts
+# the message. Chaining another DLQ would only move the same D1 outage edge.
+max_retries = 3

@@ -38,10 +38,16 @@ class AssetRepositoryFake implements AssetRepository {
 class MaintenanceRecordWriterFake implements MaintenanceRecordWriter {
   savedRecord: MaintenanceRecord | null = null;
   savedTask: MaintenanceTask | null = null;
+  savedEvents: readonly DomainEvent[] = [];
 
-  save(record: MaintenanceRecord, advancedTask: MaintenanceTask | null): Promise<void> {
+  save(
+    record: MaintenanceRecord,
+    advancedTask: MaintenanceTask | null,
+    events: readonly DomainEvent[] = [],
+  ): Promise<void> {
     this.savedRecord = record;
     this.savedTask = advancedTask;
+    this.savedEvents = events;
     return Promise.resolve();
   }
 }
@@ -123,6 +129,11 @@ describe("CreateMaintenanceRecord", () => {
         assetId: asset.id,
         ownerId,
         actorId: ownerId,
+        assetName: "Truck",
+        assetType: "vehicle",
+        title: "Changed oil",
+        taskId: null,
+        activityEntryType: "maintenance_logged",
       }),
     ]);
     expect(records.savedRecord?.pullEvents()).toEqual([]);
@@ -288,7 +299,36 @@ describe("CreateMaintenanceRecord", () => {
       expect(records.savedTask).toBe(task);
       expect(tasks.saved).toBeNull();
       expect(events.events).toContainEqual(
-        expect.objectContaining({ type: "MaintenanceTaskAdvanced", performedAt: "2026-06-09" }),
+        expect.objectContaining({
+          type: "MaintenanceRecordCreated",
+          activityEntryType: null,
+          taskId: task.id,
+        }),
+      );
+      expect(records.savedEvents).toContainEqual(
+        expect.objectContaining({
+          type: "MaintenanceRecordCreated",
+          activityEntryType: null,
+          taskId: task.id,
+        }),
+      );
+      expect(events.events).toContainEqual(
+        expect.objectContaining({
+          type: "MaintenanceTaskAdvanced",
+          assetName: "Truck",
+          assetType: "vehicle",
+          title: "Replace furnace filter",
+          performedAt: "2026-06-09",
+        }),
+      );
+      expect(records.savedEvents).toContainEqual(
+        expect.objectContaining({
+          type: "MaintenanceTaskAdvanced",
+          assetName: "Truck",
+          assetType: "vehicle",
+          title: "Replace furnace filter",
+          performedAt: "2026-06-09",
+        }),
       );
     });
 
@@ -317,7 +357,13 @@ describe("CreateMaintenanceRecord", () => {
       expect(task.lastCompletedDate).toBe("2026-06-09");
       expect(task.nextDue).toBe("2026-08-09");
       expect(events.events).toContainEqual(
-        expect.objectContaining({ type: "MaintenanceTaskAdvanced", performedAt: "2026-06-09" }),
+        expect.objectContaining({
+          type: "MaintenanceTaskAdvanced",
+          assetName: "Truck",
+          assetType: "vehicle",
+          title: "Replace furnace filter",
+          performedAt: "2026-06-09",
+        }),
       );
     });
 
@@ -355,6 +401,20 @@ describe("CreateMaintenanceRecord", () => {
       expect(result.ok).toBe(true);
       expect(records.savedTask).toBeNull();
       expect(events.events.some((e) => e.type === "MaintenanceTaskAdvanced")).toBe(false);
+      expect(events.events).toContainEqual(
+        expect.objectContaining({
+          type: "MaintenanceRecordCreated",
+          activityEntryType: "maintenance_logged",
+          taskId: task.id,
+        }),
+      );
+      expect(records.savedEvents).toContainEqual(
+        expect.objectContaining({
+          type: "MaintenanceRecordCreated",
+          activityEntryType: "maintenance_logged",
+          taskId: task.id,
+        }),
+      );
     });
 
     it("does not advance the task when performedAt is older than lastCompletedDate", async () => {
@@ -391,6 +451,13 @@ describe("CreateMaintenanceRecord", () => {
       expect(result.ok).toBe(true);
       expect(records.savedTask).toBeNull();
       expect(events.events.some((e) => e.type === "MaintenanceTaskAdvanced")).toBe(false);
+      expect(events.events).toContainEqual(
+        expect.objectContaining({
+          type: "MaintenanceRecordCreated",
+          activityEntryType: "maintenance_logged",
+          taskId: task.id,
+        }),
+      );
     });
 
     it("returns not found when taskId references a non-existent task", async () => {

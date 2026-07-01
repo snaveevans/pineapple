@@ -1,8 +1,8 @@
 import { AssetId, UserId, ValidationError } from "@snaveevans/pineapple-shared";
-import { validateMetadata, type AssetMetadata } from "./AssetMetadata";
-import type { AssetType } from "./AssetType";
-import type { DomainEvent } from "../events/DomainEvent";
-import { AssetCreated } from "./events/AssetCreated";
+import { validateMetadata, type AssetMetadata } from "./AssetMetadata.ts";
+import type { AssetType } from "./AssetType.ts";
+import type { DomainEvent } from "../events/DomainEvent.ts";
+import { AssetCreated } from "./events/AssetCreated.ts";
 
 export class Asset {
   private _domainEvents: DomainEvent[] = [];
@@ -41,6 +41,8 @@ export class Asset {
       AssetCreated({
         assetId: asset.id,
         ownerId: asset.ownerId,
+        actorId: asset.ownerId,
+        assetName: asset.name,
         assetType: asset.type,
         ...(asset.metadata.kind === "vehicle" ? { assetModelYear: asset.metadata.year } : {}),
       }),

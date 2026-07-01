@@ -16,7 +16,12 @@ describe("Asset", () => {
     const events = asset.pullEvents();
     expect(events).toHaveLength(1);
     expect(events[0]?.type).toBe("AssetCreated");
-    expect(events[0]).toMatchObject({ assetType: "vehicle", assetModelYear: 2016 });
+    expect(events[0]).toMatchObject({
+      actorId: ownerId,
+      assetName: "My Truck",
+      assetType: "vehicle",
+      assetModelYear: 2016,
+    });
 
     // Second pull returns empty — events are drained
     expect(asset.pullEvents()).toHaveLength(0);

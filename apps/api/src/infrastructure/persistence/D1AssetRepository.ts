@@ -2,6 +2,8 @@ import { AssetId, UserId } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetMetadata } from "../../domain/asset/AssetMetadata.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
+import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
 
 type AssetRow = {
   id: string;
@@ -37,8 +39,8 @@ export class D1AssetRepository implements AssetRepository {
     return result.results.map((row) => this.#rowToAsset(row));
   }
 
-  async save(asset: Asset): Promise<void> {
-    await this.db
+  async save(asset: Asset, events: readonly DomainEvent[] = []): Promise<void> {
+    const assetStatement = this.db
       .prepare(
         `INSERT INTO assets (id, owner_id, name, type, metadata, archived_at, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -57,8 +59,18 @@ export class D1AssetRepository implements AssetRepository {
         asset.archivedAt?.toISOString() ?? null,
         asset.createdAt.toISOString(),
         asset.updatedAt.toISOString(),
-      )
-      .run();
+      );
+
+    const outboxStatements = events
+      .map((event) => prepareActivityOutboxInsert(this.db, event))
+      .filter((statement): statement is D1PreparedStatement => statement !== null);
+
+    if (outboxStatements.length === 0) {
+      await assetStatement.run();
+      return;
+    }
+
+    await this.db.batch([assetStatement, ...outboxStatements]);
   }
 
   #rowToAsset(row: AssetRow): Asset {

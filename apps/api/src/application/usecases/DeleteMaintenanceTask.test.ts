@@ -7,6 +7,8 @@ import {
   UserId,
 } from "@snaveevans/pineapple-shared";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
+import { Asset } from "../../domain/asset/Asset.ts";
+import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
@@ -33,6 +35,22 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   }
 }
 
+class AssetRepositoryFake implements AssetRepository {
+  constructor(private readonly asset: Asset | null) {}
+
+  findById(): Promise<Asset | null> {
+    return Promise.resolve(this.asset);
+  }
+
+  findByOwner(): Promise<Asset[]> {
+    return Promise.resolve([]);
+  }
+
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
 class EventBusFake implements EventBus {
   readonly events: DomainEvent[] = [];
   publish(e: DomainEvent): Promise<void> {
@@ -49,6 +67,15 @@ class EventBusFake implements EventBus {
 describe("DeleteMaintenanceTask", () => {
   const ownerId = UserId.generate();
   const assetId = AssetId.generate();
+  const asset = Asset.reconstitute({
+    id: assetId,
+    ownerId,
+    name: "Truck",
+    metadata: { kind: "vehicle", make: "Ram", model: "2500", year: 2016 },
+    archivedAt: null,
+    createdAt: new Date("2026-06-11T12:00:00.000Z"),
+    updatedAt: new Date("2026-06-11T12:00:00.000Z"),
+  });
 
   function makeTask(owner = ownerId) {
     return MaintenanceTask.reconstitute({
@@ -68,7 +95,11 @@ describe("DeleteMaintenanceTask", () => {
     const task = makeTask();
     const repo = new MaintenanceTaskRepositoryFake(task);
     const events = new EventBusFake();
-    const result = await new DeleteMaintenanceTask(repo, events).execute({
+    const result = await new DeleteMaintenanceTask(
+      new AssetRepositoryFake(asset),
+      repo,
+      events,
+    ).execute({
       taskId: task.id,
       assetId,
       requesterId: ownerId,
@@ -76,12 +107,23 @@ describe("DeleteMaintenanceTask", () => {
 
     expect(result.ok).toBe(true);
     expect(repo.deleted).toBe(task.id);
-    expect(events.events).toEqual([expect.objectContaining({ type: "MaintenanceTaskDeleted" })]);
+    expect(events.events).toEqual([
+      expect.objectContaining({
+        type: "MaintenanceTaskDeleted",
+        assetName: "Truck",
+        assetType: "vehicle",
+        title: "Replace furnace filter",
+      }),
+    ]);
   });
 
   it("returns not found when task does not exist", async () => {
     const repo = new MaintenanceTaskRepositoryFake(null);
-    const result = await new DeleteMaintenanceTask(repo, new EventBusFake()).execute({
+    const result = await new DeleteMaintenanceTask(
+      new AssetRepositoryFake(asset),
+      repo,
+      new EventBusFake(),
+    ).execute({
       taskId: MaintenanceTaskId.generate(),
       assetId,
       requesterId: ownerId,
@@ -93,7 +135,11 @@ describe("DeleteMaintenanceTask", () => {
   it("returns forbidden for another owner's task", async () => {
     const task = makeTask(UserId.generate());
     const repo = new MaintenanceTaskRepositoryFake(task);
-    const result = await new DeleteMaintenanceTask(repo, new EventBusFake()).execute({
+    const result = await new DeleteMaintenanceTask(
+      new AssetRepositoryFake(asset),
+      repo,
+      new EventBusFake(),
+    ).execute({
       taskId: task.id,
       assetId,
       requesterId: ownerId,
@@ -105,7 +151,11 @@ describe("DeleteMaintenanceTask", () => {
   it("returns not found when task belongs to a different asset", async () => {
     const task = makeTask();
     const repo = new MaintenanceTaskRepositoryFake(task);
-    const result = await new DeleteMaintenanceTask(repo, new EventBusFake()).execute({
+    const result = await new DeleteMaintenanceTask(
+      new AssetRepositoryFake(asset),
+      repo,
+      new EventBusFake(),
+    ).execute({
       taskId: task.id,
       assetId: AssetId.generate(),
       requesterId: ownerId,

@@ -31,9 +31,9 @@ import {
   todayDateOnly,
   toCreateMaintenanceTaskBody,
   validateMaintenanceTaskForm,
-  ymdToUTC,
   type MaintenanceTaskFormValues,
 } from "./maintenanceTaskForm.ts";
+import { formatMonthDay, formatShortDate, ymdToUTC } from "./dateFormat.ts";
 import { paths } from "../routes.ts";
 
 import "../design/styles/hifi.css";
@@ -42,14 +42,8 @@ import "../design/styles/mr.css";
 
 // ─── date helpers ────────────────────────────────────────────────────────────
 
-const MONTHS_SHORT = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
 function fmtDate(s: string): string {
-  const parts = s.split("-").map(Number);
-  return `${MONTHS_SHORT[parts[1]! - 1]} ${parts[2]}, ${s.slice(0, 4)}`;
+  return formatShortDate(s);
 }
 
 function relAgo(s: string): string {
@@ -76,11 +70,10 @@ function nextDueLabel(daysDue: number, nextDue: string): string {
   if (daysDue === 0) return "Due today";
   if (daysDue === 1) return "Due tomorrow";
   if (daysDue <= 14) return `Due in ${daysDue} days`;
-  const parts = nextDue.split("-").map(Number);
-  const y = parts[0]!, m = parts[1]!, d = parts[2]!;
+  const y = Number(nextDue.slice(0, 4));
   const todayY = Number(todayDateOnly().slice(0, 4));
-  if (y === todayY) return `Due ${MONTHS_SHORT[m - 1]} ${d}`;
-  return `Due ${MONTHS_SHORT[m - 1]} ${d}, ${y}`;
+  if (y === todayY) return `Due ${formatMonthDay(nextDue)}`;
+  return `Due ${formatShortDate(nextDue)}`;
 }
 
 type GroupedRecord = MaintenanceRecord & { sameDay: boolean };

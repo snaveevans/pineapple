@@ -3,6 +3,7 @@ import { AuthFlow } from "./auth/AuthFlow";
 import { AppAddAsset } from "./app/AppAddAsset";
 import { AppAssets } from "./app/AppAssets";
 import { AppHome } from "./app/AppHome";
+import { AppActivityHistory } from "./app/AppActivityHistory";
 import { AppMaintenanceRecords } from "./app/AppMaintenanceRecords";
 import { AppProfileEdit } from "./app/AppProfileEdit";
 import { MarketingHome } from "./marketing/MarketingHome";
@@ -21,6 +22,7 @@ export const router = createBrowserRouter([
       { index: true, element: <AppHome /> },
       { path: "profile", element: <AppProfileEdit /> },
       { path: "assets", element: <AppAssets /> },
+      { path: "history", element: <AppActivityHistory /> },
       { path: "assets/new", element: <AppAddAsset /> },
       { path: "assets/:assetId/maintenance", element: <AppMaintenanceRecords /> },
     ],

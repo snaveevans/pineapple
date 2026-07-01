@@ -22,6 +22,7 @@ export type IconName =
   | "snooze"
   | "arrow-right"
   | "chevron-right"
+  | "chevron-down"
   | "bell"
   | "search"
   | "plus"
@@ -141,6 +142,7 @@ const PATHS: Record<IconName, ReactNode> = {
   ),
   "arrow-right": <path d="M5 12h14M13 6l6 6-6 6" />,
   "chevron-right": <path d="M9 6l6 6-6 6" />,
+  "chevron-down": <path d="M6 9l6 6 6-6" />,
   bell: (
     <>
       <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />

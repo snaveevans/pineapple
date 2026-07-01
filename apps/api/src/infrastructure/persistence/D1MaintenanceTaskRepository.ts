@@ -1,7 +1,9 @@
 import { AssetId, MaintenanceTaskId, UserId } from "@snaveevans/pineapple-shared";
+import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { IntervalUnit } from "../../domain/maintenance/IntervalUnit.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
+import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
 
 type MaintenanceTaskRow = {
   id: string;
@@ -85,16 +87,31 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
     return row ? this.#rowToTask(row) : null;
   }
 
-  async save(task: MaintenanceTask): Promise<void> {
-    await prepareMaintenanceTaskSave(this.db, task).run();
+  async save(task: MaintenanceTask, events: readonly DomainEvent[] = []): Promise<void> {
+    const taskStatement = prepareMaintenanceTaskSave(this.db, task);
+    const outboxStatements = events
+      .map((event) => prepareActivityOutboxInsert(this.db, event))
+      .filter((statement): statement is D1PreparedStatement => statement !== null);
+
+    if (outboxStatements.length === 0) {
+      await taskStatement.run();
+      return;
+    }
+
+    await this.db.batch([taskStatement, ...outboxStatements]);
   }
 
-  async delete(taskId: MaintenanceTaskId): Promise<void> {
+  async delete(taskId: MaintenanceTaskId, events: readonly DomainEvent[] = []): Promise<void> {
+    const outboxStatements = events
+      .map((event) => prepareActivityOutboxInsert(this.db, event))
+      .filter((statement): statement is D1PreparedStatement => statement !== null);
+
     await this.db.batch([
       this.db
         .prepare("UPDATE maintenance_records SET task_id = NULL WHERE task_id = ?")
         .bind(taskId),
       this.db.prepare("DELETE FROM maintenance_tasks WHERE id = ?").bind(taskId),
+      ...outboxStatements,
     ]);
   }
 
