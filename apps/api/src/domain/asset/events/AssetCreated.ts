@@ -10,6 +10,7 @@ export type AssetCreated = DomainEvent & {
   assetName: string;
   assetType: AssetType;
   assetModelYear?: number;
+  activityEntryType: "asset_added";
 };
 
 export const AssetCreated = (props: {
@@ -28,4 +29,5 @@ export const AssetCreated = (props: {
   assetName: props.assetName,
   assetType: props.assetType,
   ...(props.assetModelYear !== undefined ? { assetModelYear: props.assetModelYear } : {}),
+  activityEntryType: "asset_added",
 });

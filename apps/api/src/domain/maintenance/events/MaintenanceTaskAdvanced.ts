@@ -18,6 +18,7 @@ export type MaintenanceTaskAdvanced = DomainEvent & {
   assetType: AssetType;
   title: string;
   performedAt: string;
+  activityEntryType: "task_completed";
 };
 
 export const MaintenanceTaskAdvanced = (props: {
@@ -42,4 +43,5 @@ export const MaintenanceTaskAdvanced = (props: {
   assetType: props.assetType,
   title: props.title,
   performedAt: props.performedAt,
+  activityEntryType: "task_completed",
 });

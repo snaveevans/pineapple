@@ -53,16 +53,19 @@ export class D1ActivityOutboxRepository {
   }
 
   async markDelivered(eventId: string): Promise<void> {
+    await this.prepareMarkDelivered(eventId).run();
+  }
+
+  prepareMarkDelivered(eventId: string): D1PreparedStatement {
     const now = new Date().toISOString();
-    await this.db
+    return this.db
       .prepare(
         `UPDATE activity_event_outbox
          SET delivered_at = COALESCE(delivered_at, ?),
              updated_at = ?
          WHERE id = ? AND consumer = ?`,
       )
-      .bind(now, now, eventId, ACTIVITY_HISTORY_CONSUMER)
-      .run();
+      .bind(now, now, eventId, ACTIVITY_HISTORY_CONSUMER);
   }
 
   private async claimPending(limit: number): Promise<OutboxRow[]> {
@@ -102,7 +105,6 @@ export class D1ActivityOutboxRepository {
           .prepare(
             `UPDATE activity_event_outbox
              SET status = 'sent',
-                 attempts = attempts + 1,
                  sent_at = COALESCE(sent_at, ?),
                  updated_at = ?,
                  last_error = NULL

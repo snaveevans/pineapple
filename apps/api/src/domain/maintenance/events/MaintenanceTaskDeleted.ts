@@ -11,6 +11,7 @@ export type MaintenanceTaskDeleted = DomainEvent & {
   assetName: string;
   assetType: AssetType;
   title: string;
+  activityEntryType: "task_deleted";
 };
 
 export const MaintenanceTaskDeleted = (props: {
@@ -31,4 +32,5 @@ export const MaintenanceTaskDeleted = (props: {
   assetName: props.assetName,
   assetType: props.assetType,
   title: props.title,
+  activityEntryType: "task_deleted",
 });

@@ -183,7 +183,8 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 **Non-obvious behavior:**
 
-- The API returns the activity page, available filters, counts, and cursor in one read model; the client does not filter a preloaded history locally for type or asset filters
+- The first API page returns the activity page, available filters, counts, and cursor in one read model; cursor pages preserve those first-page filters while loading older entries
+- The client does not filter a preloaded history locally for type or asset filters
 - The History search field is intentionally labeled as loaded-history search and only narrows fetched pages client-side
 - Filter counts come from the caller's complete history, not the current filtered view
 - Deleted tasks and archived/renamed assets still render from the event snapshot

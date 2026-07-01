@@ -139,8 +139,9 @@ These are behavioral guarantees, not storage prescriptions:
 - [ ] Add `GET /api/activity` as a protected application API endpoint
 - [ ] The endpoint uses the resolved authenticated `User.id` as the ownership input;
       no `ownerId` is accepted from the request
-- [ ] The response returns the caller's activity in a single read model containing:
-      the page of entries, the available filters with counts, and a pagination cursor
+- [ ] The initial response returns the caller's activity in a single read model
+      containing: the page of entries, the available filters with counts, and a
+      pagination cursor
 - [ ] Only the caller's own activity is ever returned; the response never exposes
       another user's entries, `ownerId`, or auth-provider identifiers
 - [ ] Entries are returned newest first by `occurredAt`, with a stable secondary
@@ -167,9 +168,9 @@ These are behavioral guarantees, not storage prescriptions:
 - [ ] Filtering is performed server-side against the durable log — unlike the asset
       library and dashboard, the client does not filter a pre-loaded set, because the
       feed is unbounded and paginated
-- [ ] The response includes `availableFilters`: the set of action types present in
-      the caller's history with a count for each, and the set of assets present in the
-      caller's history (`id`, `name`, `type`) with a count for each
+- [ ] The first page response includes `availableFilters`: the set of action types
+      present in the caller's history with a count for each, and the set of assets
+      present in the caller's history (`id`, `name`, `type`) with a count for each
 - [ ] Filter facet counts are computed over the caller's **complete** history, not
       the currently filtered view, so the user can pivot between filters (the same
       principle as the library's category counts in [asset-library.md](./asset-library.md))
@@ -188,6 +189,8 @@ These are behavioral guarantees, not storage prescriptions:
       entries exist and a null/absent cursor when the caller has reached the end
 - [ ] The client requests the next page by passing the returned cursor; the cursor is
       opaque to the client
+- [ ] Cursor-page responses may return empty `availableFilters`; the client preserves
+      the first page's facets while loading older entries
 - [ ] A bounded page size applies (default and maximum defined at the Zod edge; the
       maximum keeps a single response within Analytics Engine / Worker limits and a
       reasonable payload size)
@@ -304,10 +307,12 @@ event** — no read-back to D1:
   (`MaintenanceRecordCreated`, `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`,
   `MaintenanceTaskDeleted`). Carrying `title` on `MaintenanceTaskDeleted` is what lets a
   `task_deleted` entry render after the task row is gone (`DELETE FROM maintenance_tasks`).
-- `MaintenanceRecordCreated` carries the producer-owned `activityEntryType` conclusion:
-  `maintenance_logged` when the record itself should appear in History, or `null` when a
-  paired `MaintenanceTaskAdvanced` already represents the user action as `task_completed`.
-  The durable projection never infers that from `taskId`.
+- Each tracked event carries a producer-owned `activityEntryType` conclusion. For
+  static one-to-one mappings this is the event's fixed activity type; for
+  `MaintenanceRecordCreated` it is `maintenance_logged` when the record itself should
+  appear in History, or `null` when a paired `MaintenanceTaskAdvanced` already represents
+  the user action as `task_completed`. The durable projection never infers that from
+  `taskId`.
 
 This holds ADR-0009's line: events carry domain state and conclusions, never presentation
 copy — the client still formats relative dates and labels.

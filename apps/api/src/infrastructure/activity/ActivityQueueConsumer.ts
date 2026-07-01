@@ -7,6 +7,8 @@ import { D1ActivityLogRepository } from "./D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./D1ActivityOutboxRepository.ts";
 import { D1DeadLetterRepository } from "./D1DeadLetterRepository.ts";
 
+const ACTIVITY_HISTORY_DLQ_MAX_RETRIES = 3;
+
 export async function handleActivityQueueBatch(
   batch: MessageBatch<unknown>,
   db: D1Database,
@@ -33,8 +35,9 @@ export async function handleActivityQueueBatch(
     }
 
     try {
-      await activityLog.recordEvent(message.body);
-      await outbox.markDelivered(message.body.id);
+      const recordActivity = activityLog.prepareRecordEvent(message.body);
+      const markDelivered = outbox.prepareMarkDelivered(message.body.id);
+      await db.batch(recordActivity === null ? [markDelivered] : [recordActivity, markDelivered]);
       message.ack();
     } catch (error) {
       console.error({ error, messageId: message.id }, "Activity queue message failed");
@@ -70,7 +73,14 @@ async function persistDeadLetterMessage(
     });
     message.ack();
   } catch (error) {
-    console.error({ error, messageId: message.id }, "Activity dead-letter persistence failed");
+    const isTerminalDlqFailure =
+      queue === ACTIVITY_HISTORY_DLQ_NAME && message.attempts >= ACTIVITY_HISTORY_DLQ_MAX_RETRIES;
+    console.error(
+      { error, messageId: message.id, queue, attempts: message.attempts },
+      isTerminalDlqFailure
+        ? "Activity terminal dead-letter persistence failed"
+        : "Activity dead-letter persistence failed",
+    );
     message.retry();
   }
 }

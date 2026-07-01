@@ -14,6 +14,7 @@ export type MaintenanceTaskCreated = DomainEvent & {
   title: string;
   intervalValue: number;
   intervalUnit: IntervalUnit;
+  activityEntryType: "task_scheduled";
 };
 
 export const MaintenanceTaskCreated = (props: {
@@ -38,4 +39,5 @@ export const MaintenanceTaskCreated = (props: {
   title: props.title,
   intervalValue: props.intervalValue,
   intervalUnit: props.intervalUnit,
+  activityEntryType: "task_scheduled",
 });

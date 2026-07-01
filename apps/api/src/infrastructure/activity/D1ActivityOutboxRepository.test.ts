@@ -49,6 +49,7 @@ describe("D1ActivityOutboxRepository", () => {
       statement.query.includes("SET status = 'sent'"),
     );
     expect(sentStatement?.query).toContain("AND status = 'sending'");
+    expect(sentStatement?.query).not.toContain("attempts = attempts + 1");
   });
 
   it("releases claimed rows when queue send fails", async () => {

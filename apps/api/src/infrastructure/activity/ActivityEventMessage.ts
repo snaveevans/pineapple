@@ -163,7 +163,7 @@ function common<Type extends ActivityDomainEventType, EntryType extends Activity
 }
 
 function fromAssetCreated(event: AssetCreated): AssetCreatedActivityEventMessage {
-  return common(event, "asset_added");
+  return common(event, event.activityEntryType);
 }
 
 function fromMaintenanceRecordCreated(
@@ -182,7 +182,7 @@ function fromMaintenanceTaskCreated(
   event: MaintenanceTaskCreated,
 ): MaintenanceTaskCreatedActivityEventMessage {
   return {
-    ...common(event, "task_scheduled"),
+    ...common(event, event.activityEntryType),
     maintenanceTaskId: event.maintenanceTaskId,
     title: event.title,
   };
@@ -192,7 +192,7 @@ function fromMaintenanceTaskAdvanced(
   event: MaintenanceTaskAdvanced,
 ): MaintenanceTaskAdvancedActivityEventMessage {
   return {
-    ...common(event, "task_completed"),
+    ...common(event, event.activityEntryType),
     maintenanceTaskId: event.maintenanceTaskId,
     maintenanceRecordId: event.maintenanceRecordId,
     title: event.title,
@@ -204,7 +204,7 @@ function fromMaintenanceTaskDeleted(
   event: MaintenanceTaskDeleted,
 ): MaintenanceTaskDeletedActivityEventMessage {
   return {
-    ...common(event, "task_deleted"),
+    ...common(event, event.activityEntryType),
     maintenanceTaskId: event.maintenanceTaskId,
     title: event.title,
   };

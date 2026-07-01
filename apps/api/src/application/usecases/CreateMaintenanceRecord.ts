@@ -4,6 +4,7 @@ import {
   type DomainError,
   DomainError as DomainErrorClass,
   ForbiddenError,
+  InvariantError,
   type MaintenanceTaskId,
   NotFoundError,
   type Result,
@@ -84,6 +85,9 @@ export class CreateMaintenanceRecord {
         })
           ? task
           : null;
+      if (linkedTaskWillAdvance !== (advancedTask !== null)) {
+        throw new InvariantError("Maintenance task advancement state changed while logging record");
+      }
 
       const recordEvents = record.pullEvents();
       const taskEvents = advancedTask !== null ? advancedTask.pullEvents() : [];

@@ -56,11 +56,9 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
 
   async list(query: ActivityLogQuery): Promise<ActivityReadModel> {
     const cursor = decodeCursor(query.cursor, query);
-    const [entries, typeFilters, assetFilters] = await Promise.all([
-      this.fetchEntries(query, cursor),
-      this.fetchTypeFilters(query.ownerId),
-      this.fetchAssetFilters(query.ownerId),
-    ]);
+    const entries = await this.fetchEntries(query, cursor);
+    const availableFilters =
+      cursor === null ? await this.fetchAvailableFilters(query.ownerId) : { types: [], assets: [] };
 
     const visibleEntries = entries.slice(0, query.limit).map(rowToEntry);
     const hasMore = entries.length > query.limit;
@@ -68,19 +66,23 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
 
     return {
       entries: visibleEntries,
-      availableFilters: {
-        types: typeFilters,
-        assets: assetFilters,
-      },
+      availableFilters,
       nextCursor: hasMore && last ? encodeCursor(last, query) : null,
     };
   }
 
   async recordEvent(event: ActivityEventMessage): Promise<void> {
-    const entry = entryFromEvent(event);
-    if (entry === null) return;
+    const statement = this.prepareRecordEvent(event);
+    if (statement === null) return;
 
-    await this.db
+    await statement.run();
+  }
+
+  prepareRecordEvent(event: ActivityEventMessage): D1PreparedStatement | null {
+    const entry = entryFromEvent(event);
+    if (entry === null) return null;
+
+    return this.db
       .prepare(
         `INSERT INTO activity_entries
            (id, source_event_id, owner_id, actor_id, type, occurred_at,
@@ -101,8 +103,7 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
         entry.title,
         entry.performedAt,
         new Date().toISOString(),
-      )
-      .run();
+      );
   }
 
   private async fetchEntries(
@@ -137,6 +138,16 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
       .bind(...values)
       .all<ActivityEntryRow>();
     return result.results;
+  }
+
+  private async fetchAvailableFilters(
+    ownerId: UserId,
+  ): Promise<ActivityReadModel["availableFilters"]> {
+    const [types, assets] = await Promise.all([
+      this.fetchTypeFilters(ownerId),
+      this.fetchAssetFilters(ownerId),
+    ]);
+    return { types, assets };
   }
 
   private async fetchTypeFilters(ownerId: UserId): Promise<ActivityTypeFilter[]> {

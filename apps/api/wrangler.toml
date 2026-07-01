@@ -76,4 +76,7 @@ dead_letter_queue = "pineapple-activity-history-dlq"
 queue = "pineapple-activity-history-dlq"
 max_batch_size = 10
 max_batch_timeout = 5
+# Terminal DLQ: if D1 dead-letter persistence fails through these retries,
+# ActivityQueueConsumer emits a terminal error log before the platform exhausts
+# the message. Chaining another DLQ would only move the same D1 outage edge.
 max_retries = 3

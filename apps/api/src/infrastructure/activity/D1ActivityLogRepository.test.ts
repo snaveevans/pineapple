@@ -46,6 +46,10 @@ function baseEvent(overrides: Partial<ActivityEventMessage> = {}): ActivityEvent
   } as ActivityEventMessage;
 }
 
+function encodeCursor(payload: object): string {
+  return btoa(JSON.stringify(payload)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/u, "");
+}
+
 describe("D1ActivityLogRepository", () => {
   it("projects task advancement as one task_completed activity entry", async () => {
     const { db, statements } = createDatabaseHarness();
@@ -128,5 +132,21 @@ describe("D1ActivityLogRepository", () => {
         cursor: "not-base64-json",
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("skips aggregate filter scans on cursor pages", async () => {
+    const { db, prepare } = createDatabaseHarness();
+    const result = await new D1ActivityLogRepository(db).list({
+      ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+      limit: 25,
+      cursor: encodeCursor({
+        v: 1,
+        occurredAt: "2026-06-09T18:25:24.887Z",
+        id: "e2d3cf94-3779-43ea-b595-dac35dcba45a",
+      }),
+    });
+
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(result.availableFilters).toEqual({ types: [], assets: [] });
   });
 });
