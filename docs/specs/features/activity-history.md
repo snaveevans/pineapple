@@ -30,7 +30,10 @@ domain-event stream persists each action to its own store, separate from the
 telemetry handlers. This is deliberate — telemetry's Analytics Engine datasets are
 sampled and retained only three months and are explicitly not an audit log
 ([telemetry.md](../cross-cutting/telemetry.md) anti-patterns). History needs an
-exact, durable record, so it does not read from telemetry.
+exact, durable record, so it does not read from telemetry. The consumer is a **pure
+projection**: it builds each entry directly from the enriched ("Smart") event payload
+per [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md), without
+reading back to D1.
 
 The web app surfaces this as its own page/route. UX intent (layout, day-grouping,
 relative-date copy, filter chips, empty states) is documented in
@@ -47,8 +50,9 @@ defines the API capability and behavior.
   asset.
 - **Owner-operator reviewing removed/archived items** — deleted a task or archived
   an asset and still expects the historical entry to be there.
-- **System actor: activity-log consumer** — a durable subscriber to the domain-event
-  bus that writes one entry per tracked action, parallel to the telemetry handlers.
+- **System actor: activity-log consumer** — a durable queue consumer, fed from the
+  producer-side outbox ([ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)),
+  that writes one entry per tracked action.
 - **Future: team member / delegate** — a second person acting on the same fleet.
   Out of scope for v1, but entries record an `actorId` distinct from the owner so
   multi-actor attribution is possible later (see Flags).
@@ -79,23 +83,23 @@ defines the API capability and behavior.
 Each tracked action becomes exactly one history entry. The five entry types and the
 existing domain events that drive them:
 
-| Entry type           | User action                                  | Source domain event(s)                                                                                                                          |
-| -------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `asset_added`        | Added an asset                               | `AssetCreated`                                                                                                                                  |
-| `maintenance_logged` | Logged ad-hoc maintenance (no task advanced) | `MaintenanceRecordCreated` not accompanied by a `MaintenanceTaskAdvanced` for the same record                                                   |
-| `task_completed`     | Completed a scheduled task by logging work   | `MaintenanceTaskAdvanced`, published alongside a `MaintenanceRecordCreated` for the same `maintenanceRecordId` — the pair is one entry, not two |
-| `task_scheduled`     | Scheduled a maintenance task                 | `MaintenanceTaskCreated`                                                                                                                        |
-| `task_deleted`       | Removed a maintenance task                   | `MaintenanceTaskDeleted`                                                                                                                        |
+| Entry type           | User action                                  | Source domain event(s)                                                                                                   |
+| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `asset_added`        | Added an asset                               | `AssetCreated`                                                                                                           |
+| `maintenance_logged` | Logged ad-hoc maintenance (no task advanced) | `MaintenanceRecordCreated` whose `taskId` is absent (ad-hoc work — no task advanced)                                     |
+| `task_completed`     | Completed a scheduled task by logging work   | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries the `taskId`, so the pair is one entry, not two |
+| `task_scheduled`     | Scheduled a maintenance task                 | `MaintenanceTaskCreated`                                                                                                 |
+| `task_deleted`       | Removed a maintenance task                   | `MaintenanceTaskDeleted`                                                                                                 |
 
 Not tracked in v1: asset archive/unarchive (no domain event exists), profile/account
 changes, and sign-in events. See Out of Scope.
 
-> **Two small event changes are decided (see Flags).** The tracked events carry IDs,
-> types, and dates but no display strings, and `MaintenanceRecordCreated` has no
-> `taskId`. Because tasks are hard-deleted, a `task_deleted` entry cannot be
-> reconstructed later — so `MaintenanceTaskDeleted` carries the task title. The
-> consumer resolves the rest (asset name/type, titles) by lookup at write time, since
-> assets and records are never hard-deleted.
+> **The tracked events are enriched (Smart Events, [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)).**
+> Each carries the asset snapshot (name/type) and its own `title`, plus the conclusion
+> linking a maintenance record to a task completion — so History writes each entry
+> **straight from the event** with no read-back to D1. Carrying the title on
+> `MaintenanceTaskDeleted` is what lets a `task_deleted` entry render after the task row
+> is gone. See Flags.
 
 ## Source, Durability & Lifecycle
 
@@ -108,15 +112,19 @@ These are behavioral guarantees, not storage prescriptions:
   do not expire. The feed reflects the full record, not a time-limited or sampled
   window. (This is why History does not read from telemetry's Analytics Engine
   datasets.)
-- **Best-effort capture.** The activity-log consumer behaves like the telemetry
-  consumers: a failure to write an entry is logged server-side and swallowed. It
-  **never** blocks, delays, or fails the user's underlying action. In a rare failure
-  an action may not appear in History; this is an accepted trade-off for v1 (see
-  Flags).
-- **Self-contained entries.** Each entry captures enough snapshot context at write
-  time (the asset's name and type, the relevant title, the performed date) to render
-  on its own. An entry remains fully readable after its underlying task is deleted or
-  its asset is archived — it never renders as "unknown" and never disappears.
+- **Durable, no-gap capture.** Recording an action never blocks, delays, or fails the
+  user's underlying action — but it is **not** best-effort. Each tracked action is captured
+  exactly once and is never silently dropped: the event is persisted atomically with the
+  action it describes and delivered to the History consumer at least once, and the consumer
+  dedupes on the event id so a redelivery cannot create a duplicate entry. A delivery or
+  write failure is retried, not swallowed (see the outbox decision in Flags, per
+  [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)).
+- **Self-contained entries.** Each entry is built from the enriched event payload
+  (Smart Events, [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)),
+  which carries the asset's name and type, the relevant title, and the performed date —
+  so the entry renders on its own with no read-back. It remains fully readable after its
+  underlying task is deleted or its asset is archived — it never renders as "unknown" and
+  never disappears.
 - **Immutable.** Entries are append-only. Renaming an asset later does not rewrite
   past entries (they reflect what was true when the action happened); History has no
   edit or delete capability.
@@ -229,7 +237,7 @@ only and does not order the feed.
 | A task referenced by an entry is later deleted                | The entry remains and renders from its snapshot                                                                               |
 | An asset referenced by entries is later archived              | Entries remain; the asset still appears in the asset filter facet                                                             |
 | Two actions share the same `occurredAt`                       | Deterministic order via the secondary tiebreak; no flicker or duplication across pages                                        |
-| The activity-log write fails for an action                    | The user's action still succeeds; the failure is logged server-side; the entry may be absent (best-effort)                    |
+| The activity-log delivery or write fails for an action        | The user's action still succeeds; the event is durably captured and retried until written — the entry is not dropped          |
 | Actions taken before the feature launched                     | Not present (no backfill)                                                                                                     |
 | New activity occurs while the user is viewing the feed        | Appears on the next fetch/refresh; the feed is not real-time                                                                  |
 | Non-401 API error (e.g. 500)                                  | Client shows a feed-level error state with retry                                                                              |
@@ -244,15 +252,18 @@ A route shipped without a mapping entry falls through to `Unknown` and is invisi
 telemetry (telemetry.md anti-pattern), so the mapping must land with the route.
 
 **Domain events:** None new. History does not publish a domain event — reads do not
-produce events, and the feature emits nothing. It **consumes** the existing event
-stream: a new durable activity-log consumer subscribes to `AssetCreated`,
-`MaintenanceRecordCreated`, `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and
-`MaintenanceTaskDeleted`, persisting one entry per action to History's own durable
-store. This consumer is registered alongside — and independently of — the telemetry
-handlers in `registerDomainTelemetry`; an existing event therefore has both a
-telemetry subscriber (Analytics Engine) and the History subscriber (durable store),
-and a failure in one does not affect the other (per-handler error isolation in
-`InMemoryEventBus`).
+produce events, and the feature emits nothing. It **consumes** the existing events
+(`AssetCreated`, `MaintenanceRecordCreated`, `MaintenanceTaskCreated`,
+`MaintenanceTaskAdvanced`, `MaintenanceTaskDeleted`), persisting one entry per action to
+its own durable store. Those events are enriched per
+[ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md) so the consumer
+projects each entry without reading D1.
+
+Delivery is durable, not best-effort (see Flags, per
+[ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)): History
+is a queue consumer fed from the producer-side outbox at least once, distinct from the
+telemetry handlers, which stay on the in-process best-effort path and continue to write only
+non-PII fields to Analytics Engine. The enrichment does not change what telemetry writes.
 
 **Beyond request telemetry:** No additional measurement is required for v1. Filter
 usage and feed engagement are not instrumented.
@@ -264,38 +275,44 @@ both `MaintenanceTaskAdvanced` and `MaintenanceRecordCreated`. This spec collaps
 them into a single `task_completed` entry so one user action is one row. If product
 later wants both the "logged" and "completed" facets visible, revisit.
 
-**DECISION — Best-effort capture (acknowledged gap):** Consistent with the event bus
-swallowing handler failures, a failed activity write is logged and dropped rather than
-retried or made transactional. This can, rarely, leave a gap with no user-facing
-error. Revisit (e.g. transactional write or an outbox) if gaps are observed in
-practice.
+**DECISION — Durable delivery via a transactional outbox ([ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)):**
+History must not drop actions, so it does not ride the best-effort in-process bus. Each
+tracked event is written to a producer-side **outbox** in the _same atomic D1 transaction_
+as the domain change — so an event is persisted if and only if its action is. A relay then
+delivers outbox rows to the History queue **at least once** (on the request tail, with a
+scheduled sweep as the backstop for rows whose in-request relay did not run). The consumer
+is **idempotent**: it writes each entry under a unique constraint on the source event id
+(insert-or-ignore), so an at-least-once redelivery can never create a duplicate. A message
+that exhausts its retries lands in the queue's dead-letter queue and is persisted durably (a
+`dead_letters` record) rather than left to expire, so a poison event is captured for manual,
+idempotent-safe replay — not silently lost. Net effect:
+every action appears in History exactly once, capture never blocks or fails the user's
+action, and there is no silent-gap trade-off. Built this way from the start — no best-effort
+interim.
 
-**DECISION — Minimal event enrichment, snapshot the rest by lookup:** The durable log
-needs display strings the domain events don't carry (asset name/type, record/task
-titles) and a way to tell a completion from ad-hoc work. Because the events are
-in-process and never persisted, changing their shape is a contained refactor. The
-chosen v1 approach is the smallest correct change:
+**DECISION — Smart Events; History is a pure projection ([ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)):**
+The five tracked events are enriched to carry the state and producer-owned conclusions a
+durable consumer needs, and the History consumer writes each entry **directly from the
+event** — no read-back to D1:
 
-- `MaintenanceTaskDeleted` gains the task `title` — the only field that cannot be
-  recovered later, because tasks are hard-deleted (`DELETE FROM maintenance_tasks`).
-- `MaintenanceRecordCreated` gains `taskId` — so a record that completed a task is
-  recognized as a single `task_completed` entry without correlating two events.
-- The History consumer snapshots the remaining display data (asset name/type, and the
-  record or task title for non-delete entries) by reading the still-existing entities
-  at write time, since assets are archived (never deleted) and records are never
-  deleted.
+- Every tracked event carries the asset snapshot (`name`, `type`) it relates to. The asset
+  name is cross-aggregate, so the use case — which already loads the asset — supplies it
+  when the event is published; it is never read inside an aggregate (ADR-0003).
+- Each maintenance event carries its own descriptive `title`
+  (`MaintenanceRecordCreated`, `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`,
+  `MaintenanceTaskDeleted`). Carrying `title` on `MaintenanceTaskDeleted` is what lets a
+  `task_deleted` entry render after the task row is gone (`DELETE FROM maintenance_tasks`).
+- `MaintenanceRecordCreated` carries the producer-owned conclusion that links it to a
+  completion (the advanced `taskId`), so a completion is one `task_completed` entry without
+  correlating two events.
 
-These new event fields are **not** added to the telemetry handlers' writes, so the
-telemetry data-point contracts and their `v1` schema in
-[telemetry.md](../cross-cutting/telemetry.md) are unchanged and no PII enters Analytics
+This holds ADR-0009's line: events carry domain state and conclusions, never presentation
+copy — the client still formats relative dates and labels.
+
+Telemetry handlers stay **thin selective readers**: the enriched fields are not added to
+their Analytics Engine writes, so the telemetry data-point contracts and their `v1` schema
+in [telemetry.md](../cross-cutting/telemetry.md) are unchanged and no PII enters Analytics
 Engine.
-
-**Tradeoff (revisit later):** snapshot-by-lookup adds a D1 read on the event-handling
-path (roughly one per entry written). This is accepted for v1 given the two-person
-fleet. When we revisit performance and D1 read/write cost, the optimization is to
-thread the display fields onto the events from the use cases — which already load the
-asset — eliminating the lookups at the cost of denormalizing display data onto the
-shared events (and the discipline of keeping it out of telemetry writes).
 
 **RESERVED — Actor vs. owner:** Entries record an `actorId` (who acted) distinct from
 `ownerId` (whose fleet). Today they are always equal (the same constraint noted in
@@ -306,8 +323,8 @@ without a schema change. v1 does not display a separate actor.
 **FOLLOW-UP — Reference docs at implementation time:** Adding the durable store
 introduces a new table and a new branded id (an activity-entry id). Update
 [data-model.md](../../reference/data-model.md) (storage mapping, branded value
-objects, the consumer, the enriched `MaintenanceTaskDeleted` / `MaintenanceRecordCreated`
-payloads, and the currently stale domain-events table) and add the web screen to
+objects, the consumer, the enriched event payloads (all five tracked events per
+ADR-0010), and the currently stale domain-events table) and add the web screen to
 [`docs/web/FEATURES.md`](../../web/FEATURES.md) when built. Regenerate the OpenAPI
 document from the new Zod route spec.
 
