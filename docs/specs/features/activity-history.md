@@ -178,7 +178,9 @@ These are behavioral guarantees, not storage prescriptions:
 - [ ] A filter for an `assetId` the caller does not own, or that has no entries,
       returns an empty entry list (not an error and not a leak of existence)
 - [ ] v1 supports a single value per filter dimension (one type and/or one asset);
-      multi-select, date ranges, and free-text search are out of scope
+      multi-select and date ranges are out of scope
+- [ ] The web UI may narrow the already-loaded entries by title or asset name for
+      quick scanning, but this is not an API filter and does not search unloaded pages
 
 ### Pagination
 
@@ -338,7 +340,7 @@ document from the new Zod route spec.
 - Profile/account events (name changes, account creation) and sign-in events in the
   feed
 - Asset archive/unarchive as tracked actions (no domain event exists yet)
-- Multi-select filters, date-range filters, and free-text search of history
+- Multi-select filters, date-range filters, and API-backed free-text search of history
 - Real-time/live updates (the feed refreshes on fetch, not via push)
 - Exporting history (CSV, PDF, etc.)
 - Undo/restore actions from History
