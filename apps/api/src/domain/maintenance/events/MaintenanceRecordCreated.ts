@@ -7,6 +7,8 @@ import type {
 import type { AssetType } from "../../asset/AssetType.ts";
 import { createDomainEventMetadata, type DomainEvent } from "../../events/DomainEvent.ts";
 
+export type MaintenanceRecordActivityEntryType = "maintenance_logged" | null;
+
 export type MaintenanceRecordCreated = DomainEvent & {
   type: "MaintenanceRecordCreated";
   maintenanceRecordId: MaintenanceRecordId;
@@ -18,6 +20,7 @@ export type MaintenanceRecordCreated = DomainEvent & {
   title: string;
   performedAt: string;
   taskId: MaintenanceTaskId | null;
+  activityEntryType: MaintenanceRecordActivityEntryType;
 };
 
 export const MaintenanceRecordCreated = (props: {
@@ -30,6 +33,7 @@ export const MaintenanceRecordCreated = (props: {
   title: string;
   performedAt: string;
   taskId: MaintenanceTaskId | null;
+  activityEntryType: MaintenanceRecordActivityEntryType;
 }): MaintenanceRecordCreated => ({
   ...createDomainEventMetadata(),
   type: "MaintenanceRecordCreated",
@@ -42,4 +46,5 @@ export const MaintenanceRecordCreated = (props: {
   title: props.title,
   performedAt: props.performedAt,
   taskId: props.taskId,
+  activityEntryType: props.activityEntryType,
 });

@@ -92,13 +92,13 @@ details:
 
 Aggregates raise events when something significant happens. Today:
 
-| Event                      | Raised when                     | Carries                                                                                       |
-| -------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------- |
-| `AssetCreated`             | an asset is created             | event id, asset/owner/actor, asset snapshot, type, and optional year                          |
-| `MaintenanceRecordCreated` | a maintenance record is created | event id, record/asset/owner/actor, asset snapshot, title, performed date, and linked task id |
-| `MaintenanceTaskCreated`   | a maintenance task is scheduled | event id, task/asset/owner/actor, asset snapshot, title, interval                             |
-| `MaintenanceTaskAdvanced`  | a task is completed by a record | event id, task/record/asset/owner/actor, asset snapshot, title, performed date                |
-| `MaintenanceTaskDeleted`   | a maintenance task is removed   | event id, task/asset/owner/actor, asset snapshot, title                                       |
+| Event                      | Raised when                     | Carries                                                                                                                               |
+| -------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `AssetCreated`             | an asset is created             | event id, asset/owner/actor, asset snapshot, type, and optional year                                                                  |
+| `MaintenanceRecordCreated` | a maintenance record is created | event id, record/asset/owner/actor, asset snapshot, title, performed date, linked task id, and History `activityEntryType` conclusion |
+| `MaintenanceTaskCreated`   | a maintenance task is scheduled | event id, task/asset/owner/actor, asset snapshot, title, interval                                                                     |
+| `MaintenanceTaskAdvanced`  | a task is completed by a record | event id, task/record/asset/owner/actor, asset snapshot, title, performed date                                                        |
+| `MaintenanceTaskDeleted`   | a maintenance task is removed   | event id, task/asset/owner/actor, asset snapshot, title                                                                               |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1

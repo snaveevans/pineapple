@@ -23,15 +23,12 @@ export async function handleActivityQueueBatch(
 
   for (const message of batch.messages) {
     if (!isActivityEventMessage(message.body)) {
-      await deadLetters.save({
-        consumer: ACTIVITY_HISTORY_CONSUMER,
-        queue: batch.queue,
-        queueMessageId: message.id,
-        attempts: message.attempts,
-        payload: message.body,
-        reason: "Malformed activity event message",
-      });
-      message.ack();
+      await persistDeadLetterMessage(
+        message,
+        batch.queue,
+        deadLetters,
+        "Malformed activity event message",
+      );
       continue;
     }
 
@@ -52,14 +49,28 @@ async function persistDeadLetterBatch(
   reason: string,
 ): Promise<void> {
   for (const message of batch.messages) {
+    await persistDeadLetterMessage(message, batch.queue, deadLetters, reason);
+  }
+}
+
+async function persistDeadLetterMessage(
+  message: Message<unknown>,
+  queue: string,
+  deadLetters: D1DeadLetterRepository,
+  reason: string,
+): Promise<void> {
+  try {
     await deadLetters.save({
       consumer: ACTIVITY_HISTORY_CONSUMER,
-      queue: batch.queue,
+      queue,
       queueMessageId: message.id,
       attempts: message.attempts,
       payload: message.body,
       reason,
     });
     message.ack();
+  } catch (error) {
+    console.error({ error, messageId: message.id }, "Activity dead-letter persistence failed");
+    message.retry();
   }
 }

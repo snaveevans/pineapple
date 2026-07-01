@@ -37,6 +37,7 @@ function baseEvent(overrides: Partial<ActivityEventMessage> = {}): ActivityEvent
     actorId: UserId.from("71afbc20-f2e0-4fc8-a989-278437cf792c"),
     assetName: "Truck",
     assetType: "vehicle",
+    activityEntryType: "task_completed",
     maintenanceTaskId: MaintenanceTaskId.from("a1b2c3d4-e5f6-4890-abcd-ef1234567890"),
     maintenanceRecordId: MaintenanceRecordId.from("e914b960-772f-46a7-b6fb-f333dcfc7fc9"),
     title: "Oil change",
@@ -57,7 +58,6 @@ describe("D1ActivityLogRepository", () => {
     expect(statements[0]?.values).toEqual([
       event.id,
       event.id,
-      "MaintenanceTaskAdvanced",
       event.ownerId,
       event.actorId,
       "task_completed",
@@ -71,10 +71,11 @@ describe("D1ActivityLogRepository", () => {
     ]);
   });
 
-  it("does not create a maintenance_logged entry for a record linked to a task", async () => {
+  it("does not create a maintenance_logged entry for a record collapsed into a task completion", async () => {
     const { db, prepare } = createDatabaseHarness();
     const event = baseEvent({
       type: "MaintenanceRecordCreated",
+      activityEntryType: null,
       maintenanceRecordId: MaintenanceRecordId.from("e914b960-772f-46a7-b6fb-f333dcfc7fc9"),
       taskId: MaintenanceTaskId.from("a1b2c3d4-e5f6-4890-abcd-ef1234567890"),
       title: "Oil change",
@@ -84,6 +85,36 @@ describe("D1ActivityLogRepository", () => {
     await new D1ActivityLogRepository(db).recordEvent(event);
 
     expect(prepare).not.toHaveBeenCalled();
+  });
+
+  it("projects a linked record as maintenance_logged when no task advancement occurred", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const event = baseEvent({
+      type: "MaintenanceRecordCreated",
+      activityEntryType: "maintenance_logged",
+      maintenanceRecordId: MaintenanceRecordId.from("e914b960-772f-46a7-b6fb-f333dcfc7fc9"),
+      taskId: MaintenanceTaskId.from("a1b2c3d4-e5f6-4890-abcd-ef1234567890"),
+      title: "Backdated oil change",
+      performedAt: "2026-05-09",
+    });
+
+    await new D1ActivityLogRepository(db).recordEvent(event);
+
+    expect(statements).toHaveLength(1);
+    expect(statements[0]?.values).toEqual([
+      event.id,
+      event.id,
+      event.ownerId,
+      event.actorId,
+      "maintenance_logged",
+      event.occurredAt,
+      event.assetId,
+      event.assetName,
+      event.assetType,
+      "Backdated oil change",
+      "2026-05-09",
+      expect.any(String),
+    ]);
   });
 
   it("rejects malformed cursors as validation errors", async () => {

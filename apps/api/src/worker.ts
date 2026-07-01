@@ -237,14 +237,9 @@ app.use("/api/*", async (c, next) => {
   await next();
   if (c.res.status >= 400 || !["POST", "PATCH", "DELETE"].includes(c.req.method)) return;
 
-  const relay = new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE);
-  try {
-    c.executionCtx.waitUntil(relay);
-  } catch {
-    void relay.catch((error: unknown) => {
-      console.error({ error }, "Activity outbox relay failed outside waitUntil");
-    });
-  }
+  c.executionCtx.waitUntil(
+    new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
+  );
 });
 
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).

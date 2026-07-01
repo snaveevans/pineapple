@@ -83,13 +83,13 @@ defines the API capability and behavior.
 Each tracked action becomes exactly one history entry. The five entry types and the
 existing domain events that drive them:
 
-| Entry type           | User action                                  | Source domain event(s)                                                                                                   |
-| -------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `asset_added`        | Added an asset                               | `AssetCreated`                                                                                                           |
-| `maintenance_logged` | Logged ad-hoc maintenance (no task advanced) | `MaintenanceRecordCreated` whose `taskId` is absent (ad-hoc work — no task advanced)                                     |
-| `task_completed`     | Completed a scheduled task by logging work   | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries the `taskId`, so the pair is one entry, not two |
-| `task_scheduled`     | Scheduled a maintenance task                 | `MaintenanceTaskCreated`                                                                                                 |
-| `task_deleted`       | Removed a maintenance task                   | `MaintenanceTaskDeleted`                                                                                                 |
+| Entry type           | User action                                 | Source domain event(s)                                                                                                                |
+| -------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `asset_added`        | Added an asset                              | `AssetCreated`                                                                                                                        |
+| `maintenance_logged` | Logged maintenance with no task advancement | `MaintenanceRecordCreated` whose producer-owned `activityEntryType` is `maintenance_logged`                                           |
+| `task_completed`     | Completed a scheduled task by logging work  | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries `activityEntryType: null`, so the pair is one entry, not two |
+| `task_scheduled`     | Scheduled a maintenance task                | `MaintenanceTaskCreated`                                                                                                              |
+| `task_deleted`       | Removed a maintenance task                  | `MaintenanceTaskDeleted`                                                                                                              |
 
 Not tracked in v1: asset archive/unarchive (no domain event exists), profile/account
 changes, and sign-in events. See Out of Scope.
@@ -302,9 +302,10 @@ event** — no read-back to D1:
   (`MaintenanceRecordCreated`, `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`,
   `MaintenanceTaskDeleted`). Carrying `title` on `MaintenanceTaskDeleted` is what lets a
   `task_deleted` entry render after the task row is gone (`DELETE FROM maintenance_tasks`).
-- `MaintenanceRecordCreated` carries the producer-owned conclusion that links it to a
-  completion (the advanced `taskId`), so a completion is one `task_completed` entry without
-  correlating two events.
+- `MaintenanceRecordCreated` carries the producer-owned `activityEntryType` conclusion:
+  `maintenance_logged` when the record itself should appear in History, or `null` when a
+  paired `MaintenanceTaskAdvanced` already represents the user action as `task_completed`.
+  The durable projection never infers that from `taskId`.
 
 This holds ADR-0009's line: events carry domain state and conclusions, never presentation
 copy — the client still formats relative dates and labels.

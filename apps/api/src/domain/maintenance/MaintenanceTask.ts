@@ -42,6 +42,10 @@ export class MaintenanceTask {
     return this._nextDue;
   }
 
+  willAdvance(performedAt: string): boolean {
+    return this._lastCompletedDate === null || performedAt > this._lastCompletedDate;
+  }
+
   static create(props: {
     assetId: AssetId;
     ownerId: UserId;
@@ -123,7 +127,7 @@ export class MaintenanceTask {
     actorId: UserId,
     assetSnapshot: { assetName: string; assetType: AssetType },
   ): boolean {
-    if (this._lastCompletedDate !== null && performedAt <= this._lastCompletedDate) {
+    if (!this.willAdvance(performedAt)) {
       return false;
     }
     this._lastCompletedDate = performedAt;

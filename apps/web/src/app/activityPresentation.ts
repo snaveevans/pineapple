@@ -1,21 +1,7 @@
 import type { ActivityEntry, ActivityEntryType } from "../api/activity.ts";
 import type { IconName } from "../design/Icon.tsx";
 import { assetTypeLabel } from "./assetPresentation.ts";
-
-const MONTHS_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-] as const;
+import { addDays, dateKey, formatShortDate } from "./dateFormat.ts";
 
 export type ActivityTypeMeta = {
   label: string;
@@ -110,7 +96,7 @@ export function headline(entry: ActivityEntry): string {
 export function detail(entry: ActivityEntry): string {
   const asset = `${entry.asset.name} · ${assetTypeLabel(entry.asset.type)}`;
   if (entry.performedAt !== undefined)
-    return `${asset} · Performed ${formatDate(entry.performedAt)}`;
+    return `${asset} · Performed ${formatShortDate(entry.performedAt)}`;
   return asset;
 }
 
@@ -124,26 +110,11 @@ function timeLabel(occurredAt: string, now: Date): string {
   const days = Math.round(hours / 24);
   if (days === 1) return "yesterday";
   if (days < 7) return `${days}d ago`;
-  return formatDate(dateKey(occurredAt));
+  return formatShortDate(dateKey(occurredAt));
 }
 
 function dayLabel(key: string, todayKey: string): string {
   if (key === todayKey) return "Today";
   if (key === addDays(todayKey, -1)) return "Yesterday";
-  return formatDate(key);
-}
-
-function dateKey(value: string): string {
-  return value.slice(0, 10);
-}
-
-function addDays(key: string, days: number): string {
-  const [year, month, day] = key.split("-").map(Number);
-  const date = new Date(Date.UTC(year!, month! - 1, day! + days));
-  return date.toISOString().slice(0, 10);
-}
-
-function formatDate(key: string): string {
-  const [year, month, day] = key.split("-").map(Number);
-  return `${MONTHS_SHORT[month! - 1]} ${day}, ${year}`;
+  return formatShortDate(key);
 }

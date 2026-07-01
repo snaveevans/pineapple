@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS activity_event_outbox (
   consumer     TEXT NOT NULL,
   event_type   TEXT NOT NULL,
   payload      TEXT NOT NULL,
-  status       TEXT NOT NULL CHECK (status IN ('pending', 'sent')),
+  status       TEXT NOT NULL CHECK (status IN ('pending', 'sending', 'sent')),
   attempts     INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   last_error   TEXT,
   created_at   TEXT NOT NULL,
@@ -12,13 +12,12 @@ CREATE TABLE IF NOT EXISTS activity_event_outbox (
   delivered_at TEXT
 );
 
-CREATE INDEX IF NOT EXISTS idx_activity_event_outbox_pending
-  ON activity_event_outbox(consumer, status, created_at ASC, id ASC);
+CREATE INDEX IF NOT EXISTS idx_activity_event_outbox_claimable
+  ON activity_event_outbox(consumer, status, updated_at, created_at ASC, id ASC);
 
 CREATE TABLE IF NOT EXISTS activity_entries (
   id                TEXT NOT NULL PRIMARY KEY,
   source_event_id   TEXT NOT NULL UNIQUE,
-  source_event_type TEXT NOT NULL,
   owner_id          TEXT NOT NULL REFERENCES users(id),
   actor_id          TEXT NOT NULL REFERENCES users(id),
   type              TEXT NOT NULL CHECK (

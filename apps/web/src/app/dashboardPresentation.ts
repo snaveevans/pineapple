@@ -2,6 +2,7 @@ import type { AssetType, DashboardQueueItem } from "../api/dashboard.ts";
 import type { IconName } from "../design/Icon.tsx";
 import type { AssetCategory, AssetStatus } from "../design/hf.tsx";
 import { shortenAssetId } from "./assetPresentation.ts";
+import { ymdParts } from "./dateFormat.ts";
 
 const MONTHS_LONG = [
   "January",
@@ -43,11 +44,6 @@ export type DashboardQueuePresentation = {
   last: string;
   recurs: string;
 };
-
-function ymdParts(value: string): [number, number, number] {
-  const [year, month, day] = value.split("-").map(Number);
-  return [year!, month!, day!];
-}
 
 export function formatDashboardDate(todayUtc: string): string {
   const [year, month, day] = ymdParts(todayUtc);

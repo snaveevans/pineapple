@@ -61,6 +61,7 @@ export class CreateMaintenanceRecord {
         }
       }
 
+      const linkedTaskWillAdvance = task !== null && task.willAdvance(command.performedAt);
       const record = MaintenanceRecord.create({
         assetId: asset.id,
         ownerId: asset.ownerId,
@@ -71,6 +72,7 @@ export class CreateMaintenanceRecord {
         performedAt: command.performedAt,
         ...(command.notes !== undefined ? { notes: command.notes } : {}),
         ...(command.taskId !== undefined ? { taskId: command.taskId } : {}),
+        activityEntryType: linkedTaskWillAdvance ? null : "maintenance_logged",
         todayUtc: this.dates.today(),
       });
 

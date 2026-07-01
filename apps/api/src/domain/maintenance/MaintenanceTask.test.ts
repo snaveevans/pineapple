@@ -105,6 +105,8 @@ describe("MaintenanceTask.advance", () => {
   it("advances lastCompletedDate and nextDue when performedAt is newer", () => {
     const task = makeTask({ lastCompletedDate: "2026-04-11" });
     const recordId = MaintenanceRecordId.generate();
+    expect(task.willAdvance("2026-06-11")).toBe(true);
+
     const result = task.advance("2026-06-11", recordId, actorId, { assetName, assetType });
 
     expect(result).toBe(true);
@@ -131,6 +133,8 @@ describe("MaintenanceTask.advance", () => {
   it("does not advance when performedAt equals lastCompletedDate", () => {
     const task = makeTask({ lastCompletedDate: "2026-06-11" });
     task.pullEvents(); // clear create event
+    expect(task.willAdvance("2026-06-11")).toBe(false);
+
     const result = task.advance("2026-06-11", MaintenanceRecordId.generate(), actorId, {
       assetName,
       assetType,
@@ -142,6 +146,8 @@ describe("MaintenanceTask.advance", () => {
 
   it("does not advance when performedAt is older than lastCompletedDate", () => {
     const task = makeTask({ lastCompletedDate: "2026-06-11" });
+    expect(task.willAdvance("2026-05-01")).toBe(false);
+
     const result = task.advance("2026-05-01", MaintenanceRecordId.generate(), actorId, {
       assetName,
       assetType,
@@ -152,6 +158,8 @@ describe("MaintenanceTask.advance", () => {
 
   it("advances when lastCompletedDate is null (first ever record)", () => {
     const task = makeTask();
+    expect(task.willAdvance("2026-06-01")).toBe(true);
+
     const result = task.advance("2026-06-01", MaintenanceRecordId.generate(), actorId, {
       assetName,
       assetType,

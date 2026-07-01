@@ -21,6 +21,7 @@ describe("MaintenanceRecordCreatedTelemetryHandler", () => {
     title: "Changed oil",
     performedAt: "2026-06-09",
     taskId: null,
+    activityEntryType: "maintenance_logged",
     occurredAt: new Date("2026-06-09T12:00:00.000Z"),
   };
 

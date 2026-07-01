@@ -9,7 +9,10 @@ import {
 import type { AssetType } from "../asset/AssetType.ts";
 import type { DomainEvent } from "../events/DomainEvent.ts";
 import { validateDateOnly } from "./DateOnly.ts";
-import { MaintenanceRecordCreated } from "./events/MaintenanceRecordCreated.ts";
+import {
+  MaintenanceRecordCreated,
+  type MaintenanceRecordActivityEntryType,
+} from "./events/MaintenanceRecordCreated.ts";
 
 export class MaintenanceRecord {
   private _domainEvents: DomainEvent[] = [];
@@ -35,6 +38,7 @@ export class MaintenanceRecord {
     performedAt: string;
     notes?: string;
     taskId?: MaintenanceTaskId;
+    activityEntryType?: MaintenanceRecordActivityEntryType;
     todayUtc: string;
   }): MaintenanceRecord {
     const title = props.title.trim();
@@ -79,6 +83,8 @@ export class MaintenanceRecord {
         title: record.title,
         performedAt: record.performedAt,
         taskId: record.taskId,
+        activityEntryType:
+          props.activityEntryType !== undefined ? props.activityEntryType : "maintenance_logged",
       }),
     );
     return record;

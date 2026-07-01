@@ -1,4 +1,8 @@
 import type { MaintenanceRecordId, MaintenanceTaskId } from "@snaveevans/pineapple-shared";
+import {
+  ACTIVITY_ENTRY_TYPES,
+  type ActivityEntryType,
+} from "../../domain/activity/ActivityEntry.ts";
 import type { AssetType } from "../../domain/asset/AssetType.ts";
 import type { AssetCreated } from "../../domain/asset/events/AssetCreated.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
@@ -11,45 +15,64 @@ export const ACTIVITY_HISTORY_CONSUMER = "activity_history";
 export const ACTIVITY_HISTORY_QUEUE_NAME = "pineapple-activity-history";
 export const ACTIVITY_HISTORY_DLQ_NAME = "pineapple-activity-history-dlq";
 
-type ActivityEventCommon = {
+type ActivityDomainEvent =
+  | AssetCreated
+  | MaintenanceRecordCreated
+  | MaintenanceTaskCreated
+  | MaintenanceTaskAdvanced
+  | MaintenanceTaskDeleted;
+
+type ActivityDomainEventType = ActivityDomainEvent["type"];
+
+type ActivityEventCommon<
+  Type extends ActivityDomainEventType,
+  EntryType extends ActivityEntryType | null,
+> = {
   id: string;
-  type: string;
+  type: Type;
   occurredAt: string;
   assetId: string;
   ownerId: string;
   actorId: string;
   assetName: string;
   assetType: AssetType;
+  activityEntryType: EntryType;
 };
 
-export type AssetCreatedActivityEventMessage = ActivityEventCommon & {
-  type: "AssetCreated";
-};
+export type AssetCreatedActivityEventMessage = ActivityEventCommon<"AssetCreated", "asset_added">;
 
-export type MaintenanceRecordCreatedActivityEventMessage = ActivityEventCommon & {
-  type: "MaintenanceRecordCreated";
+export type MaintenanceRecordCreatedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceRecordCreated",
+  "maintenance_logged" | null
+> & {
   maintenanceRecordId: MaintenanceRecordId;
   title: string;
   performedAt: string;
   taskId: MaintenanceTaskId | null;
 };
 
-export type MaintenanceTaskCreatedActivityEventMessage = ActivityEventCommon & {
-  type: "MaintenanceTaskCreated";
+export type MaintenanceTaskCreatedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceTaskCreated",
+  "task_scheduled"
+> & {
   maintenanceTaskId: MaintenanceTaskId;
   title: string;
 };
 
-export type MaintenanceTaskAdvancedActivityEventMessage = ActivityEventCommon & {
-  type: "MaintenanceTaskAdvanced";
+export type MaintenanceTaskAdvancedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceTaskAdvanced",
+  "task_completed"
+> & {
   maintenanceTaskId: MaintenanceTaskId;
   maintenanceRecordId: MaintenanceRecordId;
   title: string;
   performedAt: string;
 };
 
-export type MaintenanceTaskDeletedActivityEventMessage = ActivityEventCommon & {
-  type: "MaintenanceTaskDeleted";
+export type MaintenanceTaskDeletedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceTaskDeleted",
+  "task_deleted"
+> & {
   maintenanceTaskId: MaintenanceTaskId;
   title: string;
 };
@@ -61,60 +84,71 @@ export type ActivityEventMessage =
   | MaintenanceTaskAdvancedActivityEventMessage
   | MaintenanceTaskDeletedActivityEventMessage;
 
+type ActivityMessageFactoryMap = {
+  [Type in ActivityDomainEventType]: (
+    event: Extract<ActivityDomainEvent, { type: Type }>,
+  ) => Extract<ActivityEventMessage, { type: Type }>;
+};
+
+type ActivityMessageValidatorMap = {
+  [Type in ActivityDomainEventType]: (value: Record<string, unknown>) => boolean;
+};
+
+const ACTIVITY_EVENT_MESSAGE_FACTORIES = {
+  AssetCreated: fromAssetCreated,
+  MaintenanceRecordCreated: fromMaintenanceRecordCreated,
+  MaintenanceTaskCreated: fromMaintenanceTaskCreated,
+  MaintenanceTaskAdvanced: fromMaintenanceTaskAdvanced,
+  MaintenanceTaskDeleted: fromMaintenanceTaskDeleted,
+} satisfies ActivityMessageFactoryMap;
+
+const ACTIVITY_EVENT_MESSAGE_VALIDATORS = {
+  AssetCreated: (value) => value.activityEntryType === "asset_added",
+  MaintenanceRecordCreated: (value) =>
+    isString(value.maintenanceRecordId) &&
+    isString(value.title) &&
+    isString(value.performedAt) &&
+    (value.taskId === null || isString(value.taskId)) &&
+    (value.activityEntryType === "maintenance_logged" || value.activityEntryType === null),
+  MaintenanceTaskCreated: (value) =>
+    isString(value.maintenanceTaskId) &&
+    isString(value.title) &&
+    value.activityEntryType === "task_scheduled",
+  MaintenanceTaskAdvanced: (value) =>
+    isString(value.maintenanceTaskId) &&
+    isString(value.maintenanceRecordId) &&
+    isString(value.title) &&
+    isString(value.performedAt) &&
+    value.activityEntryType === "task_completed",
+  MaintenanceTaskDeleted: (value) =>
+    isString(value.maintenanceTaskId) &&
+    isString(value.title) &&
+    value.activityEntryType === "task_deleted",
+} satisfies ActivityMessageValidatorMap;
+
 export function toActivityEventMessage(event: DomainEvent): ActivityEventMessage | null {
-  switch (event.type) {
-    case "AssetCreated":
-      return fromAssetCreated(event as AssetCreated);
-    case "MaintenanceRecordCreated":
-      return fromMaintenanceRecordCreated(event as MaintenanceRecordCreated);
-    case "MaintenanceTaskCreated":
-      return fromMaintenanceTaskCreated(event as MaintenanceTaskCreated);
-    case "MaintenanceTaskAdvanced":
-      return fromMaintenanceTaskAdvanced(event as MaintenanceTaskAdvanced);
-    case "MaintenanceTaskDeleted":
-      return fromMaintenanceTaskDeleted(event as MaintenanceTaskDeleted);
-    default:
-      return null;
-  }
+  if (!isActivityDomainEvent(event)) return null;
+  const factory = ACTIVITY_EVENT_MESSAGE_FACTORIES[event.type] as (
+    trackedEvent: ActivityDomainEvent,
+  ) => ActivityEventMessage;
+  return factory(event);
 }
 
 export function isActivityEventMessage(value: unknown): value is ActivityEventMessage {
   if (!isRecord(value)) return false;
   if (!hasCommonFields(value)) return false;
-
-  switch (value.type) {
-    case "AssetCreated":
-      return true;
-    case "MaintenanceRecordCreated":
-      return (
-        isString(value.maintenanceRecordId) &&
-        isString(value.title) &&
-        isString(value.performedAt) &&
-        (value.taskId === null || isString(value.taskId))
-      );
-    case "MaintenanceTaskCreated":
-    case "MaintenanceTaskDeleted":
-      return isString(value.maintenanceTaskId) && isString(value.title);
-    case "MaintenanceTaskAdvanced":
-      return (
-        isString(value.maintenanceTaskId) &&
-        isString(value.maintenanceRecordId) &&
-        isString(value.title) &&
-        isString(value.performedAt)
-      );
-    default:
-      return false;
-  }
+  if (!isActivityEventType(value.type)) return false;
+  return ACTIVITY_EVENT_MESSAGE_VALIDATORS[value.type](value);
 }
 
-function common(
-  event:
-    | AssetCreated
-    | MaintenanceRecordCreated
-    | MaintenanceTaskCreated
-    | MaintenanceTaskAdvanced
-    | MaintenanceTaskDeleted,
-): ActivityEventCommon {
+function isActivityDomainEvent(event: DomainEvent): event is ActivityDomainEvent {
+  return isActivityEventType(event.type);
+}
+
+function common<Type extends ActivityDomainEventType, EntryType extends ActivityEntryType | null>(
+  event: Extract<ActivityDomainEvent, { type: Type }>,
+  activityEntryType: EntryType,
+): ActivityEventCommon<Type, EntryType> {
   return {
     id: event.id,
     type: event.type,
@@ -124,22 +158,19 @@ function common(
     actorId: event.actorId,
     assetName: event.assetName,
     assetType: event.assetType,
+    activityEntryType,
   };
 }
 
 function fromAssetCreated(event: AssetCreated): AssetCreatedActivityEventMessage {
-  return {
-    ...common(event),
-    type: "AssetCreated",
-  };
+  return common(event, "asset_added");
 }
 
 function fromMaintenanceRecordCreated(
   event: MaintenanceRecordCreated,
 ): MaintenanceRecordCreatedActivityEventMessage {
   return {
-    ...common(event),
-    type: "MaintenanceRecordCreated",
+    ...common(event, event.activityEntryType),
     maintenanceRecordId: event.maintenanceRecordId,
     title: event.title,
     performedAt: event.performedAt,
@@ -151,8 +182,7 @@ function fromMaintenanceTaskCreated(
   event: MaintenanceTaskCreated,
 ): MaintenanceTaskCreatedActivityEventMessage {
   return {
-    ...common(event),
-    type: "MaintenanceTaskCreated",
+    ...common(event, "task_scheduled"),
     maintenanceTaskId: event.maintenanceTaskId,
     title: event.title,
   };
@@ -162,8 +192,7 @@ function fromMaintenanceTaskAdvanced(
   event: MaintenanceTaskAdvanced,
 ): MaintenanceTaskAdvancedActivityEventMessage {
   return {
-    ...common(event),
-    type: "MaintenanceTaskAdvanced",
+    ...common(event, "task_completed"),
     maintenanceTaskId: event.maintenanceTaskId,
     maintenanceRecordId: event.maintenanceRecordId,
     title: event.title,
@@ -175,8 +204,7 @@ function fromMaintenanceTaskDeleted(
   event: MaintenanceTaskDeleted,
 ): MaintenanceTaskDeletedActivityEventMessage {
   return {
-    ...common(event),
-    type: "MaintenanceTaskDeleted",
+    ...common(event, "task_deleted"),
     maintenanceTaskId: event.maintenanceTaskId,
     title: event.title,
   };
@@ -191,8 +219,21 @@ function hasCommonFields(value: Record<string, unknown>): boolean {
     isString(value.ownerId) &&
     isString(value.actorId) &&
     isString(value.assetName) &&
-    isAssetType(value.assetType)
+    isAssetType(value.assetType) &&
+    isActivityEntryTypeOrNull(value.activityEntryType)
   );
+}
+
+function isActivityEventType(value: unknown): value is ActivityDomainEventType {
+  return typeof value === "string" && value in ACTIVITY_EVENT_MESSAGE_FACTORIES;
+}
+
+function isActivityEntryTypeOrNull(value: unknown): value is ActivityEntryType | null {
+  return value === null || isActivityEntryType(value);
+}
+
+function isActivityEntryType(value: unknown): value is ActivityEntryType {
+  return typeof value === "string" && ACTIVITY_ENTRY_TYPES.includes(value as ActivityEntryType);
 }
 
 function isAssetType(value: unknown): value is AssetType {

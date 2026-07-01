@@ -83,14 +83,13 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
     await this.db
       .prepare(
         `INSERT OR IGNORE INTO activity_entries
-           (id, source_event_id, source_event_type, owner_id, actor_id, type, occurred_at,
+           (id, source_event_id, owner_id, actor_id, type, occurred_at,
             asset_id, asset_name, asset_type, title, performed_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         entry.id,
         event.id,
-        event.type,
         event.ownerId,
         event.actorId,
         entry.type,
@@ -197,6 +196,8 @@ function entryFromEvent(event: ActivityEventMessage): {
   title: string | null;
   performedAt: string | null;
 } | null {
+  if (event.activityEntryType === null) return null;
+
   const base = {
     id: ActivityEntryId.from(event.id),
     occurredAt: event.occurredAt,
@@ -207,26 +208,25 @@ function entryFromEvent(event: ActivityEventMessage): {
 
   switch (event.type) {
     case "AssetCreated":
-      return { ...base, type: "asset_added", title: null, performedAt: null };
+      return { ...base, type: event.activityEntryType, title: null, performedAt: null };
     case "MaintenanceRecordCreated":
-      if (event.taskId !== null) return null;
       return {
         ...base,
-        type: "maintenance_logged",
+        type: event.activityEntryType,
         title: event.title,
         performedAt: event.performedAt,
       };
     case "MaintenanceTaskAdvanced":
       return {
         ...base,
-        type: "task_completed",
+        type: event.activityEntryType,
         title: event.title,
         performedAt: event.performedAt,
       };
     case "MaintenanceTaskCreated":
-      return { ...base, type: "task_scheduled", title: event.title, performedAt: null };
+      return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
     case "MaintenanceTaskDeleted":
-      return { ...base, type: "task_deleted", title: event.title, performedAt: null };
+      return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
   }
 }
 
