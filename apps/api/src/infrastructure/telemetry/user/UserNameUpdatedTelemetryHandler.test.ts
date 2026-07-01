@@ -1,5 +1,6 @@
 import { UserId } from "@snaveevans/pineapple-shared";
 import { describe, expect, it } from "vitest";
+import { DomainEventId } from "../../../domain/events/DomainEvent.ts";
 import type { UserNameUpdated } from "../../../domain/identity/events/UserNameUpdated.ts";
 import type { TelemetryDataPoint, TelemetrySink } from "../AnalyticsEngineTelemetrySink.ts";
 import {
@@ -9,6 +10,7 @@ import {
 
 describe("UserNameUpdatedTelemetryHandler", () => {
   const event: UserNameUpdated = {
+    id: DomainEventId.generate(),
     type: "UserNameUpdated",
     userId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
     occurredAt: new Date("2026-06-11T12:00:00.000Z"),

@@ -5,9 +5,11 @@ import {
   UserId,
 } from "@snaveevans/pineapple-shared";
 import type { MaintenanceRecordWriter } from "../../application/ports/MaintenanceRecordWriter.ts";
+import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
+import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
 import { prepareMaintenanceTaskSave } from "./D1MaintenanceTaskRepository.ts";
 
 type MaintenanceRecordRow = {
@@ -44,6 +46,7 @@ export class D1MaintenanceRecordRepository
   async save(
     record: MaintenanceRecord,
     advancedTask: MaintenanceTask | null = null,
+    events: readonly DomainEvent[] = [],
   ): Promise<void> {
     const recordStatement = this.db
       .prepare(
@@ -62,12 +65,18 @@ export class D1MaintenanceRecordRepository
         record.createdAt.toISOString(),
       );
 
-    if (advancedTask === null) {
+    if (advancedTask === null && events.length === 0) {
       await recordStatement.run();
       return;
     }
 
-    await this.db.batch([recordStatement, prepareMaintenanceTaskSave(this.db, advancedTask)]);
+    const outboxStatements = events
+      .map((event) => prepareActivityOutboxInsert(this.db, event))
+      .filter((statement): statement is D1PreparedStatement => statement !== null);
+
+    const statements = [recordStatement];
+    if (advancedTask !== null) statements.push(prepareMaintenanceTaskSave(this.db, advancedTask));
+    await this.db.batch([...statements, ...outboxStatements]);
   }
 
   #rowToRecord(row: MaintenanceRecordRow): MaintenanceRecord {

@@ -180,6 +180,37 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     });
   });
 
+  it("maps GET /api/activity to ListActivity", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "GET",
+        pathname: "/api/activity",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "CA",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["ListActivity"],
+      blobs: [
+        "ListActivity",
+        "/api/activity",
+        "GET",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "CA",
+        userId,
+      ],
+    });
+  });
+
   it("maps GET /api/search to SearchAssets", () => {
     expect(
       buildApiRequestTelemetryDataPoint({

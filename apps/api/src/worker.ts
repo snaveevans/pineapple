@@ -13,12 +13,17 @@ import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
 import type { MaintenanceRecord } from "./domain/maintenance/MaintenanceRecord.ts";
+import type { ActivityEntry } from "./domain/activity/ActivityEntry.ts";
 
 // Infrastructure
 import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.ts";
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
 import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
+import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
+import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
+import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
+import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEventMessage.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
 import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
@@ -36,6 +41,7 @@ import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceT
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
+import { ListActivity } from "./application/usecases/ListActivity.ts";
 import { SearchAssets } from "./application/usecases/SearchAssets.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
@@ -49,6 +55,7 @@ import {
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
   getDashboardRoute,
+  getActivityRoute,
   getUserProfileRoute,
   getAssetRoute,
   healthRoute,
@@ -63,6 +70,7 @@ import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
+import type { ActivityEntrySchema } from "./api/schemas/activitySchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
@@ -75,6 +83,7 @@ type Bindings = AuthEnv & {
   MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
+  ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
 };
@@ -180,6 +189,17 @@ function serializeMaintenanceTask(
   };
 }
 
+function serializeActivityEntry(entry: ActivityEntry): z.infer<typeof ActivityEntrySchema> {
+  return {
+    id: entry.id,
+    type: entry.type,
+    occurredAt: entry.occurredAt.toISOString(),
+    asset: entry.asset,
+    ...(entry.title !== undefined ? { title: entry.title } : {}),
+    ...(entry.performedAt !== undefined ? { performedAt: entry.performedAt } : {}),
+  };
+}
+
 // ── Public routes (no auth) ──────────────────────────────────────────────────
 
 app.openapi(healthRoute, (c) => c.json({ status: "ok" } as const, 200));
@@ -211,6 +231,20 @@ app.use("/api/*", async (c, next) => {
   c.set("eventBus", eventBus);
 
   await next();
+});
+
+app.use("/api/*", async (c, next) => {
+  await next();
+  if (c.res.status >= 400 || !["POST", "PATCH", "DELETE"].includes(c.req.method)) return;
+
+  const relay = new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE);
+  try {
+    c.executionCtx.waitUntil(relay);
+  } catch {
+    void relay.catch((error: unknown) => {
+      console.error({ error }, "Activity outbox relay failed outside waitUntil");
+    });
+  }
 });
 
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
@@ -255,6 +289,27 @@ app.openapi(getDashboardRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(result.value, 200);
+});
+
+app.openapi(getActivityRoute, async (c) => {
+  const user = c.get("user");
+  const { type, assetId, cursor, limit } = c.req.valid("query");
+  const result = await new ListActivity(new D1ActivityLogRepository(c.env.DB)).execute({
+    ownerId: user.id,
+    limit,
+    ...(type !== undefined ? { type } : {}),
+    ...(assetId !== undefined ? { assetId: AssetId.from(assetId) } : {}),
+    ...(cursor !== undefined ? { cursor } : {}),
+  });
+  if (!result.ok) throw result.error;
+  return c.json(
+    {
+      entries: result.value.entries.map(serializeActivityEntry),
+      availableFilters: result.value.availableFilters,
+      nextCursor: result.value.nextCursor,
+    },
+    200,
+  );
 });
 
 // ── User profile endpoints ───────────────────────────────────────────────────
@@ -415,6 +470,7 @@ app.openapi(deleteMaintenanceTaskRoute, async (c) => {
   const user = c.get("user");
   const { assetId, taskId } = c.req.valid("param");
   const result = await new DeleteMaintenanceTask(
+    new D1AssetRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
   ).execute({
@@ -426,4 +482,16 @@ app.openapi(deleteMaintenanceTaskRoute, async (c) => {
   return c.body(null, 204);
 });
 
-export default app;
+const worker: ExportedHandler<Bindings, unknown> = {
+  fetch(request, env, ctx) {
+    return app.fetch(request, env, ctx);
+  },
+  async queue(batch, env) {
+    await handleActivityQueueBatch(batch, env.DB);
+  },
+  scheduled(_event, env, ctx) {
+    ctx.waitUntil(new D1ActivityOutboxRepository(env.DB).relayPending(env.ACTIVITY_HISTORY_QUEUE));
+  },
+};
+
+export default worker;

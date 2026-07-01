@@ -123,6 +123,10 @@ describe("CreateMaintenanceRecord", () => {
         assetId: asset.id,
         ownerId,
         actorId: ownerId,
+        assetName: "Truck",
+        assetType: "vehicle",
+        title: "Changed oil",
+        taskId: null,
       }),
     ]);
     expect(records.savedRecord?.pullEvents()).toEqual([]);
@@ -288,7 +292,13 @@ describe("CreateMaintenanceRecord", () => {
       expect(records.savedTask).toBe(task);
       expect(tasks.saved).toBeNull();
       expect(events.events).toContainEqual(
-        expect.objectContaining({ type: "MaintenanceTaskAdvanced", performedAt: "2026-06-09" }),
+        expect.objectContaining({
+          type: "MaintenanceTaskAdvanced",
+          assetName: "Truck",
+          assetType: "vehicle",
+          title: "Replace furnace filter",
+          performedAt: "2026-06-09",
+        }),
       );
     });
 
@@ -317,7 +327,13 @@ describe("CreateMaintenanceRecord", () => {
       expect(task.lastCompletedDate).toBe("2026-06-09");
       expect(task.nextDue).toBe("2026-08-09");
       expect(events.events).toContainEqual(
-        expect.objectContaining({ type: "MaintenanceTaskAdvanced", performedAt: "2026-06-09" }),
+        expect.objectContaining({
+          type: "MaintenanceTaskAdvanced",
+          assetName: "Truck",
+          assetType: "vehicle",
+          title: "Replace furnace filter",
+          performedAt: "2026-06-09",
+        }),
       );
     });
 

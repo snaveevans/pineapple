@@ -6,6 +6,7 @@ import {
   type UserId,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
+import type { AssetType } from "../asset/AssetType.ts";
 import type { DomainEvent } from "../events/DomainEvent.ts";
 import { validateDateOnly } from "./DateOnly.ts";
 import { MaintenanceRecordCreated } from "./events/MaintenanceRecordCreated.ts";
@@ -28,6 +29,8 @@ export class MaintenanceRecord {
     assetId: AssetId;
     ownerId: UserId;
     actorId: UserId;
+    assetName: string;
+    assetType: AssetType;
     title: string;
     performedAt: string;
     notes?: string;
@@ -71,7 +74,11 @@ export class MaintenanceRecord {
         assetId: record.assetId,
         ownerId: record.ownerId,
         actorId: props.actorId,
+        assetName: props.assetName,
+        assetType: props.assetType,
+        title: record.title,
         performedAt: record.performedAt,
+        taskId: record.taskId,
       }),
     );
     return record;

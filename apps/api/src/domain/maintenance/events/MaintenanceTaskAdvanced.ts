@@ -4,7 +4,8 @@ import type {
   MaintenanceTaskId,
   UserId,
 } from "@snaveevans/pineapple-shared";
-import type { DomainEvent } from "../../events/DomainEvent.ts";
+import type { AssetType } from "../../asset/AssetType.ts";
+import { createDomainEventMetadata, type DomainEvent } from "../../events/DomainEvent.ts";
 
 export type MaintenanceTaskAdvanced = DomainEvent & {
   type: "MaintenanceTaskAdvanced";
@@ -13,6 +14,9 @@ export type MaintenanceTaskAdvanced = DomainEvent & {
   assetId: AssetId;
   ownerId: UserId;
   actorId: UserId;
+  assetName: string;
+  assetType: AssetType;
+  title: string;
   performedAt: string;
 };
 
@@ -22,14 +26,20 @@ export const MaintenanceTaskAdvanced = (props: {
   assetId: AssetId;
   ownerId: UserId;
   actorId: UserId;
+  assetName: string;
+  assetType: AssetType;
+  title: string;
   performedAt: string;
 }): MaintenanceTaskAdvanced => ({
+  ...createDomainEventMetadata(),
   type: "MaintenanceTaskAdvanced",
   maintenanceTaskId: props.maintenanceTaskId,
   maintenanceRecordId: props.maintenanceRecordId,
   assetId: props.assetId,
   ownerId: props.ownerId,
   actorId: props.actorId,
+  assetName: props.assetName,
+  assetType: props.assetType,
+  title: props.title,
   performedAt: props.performedAt,
-  occurredAt: new Date(),
 });

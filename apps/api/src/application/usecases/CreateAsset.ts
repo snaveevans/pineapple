@@ -31,8 +31,9 @@ export class CreateAsset {
         name: cmd.name,
         metadata: cmd.metadata,
       });
-      await this.assets.save(asset);
-      await this.eventBus.publishAll(asset.pullEvents());
+      const events = asset.pullEvents();
+      await this.assets.save(asset, events);
+      await this.eventBus.publishAll(events);
       return ok(asset.id);
     } catch (e) {
       if (e instanceof DomainErrorClass) return err(e);

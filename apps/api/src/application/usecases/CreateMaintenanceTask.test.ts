@@ -99,7 +99,14 @@ describe("CreateMaintenanceTask", () => {
     const { result, tasks, events } = await execute();
     expect(result.ok).toBe(true);
     expect(tasks.saved).not.toBeNull();
-    expect(events.events).toEqual([expect.objectContaining({ type: "MaintenanceTaskCreated" })]);
+    expect(events.events).toEqual([
+      expect.objectContaining({
+        type: "MaintenanceTaskCreated",
+        assetName: "House",
+        assetType: "equipment",
+        title: "Replace furnace filter",
+      }),
+    ]);
   });
 
   it("seeds nextDue from today when no lastCompletedDate", async () => {

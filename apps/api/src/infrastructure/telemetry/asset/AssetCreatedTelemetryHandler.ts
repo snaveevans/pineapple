@@ -11,7 +11,7 @@ export function mapAssetCreatedTelemetry(event: AssetCreated): TelemetryDataPoin
       event.assetId,
       event.ownerId,
       event.assetType,
-      event.ownerId,
+      event.actorId,
       "CreateAsset",
       "v1",
       "success",

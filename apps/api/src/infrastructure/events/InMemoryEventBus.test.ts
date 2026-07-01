@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { InMemoryEventBus } from "./InMemoryEventBus.ts";
-import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
+import { DomainEventId, type DomainEvent } from "../../domain/events/DomainEvent.ts";
 
 describe("InMemoryEventBus", () => {
   const event: DomainEvent = {
+    id: DomainEventId.generate(),
     type: "AssetCreated",
     occurredAt: new Date("2026-05-29T12:00:00.000Z"),
   };

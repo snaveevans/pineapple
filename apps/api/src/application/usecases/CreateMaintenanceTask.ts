@@ -51,6 +51,8 @@ export class CreateMaintenanceTask {
         assetId: asset.id,
         ownerId: asset.ownerId,
         actorId: command.requesterId,
+        assetName: asset.name,
+        assetType: asset.type,
         title: command.title,
         intervalValue: command.intervalValue,
         intervalUnit: command.intervalUnit,
@@ -59,8 +61,9 @@ export class CreateMaintenanceTask {
           : {}),
         todayUtc: this.dates.today(),
       });
-      await this.tasks.save(task);
-      await this.eventBus.publishAll(task.pullEvents());
+      const events = task.pullEvents();
+      await this.tasks.save(task, events);
+      await this.eventBus.publishAll(events);
       return ok(task);
     } catch (error) {
       if (error instanceof DomainErrorClass) return err(error);

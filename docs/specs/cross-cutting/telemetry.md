@@ -124,26 +124,30 @@ These limits apply to every data point written and must be respected when design
 
 Every API route maps to a named operation used as the `indexes[0]` value in request telemetry. The current mapping:
 
-| Route                                            | Operation                 |
-| ------------------------------------------------ | ------------------------- |
-| `POST /api/auth/sign-in/social`                  | `SignIn`                  |
-| `GET /api/auth/callback/google`                  | `OAuthCallback`           |
-| `GET /api/auth/get-session`                      | `SessionCheck`            |
-| `POST /api/auth/sign-out`                        | `SignOut`                 |
-| `/api/auth/*` (other)                            | `Auth`                    |
-| `POST /api/assets`                               | `CreateAsset`             |
-| `GET /api/assets`                                | `ListAssets`              |
-| `GET /api/assets/{id}`                           | `GetAsset`                |
-| `GET /api/dashboard`                             | `GetDashboard`            |
-| `GET /api/search`                                | `SearchAssets`            |
-| `GET /api/users/me`                              | `GetUserProfile`          |
-| `PATCH /api/users/me`                            | `UpdateUserProfile`       |
-| `POST /api/assets/{assetId}/maintenance-records` | `CreateMaintenanceRecord` |
-| `GET /api/assets/{assetId}/maintenance-records`  | `ListMaintenanceRecords`  |
-| `GET /health`                                    | `Health`                  |
-| `GET /openapi.json`                              | `OpenApiDocument`         |
-| `GET /reference`                                 | `ApiReference`            |
-| (anything else)                                  | `Unknown`                 |
+| Route                                                     | Operation                 |
+| --------------------------------------------------------- | ------------------------- |
+| `POST /api/auth/sign-in/social`                           | `SignIn`                  |
+| `GET /api/auth/callback/google`                           | `OAuthCallback`           |
+| `GET /api/auth/get-session`                               | `SessionCheck`            |
+| `POST /api/auth/sign-out`                                 | `SignOut`                 |
+| `/api/auth/*` (other)                                     | `Auth`                    |
+| `POST /api/assets`                                        | `CreateAsset`             |
+| `GET /api/assets`                                         | `ListAssets`              |
+| `GET /api/assets/{id}`                                    | `GetAsset`                |
+| `GET /api/activity`                                       | `ListActivity`            |
+| `GET /api/dashboard`                                      | `GetDashboard`            |
+| `GET /api/search`                                         | `SearchAssets`            |
+| `GET /api/users/me`                                       | `GetUserProfile`          |
+| `PATCH /api/users/me`                                     | `UpdateUserProfile`       |
+| `POST /api/assets/{assetId}/maintenance-records`          | `CreateMaintenanceRecord` |
+| `GET /api/assets/{assetId}/maintenance-records`           | `ListMaintenanceRecords`  |
+| `POST /api/assets/{assetId}/maintenance-tasks`            | `CreateMaintenanceTask`   |
+| `GET /api/assets/{assetId}/maintenance-tasks`             | `ListMaintenanceTasks`    |
+| `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}` | `DeleteMaintenanceTask`   |
+| `GET /health`                                             | `Health`                  |
+| `GET /openapi.json`                                       | `OpenApiDocument`         |
+| `GET /reference`                                          | `ApiReference`            |
+| (anything else)                                           | `Unknown`                 |
 
 ### Failure Policy
 

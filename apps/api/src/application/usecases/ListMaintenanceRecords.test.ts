@@ -96,6 +96,8 @@ describe("ListMaintenanceRecords", () => {
       assetId: asset.id,
       ownerId,
       actorId: ownerId,
+      assetName: asset.name,
+      assetType: asset.type,
       title: "Maintenance",
       performedAt,
       todayUtc: "2026-06-09",

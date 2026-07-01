@@ -22,6 +22,7 @@ import {
   MaintenanceTaskResponseSchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
 import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
+import { ActivityQuerySchema, ActivityResponseSchema } from "./schemas/activitySchemas.ts";
 import { SearchAssetsQuerySchema, SearchAssetsResponseSchema } from "./schemas/searchSchemas.ts";
 import {
   UpdateUserProfileBodySchema,
@@ -71,6 +72,10 @@ export const openApiConfig = {
     {
       name: "Dashboard",
       description: "Authenticated home-screen read model for fleet health and maintenance queue",
+    },
+    {
+      name: "Activity",
+      description: "Authenticated cross-asset history feed",
     },
   ],
 };
@@ -124,8 +129,7 @@ export const listAssetsRoute = createRoute({
   path: "/api/assets",
   tags: ["Assets"],
   summary: "List my assets",
-  description:
-    "Returns the caller's active (non-archived) assets and their counts by category.",
+  description: "Returns the caller's active (non-archived) assets and their counts by category.",
   security: [cookieAuth],
   responses: {
     200: {
@@ -354,6 +358,31 @@ export const getDashboardRoute = createRoute({
   },
 });
 
+export const getActivityRoute = createRoute({
+  method: "get",
+  path: "/api/activity",
+  tags: ["Activity"],
+  summary: "List my activity history",
+  description:
+    "Returns the caller's durable cross-asset activity feed with server-side filters and cursor pagination.",
+  security: [cookieAuth],
+  request: { query: ActivityQuerySchema },
+  responses: {
+    200: {
+      description: "The caller's activity read model",
+      content: { "application/json": { schema: ActivityResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const getUserProfileRoute = createRoute({
   method: "get",
   path: "/api/users/me",
@@ -467,6 +496,7 @@ export function getApiDocument() {
   doc.openapi(listMaintenanceTasksRoute, stub);
   doc.openapi(deleteMaintenanceTaskRoute, stub);
   doc.openapi(getDashboardRoute, stub);
+  doc.openapi(getActivityRoute, stub);
   doc.openapi(getUserProfileRoute, stub);
   doc.openapi(updateUserProfileRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);

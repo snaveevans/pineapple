@@ -35,6 +35,10 @@
     {
       "name": "Dashboard",
       "description": "Authenticated home-screen read model for fleet health and maintenance queue"
+    },
+    {
+      "name": "Activity",
+      "description": "Authenticated cross-asset history feed"
     }
   ],
   "components": {
@@ -842,6 +846,166 @@
           "queue"
         ]
       },
+      "ActivityAssetSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Truck"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "vehicle",
+              "property",
+              "equipment"
+            ],
+            "example": "vehicle"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "ActivityEntry": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "asset_added",
+              "maintenance_logged",
+              "task_completed",
+              "task_scheduled",
+              "task_deleted"
+            ],
+            "example": "maintenance_logged"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-09T18:25:24.887Z"
+          },
+          "asset": {
+            "$ref": "#/components/schemas/ActivityAssetSnapshot"
+          },
+          "title": {
+            "type": "string",
+            "example": "Changed oil"
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-09"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "occurredAt",
+          "asset"
+        ]
+      },
+      "ActivityTypeFilter": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "asset_added",
+              "maintenance_logged",
+              "task_completed",
+              "task_scheduled",
+              "task_deleted"
+            ],
+            "example": "maintenance_logged"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 4
+          }
+        },
+        "required": [
+          "type",
+          "count"
+        ]
+      },
+      "ActivityAssetFilter": {
+        "type": "object",
+        "properties": {
+          "asset": {
+            "$ref": "#/components/schemas/ActivityAssetSnapshot"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 6
+          }
+        },
+        "required": [
+          "asset",
+          "count"
+        ]
+      },
+      "ActivityAvailableFilters": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityTypeFilter"
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityAssetFilter"
+            }
+          }
+        },
+        "required": [
+          "types",
+          "assets"
+        ]
+      },
+      "ActivityResponse": {
+        "type": "object",
+        "properties": {
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntry"
+            }
+          },
+          "availableFilters": {
+            "$ref": "#/components/schemas/ActivityAvailableFilters"
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "entries",
+          "availableFilters",
+          "nextCursor"
+        ]
+      },
       "UserProfile": {
         "type": "object",
         "properties": {
@@ -1551,6 +1715,102 @@
           },
           "401": {
             "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activity": {
+      "get": {
+        "tags": [
+          "Activity"
+        ],
+        "summary": "List my activity history",
+        "description": "Returns the caller's durable cross-asset activity feed with server-side filters and cursor pagination.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asset_added",
+                "maintenance_logged",
+                "task_completed",
+                "task_scheduled",
+                "task_deleted"
+              ],
+              "example": "maintenance_logged"
+            },
+            "required": false,
+            "name": "type",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": false,
+            "name": "assetId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "eyJ2IjoxLCJvY2N1cnJlZEF0IjoiMjAyNi0wNi0wOVQxODowMDowMC4wMDBaIn0"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 25,
+              "example": 25
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's activity read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
             "content": {
               "application/json": {
                 "schema": {

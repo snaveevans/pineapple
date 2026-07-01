@@ -6,6 +6,7 @@ import {
   type UserId,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
+import type { AssetType } from "../asset/AssetType.ts";
 import type { DomainEvent } from "../events/DomainEvent.ts";
 import { validateDateOnly } from "./DateOnly.ts";
 import { type IntervalUnit, INTERVAL_UNITS, addInterval } from "./IntervalUnit.ts";
@@ -45,6 +46,8 @@ export class MaintenanceTask {
     assetId: AssetId;
     ownerId: UserId;
     actorId: UserId;
+    assetName: string;
+    assetType: AssetType;
     title: string;
     intervalValue: number;
     intervalUnit: IntervalUnit;
@@ -103,6 +106,9 @@ export class MaintenanceTask {
         assetId: task.assetId,
         ownerId: task.ownerId,
         actorId: props.actorId,
+        assetName: props.assetName,
+        assetType: props.assetType,
+        title: task.title,
         intervalValue: task.intervalValue,
         intervalUnit: task.intervalUnit,
       }),
@@ -111,7 +117,12 @@ export class MaintenanceTask {
   }
 
   /** Advances lastCompletedDate and nextDue when performedAt is strictly newer. Returns true if advanced. */
-  advance(performedAt: string, recordId: MaintenanceRecordId, actorId: UserId): boolean {
+  advance(
+    performedAt: string,
+    recordId: MaintenanceRecordId,
+    actorId: UserId,
+    assetSnapshot: { assetName: string; assetType: AssetType },
+  ): boolean {
     if (this._lastCompletedDate !== null && performedAt <= this._lastCompletedDate) {
       return false;
     }
@@ -124,19 +135,25 @@ export class MaintenanceTask {
         assetId: this.assetId,
         ownerId: this.ownerId,
         actorId,
+        assetName: assetSnapshot.assetName,
+        assetType: assetSnapshot.assetType,
+        title: this.title,
         performedAt,
       }),
     );
     return true;
   }
 
-  remove(actorId: UserId): void {
+  remove(actorId: UserId, assetSnapshot: { assetName: string; assetType: AssetType }): void {
     this._domainEvents.push(
       MaintenanceTaskDeleted({
         maintenanceTaskId: this.id,
         assetId: this.assetId,
         ownerId: this.ownerId,
         actorId,
+        assetName: assetSnapshot.assetName,
+        assetType: assetSnapshot.assetType,
+        title: this.title,
       }),
     );
   }

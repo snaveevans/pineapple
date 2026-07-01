@@ -65,6 +65,8 @@ export class CreateMaintenanceRecord {
         assetId: asset.id,
         ownerId: asset.ownerId,
         actorId: command.requesterId,
+        assetName: asset.name,
+        assetType: asset.type,
         title: command.title,
         performedAt: command.performedAt,
         ...(command.notes !== undefined ? { notes: command.notes } : {}),
@@ -73,14 +75,21 @@ export class CreateMaintenanceRecord {
       });
 
       const advancedTask =
-        task !== null && task.advance(record.performedAt, record.id, command.requesterId)
+        task !== null &&
+        task.advance(record.performedAt, record.id, command.requesterId, {
+          assetName: asset.name,
+          assetType: asset.type,
+        })
           ? task
           : null;
-      await this.records.save(record, advancedTask);
 
-      await this.eventBus.publishAll(record.pullEvents());
+      const recordEvents = record.pullEvents();
+      const taskEvents = advancedTask !== null ? advancedTask.pullEvents() : [];
+      await this.records.save(record, advancedTask, [...recordEvents, ...taskEvents]);
+
+      await this.eventBus.publishAll(recordEvents);
       if (advancedTask !== null) {
-        await this.eventBus.publishAll(advancedTask.pullEvents());
+        await this.eventBus.publishAll(taskEvents);
       }
 
       return ok(record);

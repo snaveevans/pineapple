@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AssetId, UserId } from "@snaveevans/pineapple-shared";
+import { DomainEventId } from "../../../domain/events/DomainEvent.ts";
 import {
   AssetCreatedTelemetryHandler,
   mapAssetCreatedTelemetry,
@@ -9,9 +10,12 @@ import type { AssetCreated } from "../../../domain/asset/events/AssetCreated.ts"
 
 describe("AssetCreatedTelemetryHandler", () => {
   const event: AssetCreated = {
+    id: DomainEventId.generate(),
     type: "AssetCreated",
     assetId: AssetId.from("195d0ef0-47f5-439f-abfd-29f892c9a040"),
     ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+    actorId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+    assetName: "My Truck",
     assetType: "vehicle",
     assetModelYear: 2016,
     occurredAt: new Date("2026-05-29T12:00:00.000Z"),
@@ -26,7 +30,7 @@ describe("AssetCreatedTelemetryHandler", () => {
         event.assetId,
         event.ownerId,
         "vehicle",
-        event.ownerId,
+        event.actorId,
         "CreateAsset",
         "v1",
         "success",

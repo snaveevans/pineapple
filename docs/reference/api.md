@@ -52,6 +52,7 @@ sign-in. There is no separate "register" step.
 | POST   | `/api/assets`                               | yes  | Create an asset                          |
 | GET    | `/api/assets`                               | yes  | List the caller's active assets          |
 | GET    | `/api/assets/{id}`                          | yes  | Get one asset the caller owns            |
+| GET    | `/api/activity`                             | yes  | List the caller's activity history       |
 | POST   | `/api/assets/{assetId}/maintenance-records` | yes  | Create a maintenance record              |
 | GET    | `/api/assets/{assetId}/maintenance-records` | yes  | List an asset's maintenance history      |
 
