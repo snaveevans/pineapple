@@ -128,6 +128,23 @@ jobs:
         working-directory: apps/api
         run: pnpm wrangler d1 migrations apply pineapple --remote
 
+      # wrangler deploy binds to queues but never creates them, and it hard-fails
+      # if a queue named in wrangler.toml is missing. Reconcile first: create any
+      # queue the Worker references that doesn't exist yet. Idempotent — existing
+      # queues are left untouched, so this is safe to run on every deploy.
+      - name: Ensure Queues exist (production)
+        working-directory: apps/api
+        run: |
+          existing="$(pnpm wrangler queues list --format json | jq -r '.[].queue_name')"
+          for q in pineapple-activity-history pineapple-activity-history-dlq; do
+            if grep -qxF "$q" <<<"$existing"; then
+              echo "Queue $q already exists"
+            else
+              echo "Creating queue $q"
+              pnpm wrangler queues create "$q"
+            fi
+          done
+
       - name: Deploy Worker
         working-directory: apps/api
         run: pnpm wrangler deploy

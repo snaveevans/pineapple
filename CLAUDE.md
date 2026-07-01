@@ -20,6 +20,12 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
   from the Worker `env` binding (`c.env.*`), typed in `worker.ts`.
 - **D1 (SQLite)** via the `DB` binding. Migrations in `/migrations`, applied
   with `wrangler d1 migrations apply pineapple --local|--remote`.
+- **Cloudflare Queues** are declared in `apps/api/wrangler.toml` but `wrangler
+deploy` does NOT create them — it binds to existing queues and fails if one
+  is missing. Provisioning is IaC: the "Ensure Queues exist" step in
+  `.github/workflows/deploy.yml` idempotently creates every declared queue before
+  deploying. Adding a queue means editing both places (see the comment in
+  `wrangler.toml`).
 - **Source-first TypeScript**: no build step. Imports use explicit `.ts`
   extensions (e.g. `import { User } from "./User.ts"`). Keep that convention.
 - **pnpm workspaces**: `packages/*`, `apps/*`. Package manager pinned via
