@@ -61,6 +61,63 @@ describe("D1NotificationRepository", () => {
     expect(statements[0]?.values).toEqual([ownerId, 21]);
   });
 
+  it("continues after an opaque cursor with the stable created-at/id tiebreaker", async () => {
+    const { db, statements } = harness({ rows: [] });
+    const ownerId = UserId.generate();
+    const cursor = btoa("2026-07-13T00:00:00.000Z|notification-123");
+
+    await new D1NotificationRepository(db).listByOwner(ownerId, 20, cursor);
+
+    expect(statements[0]?.query).toContain(
+      "AND (created_at < ? OR (created_at = ? AND id < ?))",
+    );
+    expect(statements[0]?.query).toContain("ORDER BY created_at DESC, id DESC");
+    expect(statements[0]?.values).toEqual([
+      ownerId,
+      "2026-07-13T00:00:00.000Z",
+      "2026-07-13T00:00:00.000Z",
+      "notification-123",
+      21,
+    ]);
+  });
+
+  it("maps rows with self-contained asset and task snapshots and emits a next cursor", async () => {
+    const ownerId = UserId.generate();
+    const rowA = row({
+      id: "notification-b",
+      owner_id: ownerId,
+      created_at: "2026-07-14T00:00:00.000Z",
+      read_at: null,
+    });
+    const rowB = row({
+      id: "notification-a",
+      owner_id: ownerId,
+      created_at: "2026-07-13T00:00:00.000Z",
+      read_at: "2026-07-15T00:00:00.000Z",
+    });
+    const { db } = harness({ rows: [rowA, rowB] });
+
+    const page = await new D1NotificationRepository(db).listByOwner(ownerId, 1, null);
+
+    expect(page.notifications).toEqual([
+      expect.objectContaining({
+        id: NotificationId.from("notification-b"),
+        ownerId,
+        actorId: "system",
+        type: "maintenance_due_soon",
+        maintenanceTaskId: MaintenanceTaskId.from(rowA.maintenance_task_id),
+        assetId: AssetId.from(rowA.asset_id),
+        assetName: "Truck snapshot",
+        assetType: "vehicle",
+        taskTitle: "Oil change snapshot",
+        nextDue: "2026-07-20",
+        createdAt: new Date("2026-07-14T00:00:00.000Z"),
+        readAt: null,
+      }),
+    ]);
+    expect(page.nextCursor).toBe(btoa("2026-07-14T00:00:00.000Z|notification-b"));
+  });
+
   it("counts unread notifications for the owner", async () => {
     const { db, statements } = harness({ first: { count: 4 } });
     const ownerId = UserId.generate();
@@ -77,3 +134,21 @@ describe("D1NotificationRepository", () => {
     expect(statements[0]?.query).toContain("WHERE id = ? AND owner_id = ? AND read_at IS NULL");
   });
 });
+
+function row(overrides: Partial<Record<string, unknown>> = {}) {
+  return {
+    id: "notification-1",
+    owner_id: UserId.generate(),
+    actor_id: "system",
+    type: "maintenance_due_soon",
+    maintenance_task_id: MaintenanceTaskId.generate(),
+    asset_id: AssetId.generate(),
+    asset_name: "Truck snapshot",
+    asset_type: "vehicle",
+    task_title: "Oil change snapshot",
+    next_due: "2026-07-20",
+    created_at: "2026-07-13T00:00:00.000Z",
+    read_at: null,
+    ...overrides,
+  };
+}

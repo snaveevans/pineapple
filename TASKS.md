@@ -52,7 +52,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 ## Notification API
 
-- [ ] Implement notification inbox read use case. Add owner-scoped cursor pagination, newest-first ordering with stable tie-breaker, unread count, self-contained asset/task snapshots, deleted/archived renderability, and no `ownerId` exposure. Validate with application/repository tests and the full check.
+- [x] Implement notification inbox read use case. Add owner-scoped cursor pagination, newest-first ordering with stable tie-breaker, unread count, self-contained asset/task snapshots, deleted/archived renderability, and no `ownerId` exposure. Validate with application/repository tests and the full check.
 
 - [ ] Implement mark-read use cases. Add mark-one and mark-all behavior, owner scoping, 404 for unknown/foreign notification ids, idempotent already-read success, and unread count result for mark-all. Validate with tests and the full check.
 
