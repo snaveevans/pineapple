@@ -54,7 +54,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Implement notification inbox read use case. Add owner-scoped cursor pagination, newest-first ordering with stable tie-breaker, unread count, self-contained asset/task snapshots, deleted/archived renderability, and no `ownerId` exposure. Validate with application/repository tests and the full check.
 
-- [ ] Implement mark-read use cases. Add mark-one and mark-all behavior, owner scoping, 404 for unknown/foreign notification ids, idempotent already-read success, and unread count result for mark-all. Validate with tests and the full check.
+- [x] Implement mark-read use cases. Add mark-one and mark-all behavior, owner scoping, 404 for unknown/foreign notification ids, idempotent already-read success, and unread count result for mark-all. Validate with tests and the full check.
 
 - [ ] Add notification API contracts and handlers. Add `GET /api/notifications`, `POST /api/notifications/{notificationId}/read`, and `POST /api/notifications/read-all` schemas, route specs, worker handlers, technical telemetry mappings/tests, and generated OpenAPI. Validate with OpenAPI generation and the full check.
 

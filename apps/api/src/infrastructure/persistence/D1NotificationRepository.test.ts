@@ -118,6 +118,30 @@ describe("D1NotificationRepository", () => {
     expect(page.nextCursor).toBe(btoa("2026-07-14T00:00:00.000Z|notification-b"));
   });
 
+  it("finds a notification only when it belongs to the owner", async () => {
+    const ownerId = UserId.generate();
+    const id = NotificationId.generate();
+    const { db, statements } = harness({
+      first: row({
+        id,
+        owner_id: ownerId,
+        read_at: "2026-07-15T00:00:00.000Z",
+      }),
+    });
+
+    const found = await new D1NotificationRepository(db).findByIdForOwner(id, ownerId);
+
+    expect(statements[0]?.query).toContain("WHERE id = ? AND owner_id = ?");
+    expect(statements[0]?.values).toEqual([id, ownerId]);
+    expect(found).toEqual(
+      expect.objectContaining({
+        id,
+        ownerId,
+        readAt: new Date("2026-07-15T00:00:00.000Z"),
+      }),
+    );
+  });
+
   it("counts unread notifications for the owner", async () => {
     const { db, statements } = harness({ first: { count: 4 } });
     const ownerId = UserId.generate();
@@ -132,6 +156,14 @@ describe("D1NotificationRepository", () => {
     const ownerId = UserId.generate();
     await new D1NotificationRepository(db).markRead(id, ownerId, new Date("2026-07-14T00:00:00Z"));
     expect(statements[0]?.query).toContain("WHERE id = ? AND owner_id = ? AND read_at IS NULL");
+  });
+
+  it("marks all unread notifications for only the owner", async () => {
+    const { db, statements } = harness();
+    const ownerId = UserId.generate();
+    await new D1NotificationRepository(db).markAllRead(ownerId, new Date("2026-07-14T00:00:00Z"));
+    expect(statements[0]?.query).toContain("WHERE owner_id = ? AND read_at IS NULL");
+    expect(statements[0]?.values).toEqual(["2026-07-14T00:00:00.000Z", ownerId]);
   });
 });
 

@@ -63,7 +63,7 @@ export class ListNotifications {
       ]);
 
       return ok({
-        notifications: page.notifications.map(toInboxItem),
+        notifications: page.notifications.map(toNotificationInboxItem),
         unreadCount,
         nextCursor: page.nextCursor,
       });
@@ -74,7 +74,7 @@ export class ListNotifications {
   }
 }
 
-function toInboxItem(notification: NotificationRecord): NotificationInboxItem {
+export function toNotificationInboxItem(notification: NotificationRecord): NotificationInboxItem {
   return {
     id: notification.id,
     type: notification.type,
