@@ -34,7 +34,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Add email verification API contracts and unauthenticated confirm route. Add `POST /api/users/me/notification-email/verification` and public `POST /api/verify-email`, Zod schemas, OpenAPI route specs, worker wiring before the auth gate for confirm, technical telemetry mappings/tests, `authentication.md` exception update, and generated OpenAPI. Validate with OpenAPI generation and the full check.
 
-- [ ] Add Cloudflare Email Sending infrastructure. Implement the email adapter behind the email port, add Worker binding/config in `apps/api/wrangler.toml`, document required SPF/DKIM/DMARC setup, wire verification email sending, and add tests around adapter input construction using current Cloudflare docs. Validate with lint, type-check, and tests.
+- [x] Add Cloudflare Email Sending infrastructure. Implement the email adapter behind the email port, add Worker binding/config in `apps/api/wrangler.toml`, document required SPF/DKIM/DMARC setup, wire verification email sending, and add tests around adapter input construction using current Cloudflare docs. Validate with lint, type-check, and tests.
 
 ## Notification Storage And Scheduling
 

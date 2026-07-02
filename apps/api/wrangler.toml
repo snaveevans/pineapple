@@ -19,6 +19,10 @@ routes = [
 
 [vars]
 ENVIRONMENT = "production"
+# Outbound transactional email sender (ADR-0012). The from domain must be
+# onboarded to Cloudflare Email Sending first — see docs/reference/email-sending.md.
+EMAIL_FROM_ADDRESS = "noreply@pineapple.tylerevans.co"
+EMAIL_FROM_NAME = "Pineapple"
 
 [observability]
 enabled = true
@@ -40,6 +44,13 @@ database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
 # Tracked migrations (applied via `wrangler d1 migrations apply`). Path is
 # relative to this config file -> repo-root /migrations.
 migrations_dir = "../../migrations"
+
+# Cloudflare Email Sending binding (ADR-0012). `wrangler deploy` binds to this;
+# the from domain must be onboarded once via
+#   wrangler email sending enable pineapple.tylerevans.co
+# See docs/reference/email-sending.md. For local sends, add `remote = true`.
+[[send_email]]
+name = "EMAIL"
 
 [[analytics_engine_datasets]]
 binding = "ASSET_DOMAIN_TELEMETRY"

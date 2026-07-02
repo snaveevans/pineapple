@@ -59,6 +59,10 @@ import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1Ve
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
 import { SystemClock } from "./infrastructure/time/SystemClock.ts";
 import { WebCryptoVerificationTokenService } from "./infrastructure/verification/WebCryptoVerificationTokenService.ts";
+import {
+  CloudflareEmailSender,
+  type CloudflareSendEmailBinding,
+} from "./infrastructure/email/CloudflareEmailSender.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -107,6 +111,12 @@ type Bindings = AuthEnv & {
   DEV_AUTH_EMAIL?: string;
   /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
   APP_BASE_URL?: string;
+  /** Cloudflare Email Sending binding. Absent locally → sends fall back to a no-op. */
+  EMAIL?: CloudflareSendEmailBinding;
+  /** Verified sender address for outbound email; required to actually send. */
+  EMAIL_FROM_ADDRESS?: string;
+  /** Optional sender display name. */
+  EMAIL_FROM_NAME?: string;
 };
 type Variables = {
   user: User;
@@ -305,9 +315,9 @@ app.use("/api/*", async (c, next) => {
 });
 
 /**
- * Temporary no-op email sender. Token issuance, rate limiting, and audit are
- * real; only the actual send is stubbed until the Cloudflare Email Sending
- * adapter lands. Swap this for that adapter to start delivering mail.
+ * No-op email sender used when no email binding/sender address is configured
+ * (e.g. local dev before the domain is onboarded). Token issuance, rate limiting,
+ * and audit still run; only the actual send is skipped.
  */
 class NoopTransactionalEmailSender implements TransactionalEmailSender {
   send(): Promise<EmailDeliveryResult> {
@@ -315,10 +325,20 @@ class NoopTransactionalEmailSender implements TransactionalEmailSender {
   }
 }
 
+function resolveEmailSender(c: Context<AppEnv>): TransactionalEmailSender {
+  if (c.env.EMAIL && c.env.EMAIL_FROM_ADDRESS) {
+    return new CloudflareEmailSender(c.env.EMAIL, {
+      email: c.env.EMAIL_FROM_ADDRESS,
+      ...(c.env.EMAIL_FROM_NAME ? { name: c.env.EMAIL_FROM_NAME } : {}),
+    });
+  }
+  return new NoopTransactionalEmailSender();
+}
+
 /**
- * Wires the verification-send use case for a request. The email send is stubbed
- * (see {@link NoopTransactionalEmailSender}); everything else is real. The
- * verification link points at the web app's public `/verify-email` page.
+ * Wires the verification-send use case for a request. The verification link
+ * points at the web app's public `/verify-email` page; the email goes out through
+ * the Cloudflare Email Sending adapter when configured.
  */
 function buildRequestEmailVerification(c: Context<AppEnv>): RequestEmailVerification {
   const appBase = c.env.APP_BASE_URL ?? new URL(c.req.url).origin;
@@ -326,7 +346,7 @@ function buildRequestEmailVerification(c: Context<AppEnv>): RequestEmailVerifica
     new D1UserRepository(c.env.DB),
     new D1VerificationTokenRepository(c.env.DB),
     new D1VerificationSendLog(c.env.DB),
-    new NoopTransactionalEmailSender(),
+    resolveEmailSender(c),
     new WebCryptoVerificationTokenService(),
     c.get("eventBus"),
     new SystemClock(),
