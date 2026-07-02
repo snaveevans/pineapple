@@ -192,7 +192,7 @@ Use small commits. Do not start the next unchecked task in the same loop.
 Commit messages must end with:
 
 ```text
-Co-Authored-By: Codex <codex@openai.com>
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 ```
 
 ## Final Completion Gate

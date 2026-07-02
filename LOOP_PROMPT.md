@@ -17,7 +17,12 @@ Your job is to perform exactly one implementation loop:
 8. Change only that task's checkbox in `TASKS.md` from `- [ ]` to `- [x]`.
 9. Review `git diff` to ensure the changes are scoped to the task and do not revert unrelated user work.
 10. Stage the files changed for the task.
-11. Commit with a concise message describing the completed task. End the commit message with:
+11. Commit with a concise message describing the completed task. End the commit message with this trailer:
+
+    ```text
+    Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+    ```
+
 12. Stop after the commit and report the commit hash, validation commands run, and any residual risk.
 
 Rules:
