@@ -425,3 +425,8 @@ email covered — this is the deliverability signal ADR-0012 requires.
 
 - Team/delegate notifications. v1 records `actorId` (`"system"`) separately from `ownerId` for
   future attribution, but does not display an actor or support cross-user inboxes.
+- Harden reminder-email dispatch with an atomic claim step before calling the email provider. v1
+  accepts the at-least-once queue edge for aggregated reminder emails; a future pass could add a
+  `pending` -> `sending` transition on `email_batches` so concurrent redeliveries do not both send.
+  This reduces duplicate sends but does not fully eliminate the crash-after-send edge without
+  provider-level idempotency.
