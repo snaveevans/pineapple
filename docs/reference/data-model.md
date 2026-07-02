@@ -162,13 +162,18 @@ it renders even after the source task is deleted or the asset archived.
 - **`notifications`** — the durable in-app inbox. One row per `(task, cycle)`
   (unique on `maintenance_task_id, next_due`), owner-scoped, newest-first with an
   `id` tiebreak, `read_at` nullable. Snapshots (`asset_*`, `task_title`,
-  `next_due`) copied from the reminder so the row is self-contained. `ownerId`
-  and `actorId` are never exposed in API responses; `actorId` is `"system"` and
-  reserved for future delegation.
+  `next_due`) copied from the reminder so the row is self-contained. When a
+  notification is created by the sweep, nullable `email_batch_id` links it to
+  the owner/sweep email aggregate. `ownerId` and `actorId` are never exposed in
+  API responses; `actorId` is `"system"` and reserved for future delegation.
 - **`email_batches`** — one aggregated reminder email per owner per sweep, with
   `status` (`pending` / `sent` / `suppressed` / `failed`), `suppress_reason`, and
   the covered `notification_count`. The outbound consumer is idempotent on the
   batch id.
+- **`notification_email_outbox`** — producer-side transactional outbox for
+  reminder email jobs. The sweep writes this in the same D1 batch as
+  `notifications`, fired reminder status updates, and `email_batches`; a later
+  queue relay moves pending rows to the outbound reminder-email queue.
 - **`notification_ingested_events`** — dedupe/order markers keyed by source
   `event_id`, so at-least-once redelivery of a `MaintenanceTask*` event is a
   no-op.
@@ -190,6 +195,7 @@ it renders even after the source task is deleted or the asset archived.
 | Scheduled reminders | `scheduled_reminders`                        | notifications' own cancelable schedule, keyed by source task           |
 | Notifications       | `notifications`                              | durable in-app inbox; one per `(task, cycle)`                          |
 | Email batches       | `email_batches`                              | one aggregated reminder email per owner per sweep                      |
+| Reminder email outbox | `notification_email_outbox`                | producer-side transactional outbox for aggregated reminder email jobs   |
 | Notification events | `notification_ingested_events`               | inbound event dedupe/order markers                                     |
 | Notification DLQ    | `notification_dead_letters`                  | durable copy of exhausted notification-queue messages                  |
 | Queue dead letters  | `dead_letters`                               | durable copy of malformed or exhausted activity queue messages         |

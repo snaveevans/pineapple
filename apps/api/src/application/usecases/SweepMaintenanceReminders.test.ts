@@ -1,5 +1,6 @@
 import {
   AssetId,
+  EmailBatchId,
   MaintenanceTaskId,
   ScheduledReminderId,
   UserId,
@@ -9,71 +10,61 @@ import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { NotificationType, ScheduledReminderStatus } from "../notifications/notificationTypes.ts";
 import type { Clock } from "../ports/Clock.ts";
 import type { EventBus } from "../ports/EventBus.ts";
+import type { EmailBatchRecord } from "../ports/EmailBatchRepository.ts";
+import type { NotificationRecord } from "../ports/NotificationRepository.ts";
 import type {
-  NotificationPage,
-  NotificationRecord,
-  NotificationRepository,
-} from "../ports/NotificationRepository.ts";
+  ReminderSweepNotificationCandidate,
+  ReminderSweepPersistenceInput,
+  ReminderSweepPersistenceResult,
+  ReminderSweepStore,
+} from "../ports/ReminderSweepStore.ts";
 import type {
   ScheduledReminderRecord,
-  ScheduledReminderRepository,
 } from "../ports/ScheduledReminderRepository.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
 import { SweepMaintenanceReminders } from "./SweepMaintenanceReminders.ts";
 
-class ReminderRepoFake implements ScheduledReminderRepository {
+class ReminderSweepStoreFake implements ReminderSweepStore {
   readonly statusUpdates: { id: ScheduledReminderId; status: ScheduledReminderStatus }[] = [];
+  readonly inserted: NotificationRecord[] = [];
+  readonly recordInputs: ReminderSweepPersistenceInput[] = [];
   todayRequested: string | null = null;
 
-  constructor(private readonly due: ScheduledReminderRecord[]) {}
-
-  save(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  findPendingByTask(): Promise<ScheduledReminderRecord | null> {
-    return Promise.resolve(null);
-  }
+  constructor(
+    private readonly due: ScheduledReminderRecord[],
+    private readonly insertResults: boolean[] = [],
+  ) {}
 
   findDue(today: string): Promise<ScheduledReminderRecord[]> {
     this.todayRequested = today;
     return Promise.resolve(this.due);
   }
 
-  updateStatus(id: ScheduledReminderId, status: ScheduledReminderStatus): Promise<void> {
-    this.statusUpdates.push({ id, status });
-    return Promise.resolve();
-  }
-}
+  recordDueReminderSweep(input: ReminderSweepPersistenceInput): Promise<ReminderSweepPersistenceResult> {
+    this.recordInputs.push(input);
+    const createdCandidates: ReminderSweepNotificationCandidate[] = [];
 
-class NotificationRepoFake implements NotificationRepository {
-  readonly inserted: NotificationRecord[] = [];
+    for (const candidate of input.candidates) {
+      this.statusUpdates.push({ id: candidate.reminderId, status: "fired" });
+      const inserted = this.insertResults.shift() ?? true;
+      this.inserted.push(candidate.notification);
+      if (inserted) createdCandidates.push(candidate);
+    }
 
-  constructor(private readonly insertResults: boolean[] = []) {}
+    const counts = countByBatch(createdCandidates);
+    const emailBatches: EmailBatchRecord[] = input.emailBatches
+      .map((batch) => ({
+        ...batch,
+        status: "pending" as const,
+        suppressReason: null,
+        notificationCount: counts.get(batch.id) ?? 0,
+      }))
+      .filter((batch) => batch.notificationCount > 0);
 
-  insertIfAbsent(notification: NotificationRecord): Promise<boolean> {
-    this.inserted.push(notification);
-    return Promise.resolve(this.insertResults.shift() ?? true);
-  }
-
-  findByIdForOwner(): Promise<NotificationRecord | null> {
-    return Promise.resolve(null);
-  }
-
-  listByOwner(): Promise<NotificationPage> {
-    return Promise.resolve({ notifications: [], nextCursor: null });
-  }
-
-  countUnread(): Promise<number> {
-    return Promise.resolve(0);
-  }
-
-  markRead(): Promise<void> {
-    return Promise.resolve();
-  }
-
-  markAllRead(): Promise<void> {
-    return Promise.resolve();
+    return Promise.resolve({
+      createdNotifications: createdCandidates.map((candidate) => candidate.notification),
+      emailBatches,
+    });
   }
 }
 
@@ -130,22 +121,20 @@ describe("SweepMaintenanceReminders", () => {
         nextDue: "2026-07-09",
       }),
     ];
-    const reminders = new ReminderRepoFake(due);
-    const notifications = new NotificationRepoFake();
+    const store = new ReminderSweepStoreFake(due);
     const events = new EventBusFake();
 
     const result = await new SweepMaintenanceReminders(
-      reminders,
-      notifications,
+      store,
       dates,
       clock,
       events,
     ).execute();
 
     expect(result.ok).toBe(true);
-    expect(reminders.todayRequested).toBe("2026-07-02");
-    expect(notifications.inserted).toHaveLength(1);
-    expect(notifications.inserted[0]).toMatchObject({
+    expect(store.todayRequested).toBe("2026-07-02");
+    expect(store.inserted).toHaveLength(1);
+    expect(store.inserted[0]).toMatchObject({
       ownerId,
       actorId: "system",
       type: "maintenance_due_soon" satisfies NotificationType,
@@ -158,11 +147,11 @@ describe("SweepMaintenanceReminders", () => {
       createdAt: now,
       readAt: null,
     });
-    expect(reminders.statusUpdates).toEqual([{ id: due[0]?.id, status: "fired" }]);
+    expect(store.statusUpdates).toEqual([{ id: due[0]?.id, status: "fired" }]);
     expect(events.events).toHaveLength(1);
     expect(events.events[0]).toMatchObject({
       type: "MaintenanceReminderCreated",
-      notificationId: notifications.inserted[0]?.id,
+      notificationId: store.inserted[0]?.id,
       notificationType: "maintenance_due_soon",
       maintenanceTaskId: due[0]?.maintenanceTaskId,
       assetId: due[0]?.assetId,
@@ -170,15 +159,19 @@ describe("SweepMaintenanceReminders", () => {
       actorId: "system",
       leadDays: 7,
     });
+    if (!result.ok) throw result.error;
+    expect(result.value.emailBatches).toEqual([
+      expect.objectContaining({ ownerId, status: "pending", notificationCount: 1 }),
+    ]);
   });
 
-  it("groups only newly created notifications by owner", async () => {
+  it("creates one email batch per owner per sweep while keeping one notification per task", async () => {
     const ownerA = UserId.generate();
     const ownerB = UserId.generate();
     const due = [reminder({ ownerId: ownerA }), reminder({ ownerId: ownerA }), reminder({ ownerId: ownerB })];
+    const store = new ReminderSweepStoreFake(due);
     const result = await new SweepMaintenanceReminders(
-      new ReminderRepoFake(due),
-      new NotificationRepoFake(),
+      store,
       dates,
       clock,
       new EventBusFake(),
@@ -192,17 +185,25 @@ describe("SweepMaintenanceReminders", () => {
       [ownerA, 2],
       [ownerB, 1],
     ]);
+    expect(result.value.emailBatches.map((batch) => [batch.ownerId, batch.notificationCount])).toEqual([
+      [ownerA, 2],
+      [ownerB, 1],
+    ]);
+    const recorded = store.recordInputs[0];
+    expect(recorded?.emailBatches).toHaveLength(2);
+    const ownerABatchIds = recorded?.candidates
+      .filter((candidate) => candidate.notification.ownerId === ownerA)
+      .map((candidate) => candidate.emailBatchId);
+    expect(new Set(ownerABatchIds).size).toBe(1);
   });
 
-  it("marks duplicate pending reminders fired without publishing created events", async () => {
+  it("marks duplicate pending reminders fired without publishing created events or duplicate batches", async () => {
     const due = [reminder(), reminder()];
-    const reminders = new ReminderRepoFake(due);
-    const notifications = new NotificationRepoFake([false, true]);
+    const store = new ReminderSweepStoreFake(due, [false, true]);
     const events = new EventBusFake();
 
     const result = await new SweepMaintenanceReminders(
-      reminders,
-      notifications,
+      store,
       dates,
       clock,
       events,
@@ -210,23 +211,24 @@ describe("SweepMaintenanceReminders", () => {
 
     if (!result.ok) throw result.error;
 
-    expect(notifications.inserted).toHaveLength(2);
-    expect(reminders.statusUpdates).toEqual([
+    expect(store.inserted).toHaveLength(2);
+    expect(store.statusUpdates).toEqual([
       { id: due[0]?.id, status: "fired" },
       { id: due[1]?.id, status: "fired" },
     ]);
     expect(result.value.createdCount).toBe(1);
+    expect(result.value.emailBatches).toEqual([
+      expect.objectContaining({ notificationCount: 1, status: "pending" }),
+    ]);
     expect(events.events).toHaveLength(1);
   });
 
   it("does not create notifications for canceled, superseded, or future reminders because the repository only returns due pending rows", async () => {
-    const reminders = new ReminderRepoFake([]);
-    const notifications = new NotificationRepoFake();
+    const store = new ReminderSweepStoreFake([]);
     const events = new EventBusFake();
 
     const result = await new SweepMaintenanceReminders(
-      reminders,
-      notifications,
+      store,
       dates,
       clock,
       events,
@@ -234,9 +236,25 @@ describe("SweepMaintenanceReminders", () => {
 
     if (!result.ok) throw result.error;
 
-    expect(result.value).toEqual({ today: "2026-07-02", createdCount: 0, createdByOwner: [] });
-    expect(notifications.inserted).toHaveLength(0);
-    expect(reminders.statusUpdates).toHaveLength(0);
+    expect(result.value).toEqual({
+      today: "2026-07-02",
+      createdCount: 0,
+      createdByOwner: [],
+      emailBatches: [],
+    });
+    expect(store.inserted).toHaveLength(0);
+    expect(store.statusUpdates).toHaveLength(0);
+    expect(store.recordInputs).toEqual([
+      { candidates: [], emailBatches: [], updatedAt: now },
+    ]);
     expect(events.events).toHaveLength(0);
   });
 });
+
+function countByBatch(candidates: ReminderSweepNotificationCandidate[]): Map<EmailBatchId, number> {
+  const counts = new Map<EmailBatchId, number>();
+  for (const candidate of candidates) {
+    counts.set(candidate.emailBatchId, (counts.get(candidate.emailBatchId) ?? 0) + 1);
+  }
+  return counts;
+}

@@ -29,6 +29,7 @@ import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepositor
 import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
+import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSweepStore.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
@@ -67,6 +68,7 @@ import { ConfirmEmailVerification } from "./application/usecases/ConfirmEmailVer
 import { ListNotifications } from "./application/usecases/ListNotifications.ts";
 import { MarkNotificationRead } from "./application/usecases/MarkNotificationRead.ts";
 import { MarkAllNotificationsRead } from "./application/usecases/MarkAllNotificationsRead.ts";
+import { SweepMaintenanceReminders } from "./application/usecases/SweepMaintenanceReminders.ts";
 import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
 import { SystemClock } from "./infrastructure/time/SystemClock.ts";
@@ -388,6 +390,18 @@ function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSch
   };
 }
 
+async function runMaintenanceReminderSweep(env: Bindings): Promise<void> {
+  const result = await new SweepMaintenanceReminders(
+    new D1ReminderSweepStore(env.DB),
+    new SystemUtcDateProvider(),
+    new SystemClock(),
+    new InMemoryEventBus(),
+  ).execute();
+  if (!result.ok) {
+    console.error({ error: result.error }, "Maintenance reminder sweep failed");
+  }
+}
+
 // ── Dashboard endpoint ───────────────────────────────────────────────────────
 
 app.openapi(getDashboardRoute, async (c) => {
@@ -685,6 +699,7 @@ const worker: ExportedHandler<Bindings, unknown> = {
     await handleActivityQueueBatch(batch, env.DB);
   },
   scheduled(_event, env, ctx) {
+    ctx.waitUntil(runMaintenanceReminderSweep(env));
     ctx.waitUntil(new D1ActivityOutboxRepository(env.DB).relayPending(env.ACTIVITY_HISTORY_QUEUE));
     ctx.waitUntil(
       new D1NotificationOutboxRepository(env.DB).relayPending(env.NOTIFICATION_EVENTS_QUEUE),

@@ -60,7 +60,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 ## Reminder Email Delivery
 
-- [ ] Add email batch creation to the sweep. For each owner with notifications created in one sweep, create one email batch and enqueue one outbound email job atomically with the reminder changes. Ensure in-app notifications remain one per task and email aggregation is per owner per sweep. Validate with sweep tests and the full check.
+- [x] Add email batch creation to the sweep. For each owner with notifications created in one sweep, create one email batch and enqueue one outbound email job atomically with the reminder changes. Ensure in-app notifications remain one per task and email aggregation is per owner per sweep. Validate with sweep tests and the full check.
 
 - [ ] Implement outbound reminder email consumer. Resolve verified contact email at send time, send through the email port only when verified, record `sent` / `suppressed` / `failed` outcomes with suppress reasons, make redelivery idempotent on batch id, and emit `ReminderEmailDispatched` telemetry events without PII. Validate with focused tests and the full check.
 
