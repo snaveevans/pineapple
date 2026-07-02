@@ -21,14 +21,15 @@ Errors flow from the domain outward through a typed hierarchy. Use cases express
 
 **Domain error types (`packages/shared/src/errors.ts`):**
 
-| Subclass            | HTTP status | Meaning                                                      |
-| ------------------- | ----------- | ------------------------------------------------------------ |
-| `NotFoundError`     | 404         | Entity does not exist or is not visible to the requester     |
-| `UnauthorizedError` | 401         | No valid session                                             |
-| `ForbiddenError`    | 403         | Session is valid but requester lacks access to this resource |
-| `ValidationError`   | 422         | Input failed a domain rule; carries an optional `field` name |
-| `ConflictError`     | 409         | Operation would violate a uniqueness or state constraint     |
-| `InvariantError`    | 500         | Internal invariant violated; a bug, not a user error         |
+| Subclass               | HTTP status | Meaning                                                      |
+| ---------------------- | ----------- | ------------------------------------------------------------ |
+| `NotFoundError`        | 404         | Entity does not exist or is not visible to the requester     |
+| `UnauthorizedError`    | 401         | No valid session                                             |
+| `ForbiddenError`       | 403         | Session is valid but requester lacks access to this resource |
+| `ValidationError`      | 422         | Input failed a domain rule; carries an optional `field` name |
+| `ConflictError`        | 409         | Operation would violate a uniqueness or state constraint     |
+| `TooManyRequestsError` | 429         | Caller exceeded a rate limit and should retry later          |
+| `InvariantError`       | 500         | Internal invariant violated; a bug, not a user error         |
 
 **Backend flow:**
 

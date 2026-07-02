@@ -1,14 +1,21 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
-import { Email, UserId, ValidationError } from "@snaveevans/pineapple-shared";
+import { Email, TooManyRequestsError, UserId, ValidationError } from "@snaveevans/pineapple-shared";
 import { User } from "../../domain/identity/User.ts";
 import {
   buildApiRequestTelemetryDataPoint,
   createTechnicalTelemetryMiddleware,
   requestCountry,
   requestUserId,
+  statusFromError,
   type ApiRequestTelemetryDataPoint,
 } from "./technicalTelemetry.ts";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "@snaveevans/pineapple-shared";
 
 const userId = UserId.from("195d0ef0-47f5-439f-abfd-29f892c9a040");
 
@@ -329,6 +336,22 @@ describe("requestUserId", () => {
 
   it('returns "anonymous" when no user is on the context', () => {
     expect(requestUserId(undefined)).toBe("anonymous");
+  });
+});
+
+describe("statusFromError", () => {
+  it("maps domain errors to their HTTP status", () => {
+    expect(statusFromError(new NotFoundError("nope"))).toBe(404);
+    expect(statusFromError(new UnauthorizedError("nope"))).toBe(401);
+    expect(statusFromError(new ForbiddenError("nope"))).toBe(403);
+    expect(statusFromError(new ValidationError("nope"))).toBe(422);
+    expect(statusFromError(new ConflictError("nope"))).toBe(409);
+    expect(statusFromError(new TooManyRequestsError("slow down"))).toBe(429);
+  });
+
+  it("maps unknown errors to 500", () => {
+    expect(statusFromError(new Error("boom"))).toBe(500);
+    expect(statusFromError(null)).toBe(500);
   });
 });
 

@@ -16,6 +16,7 @@ export {
   NotFoundError,
   ForbiddenError,
   ConflictError,
+  TooManyRequestsError,
   UnauthorizedError,
   InvariantError,
   ValidationError,

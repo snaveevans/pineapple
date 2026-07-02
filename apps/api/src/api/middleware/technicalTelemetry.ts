@@ -3,6 +3,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
@@ -195,12 +196,13 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   return { operation: "Unknown", routePattern: "Unknown" };
 }
 
-function statusFromError(error: unknown): number {
+export function statusFromError(error: unknown): number {
   if (error instanceof NotFoundError) return 404;
   if (error instanceof UnauthorizedError) return 401;
   if (error instanceof ForbiddenError) return 403;
   if (error instanceof ValidationError) return 422;
   if (error instanceof ConflictError) return 409;
+  if (error instanceof TooManyRequestsError) return 429;
   return 500;
 }
 

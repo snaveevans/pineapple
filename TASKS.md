@@ -4,7 +4,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 ## Foundation
 
-- [ ] Add `TooManyRequestsError` support. Update `packages/shared/errors.ts`, `apps/api/src/api/errors.ts`, request telemetry status mapping/tests, `docs/specs/cross-cutting/error-handling.md`, and any imports. Validate with `pnpm lint`, `pnpm type-check`, and `pnpm -r test`.
+- [x] Add `TooManyRequestsError` support. Update `packages/shared/errors.ts`, `apps/api/src/api/errors.ts`, request telemetry status mapping/tests, `docs/specs/cross-cutting/error-handling.md`, and any imports. Validate with `pnpm lint`, `pnpm type-check`, and `pnpm -r test`.
 
 - [ ] Add shared primitives for the upcoming work. Add branded ids for notifications, scheduled reminders, verification tokens, and email batches; add one shared maintenance due-soon/reminder lead constant so dashboard and notifications use the same 7-day policy. Replace existing hardcoded dashboard/task-status 7-day use sites. Validate with focused tests plus `pnpm lint`, `pnpm type-check`, and `pnpm -r test`.
 
