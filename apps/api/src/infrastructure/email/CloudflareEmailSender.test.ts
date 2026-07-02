@@ -39,7 +39,7 @@ describe("CloudflareEmailSender", () => {
     expect(result).toEqual({ status: "sent" });
     expect(binding.sent).toHaveLength(1);
     expect(binding.sent[0]).toMatchObject({
-      to: "contact@example.com",
+      to: "Dale <contact@example.com>",
       from,
       subject: "Verify your email",
       text: "Open the link.",
@@ -47,7 +47,7 @@ describe("CloudflareEmailSender", () => {
     });
   });
 
-  it("omits html when the message has none", async () => {
+  it("omits html when the message has none and sends a bare address without a name", async () => {
     const binding = new BindingFake();
 
     await new CloudflareEmailSender(binding, from).send({
@@ -57,6 +57,7 @@ describe("CloudflareEmailSender", () => {
     });
 
     expect(binding.sent[0]).not.toHaveProperty("html");
+    expect(binding.sent[0]).toMatchObject({ to: "contact@example.com" });
   });
 
   it("classifies a rate-limit error as a retryable failure", async () => {

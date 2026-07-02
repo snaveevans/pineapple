@@ -42,10 +42,21 @@ export async function handleNotificationEventBatch(
     }
 
     try {
-      await useCase.execute(toCommand(message.body));
-      message.ack();
+      const result = await useCase.execute(toCommand(message.body));
+      if (result.ok) {
+        message.ack();
+      } else {
+        // The use case failed (e.g. a transient concurrent-write conflict). It
+        // left the event unrecorded, so retry and let redelivery reconcile it.
+        console.error(
+          { error: result.error, messageId: message.id },
+          "Notification event message failed",
+        );
+        message.retry();
+      }
     } catch (error) {
-      console.error({ error, messageId: message.id }, "Notification event message failed");
+      // Fail-safe: a leaked throw is treated as transient (retry), never a silent ack.
+      console.error({ error, messageId: message.id }, "Notification event message threw");
       message.retry();
     }
   }

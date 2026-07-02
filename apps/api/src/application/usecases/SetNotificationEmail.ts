@@ -10,6 +10,7 @@ import {
 } from "@snaveevans/pineapple-shared";
 import type { User } from "../../domain/identity/User.ts";
 import type { UserRepository } from "../../domain/identity/UserRepository.ts";
+import type { Clock } from "../ports/Clock.ts";
 import type { EmailVerificationRequests } from "../ports/EmailVerificationRequests.ts";
 import type { EventBus } from "../ports/EventBus.ts";
 
@@ -38,6 +39,7 @@ export class SetNotificationEmail {
     private readonly users: UserRepository,
     private readonly eventBus: EventBus,
     private readonly verificationRequests: EmailVerificationRequests,
+    private readonly clock: Clock,
   ) {}
 
   async execute(cmd: SetNotificationEmailCommand): Promise<Result<User, DomainError>> {
@@ -52,7 +54,7 @@ export class SetNotificationEmail {
 
       // Provider already proved ownership of this address → store verified.
       if (cmd.email === cmd.providerAuthEmail && cmd.providerAuthEmailVerified) {
-        user.setVerifiedNotificationEmail(cmd.email);
+        user.setVerifiedNotificationEmail(cmd.email, this.clock.now());
         await this.users.save(user);
         await this.eventBus.publishAll(user.pullEvents());
         return ok(user);

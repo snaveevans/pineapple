@@ -46,7 +46,10 @@ const authEmail = Email.from("dale@example.com");
 describe("RemoveNotificationEmail", () => {
   it("clears the contact email and publishes NotificationEmailRemoved", async () => {
     const user = User.create(authEmail);
-    user.setVerifiedNotificationEmail(Email.from("contact@example.com"));
+    user.setVerifiedNotificationEmail(
+      Email.from("contact@example.com"),
+      new Date("2026-07-02T12:00:00.000Z"),
+    );
     user.pullEvents();
     const repo = new RecordingUserRepository(user);
     const bus = new RecordingEventBus();

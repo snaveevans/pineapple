@@ -7,7 +7,8 @@ export type VerificationRequestResult =
   | "sent"
   | "throttled"
   | "noop_already_verified"
-  | "no_address";
+  | "no_address"
+  | "send_failed";
 
 export type VerificationThrottleReason = "cooldown" | "per_address_cap" | "per_user_cap" | "none";
 

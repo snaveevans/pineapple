@@ -485,6 +485,7 @@ app.openapi(setNotificationEmailRoute, async (c) => {
     new D1UserRepository(c.env.DB),
     c.get("eventBus"),
     buildRequestEmailVerification(c),
+    new SystemClock(),
   ).execute({
     userId: caller.user.id,
     email: Email.from(email),

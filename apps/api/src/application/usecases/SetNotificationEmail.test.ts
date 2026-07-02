@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import { User } from "../../domain/identity/User.ts";
 import type { UserRepository } from "../../domain/identity/UserRepository.ts";
+import type { Clock } from "../ports/Clock.ts";
 import type { EmailVerificationRequests } from "../ports/EmailVerificationRequests.ts";
 import type { EventBus } from "../ports/EventBus.ts";
 import { SetNotificationEmail } from "./SetNotificationEmail.ts";
@@ -63,6 +64,8 @@ class VerificationRequestsFake implements EmailVerificationRequests {
 
 const authEmail = Email.from("dale@example.com");
 const contactEmail = Email.from("contact@example.com");
+const verifiedAt = new Date("2026-07-02T12:00:00.000Z");
+const clock: Clock = { now: () => verifiedAt };
 
 function eventTypes(bus: RecordingEventBus): string[] {
   return bus.events.map((e) => e.type);
@@ -75,7 +78,7 @@ describe("SetNotificationEmail", () => {
     const bus = new RecordingEventBus();
     const verifications = new VerificationRequestsFake();
 
-    const result = await new SetNotificationEmail(repo, bus, verifications).execute({
+    const result = await new SetNotificationEmail(repo, bus, verifications, clock).execute({
       userId: user.id,
       email: authEmail,
       providerAuthEmail: authEmail,
@@ -95,7 +98,7 @@ describe("SetNotificationEmail", () => {
     const bus = new RecordingEventBus();
     const verifications = new VerificationRequestsFake();
 
-    const result = await new SetNotificationEmail(repo, bus, verifications).execute({
+    const result = await new SetNotificationEmail(repo, bus, verifications, clock).execute({
       userId: user.id,
       email: contactEmail,
       providerAuthEmail: authEmail,
@@ -115,7 +118,7 @@ describe("SetNotificationEmail", () => {
     const bus = new RecordingEventBus();
     const verifications = new VerificationRequestsFake();
 
-    const result = await new SetNotificationEmail(repo, bus, verifications).execute({
+    const result = await new SetNotificationEmail(repo, bus, verifications, clock).execute({
       userId: user.id,
       email: authEmail,
       providerAuthEmail: authEmail,
@@ -129,13 +132,13 @@ describe("SetNotificationEmail", () => {
 
   it("is an idempotent no-op when re-submitting the current verified address", async () => {
     const user = User.create(authEmail);
-    user.setVerifiedNotificationEmail(contactEmail);
+    user.setVerifiedNotificationEmail(contactEmail, verifiedAt);
     user.pullEvents();
     const repo = new RecordingUserRepository(user);
     const bus = new RecordingEventBus();
     const verifications = new VerificationRequestsFake();
 
-    const result = await new SetNotificationEmail(repo, bus, verifications).execute({
+    const result = await new SetNotificationEmail(repo, bus, verifications, clock).execute({
       userId: user.id,
       email: contactEmail,
       // provider is a different address, so only idempotency can apply
@@ -151,13 +154,13 @@ describe("SetNotificationEmail", () => {
 
   it("stores a changed address unverified and drops prior verified state", async () => {
     const user = User.create(authEmail);
-    user.setVerifiedNotificationEmail(Email.from("old@example.com"));
+    user.setVerifiedNotificationEmail(Email.from("old@example.com"), verifiedAt);
     user.pullEvents();
     const repo = new RecordingUserRepository(user);
     const bus = new RecordingEventBus();
     const verifications = new VerificationRequestsFake();
 
-    const result = await new SetNotificationEmail(repo, bus, verifications).execute({
+    const result = await new SetNotificationEmail(repo, bus, verifications, clock).execute({
       userId: user.id,
       email: contactEmail,
       providerAuthEmail: authEmail,
@@ -179,7 +182,7 @@ describe("SetNotificationEmail", () => {
       err(new TooManyRequestsError("Too many verification requests")),
     );
 
-    const result = await new SetNotificationEmail(repo, bus, verifications).execute({
+    const result = await new SetNotificationEmail(repo, bus, verifications, clock).execute({
       userId: user.id,
       email: contactEmail,
       providerAuthEmail: authEmail,
@@ -198,6 +201,7 @@ describe("SetNotificationEmail", () => {
       new RecordingUserRepository(null),
       new RecordingEventBus(),
       new VerificationRequestsFake(),
+      clock,
     ).execute({
       userId: UserId.generate(),
       email: contactEmail,

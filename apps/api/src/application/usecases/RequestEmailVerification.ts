@@ -3,6 +3,7 @@ import {
   type DomainError,
   DomainError as DomainErrorClass,
   type Email,
+  InvariantError,
   NotFoundError,
   ok,
   err,
@@ -91,7 +92,14 @@ export class RequestEmailVerification implements EmailVerificationRequests {
         return err(new TooManyRequestsError("Verification email requested too frequently"));
       }
 
-      await this.#issue(cmd.userId, email);
+      const sent = await this.#issue(cmd.userId, email);
+      if (!sent) {
+        // The send passed every limit and a token was issued, but the provider
+        // send failed. Surface it (500) so the caller can retry immediately, and
+        // record it as send_failed rather than mislabeling it sent.
+        await this.#record(cmd.userId, cmd.source, "send_failed", "none");
+        return err(new InvariantError("Verification email send failed"));
+      }
       await this.#record(cmd.userId, cmd.source, "sent", "none");
       return ok(undefined);
     } catch (e) {
@@ -119,7 +127,13 @@ export class RequestEmailVerification implements EmailVerificationRequests {
     return "none";
   }
 
-  async #issue(userId: UserId, email: Email): Promise<void> {
+  /**
+   * Issues a fresh token and puts the verification email on the wire. Returns
+   * whether the send reached the provider. The send is recorded against the rate
+   * limits **only on success**, so a provider failure never consumes the user's
+   * cooldown or daily quota (letting them retry immediately).
+   */
+  async #issue(userId: UserId, email: Email): Promise<boolean> {
     await this.tokens.invalidateOutstanding(userId, email, PURPOSE);
 
     const now = this.clock.now();
@@ -135,8 +149,6 @@ export class RequestEmailVerification implements EmailVerificationRequests {
       consumedAt: null,
     });
 
-    await this.sendLog.record({ userId, email, purpose: PURPOSE, createdAt: now });
-
     const link = this.buildVerificationLink(token);
     const result = await this.emailSender.send({
       to: { address: email },
@@ -144,19 +156,21 @@ export class RequestEmailVerification implements EmailVerificationRequests {
       text: `Confirm this is your email by opening the link below. It expires in 24 hours.\n\n${link}\n\nIf you didn't request this, you can ignore this message.`,
     });
     if (result.status === "failed") {
-      // Deliverability failures are observable but do not roll back the issued
-      // token; the user may resend once the cooldown allows.
       console.error(
         { retryable: result.retryable, reason: result.reason },
         "verification email send failed",
       );
+      return false;
     }
+
+    await this.sendLog.record({ userId, email, purpose: PURPOSE, createdAt: now });
+    return true;
   }
 
   #record(
     userId: UserId,
     source: VerificationRequestSource,
-    result: "sent" | "throttled" | "noop_already_verified" | "no_address",
+    result: "sent" | "throttled" | "noop_already_verified" | "no_address" | "send_failed",
     throttleReason: VerificationThrottleReason,
   ): Promise<void> {
     return this.eventBus.publish(

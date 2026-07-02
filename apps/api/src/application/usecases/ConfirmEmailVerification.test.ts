@@ -25,7 +25,7 @@ function unverifiedUser(): User {
 
 function verifiedUser(): User {
   const user = User.create(authEmail);
-  user.setVerifiedNotificationEmail(contactEmail);
+  user.setVerifiedNotificationEmail(contactEmail, new Date("2026-07-02T12:00:00.000Z"));
   user.pullEvents();
   return user;
 }

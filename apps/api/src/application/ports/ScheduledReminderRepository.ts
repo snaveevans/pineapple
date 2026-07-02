@@ -36,5 +36,9 @@ export interface ScheduledReminderRepository {
   findPendingByTask(taskId: MaintenanceTaskId): Promise<ScheduledReminderRecord | null>;
   /** Pending reminders whose `fireAt` (date-only) is on or before `today`. */
   findDue(today: string): Promise<ScheduledReminderRecord[]>;
-  updateStatus(id: ScheduledReminderId, status: ScheduledReminderStatus): Promise<void>;
+  updateStatus(
+    id: ScheduledReminderId,
+    status: ScheduledReminderStatus,
+    updatedAt: Date,
+  ): Promise<void>;
 }

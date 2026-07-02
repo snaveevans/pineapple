@@ -30,7 +30,10 @@ describe("D1UserRepository", () => {
   it("persists contact-email columns on save", async () => {
     const { db, statements } = createDatabaseHarness();
     const user = User.create(Email.from("dale@example.com"));
-    user.setVerifiedNotificationEmail(Email.from("contact@example.com"));
+    user.setVerifiedNotificationEmail(
+      Email.from("contact@example.com"),
+      new Date("2026-07-02T12:00:00.000Z"),
+    );
 
     await new D1UserRepository(db).save(user);
 

@@ -1,4 +1,10 @@
-import { ConflictError, Email, TooManyRequestsError, UserId } from "@snaveevans/pineapple-shared";
+import {
+  ConflictError,
+  Email,
+  InvariantError,
+  TooManyRequestsError,
+  UserId,
+} from "@snaveevans/pineapple-shared";
 import { describe, expect, it } from "vitest";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import { User } from "../../domain/identity/User.ts";
@@ -25,7 +31,8 @@ const now = new Date("2026-07-02T12:00:00.000Z");
 function userWith(state: "none" | "unverified" | "verified"): User {
   const user = User.create(authEmail);
   if (state === "unverified") user.setUnverifiedNotificationEmail(contactEmail);
-  if (state === "verified") user.setVerifiedNotificationEmail(contactEmail);
+  if (state === "verified")
+    user.setVerifiedNotificationEmail(contactEmail, new Date("2026-07-02T12:00:00.000Z"));
   user.pullEvents();
   return user;
 }
@@ -236,17 +243,29 @@ describe("RequestEmailVerification", () => {
     expect(lastRequestEvent(events)?.throttleReason).toBe("per_user_cap");
   });
 
-  it("still issues the token when the email send reports a failure", async () => {
+  it("returns 500 and records send_failed without counting the send when the provider fails", async () => {
+    const sendLog = new SendLogFake();
     const emailSender = new EmailSenderFake({
       status: "failed",
       retryable: true,
       reason: "provider down",
     });
-    const { useCase, tokens } = build({ user: userWith("unverified"), emailSender });
+    const { useCase, tokens, events } = build({
+      user: userWith("unverified"),
+      sendLog,
+      emailSender,
+    });
 
     const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
 
-    expect(result.ok).toBe(true);
+    // A failed send is not an expected outcome: the request fails with 500.
+    expect(result.ok === false && result.error).toBeInstanceOf(InvariantError);
+    // The token was still issued (prior tokens invalidated, fresh token saved)...
+    expect(tokens.invalidated).toHaveLength(1);
     expect(tokens.saved).toHaveLength(1);
+    // ...but a failed send is NOT counted against the cooldown / daily caps.
+    expect(sendLog.recorded).toHaveLength(0);
+    // ...and it is observable as send_failed rather than mislabeled sent.
+    expect(lastRequestEvent(events)?.result).toBe("send_failed");
   });
 });

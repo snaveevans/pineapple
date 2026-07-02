@@ -1,5 +1,6 @@
 import type {
   EmailDeliveryResult,
+  EmailRecipient,
   TransactionalEmail,
   TransactionalEmailSender,
 } from "../../application/ports/TransactionalEmailSender.ts";
@@ -38,7 +39,7 @@ export class CloudflareEmailSender implements TransactionalEmailSender {
   async send(email: TransactionalEmail): Promise<EmailDeliveryResult> {
     try {
       await this.binding.send({
-        to: email.to.address,
+        to: formatRecipient(email.to),
         from: this.from,
         subject: email.subject,
         text: email.text,
@@ -50,6 +51,14 @@ export class CloudflareEmailSender implements TransactionalEmailSender {
       return { status: "failed", retryable: RETRYABLE_CODES.has(reason), reason };
     }
   }
+}
+
+/**
+ * Formats a recipient for the binding's `to` field. A display name is folded into
+ * the standard `"Name <address>"` form; without one, the bare address is sent.
+ */
+function formatRecipient(recipient: EmailRecipient): string {
+  return recipient.name ? `${recipient.name} <${recipient.address}>` : recipient.address;
 }
 
 /** Codes the binding surfaces for transient failures worth retrying. */

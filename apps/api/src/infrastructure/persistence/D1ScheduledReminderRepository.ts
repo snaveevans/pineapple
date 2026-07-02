@@ -91,10 +91,14 @@ export class D1ScheduledReminderRepository implements ScheduledReminderRepositor
     return (result.results ?? []).map(rowToRecord);
   }
 
-  async updateStatus(id: ScheduledReminderId, status: ScheduledReminderStatus): Promise<void> {
+  async updateStatus(
+    id: ScheduledReminderId,
+    status: ScheduledReminderStatus,
+    updatedAt: Date,
+  ): Promise<void> {
     await this.db
       .prepare(`UPDATE scheduled_reminders SET status = ?, updated_at = ? WHERE id = ?`)
-      .bind(status, new Date().toISOString(), id)
+      .bind(status, updatedAt.toISOString(), id)
       .run();
   }
 }

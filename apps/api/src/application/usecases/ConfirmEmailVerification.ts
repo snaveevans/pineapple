@@ -64,8 +64,9 @@ export class ConfirmEmailVerification {
       }
       if (!addressMatches) return ok({ status: "invalid" });
 
-      await this.tokens.consume(record.id, this.clock.now());
-      user.markNotificationEmailVerified(record.email);
+      const verifiedAt = this.clock.now();
+      await this.tokens.consume(record.id, verifiedAt);
+      user.markNotificationEmailVerified(record.email, verifiedAt);
       await this.users.save(user);
       await this.eventBus.publishAll(user.pullEvents());
 

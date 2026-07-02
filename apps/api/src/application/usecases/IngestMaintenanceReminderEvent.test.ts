@@ -1,5 +1,6 @@
 import {
   AssetId,
+  InvariantError,
   MaintenanceTaskId,
   ScheduledReminderId,
   UserId,
@@ -21,9 +22,21 @@ const taskId = MaintenanceTaskId.generate();
 
 class ReminderRepoFake implements ScheduledReminderRepository {
   readonly saved: ScheduledReminderRecord[] = [];
-  readonly statusUpdates: { id: ScheduledReminderId; status: ScheduledReminderStatus }[] = [];
-  constructor(private pending: ScheduledReminderRecord | null = null) {}
+  readonly statusUpdates: {
+    id: ScheduledReminderId;
+    status: ScheduledReminderStatus;
+    updatedAt: Date;
+  }[] = [];
+  constructor(
+    private pending: ScheduledReminderRecord | null = null,
+    private readonly failSave = false,
+  ) {}
   save(r: ScheduledReminderRecord): Promise<void> {
+    if (this.failSave) {
+      // Simulate the one-pending-per-task unique-index conflict a concurrent
+      // writer would trigger.
+      return Promise.reject(new Error("UNIQUE constraint failed"));
+    }
     this.saved.push(r);
     return Promise.resolve();
   }
@@ -33,8 +46,12 @@ class ReminderRepoFake implements ScheduledReminderRepository {
   findDue(): Promise<ScheduledReminderRecord[]> {
     return Promise.resolve([]);
   }
-  updateStatus(id: ScheduledReminderId, status: ScheduledReminderStatus): Promise<void> {
-    this.statusUpdates.push({ id, status });
+  updateStatus(
+    id: ScheduledReminderId,
+    status: ScheduledReminderStatus,
+    updatedAt: Date,
+  ): Promise<void> {
+    this.statusUpdates.push({ id, status, updatedAt });
     return Promise.resolve();
   }
 }
@@ -102,8 +119,11 @@ describe("IngestMaintenanceReminderEvent", () => {
   it("schedules a pending reminder with fireAt = nextDue - lead", async () => {
     const reminders = new ReminderRepoFake();
     const log = new EventLogFake();
-    await new IngestMaintenanceReminderEvent(reminders, log, clock).execute(scheduleCmd());
+    const result = await new IngestMaintenanceReminderEvent(reminders, log, clock).execute(
+      scheduleCmd(),
+    );
 
+    expect(result.ok).toBe(true);
     expect(reminders.saved).toHaveLength(1);
     expect(reminders.saved[0]).toMatchObject({
       status: "pending",
@@ -131,7 +151,9 @@ describe("IngestMaintenanceReminderEvent", () => {
       scheduleCmd({ eventId: "evt-2", occurredAt: new Date("2026-09-01T00:00:00.000Z") }),
     );
 
-    expect(reminders.statusUpdates).toEqual([{ id: prior.id, status: "superseded" }]);
+    expect(reminders.statusUpdates).toEqual([
+      { id: prior.id, status: "superseded", updatedAt: clock.now() },
+    ]);
     expect(reminders.saved).toHaveLength(1);
   });
 
@@ -146,7 +168,9 @@ describe("IngestMaintenanceReminderEvent", () => {
       taskId,
     });
 
-    expect(reminders.statusUpdates).toEqual([{ id: prior.id, status: "canceled" }]);
+    expect(reminders.statusUpdates).toEqual([
+      { id: prior.id, status: "canceled", updatedAt: clock.now() },
+    ]);
     expect(reminders.saved).toHaveLength(0);
     expect(log.processed).toEqual(["evt-del"]);
   });
@@ -162,6 +186,21 @@ describe("IngestMaintenanceReminderEvent", () => {
     expect(reminders.saved).toHaveLength(0);
     expect(reminders.statusUpdates).toHaveLength(0);
     expect(log.processed).toEqual(["evt-late"]);
+  });
+
+  it("returns err and does not record the event when a concurrent save conflicts", async () => {
+    // A racing writer already created the pending reminder → the unique index
+    // rejects this save. The use case must surface err (not throw) and leave the
+    // event unrecorded so redelivery reconciles it.
+    const reminders = new ReminderRepoFake(null, true);
+    const log = new EventLogFake();
+    const result = await new IngestMaintenanceReminderEvent(reminders, log, clock).execute(
+      scheduleCmd(),
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.error).toBeInstanceOf(InvariantError);
+    expect(log.processed).toHaveLength(0);
   });
 
   it("lets a late advance lose to an already-processed delete", async () => {

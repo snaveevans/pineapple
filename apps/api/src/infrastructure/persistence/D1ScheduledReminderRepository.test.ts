@@ -69,4 +69,15 @@ describe("D1ScheduledReminderRepository", () => {
     expect(statements[0]?.query).toContain("maintenance_task_id = ? AND status = 'pending'");
     expect(statements[0]?.values).toEqual([taskId]);
   });
+
+  it("stamps updated_at from the caller-provided instant, not the wall clock", async () => {
+    const { db, statements } = harness();
+    const id = ScheduledReminderId.generate();
+    const at = new Date("2026-07-15T09:30:00.000Z");
+    await new D1ScheduledReminderRepository(db).updateStatus(id, "superseded", at);
+    expect(statements[0]?.query).toContain(
+      "UPDATE scheduled_reminders SET status = ?, updated_at = ?",
+    );
+    expect(statements[0]?.values).toEqual(["superseded", at.toISOString(), id]);
+  });
 });

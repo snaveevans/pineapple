@@ -102,26 +102,28 @@ export class User {
    * because the address equals the caller's verified auth email. Emits both the
    * address-change and verification events.
    */
-  setVerifiedNotificationEmail(email: Email): void {
+  setVerifiedNotificationEmail(email: Email, verifiedAt: Date): void {
     this._notificationEmail = email;
-    this._notificationEmailVerifiedAt = new Date();
+    this._notificationEmailVerifiedAt = verifiedAt;
     this._domainEvents.push(NotificationEmailUpdated({ userId: this.id }));
     this._domainEvents.push(NotificationEmailVerified({ userId: this.id }));
   }
 
   /**
-   * Marks the current contact email verified. Idempotent when already verified.
-   * The caller is responsible for confirming that `email` is the address that was
-   * proven; a mismatch signals a superseded or stale confirmation and is rejected.
+   * Marks the current contact email verified at the caller-supplied instant.
+   * Idempotent when already verified. The caller is responsible for confirming
+   * that `email` is the address that was proven; a mismatch signals a superseded
+   * or stale confirmation and is rejected. The timestamp comes from the caller's
+   * clock so it stays consistent with the token-consumption instant.
    */
-  markNotificationEmailVerified(email: Email): void {
+  markNotificationEmailVerified(email: Email, verifiedAt: Date): void {
     if (this._notificationEmail === null || this._notificationEmail !== email) {
       throw new InvariantError("Cannot verify an address that is not the current contact email");
     }
     if (this._notificationEmailVerifiedAt !== null) {
       return;
     }
-    this._notificationEmailVerifiedAt = new Date();
+    this._notificationEmailVerifiedAt = verifiedAt;
     this._domainEvents.push(NotificationEmailVerified({ userId: this.id }));
   }
 
