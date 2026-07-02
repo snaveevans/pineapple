@@ -133,6 +133,8 @@ All three route patterns must be added to the operation name mapping in `technic
 
 **Domain events:** Three events are published to dataset `pineapple_maintenance_task_domain_events` (binding: `MAINTENANCE_TASK_DOMAIN_TELEMETRY`). None may include user-entered title text in telemetry blobs.
 
+**Enriched event payload vs. telemetry blobs (Smart Events, [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)):** The blob tables below are the _thin telemetry projection_ written to Analytics Engine (IDs and enums only, no PII). The _event payload_ carried on the bus/queue to durable consumers is richer — it additionally carries the asset snapshot (`name`, `type`), the task `title`, the History `activityEntryType` conclusion, and, for `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced`, the resulting **`nextDue`** as a producer-owned conclusion. `nextDue` is required so the [notifications](./notifications.md) durable scheduler can schedule/reschedule a reminder **without reading maintenance-task storage back** (ADR-0010); `MaintenanceTaskDeleted` needs no `nextDue` (its consumer cancels). These payload fields are **not** added to the telemetry blobs, which stay PII-free. The full payload contract lives in [data-model.md](../../reference/data-model.md) (domain-events table).
+
 ### `MaintenanceTaskCreated` — on successful task creation
 
 | Field        | Name                   | Value                                                                                         |
@@ -193,6 +195,8 @@ Published only when `record.performedAt > task.lastCompletedDate` (i.e. when `ne
 
 **NOT SPECIFIED — UI entry points and post-creation navigation:** This spec covers the API contract only. The exact UI entry points (asset detail page layout, task list placement, "Log maintenance" shortcut interaction, form presentation) are not specified here and should be addressed in a UI design pass.
 
+**DECIDED — `nextDue` on the enriched `MaintenanceTaskCreated` / `Advanced` payloads ([ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)):** These events carry the resulting **`nextDue`** as a producer-owned conclusion so the [notifications](./notifications.md) durable scheduler can schedule/reschedule a reminder **without reading maintenance-task storage back**. The contract is specified in the Domain events section above and in [data-model.md](../../reference/data-model.md); `MaintenanceTaskDeleted` needs no `nextDue` (its consumer cancels). Remaining work is **implementation only**: populate `nextDue` where these events are constructed in the application layer (the task's `nextDue` after creation / advancement). The telemetry blobs stay PII-free and unchanged.
+
 **FOLLOW-UP NEEDED — Mileage-based intervals (Phase 2):** The original user stories include "change oil every 5,000 miles." Odometer tracking and mileage-based `nextDue` computation are out of scope for phase 1. When implementing, do NOT simply add `"mile"` to the `intervalUnit` enum — time tasks carry `lastCompletedDate`/`nextDue` (dates) while distance tasks would need `lastCompletedOdometer`/`nextDueMileage` (integers). Introduce a `type: "time" | "distance"` discriminator and treat them as two explicit shapes. Existing time-based tasks require no changes.
 
 **FOLLOW-UP NEEDED — Dashboard detail fields:** The dashboard prototype displays estimated duration, location/where, assignee/vendor, and task notes. Those fields are not part of the current maintenance-task contract and must be specified here before the dashboard can render them from live API data.
@@ -203,9 +207,9 @@ Published only when `record.performedAt > task.lastCompletedDate` (i.e. when `ne
 
 - Mileage/odometer-based intervals (Phase 2)
 - Editing a task's title or interval after creation
-- Reminders and push/email notifications when maintenance is due
+- **Sending** reminders or push/email notifications — this feature does not deliver reminders; it publishes the task lifecycle events that the [notifications](./notifications.md) durable scheduler consumes (see Flags for the `nextDue` the events must carry)
 - A standalone schedule/task-management screen beyond the dashboard read model
-- Archiving or disabling tasks (only hard delete is supported in this iteration)
+- Archiving or disabling tasks directly (only hard delete in this iteration); task **suspension as a consequence of archiving the parent asset** — a task `active`/`suspended` status and `MaintenanceTaskSuspended`/`Reactivated` events — is a **parked** design in [backlog/archive-asset.md](../backlog/archive-asset.md), out of current scope
 - Automatic record creation triggered by tasks
 - Bulk task management
 - Task templates or task categories
