@@ -38,7 +38,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 ## Notification Storage And Scheduling
 
-- [ ] Add notification domain/storage models. Create tables, repositories, and branded-id usage for scheduled reminders, notifications, email batches, notification event dedupe/order state, and notification dead letters. Update `docs/reference/data-model.md`; apply migrations locally; add repository tests; run the full check.
+- [x] Add notification domain/storage models. Create tables, repositories, and branded-id usage for scheduled reminders, notifications, email batches, notification event dedupe/order state, and notification dead letters. Update `docs/reference/data-model.md`; apply migrations locally; add repository tests; run the full check.
 
 - [ ] Add notification scheduling message contracts. Define inbound queue message types/factories/validators for enriched `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskDeleted` events carrying the snapshot/title/`nextDue` needed by notifications. Ensure PII does not go to telemetry blobs. Validate with message conversion/validation tests and the full check.
 

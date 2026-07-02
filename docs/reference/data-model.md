@@ -63,14 +63,17 @@ These are **branded** types, not raw strings — constructed via `.from()` /
 `.generate()` and validated on creation (see
 [ADR-0002](../decisions/0002-use-tactical-ddd-patterns-for-the-domain-layer.md)).
 
-| Type                  | Backed by   | Notes                         |
-| --------------------- | ----------- | ----------------------------- |
-| `UserId`              | UUID string | `.generate()` for new users   |
-| `AssetId`             | UUID string | `.generate()` for new assets  |
-| `ActivityEntryId`     | UUID string | stable id for history entries |
-| `MaintenanceRecordId` | UUID string | `.generate()` for new records |
-| `Email`               | string      | validated email format        |
-| `VerificationTokenId` | UUID string | id for a verification token   |
+| Type                  | Backed by   | Notes                            |
+| --------------------- | ----------- | -------------------------------- |
+| `UserId`              | UUID string | `.generate()` for new users      |
+| `AssetId`             | UUID string | `.generate()` for new assets     |
+| `ActivityEntryId`     | UUID string | stable id for history entries    |
+| `MaintenanceRecordId` | UUID string | `.generate()` for new records    |
+| `Email`               | string      | validated email format           |
+| `VerificationTokenId` | UUID string | id for a verification token      |
+| `NotificationId`      | UUID string | id for an inbox notification     |
+| `ScheduledReminderId` | UUID string | id for a scheduled reminder      |
+| `EmailBatchId`        | UUID string | id for an aggregated email batch |
 
 ## Maintenance Record
 
@@ -140,6 +143,36 @@ purpose)`. In v1 the only `purpose` is `notification_email`. The raw token is
   cooldown, 5 sends per address per rolling 24h (counted across all users so a
   targeted inbox is protected), and 10 sends per user per rolling 24h.
 
+## Notifications
+
+The durable-scheduler consumer (ADR-0010). It keeps its **own** cancelable state
+from enriched `MaintenanceTask*` events and never reads the maintenance-task
+tables in steady state; each row carries a self-contained asset/task snapshot so
+it renders even after the source task is deleted or the asset archived.
+
+- **`scheduled_reminders`** — one cancelable reminder per `(task, cycle)`, keyed
+  by source `maintenance_task_id`, with `status` (`pending` / `fired` /
+  `canceled` / `superseded`), the `next_due` snapshot, the derived `fire_at`
+  (`next_due − 7-day lead`, date-only), and `last_event_id` /
+  `last_event_occurred_at` for dedupe and order resolution. A partial unique
+  index enforces at most one `pending` reminder per task.
+- **`notifications`** — the durable in-app inbox. One row per `(task, cycle)`
+  (unique on `maintenance_task_id, next_due`), owner-scoped, newest-first with an
+  `id` tiebreak, `read_at` nullable. Snapshots (`asset_*`, `task_title`,
+  `next_due`) copied from the reminder so the row is self-contained. `ownerId`
+  and `actorId` are never exposed in API responses; `actorId` is `"system"` and
+  reserved for future delegation.
+- **`email_batches`** — one aggregated reminder email per owner per sweep, with
+  `status` (`pending` / `sent` / `suppressed` / `failed`), `suppress_reason`, and
+  the covered `notification_count`. The outbound consumer is idempotent on the
+  batch id.
+- **`notification_ingested_events`** — dedupe/order markers keyed by source
+  `event_id`, so at-least-once redelivery of a `MaintenanceTask*` event is a
+  no-op.
+- **`notification_dead_letters`** — durable copies of messages exhausted on the
+  notification queues / DLQs, so a permanently failing job is persisted, not
+  dropped.
+
 ## Storage mapping
 
 | Domain concept      | D1 table                                     | Notes                                                                  |
@@ -151,6 +184,11 @@ purpose)`. In v1 the only `purpose` is `notification_email`. The raw token is
 | Activity outbox     | `activity_event_outbox`                      | producer-side transactional outbox for the activity-history queue      |
 | Verification tokens | `email_verification_tokens`                  | hashed, single-use, 24h TTL, scoped by `(user, email, purpose)`        |
 | Verification sends  | `email_verification_sends`                   | per-send audit rows backing the cooldown / per-address / per-user caps |
+| Scheduled reminders | `scheduled_reminders`                        | notifications' own cancelable schedule, keyed by source task           |
+| Notifications       | `notifications`                              | durable in-app inbox; one per `(task, cycle)`                          |
+| Email batches       | `email_batches`                              | one aggregated reminder email per owner per sweep                      |
+| Notification events | `notification_ingested_events`               | inbound event dedupe/order markers                                     |
+| Notification DLQ    | `notification_dead_letters`                  | durable copy of exhausted notification-queue messages                  |
 | Queue dead letters  | `dead_letters`                               | durable copy of malformed or exhausted activity queue messages         |
 | Auth (Better Auth)  | `user`, `session`, `account`, `verification` | **singular** names; auth infra, separate from the domain `users` table |
 
