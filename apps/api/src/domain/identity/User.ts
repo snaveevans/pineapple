@@ -1,5 +1,8 @@
-import { UserId, type Email, ValidationError } from "@snaveevans/pineapple-shared";
+import { UserId, type Email, InvariantError, ValidationError } from "@snaveevans/pineapple-shared";
 import type { DomainEvent } from "../events/DomainEvent.ts";
+import { NotificationEmailRemoved } from "./events/NotificationEmailRemoved.ts";
+import { NotificationEmailUpdated } from "./events/NotificationEmailUpdated.ts";
+import { NotificationEmailVerified } from "./events/NotificationEmailVerified.ts";
 import { UserNameUpdated } from "./events/UserNameUpdated.ts";
 import { UserOnboardingCompleted } from "./events/UserOnboardingCompleted.ts";
 
@@ -9,13 +12,29 @@ export const DISPLAY_NAME_MAX_LENGTH = 100;
 export class User {
   private _domainEvents: DomainEvent[] = [];
 
+  private _notificationEmail: Email | null;
+  private _notificationEmailVerifiedAt: Date | null;
+
   private constructor(
     readonly id: UserId,
     readonly email: Email,
     public name: string | null,
     public onboardingCompletedAt: Date | null,
     readonly createdAt: Date,
-  ) {}
+    notificationEmail: Email | null,
+    notificationEmailVerifiedAt: Date | null,
+  ) {
+    this._notificationEmail = notificationEmail;
+    this._notificationEmailVerifiedAt = notificationEmailVerifiedAt;
+  }
+
+  get notificationEmail(): Email | null {
+    return this._notificationEmail;
+  }
+
+  get notificationEmailVerifiedAt(): Date | null {
+    return this._notificationEmailVerifiedAt;
+  }
 
   static create(email: Email, providerName?: string | null): User {
     return new User(
@@ -24,6 +43,8 @@ export class User {
       User.#normalizeProviderName(providerName),
       null,
       new Date(),
+      null,
+      null,
     );
   }
 
@@ -33,6 +54,8 @@ export class User {
     name: string | null;
     onboardingCompletedAt: Date | null;
     createdAt: Date;
+    notificationEmail?: Email | null;
+    notificationEmailVerifiedAt?: Date | null;
   }): User {
     return new User(
       props.id,
@@ -40,6 +63,8 @@ export class User {
       props.name,
       props.onboardingCompletedAt,
       props.createdAt,
+      props.notificationEmail ?? null,
+      props.notificationEmailVerifiedAt ?? null,
     );
   }
 
@@ -60,6 +85,57 @@ export class User {
 
     this.name = trimmed;
     this._domainEvents.push(UserNameUpdated({ userId: this.id }));
+  }
+
+  /**
+   * Stores a new contact email as unverified, clearing any prior verified state.
+   * Used when the submitted address is not the caller's provider-verified auth email.
+   */
+  setUnverifiedNotificationEmail(email: Email): void {
+    this._notificationEmail = email;
+    this._notificationEmailVerifiedAt = null;
+    this._domainEvents.push(NotificationEmailUpdated({ userId: this.id }));
+  }
+
+  /**
+   * Stores a new contact email already verified — the provider proved ownership
+   * because the address equals the caller's verified auth email. Emits both the
+   * address-change and verification events.
+   */
+  setVerifiedNotificationEmail(email: Email): void {
+    this._notificationEmail = email;
+    this._notificationEmailVerifiedAt = new Date();
+    this._domainEvents.push(NotificationEmailUpdated({ userId: this.id }));
+    this._domainEvents.push(NotificationEmailVerified({ userId: this.id }));
+  }
+
+  /**
+   * Marks the current contact email verified. Idempotent when already verified.
+   * The caller is responsible for confirming that `email` is the address that was
+   * proven; a mismatch signals a superseded or stale confirmation and is rejected.
+   */
+  markNotificationEmailVerified(email: Email): void {
+    if (this._notificationEmail === null || this._notificationEmail !== email) {
+      throw new InvariantError("Cannot verify an address that is not the current contact email");
+    }
+    if (this._notificationEmailVerifiedAt !== null) {
+      return;
+    }
+    this._notificationEmailVerifiedAt = new Date();
+    this._domainEvents.push(NotificationEmailVerified({ userId: this.id }));
+  }
+
+  /**
+   * Clears the contact email and its verified state. Idempotent no-op when no
+   * contact email is set (no event emitted).
+   */
+  removeNotificationEmail(): void {
+    if (this._notificationEmail === null) {
+      return;
+    }
+    this._notificationEmail = null;
+    this._notificationEmailVerifiedAt = null;
+    this._domainEvents.push(NotificationEmailRemoved({ userId: this.id }));
   }
 
   pullEvents(): DomainEvent[] {

@@ -12,7 +12,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 ## User Contact Email
 
-- [ ] Extend the domain `User` with contact-email state. Add nullable `notificationEmail` and `notificationEmailVerifiedAt`, domain methods for setting unverified email, setting verified email, removing email, and marking verified, plus `NotificationEmailUpdated`, `NotificationEmailRemoved`, and `NotificationEmailVerified` events. Add/extend domain tests. Validate with `pnpm lint`, `pnpm type-check`, and `pnpm -r test`.
+- [x] Extend the domain `User` with contact-email state. Add nullable `notificationEmail` and `notificationEmailVerifiedAt`, domain methods for setting unverified email, setting verified email, removing email, and marking verified, plus `NotificationEmailUpdated`, `NotificationEmailRemoved`, and `NotificationEmailVerified` events. Add/extend domain tests. Validate with `pnpm lint`, `pnpm type-check`, and `pnpm -r test`.
 
 - [ ] Persist contact-email state. Add a D1 migration for `users.notification_email` and `users.notification_email_verified_at`; update `D1UserRepository`, repository tests, and `docs/reference/data-model.md` for the domain user fields/events. Apply the migration locally. Validate with migration apply, lint, type-check, and tests.
 
