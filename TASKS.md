@@ -40,7 +40,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Add notification domain/storage models. Create tables, repositories, and branded-id usage for scheduled reminders, notifications, email batches, notification event dedupe/order state, and notification dead letters. Update `docs/reference/data-model.md`; apply migrations locally; add repository tests; run the full check.
 
-- [ ] Add notification scheduling message contracts. Define inbound queue message types/factories/validators for enriched `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskDeleted` events carrying the snapshot/title/`nextDue` needed by notifications. Ensure PII does not go to telemetry blobs. Validate with message conversion/validation tests and the full check.
+- [x] Add notification scheduling message contracts. Define inbound queue message types/factories/validators for enriched `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskDeleted` events carrying the snapshot/title/`nextDue` needed by notifications. Ensure PII does not go to telemetry blobs. Validate with message conversion/validation tests and the full check.
 
 - [ ] Implement the inbound notification event consumer. Consume maintenance task event messages, dedupe by event id, schedule/reschedule/cancel reminders keyed by task, preserve snapshots, compute `fireAt = nextDue - lead`, and resolve out-of-order delivery by event occurrence time/version. Add unit tests and DLQ persistence tests. Validate with the full check.
 
