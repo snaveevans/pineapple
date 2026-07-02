@@ -19,6 +19,10 @@ routes = [
 
 [vars]
 ENVIRONMENT = "production"
+# Outbound transactional email sender (ADR-0012). The from domain must be
+# onboarded to Cloudflare Email Sending first — see docs/reference/email-sending.md.
+EMAIL_FROM_ADDRESS = "noreply@pineapple.tylerevans.co"
+EMAIL_FROM_NAME = "Pineapple"
 
 [observability]
 enabled = true
@@ -41,6 +45,13 @@ database_id = "9187de54-a0ee-49c4-8d84-954df8010366"
 # relative to this config file -> repo-root /migrations.
 migrations_dir = "../../migrations"
 
+# Cloudflare Email Sending binding (ADR-0012). `wrangler deploy` binds to this;
+# the from domain must be onboarded once via
+#   wrangler email sending enable pineapple.tylerevans.co
+# See docs/reference/email-sending.md. For local sends, add `remote = true`.
+[[send_email]]
+name = "EMAIL"
+
 [[analytics_engine_datasets]]
 binding = "ASSET_DOMAIN_TELEMETRY"
 dataset = "pineapple_asset_domain_events"
@@ -56,6 +67,10 @@ dataset = "pineapple_maintenance_domain_events"
 [[analytics_engine_datasets]]
 binding = "MAINTENANCE_TASK_DOMAIN_TELEMETRY"
 dataset = "pineapple_maintenance_task_domain_events"
+
+[[analytics_engine_datasets]]
+binding = "NOTIFICATION_DOMAIN_TELEMETRY"
+dataset = "pineapple_notification_domain_events"
 
 [[analytics_engine_datasets]]
 binding = "API_REQUEST_TELEMETRY"
@@ -84,4 +99,46 @@ max_batch_timeout = 5
 # Terminal DLQ: if D1 dead-letter persistence fails through these retries,
 # ActivityQueueConsumer emits a terminal error log before the platform exhausts
 # the message. Chaining another DLQ would only move the same D1 outage edge.
+max_retries = 3
+
+# Inbound notification-events queue: enriched MaintenanceTask* events consumed by
+# the durable scheduler. Relayed from notification_event_outbox (ADR-0011).
+[[queues.producers]]
+binding = "NOTIFICATION_EVENTS_QUEUE"
+queue = "pineapple-notification-events"
+
+[[queues.consumers]]
+queue = "pineapple-notification-events"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "pineapple-notification-events-dlq"
+
+[[queues.consumers]]
+queue = "pineapple-notification-events-dlq"
+max_batch_size = 10
+max_batch_timeout = 5
+# Terminal DLQ: NotificationEventQueueConsumer durably persists exhausted messages
+# to notification_dead_letters; a terminal error log covers a D1 outage edge.
+max_retries = 3
+
+# Outbound reminder-email queue: aggregated per-owner email batches consumed by
+# the email dispatch consumer. Relayed from notification_email_outbox (ADR-0011).
+[[queues.producers]]
+binding = "REMINDER_EMAIL_QUEUE"
+queue = "pineapple-reminder-email"
+
+[[queues.consumers]]
+queue = "pineapple-reminder-email"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "pineapple-reminder-email-dlq"
+
+[[queues.consumers]]
+queue = "pineapple-reminder-email-dlq"
+max_batch_size = 10
+max_batch_timeout = 5
+# Terminal DLQ: ReminderEmailQueueConsumer durably persists exhausted messages
+# to notification_dead_letters; a terminal error log covers a D1 outage edge.
 max_retries = 3

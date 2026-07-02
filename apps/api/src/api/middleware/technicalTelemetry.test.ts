@@ -1,14 +1,21 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
-import { Email, UserId, ValidationError } from "@snaveevans/pineapple-shared";
+import { Email, TooManyRequestsError, UserId, ValidationError } from "@snaveevans/pineapple-shared";
 import { User } from "../../domain/identity/User.ts";
 import {
   buildApiRequestTelemetryDataPoint,
   createTechnicalTelemetryMiddleware,
   requestCountry,
   requestUserId,
+  statusFromError,
   type ApiRequestTelemetryDataPoint,
 } from "./technicalTelemetry.ts";
+import {
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "@snaveevans/pineapple-shared";
 
 const userId = UserId.from("195d0ef0-47f5-439f-abfd-29f892c9a040");
 
@@ -277,6 +284,195 @@ describe("buildApiRequestTelemetryDataPoint", () => {
   });
 
   it.each([
+    ["PUT", "SetNotificationEmail"],
+    ["DELETE", "RemoveNotificationEmail"],
+  ])("maps %s /api/users/me/notification-email to %s", (method, operation) => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method,
+        pathname: "/api/users/me/notification-email",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: [operation],
+      blobs: [
+        operation,
+        "/api/users/me/notification-email",
+        method,
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/users/me/notification-email/verification to RequestEmailVerification", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/users/me/notification-email/verification",
+        status: 202,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["RequestEmailVerification"],
+      blobs: [
+        "RequestEmailVerification",
+        "/api/users/me/notification-email/verification",
+        "POST",
+        "2xx",
+        "202",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/verify-email to ConfirmEmailVerification (unauthenticated)", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/verify-email",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: false,
+        country: "US",
+        userId: "anonymous",
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["ConfirmEmailVerification"],
+      blobs: [
+        "ConfirmEmailVerification",
+        "/api/verify-email",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "false",
+        "v2",
+        "US",
+        "anonymous",
+      ],
+    });
+  });
+
+  it("maps GET /api/notifications to ListNotifications", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "GET",
+        pathname: "/api/notifications",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["ListNotifications"],
+      blobs: [
+        "ListNotifications",
+        "/api/notifications",
+        "GET",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/notifications/{notificationId}/read to MarkNotificationRead", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/notifications/d5b3b826-2d77-494a-b99d-0d9fcf7c47c0/read",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["MarkNotificationRead"],
+      blobs: [
+        "MarkNotificationRead",
+        "/api/notifications/{notificationId}/read",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/notifications/read-all to MarkAllNotificationsRead", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/notifications/read-all",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["MarkAllNotificationsRead"],
+      blobs: [
+        "MarkAllNotificationsRead",
+        "/api/notifications/read-all",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it.each([
     ["POST", "CreateMaintenanceRecord"],
     ["GET", "ListMaintenanceRecords"],
   ])("maps %s maintenance routes to %s", (method, operation) => {
@@ -329,6 +525,22 @@ describe("requestUserId", () => {
 
   it('returns "anonymous" when no user is on the context', () => {
     expect(requestUserId(undefined)).toBe("anonymous");
+  });
+});
+
+describe("statusFromError", () => {
+  it("maps domain errors to their HTTP status", () => {
+    expect(statusFromError(new NotFoundError("nope"))).toBe(404);
+    expect(statusFromError(new UnauthorizedError("nope"))).toBe(401);
+    expect(statusFromError(new ForbiddenError("nope"))).toBe(403);
+    expect(statusFromError(new ValidationError("nope"))).toBe(422);
+    expect(statusFromError(new ConflictError("nope"))).toBe(409);
+    expect(statusFromError(new TooManyRequestsError("slow down"))).toBe(429);
+  });
+
+  it("maps unknown errors to 500", () => {
+    expect(statusFromError(new Error("boom"))).toBe(500);
+    expect(statusFromError(null)).toBe(500);
   });
 });
 

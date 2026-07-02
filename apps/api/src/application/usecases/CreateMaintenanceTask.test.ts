@@ -105,6 +105,7 @@ describe("CreateMaintenanceTask", () => {
         assetName: "House",
         assetType: "equipment",
         title: "Replace furnace filter",
+        nextDue: "2026-08-11",
       }),
     ]);
   });

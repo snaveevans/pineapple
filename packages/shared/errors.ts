@@ -9,6 +9,9 @@ export class NotFoundError extends DomainError {}
 export class ForbiddenError extends DomainError {}
 export class ConflictError extends DomainError {}
 
+/** The caller has exceeded a rate limit and should retry later. */
+export class TooManyRequestsError extends DomainError {}
+
 /** The caller is not authenticated — no valid session/credentials present. */
 export class UnauthorizedError extends DomainError {}
 

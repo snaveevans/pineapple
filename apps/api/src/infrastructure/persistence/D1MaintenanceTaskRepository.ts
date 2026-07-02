@@ -4,6 +4,7 @@ import type { IntervalUnit } from "../../domain/maintenance/IntervalUnit.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
+import { prepareNotificationOutboxInsert } from "../notifications/D1NotificationOutboxRepository.ts";
 
 type MaintenanceTaskRow = {
   id: string;
@@ -89,9 +90,7 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
 
   async save(task: MaintenanceTask, events: readonly DomainEvent[] = []): Promise<void> {
     const taskStatement = prepareMaintenanceTaskSave(this.db, task);
-    const outboxStatements = events
-      .map((event) => prepareActivityOutboxInsert(this.db, event))
-      .filter((statement): statement is D1PreparedStatement => statement !== null);
+    const outboxStatements = prepareOutboxInserts(this.db, events);
 
     if (outboxStatements.length === 0) {
       await taskStatement.run();
@@ -102,9 +101,7 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
   }
 
   async delete(taskId: MaintenanceTaskId, events: readonly DomainEvent[] = []): Promise<void> {
-    const outboxStatements = events
-      .map((event) => prepareActivityOutboxInsert(this.db, event))
-      .filter((statement): statement is D1PreparedStatement => statement !== null);
+    const outboxStatements = prepareOutboxInserts(this.db, events);
 
     await this.db.batch([
       this.db
@@ -128,4 +125,17 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
       createdAt: new Date(row.created_at),
     });
   }
+}
+
+/** Fans each event out to the activity and notification outboxes in one batch. */
+function prepareOutboxInserts(
+  db: D1Database,
+  events: readonly DomainEvent[],
+): D1PreparedStatement[] {
+  return events
+    .flatMap((event) => [
+      prepareActivityOutboxInsert(db, event),
+      prepareNotificationOutboxInsert(db, event),
+    ])
+    .filter((statement): statement is D1PreparedStatement => statement !== null);
 }

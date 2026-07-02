@@ -10,6 +10,7 @@ function createHarness(options: {
   devEmail?: string;
   sessionEmail?: string;
   sessionName?: string | null;
+  sessionEmailVerified?: boolean;
   existingUser?: User;
 }) {
   const getSession = vi.fn().mockResolvedValue(
@@ -18,6 +19,9 @@ function createHarness(options: {
           user: {
             email: options.sessionEmail,
             ...(options.sessionName !== undefined ? { name: options.sessionName } : {}),
+            ...(options.sessionEmailVerified !== undefined
+              ? { emailVerified: options.sessionEmailVerified }
+              : {}),
           },
         }
       : null,
@@ -42,13 +46,16 @@ describe("BetterAuthResolver", () => {
       devEmail: "Dev@example.com",
     });
 
-    const user = await resolver.resolve(new Request("http://localhost/api/assets"));
+    const caller = await resolver.resolve(new Request("http://localhost/api/assets"));
 
-    expect(user.email).toBe(Email.from("dev@example.com"));
-    expect(user.name).toBeNull();
+    expect(caller.user.email).toBe(Email.from("dev@example.com"));
+    expect(caller.user.name).toBeNull();
+    // The trusted local bypass is treated as a provider-verified auth email.
+    expect(caller.providerAuthEmail).toBe(Email.from("dev@example.com"));
+    expect(caller.providerAuthEmailVerified).toBe(true);
     expect(getSession).toHaveBeenCalledOnce();
     expect(findByEmail).toHaveBeenCalledWith(Email.from("dev@example.com"));
-    expect(save).toHaveBeenCalledWith(user);
+    expect(save).toHaveBeenCalledWith(caller.user);
   });
 
   it.each([undefined, "production", "staging"])(
@@ -77,19 +84,49 @@ describe("BetterAuthResolver", () => {
         environment,
         sessionEmail: "session@example.com",
         sessionName: "New Google Name",
+        sessionEmailVerified: true,
         existingUser,
       });
 
       const resolved = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
 
-      expect(resolved).toBe(existingUser);
-      expect(resolved.name).toBe("Existing Dale");
+      expect(resolved.user).toBe(existingUser);
+      expect(resolved.user.name).toBe("Existing Dale");
+      expect(resolved.providerAuthEmail).toBe(Email.from("session@example.com"));
+      expect(resolved.providerAuthEmailVerified).toBe(true);
 
       expect(getSession).toHaveBeenCalledOnce();
       expect(findByEmail).toHaveBeenCalledWith(Email.from("session@example.com"));
       expect(save).not.toHaveBeenCalled();
     },
   );
+
+  it("reports the auth email as unverified when the provider does not assert it", async () => {
+    const existingUser = User.create(Email.from("session@example.com"), "Existing Dale");
+    const { resolver } = createHarness({
+      environment: "production",
+      sessionEmail: "session@example.com",
+      sessionEmailVerified: false,
+      existingUser,
+    });
+
+    const resolved = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+
+    expect(resolved.providerAuthEmailVerified).toBe(false);
+  });
+
+  it("treats a missing provider emailVerified flag as unverified", async () => {
+    const existingUser = User.create(Email.from("session@example.com"), "Existing Dale");
+    const { resolver } = createHarness({
+      environment: "production",
+      sessionEmail: "session@example.com",
+      existingUser,
+    });
+
+    const resolved = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+
+    expect(resolved.providerAuthEmailVerified).toBe(false);
+  });
 
   it("copies a trimmed provider name when provisioning a new user", async () => {
     const { resolver, save } = createHarness({
@@ -98,11 +135,11 @@ describe("BetterAuthResolver", () => {
       sessionName: "  Dale  ",
     });
 
-    const user = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+    const caller = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
 
-    expect(user.name).toBe("Dale");
-    expect(user.onboardingCompletedAt).toBeNull();
-    expect(save).toHaveBeenCalledWith(user);
+    expect(caller.user.name).toBe("Dale");
+    expect(caller.user.onboardingCompletedAt).toBeNull();
+    expect(save).toHaveBeenCalledWith(caller.user);
   });
 
   it("stores a null name when the provider name is blank", async () => {
@@ -112,10 +149,10 @@ describe("BetterAuthResolver", () => {
       sessionName: "   ",
     });
 
-    const user = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
+    const caller = await resolver.resolve(new Request("https://pineapple.example/api/assets"));
 
-    expect(user.name).toBeNull();
-    expect(save).toHaveBeenCalledWith(user);
+    expect(caller.user.name).toBeNull();
+    expect(save).toHaveBeenCalledWith(caller.user);
   });
 
   it("rejects a request without DEV_AUTH_EMAIL or an active session", async () => {

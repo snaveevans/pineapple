@@ -1,3 +1,4 @@
+import { MAINTENANCE_DUE_SOON_LEAD_DAYS } from "@snaveevans/pineapple-shared";
 import { addCalendarDays } from "./DateOnly.ts";
 
 export type TaskUrgencyStatus = "overdue" | "soon" | "ok";
@@ -11,7 +12,7 @@ const URGENCY_RANK: Record<TaskUrgencyStatus, number> = {
 export function deriveTaskStatus(
   nextDue: string,
   todayUtc: string,
-  sevenDaysOut = addCalendarDays(todayUtc, 7),
+  sevenDaysOut = addCalendarDays(todayUtc, MAINTENANCE_DUE_SOON_LEAD_DAYS),
 ): TaskUrgencyStatus {
   if (nextDue < todayUtc) return "overdue";
   if (nextDue <= sevenDaysOut) return "soon";

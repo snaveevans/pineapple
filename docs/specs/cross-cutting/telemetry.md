@@ -24,7 +24,7 @@ Telemetry is split into two independent systems: request-level telemetry (every 
 | System       | Dataset                         | Trigger                             | Capture point                        |
 | ------------ | ------------------------------- | ----------------------------------- | ------------------------------------ |
 | API Request  | `pineapple_api_request_events`  | Every HTTP request                  | `createTechnicalTelemetryMiddleware` |
-| Domain Event | `pineapple_asset_domain_events` | Domain event published to event bus | Per-event telemetry handler          |
+| Domain Event | Per-domain datasets (asset, user, maintenance, notification) | Domain event published to event bus | Per-event telemetry handler          |
 
 The two systems are complementary, not interchangeable. API request telemetry answers operational questions (latency, error rates, traffic). Domain event telemetry answers business questions (what entities were created, by whom, with what attributes).
 
@@ -119,6 +119,46 @@ These limits apply to every data point written and must be respected when design
 | `pineapple_api_request_events`        | `API_REQUEST_TELEMETRY`        | HTTP request telemetry — implemented    |
 | `pineapple_user_domain_events`        | `USER_DOMAIN_TELEMETRY`        | User lifecycle events — planned         |
 | `pineapple_maintenance_domain_events` | `MAINTENANCE_DOMAIN_TELEMETRY` | Maintenance record events — implemented |
+| `pineapple_notification_domain_events` | `NOTIFICATION_DOMAIN_TELEMETRY` | Notification reminder and email delivery events — implemented |
+
+### Notification Domain Event Data Points
+
+**`MaintenanceReminderCreated`** (dataset: `pineapple_notification_domain_events`, index:
+`owner_id`):
+
+| Field        | Name                  | Value                                           |
+| ------------ | --------------------- | ----------------------------------------------- |
+| `indexes[0]` | —                     | `owner_id`                                      |
+| `blobs[0]`   | `event_type`          | `"MaintenanceReminderCreated"`                  |
+| `blobs[1]`   | `aggregate_type`      | `"Notification"`                                |
+| `blobs[2]`   | `notification_id`     | Notification UUID                               |
+| `blobs[3]`   | `notification_type`   | `"maintenance_due_soon"`                        |
+| `blobs[4]`   | `maintenance_task_id` | Task UUID                                       |
+| `blobs[5]`   | `asset_id`            | Asset UUID                                      |
+| `blobs[6]`   | `owner_id`            | Owner UUID                                      |
+| `blobs[7]`   | `actor_id`            | `"system"`                                      |
+| `blobs[8]`   | `schema_version`      | `"v1"`                                          |
+| `blobs[9]`   | `result`              | `"success"`                                     |
+| `doubles[0]` | `count`               | Always `1`                                      |
+| `doubles[1]` | `event_time_ms`       | Event timestamp (ms since epoch)                |
+| `doubles[2]` | `lead_days`           | Whole calendar days between creation and due date |
+
+**`ReminderEmailDispatched`** (dataset: `pineapple_notification_domain_events`, index:
+`owner_id`):
+
+| Field        | Name                 | Value                                             |
+| ------------ | -------------------- | ------------------------------------------------- |
+| `indexes[0]` | —                    | `owner_id`                                        |
+| `blobs[0]`   | `event_type`         | `"ReminderEmailDispatched"`                       |
+| `blobs[1]`   | `aggregate_type`     | `"Notification"`                                  |
+| `blobs[2]`   | `email_batch_id`     | Aggregated-send UUID                              |
+| `blobs[3]`   | `owner_id`           | Owner UUID                                        |
+| `blobs[4]`   | `schema_version`     | `"v1"`                                            |
+| `blobs[5]`   | `result`             | `"sent"`, `"suppressed"`, or `"failed"`           |
+| `blobs[6]`   | `suppress_reason`    | `"no_contact_email"`, `"unverified"`, or `"none"` |
+| `doubles[0]` | `count`              | Always `1`                                        |
+| `doubles[1]` | `event_time_ms`      | Event timestamp (ms since epoch)                  |
+| `doubles[2]` | `notification_count` | Number of notifications covered by this email     |
 
 ### Operation Name Mapping
 
@@ -139,6 +179,13 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `GET /api/search`                                         | `SearchAssets`            |
 | `GET /api/users/me`                                       | `GetUserProfile`          |
 | `PATCH /api/users/me`                                     | `UpdateUserProfile`       |
+| `PUT /api/users/me/notification-email`                    | `SetNotificationEmail`    |
+| `DELETE /api/users/me/notification-email`                 | `RemoveNotificationEmail` |
+| `POST /api/users/me/notification-email/verification`      | `RequestEmailVerification` |
+| `POST /api/verify-email`                                  | `ConfirmEmailVerification` |
+| `GET /api/notifications`                                  | `ListNotifications`       |
+| `POST /api/notifications/{notificationId}/read`            | `MarkNotificationRead`    |
+| `POST /api/notifications/read-all`                         | `MarkAllNotificationsRead` |
 | `POST /api/assets/{assetId}/maintenance-records`          | `CreateMaintenanceRecord` |
 | `GET /api/assets/{assetId}/maintenance-records`           | `ListMaintenanceRecords`  |
 | `POST /api/assets/{assetId}/maintenance-tasks`            | `CreateMaintenanceTask`   |
