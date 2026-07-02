@@ -7,6 +7,7 @@ import {
   AssetId,
   calendarDaysBetween,
   DomainError,
+  MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceTaskId,
 } from "@snaveevans/pineapple-shared";
 import type { User } from "./domain/identity/User.ts";
@@ -174,7 +175,7 @@ function serializeMaintenanceTask(
   task: MaintenanceTask,
   todayUtc: string,
 ): z.infer<typeof MaintenanceTaskResponseSchema> {
-  const sevenDaysOut = addCalendarDays(todayUtc, 7);
+  const sevenDaysOut = addCalendarDays(todayUtc, MAINTENANCE_DUE_SOON_LEAD_DAYS);
   return {
     id: task.id,
     assetId: task.assetId,
