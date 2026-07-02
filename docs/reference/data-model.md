@@ -23,16 +23,28 @@ needed to render history without reading the source asset, task, or record back.
 
 The identity of a person using Pineapple.
 
-| Field       | Type            | Notes                                  |
-| ----------- | --------------- | -------------------------------------- |
-| `id`        | UserId (UUID)   | Stable identifier, generated on create |
-| `email`     | Email           | Unique; how sign-in maps to a user     |
-| `createdAt` | timestamp (ISO) | When the user first signed in          |
+| Field                         | Type                    | Notes                                                                        |
+| ----------------------------- | ----------------------- | ---------------------------------------------------------------------------- |
+| `id`                          | UserId (UUID)           | Stable identifier, generated on create                                       |
+| `email`                       | Email                   | Provider auth email; unique; how sign-in maps to a user; read-only in domain |
+| `name`                        | string \| null          | User-confirmed display name; null until onboarding sets it                   |
+| `onboardingCompletedAt`       | timestamp (ISO) \| null | Set once when the user first confirms their profile                          |
+| `notificationEmail`           | Email \| null           | User-controlled contact address; stored normalized; distinct from auth email |
+| `notificationEmailVerifiedAt` | timestamp (ISO) \| null | When the contact email was verified; null means unverified/unset             |
+| `createdAt`                   | timestamp (ISO)         | When the user first signed in                                                |
 
 Users are **provisioned automatically** on first Google sign-in — there is no
 separate registration. Identity (login, sessions) is managed by Better Auth in
 its own tables; this `User` is the domain-facing record keyed by email. See
 [the auth model](../../CLAUDE.md#auth-model).
+
+The **contact / notification email** (`notificationEmail`) is user-controlled and
+separate from the provider auth `email`. It is the address reminders may be sent
+to and is stored normalized (lowercased/trimmed via the `Email` value object) so
+it matches the auto-verify comparison and dedupes reliably. Reminder emails are
+only ever delivered to a **verified** contact email
+(`notificationEmailVerifiedAt` is non-null). The API exposes the derived
+`notificationEmailVerified` boolean rather than the timestamp.
 
 ## Asset
 
@@ -92,13 +104,16 @@ details:
 
 Aggregates raise events when something significant happens. Today:
 
-| Event                      | Raised when                     | Carries                                                                                                                                             |
-| -------------------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AssetCreated`             | an asset is created             | event id, asset/owner/actor, asset snapshot, type, optional year, and History `activityEntryType` conclusion                                        |
-| `MaintenanceRecordCreated` | a maintenance record is created | event id, record/asset/owner/actor, asset snapshot, title, performed date, linked task id, and History `activityEntryType` conclusion               |
-| `MaintenanceTaskCreated`   | a maintenance task is scheduled | event id, task/asset/owner/actor, asset snapshot, title, interval, resulting **`nextDue`**, and History `activityEntryType` conclusion              |
-| `MaintenanceTaskAdvanced`  | a task is completed by a record | event id, task/record/asset/owner/actor, asset snapshot, title, performed date, resulting **`nextDue`**, and History `activityEntryType` conclusion |
-| `MaintenanceTaskDeleted`   | a maintenance task is removed   | event id, task/asset/owner/actor, asset snapshot, title, and History `activityEntryType` conclusion                                                 |
+| Event                       | Raised when                             | Carries                                                                                                                                             |
+| --------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AssetCreated`              | an asset is created                     | event id, asset/owner/actor, asset snapshot, type, optional year, and History `activityEntryType` conclusion                                        |
+| `MaintenanceRecordCreated`  | a maintenance record is created         | event id, record/asset/owner/actor, asset snapshot, title, performed date, linked task id, and History `activityEntryType` conclusion               |
+| `MaintenanceTaskCreated`    | a maintenance task is scheduled         | event id, task/asset/owner/actor, asset snapshot, title, interval, resulting **`nextDue`**, and History `activityEntryType` conclusion              |
+| `MaintenanceTaskAdvanced`   | a task is completed by a record         | event id, task/record/asset/owner/actor, asset snapshot, title, performed date, resulting **`nextDue`**, and History `activityEntryType` conclusion |
+| `MaintenanceTaskDeleted`    | a maintenance task is removed           | event id, task/asset/owner/actor, asset snapshot, title, and History `activityEntryType` conclusion                                                 |
+| `NotificationEmailUpdated`  | a user sets/changes their contact email | event id and `userId` only (no address — PII stays out of the event)                                                                                |
+| `NotificationEmailVerified` | a user's contact email becomes verified | event id and `userId` only (no address)                                                                                                             |
+| `NotificationEmailRemoved`  | a user clears their contact email       | event id and `userId` only (no address)                                                                                                             |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1
