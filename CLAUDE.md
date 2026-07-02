@@ -144,6 +144,37 @@ secrets, never committed.
 - **Web app feature intent** → [`docs/web/FEATURES.md`](docs/web/FEATURES.md)
 - **How we document** → [`docs/README.md`](docs/README.md)
 
+## Scope discipline
+
+A branch delivers **one concern**. Scope creep — folding "and also…" work into a
+live branch as you refine it — is the failure mode this section exists to prevent.
+It produces sprawling PRs that are hard to review, hard to revert, and hard to
+reason about. Bias toward small, single-purpose branches; several stacked PRs beat
+one that does everything.
+
+**Split by concern, not by convenience:**
+
+- A new mechanism (queue, table, migration, ADR-level pattern) and a feature that
+  uses it are **two branches**. Land the mechanism first; build the feature on top.
+- Refactors, renames, and infra plumbing do **not** ride along with feature work —
+  separate branch, separate PR.
+- Docs-only or spec-only changes that aren't required to make the feature work can
+  land on their own.
+
+**Commit to a scope before implementing, and split when it drifts:**
+
+- Before writing code, name the concern in one sentence and the rough set of
+  files/areas you expect to touch. This is your scope budget.
+- When the work wants to grow past that budget — a new concern surfaces, an
+  unrelated bug begs fixing, a "quick" refactor balloons — **stop and make an
+  explicit decision**: either it's genuinely part of this concern, or it becomes a
+  follow-up branch. Do not silently absorb it.
+- Crossing ~40 files or ~800 net lines is a **signal to stop and split**, not a
+  target to reach. A large diff must be a defended choice (a genuinely
+  cross-cutting feature), never an accident.
+
+When in doubt, ask the user whether to split rather than expanding the branch.
+
 ## Workflow
 
 Work on a branch, open a PR (CI must pass), merge → auto-deploys to Cloudflare.
