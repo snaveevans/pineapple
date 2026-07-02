@@ -117,3 +117,24 @@ max_batch_timeout = 5
 # Terminal DLQ: NotificationEventQueueConsumer durably persists exhausted messages
 # to notification_dead_letters; a terminal error log covers a D1 outage edge.
 max_retries = 3
+
+# Outbound reminder-email queue: aggregated per-owner email batches consumed by
+# the email dispatch consumer. Relayed from notification_email_outbox (ADR-0011).
+[[queues.producers]]
+binding = "REMINDER_EMAIL_QUEUE"
+queue = "pineapple-reminder-email"
+
+[[queues.consumers]]
+queue = "pineapple-reminder-email"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "pineapple-reminder-email-dlq"
+
+[[queues.consumers]]
+queue = "pineapple-reminder-email-dlq"
+max_batch_size = 10
+max_batch_timeout = 5
+# Terminal DLQ: ReminderEmailQueueConsumer durably persists exhausted messages
+# to notification_dead_letters; a terminal error log covers a D1 outage edge.
+max_retries = 3

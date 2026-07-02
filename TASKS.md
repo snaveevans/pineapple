@@ -64,7 +64,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Implement outbound reminder email consumer. Resolve verified contact email at send time, send through the email port only when verified, record `sent` / `suppressed` / `failed` outcomes with suppress reasons, make redelivery idempotent on batch id, and emit `ReminderEmailDispatched` telemetry events without PII. Validate with focused tests and the full check.
 
-- [ ] Wire outbound email queue and DLQ. Add queue bindings/consumers to `wrangler.toml`, idempotent creation entries to `.github/workflows/deploy.yml`, worker queue dispatch, durable DLQ draining into D1, and tests for malformed/exhausted jobs. Validate with lint, type-check, tests, and config review.
+- [x] Wire outbound email queue and DLQ. Add queue bindings/consumers to `wrangler.toml`, idempotent creation entries to `.github/workflows/deploy.yml`, worker queue dispatch, durable DLQ draining into D1, and tests for malformed/exhausted jobs. Validate with lint, type-check, tests, and config review.
 
 - [ ] Add notification telemetry handlers. Implement `MaintenanceReminderCreated` and `ReminderEmailDispatched` Analytics Engine handlers, add the `NOTIFICATION_DOMAIN_TELEMETRY` binding/dataset, register handlers, update `docs/specs/cross-cutting/telemetry.md`, and verify no PII is written. Validate with telemetry tests and the full check.
 

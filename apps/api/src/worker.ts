@@ -33,6 +33,7 @@ import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSwe
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
+import { D1NotificationEmailOutboxRepository } from "./infrastructure/notifications/D1NotificationEmailOutboxRepository.ts";
 import { D1NotificationOutboxRepository } from "./infrastructure/notifications/D1NotificationOutboxRepository.ts";
 import { handleNotificationEventBatch } from "./infrastructure/notifications/NotificationEventQueueConsumer.ts";
 import {
@@ -40,6 +41,12 @@ import {
   NOTIFICATION_EVENTS_QUEUE_NAME,
   type NotificationEventMessage,
 } from "./infrastructure/notifications/NotificationEventMessage.ts";
+import {
+  REMINDER_EMAIL_DLQ_NAME,
+  REMINDER_EMAIL_QUEUE_NAME,
+  type ReminderEmailMessage,
+} from "./infrastructure/notifications/ReminderEmailMessage.ts";
+import { handleReminderEmailQueueBatch } from "./infrastructure/notifications/ReminderEmailQueueConsumer.ts";
 import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEventMessage.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
@@ -130,6 +137,7 @@ type Bindings = AuthEnv & {
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
   NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
+  REMINDER_EMAIL_QUEUE: Queue<ReminderEmailMessage>;
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
   /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
@@ -351,14 +359,18 @@ class NoopTransactionalEmailSender implements TransactionalEmailSender {
   }
 }
 
-function resolveEmailSender(c: Context<AppEnv>): TransactionalEmailSender {
-  if (c.env.EMAIL && c.env.EMAIL_FROM_ADDRESS) {
-    return new CloudflareEmailSender(c.env.EMAIL, {
-      email: c.env.EMAIL_FROM_ADDRESS,
-      ...(c.env.EMAIL_FROM_NAME ? { name: c.env.EMAIL_FROM_NAME } : {}),
+function resolveEmailSenderFromEnv(env: Bindings): TransactionalEmailSender {
+  if (env.EMAIL && env.EMAIL_FROM_ADDRESS) {
+    return new CloudflareEmailSender(env.EMAIL, {
+      email: env.EMAIL_FROM_ADDRESS,
+      ...(env.EMAIL_FROM_NAME ? { name: env.EMAIL_FROM_NAME } : {}),
     });
   }
   return new NoopTransactionalEmailSender();
+}
+
+function resolveEmailSender(c: Context<AppEnv>): TransactionalEmailSender {
+  return resolveEmailSenderFromEnv(c.env);
 }
 
 /**
@@ -696,6 +708,15 @@ const worker: ExportedHandler<Bindings, unknown> = {
       await handleNotificationEventBatch(batch, env.DB);
       return;
     }
+    if (batch.queue === REMINDER_EMAIL_QUEUE_NAME || batch.queue === REMINDER_EMAIL_DLQ_NAME) {
+      await handleReminderEmailQueueBatch(batch, {
+        db: env.DB,
+        emailSender: resolveEmailSenderFromEnv(env),
+        eventBus: new InMemoryEventBus(),
+        clock: new SystemClock(),
+      });
+      return;
+    }
     await handleActivityQueueBatch(batch, env.DB);
   },
   scheduled(_event, env, ctx) {
@@ -703,6 +724,9 @@ const worker: ExportedHandler<Bindings, unknown> = {
     ctx.waitUntil(new D1ActivityOutboxRepository(env.DB).relayPending(env.ACTIVITY_HISTORY_QUEUE));
     ctx.waitUntil(
       new D1NotificationOutboxRepository(env.DB).relayPending(env.NOTIFICATION_EVENTS_QUEUE),
+    );
+    ctx.waitUntil(
+      new D1NotificationEmailOutboxRepository(env.DB).relayPending(env.REMINDER_EMAIL_QUEUE),
     );
   },
 };

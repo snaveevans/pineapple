@@ -7,7 +7,11 @@ import type {
   TransactionalEmailSender,
 } from "../../application/ports/TransactionalEmailSender.ts";
 import type { ReminderEmailMessage } from "./ReminderEmailMessage.ts";
-import { processReminderEmailMessage } from "./ReminderEmailQueueConsumer.ts";
+import { REMINDER_EMAIL_DLQ_NAME, REMINDER_EMAIL_QUEUE_NAME } from "./ReminderEmailMessage.ts";
+import {
+  handleReminderEmailQueueBatch,
+  processReminderEmailMessage,
+} from "./ReminderEmailQueueConsumer.ts";
 
 class EmailSenderFake implements TransactionalEmailSender {
   sent: TransactionalEmail | null = null;
@@ -87,6 +91,78 @@ describe("processReminderEmailMessage", () => {
   });
 });
 
+describe("handleReminderEmailQueueBatch", () => {
+  it("processes valid reminder email jobs, marks the outbox delivered, and acknowledges", async () => {
+    const { batchId, db, statements, sender } = dbHarness();
+    const msg = queueMessage(message(batchId));
+
+    await handleReminderEmailQueueBatch(batch(REMINDER_EMAIL_QUEUE_NAME, [msg]), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(sender.sent).not.toBeNull();
+    expect(statements.some((s) => s.query.includes("delivered_at = COALESCE"))).toBe(true);
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+  });
+
+  it("retries valid jobs when email sending has a retryable failure", async () => {
+    const { batchId, db, sender } = dbHarness({ sendRetryable: true });
+    const msg = queueMessage(message(batchId));
+
+    await handleReminderEmailQueueBatch(batch(REMINDER_EMAIL_QUEUE_NAME, [msg]), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(msg.retry).toHaveBeenCalledOnce();
+  });
+
+  it("persists malformed outbound jobs as notification dead letters", async () => {
+    const { db, statements, sender } = dbHarness();
+    const msg = queueMessage({ nope: true });
+
+    await handleReminderEmailQueueBatch(batch(REMINDER_EMAIL_QUEUE_NAME, [msg]), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(statements.some((s) => s.query.includes("INSERT INTO notification_dead_letters"))).toBe(
+      true,
+    );
+    expect(statements.some((s) => s.values.includes("Malformed reminder email message"))).toBe(true);
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+  });
+
+  it("persists exhausted DLQ jobs durably", async () => {
+    const { db, statements, sender } = dbHarness();
+    const msg = queueMessage(message(), 3);
+
+    await handleReminderEmailQueueBatch(batch(REMINDER_EMAIL_DLQ_NAME, [msg]), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(statements.some((s) => s.query.includes("INSERT INTO notification_dead_letters"))).toBe(
+      true,
+    );
+    expect(statements.some((s) => s.values.includes("Queue retry limit exceeded"))).toBe(true);
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
+  });
+});
+
 function firstRow(query: string, batchId: EmailBatchId, ownerId: UserId): unknown {
   if (query.includes("FROM email_batches")) {
     return {
@@ -131,4 +207,18 @@ function allRows(query: string, ownerId: UserId): unknown[] {
       read_at: null,
     },
   ];
+}
+
+function queueMessage(body: unknown, attempts = 1) {
+  return {
+    id: crypto.randomUUID(),
+    body,
+    attempts,
+    ack: vi.fn(),
+    retry: vi.fn(),
+  } as unknown as Message<unknown> & { ack: ReturnType<typeof vi.fn>; retry: ReturnType<typeof vi.fn> };
+}
+
+function batch(queue: string, messages: Message<unknown>[]) {
+  return { queue, messages } as unknown as MessageBatch<unknown>;
 }
