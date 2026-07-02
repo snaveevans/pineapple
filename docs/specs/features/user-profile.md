@@ -2,12 +2,12 @@
 audience: product and API contributors
 purpose: provision, read, and update the authenticated user's domain profile — display name, onboarding state, and a user-controlled contact/notification email
 source: this file
-date: 2026-07-01
+date: 2026-07-02
 ---
 
 # User Profile
 
-**Status:** `review`
+**Status:** `active`
 **Owner:** product and engineering
 **Related Specs:** [authentication](../cross-cutting/authentication.md), [permissions](../cross-cutting/permissions.md), [validation](../cross-cutting/validation.md), [error handling](../cross-cutting/error-handling.md), [telemetry](../cross-cutting/telemetry.md), [email-verification](./email-verification.md), [notifications](./notifications.md)
 **Web UX Intent:** [User Profile & Onboarding](../../web/FEATURES.md#user-profile--onboarding)
@@ -192,6 +192,14 @@ All four route patterns must be added to `createTechnicalTelemetryMiddleware` an
 | `doubles[0]` | `count`           | Always `1`                                  |
 | `doubles[1]` | `event_time_ms`   | Event timestamp in milliseconds since epoch |
 
+## Implementation Requirements
+
+- Add a `users`-table migration for `notificationEmail` and `notificationEmailVerifiedAt`.
+- Update [data-model.md](../../reference/data-model.md) with the user fields and contact-email
+  domain events. These are domain fields on the `users` table and must not be conflated with
+  Better Auth's provider `email` in the singular `user` table.
+- Regenerate the OpenAPI document from the new Zod schemas.
+
 ## Out of Scope
 
 - Profile or onboarding user interface; see [docs/web/FEATURES.md](../../web/FEATURES.md#user-profile--onboarding).
@@ -207,9 +215,4 @@ All four route patterns must be added to `createTechnicalTelemetryMiddleware` an
 
 - **API onboarding enforcement:** The first release relies on the web application to keep an incomplete user inside onboarding. A future security or multi-client requirement may require centralized API middleware that permits incomplete users to access only authentication and self-profile endpoints.
 - Additional onboarding fields may be added later; consumers must use the explicit onboarding state rather than infer completion from whether `name` is non-null.
-- **Implementation follow-up — schema + reference docs:** The `notificationEmail` and `notificationEmailVerifiedAt` fields need a `users`-table migration and an update to [data-model.md](../../reference/data-model.md) (User fields, the two new events). This is a **domain** field on the `users` table — it must not be conflated with Better Auth's provider `email` in the singular `user` table. Regenerate the OpenAPI document from the new Zod schemas.
 - **Multiple contact addresses / channels:** v1 stores exactly one contact email. Multiple addresses, or non-email channels, are future work and would extend rather than replace this field.
-
-## Open Questions
-
-- [ ] The contact-email feature has two cross-spec prerequisites that must land with it: a new `TooManyRequestsError` (429) domain error and the Cloudflare Email port/binding. Both are owned and flagged in [email-verification](./email-verification.md) and [notifications](./notifications.md) respectively; noted here only as dependencies of the rate-limit and suppression behavior above.

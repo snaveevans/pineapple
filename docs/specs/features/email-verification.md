@@ -7,9 +7,9 @@ metadata:
 
 # Email Verification
 
-**Status:** review
-**Owner:** [unknown — assign on review]
-**Last Updated:** 2026-07-01
+**Status:** active
+**Owner:** product and engineering
+**Last Updated:** 2026-07-02
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [user-profile.md](./user-profile.md), [notifications.md](./notifications.md)
 
 ---
@@ -78,8 +78,7 @@ is built; this spec defines the API capability and behavior.
 ## What Verification Governs
 
 Verification is keyed by **(user, email address, purpose)**. In v1 the only purpose is the
-user's own **notification contact email**; the model is built to add purposes later
-(see Flags) but ships with exactly one. Verification always concerns the **authenticated
+user's own **notification contact email**. Verification always concerns the **authenticated
 caller's own** address — a user can only ever request verification of an address attached to
 their own profile, and can only confirm a token issued to themselves.
 
@@ -136,6 +135,8 @@ the address value itself.
       the user may retry later without revealing exact remaining quota
 - [ ] Rate-limit counters key on the **target address** and the **authenticated user id**, not
       on client IP alone, so the limit cannot be trivially bypassed by rotating networks
+- [ ] The confirm endpoint does not maintain a separate brute-force rate limit in v1; the token
+      entropy makes guessing infeasible. Revisit only if abuse appears.
 - [ ] The initial send triggered by `PUT …/notification-email` is subject to the same limits
       as an explicit resend
 - [ ] The thresholds are a **60-second cooldown** between sends to the same address, **5 sends
@@ -200,7 +201,7 @@ deliberately avoided (it would leak existence and block legitimately shared inbo
 
 - `UnauthorizedError` (401) — resend without a session
 - `ConflictError` (409) — resend when no contact email is set
-- `TooManyRequestsError` (429) — a send blocked by any rate-limit dimension (**new** — see Flags)
+- `TooManyRequestsError` (429) — a send blocked by any rate-limit dimension
 - `ValidationError` (422) — malformed confirm body at the Zod edge
 - The generic "link no longer valid" confirm outcome is a deliberate non-leaking result rather
   than a distinct not-found error, so token existence is never revealed
@@ -281,41 +282,20 @@ observable.
 | `doubles[0]` | `count`          | Always `1`                       |
 | `doubles[1]` | `event_time_ms`  | Event timestamp (ms since epoch) |
 
-## Flags
+## Implementation Requirements
 
-**RESOLVED — a new `TooManyRequestsError` (429) domain error:** The current `DomainError` set
-([ADR-0004](../../decisions/0004-error-handling-strategy.md)) has no 429; rate-limit rejections
-use a **new `TooManyRequestsError` → 429**, returned by the use case like every other outcome and
-mapped in `api/errors.ts` — chosen over an edge-only 429 so all error handling stays on one path.
-**Implementation must** add the subclass, the `api/errors.ts` mapping, and a row in
-[error-handling.md](../cross-cutting/error-handling.md); because this extends the error catalog,
-also record it as an **amendment to [ADR-0004](../../decisions/0004-error-handling-strategy.md)**.
-
-**RESOLVED — rate-limit thresholds (Balanced):** 60-second cooldown between sends to an address;
-5 sends per address per rolling 24h (**global across users**); 10 verification sends per user per
-rolling 24h. Captured in Acceptance Criteria; these are tunable configuration, not contract
-fields, and should be tuned from real bounce/abuse signal.
-
-**RESOLVED — token: 24h TTL, hashed, single-use:** Opaque, high-entropy, single-use token stored
-hashed at rest (never the raw token in D1), 24-hour TTL, superseded on a new send or an email
-change. Captured in Acceptance Criteria.
-
-**FOLLOW-UP — do not reuse Better Auth's `verification` table:** Better Auth owns a singular
-`verification` table for its **auth** flows ([data-model.md](../../reference/data-model.md)).
-This domain capability is separate: it needs its own D1 table (e.g. `email_verifications`) and
-its own branded id, keyed by (user, address, purpose), and must not entangle with Better Auth's
-internals.
-
-**FOLLOW-UP — reference docs at implementation time:** Adding the token store introduces a new
-table and a new branded id. Update [data-model.md](../../reference/data-model.md) (storage
-mapping, branded value objects, the new events) and add the `/verify-email` page and the
-"check your inbox" states to [`docs/web/FEATURES.md`](../../web/FEATURES.md). Add the confirm
-route to the [authentication.md](../cross-cutting/authentication.md) unauthenticated-exceptions
-list. Regenerate the OpenAPI document from the new Zod route specs.
-
-**RESERVED — verification purposes beyond the contact email:** The (user, address, purpose)
-key is built to support future verified addresses (e.g. a separate billing or team-invite
-address). v1 ships only `notification_email`; no other purpose is exposed.
+- Rate-limit rejections use `TooManyRequestsError` (429), returned by the use case like every
+  other expected outcome and mapped centrally at the API boundary. [ADR-0014](../../decisions/0014-layered-error-handling-policy.md)
+  keeps the concrete error catalog out of the ADR ledger; add the subclass, central mapping, and
+  [error-handling.md](../cross-cutting/error-handling.md) row with this implementation.
+- Verification tokens are stored in this domain capability's own D1 table, not Better Auth's
+  singular `verification` table. Better Auth owns that table for auth flows; email verification
+  needs a separate table and branded id keyed by `(user, address, purpose)`.
+- Adding the token store requires updating [data-model.md](../../reference/data-model.md), adding
+  the `/verify-email` page and "check your inbox" states to
+  [`docs/web/FEATURES.md`](../../web/FEATURES.md), adding the confirm route to
+  [authentication.md](../cross-cutting/authentication.md)'s unauthenticated-exceptions list, and
+  regenerating the OpenAPI document from the new Zod route specs.
 
 ## Out of Scope
 
@@ -333,10 +313,8 @@ address). v1 ships only `notification_email`; no other purpose is exposed.
 - Automated abuse alerting and one-click block lists (manual review is sufficient at two-user
   volume)
 
-## Open Questions
+## Future Considerations
 
-- None. Previously-open items are resolved: the repeatedly-targeted-address concern is handled by
-  the per-address cap being **global across users** (no separate blocklist in v1 — see Out of
-  Scope); rate-limit thresholds (Balanced) and the 24-hour token TTL are decided (see Acceptance
-  Criteria). Confirm-endpoint brute-forcing is not separately rate-limited because token entropy
-  makes guessing infeasible; revisit only if abuse appears.
+- Additional verification purposes beyond the contact email. The `(user, address, purpose)` key
+  supports future verified addresses such as billing or team-invite addresses, but v1 ships only
+  `notification_email`.

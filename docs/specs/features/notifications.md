@@ -7,9 +7,9 @@ metadata:
 
 # Notifications
 
-**Status:** review
-**Owner:** [unknown — assign on review]
-**Last Updated:** 2026-07-01
+**Status:** active
+**Owner:** product and engineering
+**Last Updated:** 2026-07-02
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-task.md](./maintenance-task.md), [activity-history.md](./activity-history.md), [dashboard.md](./dashboard.md), [user-profile.md](./user-profile.md), [email-verification.md](./email-verification.md)
 
 ---
@@ -50,7 +50,7 @@ event — and it is deliberately the **same 7-day boundary** the dashboard uses 
 `soon` ([dashboard.md](./dashboard.md): a task is `soon` when `nextDue` is today or within the
 next 7 calendar days). A reminder is, in effect, a **push of the moment a task enters the
 `soon` bucket**; the two must share one lead-time constant so the inbox and the dashboard never
-disagree (see Flags).
+disagree.
 
 Notifications is distinct from its neighbors: the [dashboard](./dashboard.md) is a **pull** view
 of everything due now; [activity-history](./activity-history.md) is a backward-looking record of
@@ -130,8 +130,7 @@ same handler paths, but that is **out of scope** for this spec and parked in
 - **Requires `nextDue` on the event.** For the scheduler to work without reading back,
   `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` must carry the resulting `nextDue` as a
   producer-owned conclusion, alongside the asset snapshot and title they already carry. ADR-0010
-  already sanctions `nextDue` as an on-event domain date; the payloads must include it (see Flags —
-  this is a required maintenance-task producer change).
+  already sanctions `nextDue` as an on-event domain date; the payloads must include it.
 - **Own cancelable state, keyed by task.** Notifications keeps one pending scheduled reminder per
   task, with the snapshot, `nextDue`, computed `fireAt`, a status (`pending` / `fired` /
   `canceled` / `superseded`), and the ordering marker below. This is the "mutable, cancelable
@@ -141,11 +140,13 @@ same handler paths, but that is **out of scope** for this spec and parked in
   resolved by **event time/version**, not arrival order — a late-arriving older event never
   overrides a newer one (e.g. a delete that occurred after an advance always wins, whatever order
   they are received in).
-- **The reminder sweep is notifications' own cron.** A scheduled sweep scans **notifications'
+- **The reminder sweep is notifications' own cron.** Per
+  [ADR-0013](../../decisions/0013-reminder-scheduler-via-cron-sweeps.md), a scheduled sweep scans **notifications'
   scheduled-reminder state** for `pending` reminders whose `fireAt` has arrived
   (`fireAt ≤ today`, date-only), and for each: creates the in-app notification (idempotent on
-  `(taskId, nextDue)`) and marks the reminder `fired`. It then aggregates per owner (below). The
-  sweep touches only notifications' own tables.
+  `(taskId, nextDue)`) and marks the reminder `fired`. A reminder fires on the **first sweep on or
+  after its `fireAt` date**. The sweep then aggregates per owner (below) and touches only
+  notifications' own tables.
 - **A reminder already inside the window when scheduled** — a task created or advanced with
   `nextDue ≤ 7 days` out (including already overdue) has `fireAt` in the past, so the **next**
   sweep fires it; there is no retroactive firing before the event was received.
@@ -215,7 +216,7 @@ same handler paths, but that is **out of scope** for this spec and parked in
 - [ ] A reminder whose task was canceled (`MaintenanceTaskDeleted`) or superseded
       (`MaintenanceTaskAdvanced`) before the sweep is **not** fired
 - [ ] The lead time is a single shared constant with the dashboard `soon` threshold
-      ([dashboard.md](./dashboard.md)); the two are defined once, not independently (see Flags)
+      ([dashboard.md](./dashboard.md)); the two are defined once, not independently
 
 ### Email delivery (aggregated per user)
 
@@ -223,7 +224,7 @@ same handler paths, but that is **out of scope** for this spec and parked in
       one** email covering all of them — **never one email per notification**
 - [ ] The aggregation unit is **a single sweep per owner**: reminders fired in the same sweep are
       combined; reminders fired in different sweeps (e.g. tasks due on different dates) are separate
-      emails (see Flags for wider digest windows)
+      emails
 - [ ] Aggregation applies to **email only** — the in-app inbox still receives one notification per
       task
 - [ ] The aggregated email is sent only when the owner has a **verified** contact email
@@ -322,7 +323,7 @@ as the domain events below, not request telemetry.
 `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskDeleted` events
 ([maintenance-task.md](./maintenance-task.md)). Delivery is durable (its own queue), idempotent on
 the event id, and order-tolerant — the same posture as [activity-history.md](./activity-history.md).
-Those events must carry `nextDue` for this consumer (see Flags).
+Those events must carry `nextDue` for this consumer.
 
 **Domain events produced:** Two events on a new dataset `pineapple_notification_domain_events`
 (binding `NOTIFICATION_DOMAIN_TELEMETRY`). Telemetry handlers stay **thin selective readers**: they
@@ -370,79 +371,26 @@ email covered — this is the deliverability signal ADR-0012 requires.
 | `doubles[1]` | `event_time_ms`      | Event timestamp (ms since epoch)                  |
 | `doubles[2]` | `notification_count` | Number of notifications covered by this email     |
 
-## Flags
+## Implementation Requirements
 
-**SPECIFIED (implementation pending) — MaintenanceTask events carry `nextDue`:** The event-driven
-design depends on `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` carrying the resulting
-`nextDue` as a producer-owned conclusion (ADR-0010); without it, notifications could only schedule
-by reading maintenance-task storage back — the coupling ADR-0010 forbids. This is now **specified**
-in [maintenance-task.md](./maintenance-task.md) (Domain events section) and the domain-events table
-in [data-model.md](../../reference/data-model.md). Remaining work is **implementation only**:
-populate `nextDue` on those event payloads where they are constructed in the application layer (not
-the thin telemetry blobs, which stay PII-free). Owner: engineering — land with implementation.
-
-**DECIDED (ratify in an ADR) — cron sweep over notifications' own state:**
-[ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md) and
-[ADR-0012](../../decisions/0012-transactional-email-via-cloudflare-email-sending.md) both defer
-"fire just before `nextDue`" to a separate decision (Cron Triggers, or Durable Object alarms).
-**Chosen: a cron sweep over notifications' own scheduled-reminder state** — **not** over
-maintenance-task tables. The repo already runs a `*/15 * * * *` cron (`apps/api/wrangler.toml`), so
-the sweep rides the same primitive with no new infra; a **DO-alarm-per-reminder was considered and
-rejected** as heavier and overkill for a date-granular nudge at two-user scale. This choice is
-ADR-altitude and **still owed a ratifying ADR** (ADR-0011/0012 explicitly deferred it); write it
-before/with implementation. Owner: engineering.
-
-**DECIDED — reminder send timing:** A reminder fires on the **first sweep on or after its `fireAt`
-date** (≈ shortly after UTC midnight of that date, given the `*/15` cron). A preferred _local_
-send-hour (e.g. 8am in the user's timezone) is **future work** — it needs a stored user timezone
-the profile does not yet hold.
-
-**DEFERRED (out of scope) — cancel-on-archive:** ADR-0010 lists "cancel on delete/archive" for the
-durable scheduler. Archive is a dormant `Asset.archivedAt` field today (no action, no event), so no
-live path produces this case; until archive becomes a real action, a pending reminder for a task on
-an (out-of-band) archived asset may still fire — an accepted, currently-unreachable gap. The
-worked-out design (an `ArchiveAsset` cascade that suspends tasks so notifications cancels on the
-same path as `MaintenanceTaskDeleted`) is **parked, out of current scope**, in
-[archive-asset.md (backlog)](../backlog/archive-asset.md).
-
-**DECISION — shared 7-day lead constant:** The reminder lead time and the dashboard `soon`
-threshold ([dashboard.md](./dashboard.md)) must be the **same** value defined **once** and imported
-by both, so the "push" and the "pull" views never disagree about what is due soon.
-
-**DECISION — aggregation window is one sweep:** Email aggregation combines the reminders fired in a
-single sweep per owner. With a 15-minute cron and date-only `fireAt`, all reminders that come due on
-the same date fire in the same sweep, so same-day-due tasks aggregate naturally. A wider, explicit
-digest window (e.g. "one daily summary regardless of sweep") is future work; v1 aggregates per
-sweep.
-
-**FOLLOW-UP — new queue(s) + DLQ + IaC:** This feature adds durable delivery in two places — the
-inbound consumer of `MaintenanceTask*` events (mirroring activity-history's per-consumer queue) and
-the outbound aggregated-email queue — each with its own DLQ (e.g. `pineapple-notifications` +
-`-dlq`, `pineapple-notification-email` + `-dlq`). Per the note in `apps/api/wrangler.toml`, adding a
-queue means editing **both** `wrangler.toml` (producer + consumer bindings) **and** the "Ensure
-Queues exist" step in `.github/workflows/deploy.yml`. Retry/DLQ policy follows the uniform policy in
-[ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md); each DLQ is
-durably drained (a `dead_letters` record), not a holding pen. **Decided: two dedicated queues** —
-the inbound `MaintenanceTask*` consumer and the outbound aggregated-email sender each get their own
-queue + DLQ, for per-role isolation per ADR-0011 (a stuck email send never blocks event ingestion).
-
-**FOLLOW-UP — email binding, DNS, and the port (ADR-0012):** This feature owns the email-sending
-**port** (application layer), the Cloudflare Email Sending **adapter** (infrastructure, wired in the
-composition root), the Worker **binding** + `wrangler` config, and the sending domain's
-SPF/DKIM/DMARC in Cloudflare DNS. Domain and application stay unaware of the provider.
-
-**FOLLOW-UP — reference docs at implementation time:** Adding the scheduler and inbox introduces new
-tables (e.g. `scheduled_reminders`, `notifications`) and new branded ids (`NotificationId`, and a
-scheduled-reminder id). Update [data-model.md](../../reference/data-model.md) (storage mapping,
-branded value objects, the two produced events, the `nextDue`-carrying maintenance events, the
-scheduled-reminder + notification entities and their idempotency keys) and add the inbox + "verify an
-email to also get these by email" states to [`docs/web/FEATURES.md`](../../web/FEATURES.md).
-Regenerate the OpenAPI document from the new Zod route specs.
-
-**RESERVED — actor vs owner:** Notifications record `actorId` (`"system"` in v1) distinct from
-`ownerId`, reserved for future delegation/team attribution, matching
-[activity-history.md](./activity-history.md) and the [telemetry.md](../cross-cutting/telemetry.md)
-Known Issue. v1 does not display an actor.
+- Populate `nextDue` on the enriched `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` event
+  payloads where they are constructed in the application layer. The thin telemetry blobs stay
+  PII-free and unchanged.
+- Add two dedicated queues, each with its own DLQ: one inbound queue for the `MaintenanceTask*`
+  notification consumer, and one outbound queue for aggregated email delivery. The split provides
+  per-role isolation per [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md):
+  a stuck email send cannot block event ingestion.
+- Add both queue bindings/consumers to `apps/api/wrangler.toml` and the matching idempotent queue
+  creation entries to `.github/workflows/deploy.yml`. DLQs are durably drained into records; they
+  are not just holding pens.
+- Add the email-sending application port, the Cloudflare Email Sending infrastructure adapter, the
+  Worker binding/`wrangler` config, and the sending domain's SPF/DKIM/DMARC in Cloudflare DNS.
+  Domain and application code stay provider-agnostic.
+- Adding the scheduler and inbox introduces new tables such as `scheduled_reminders` and
+  `notifications`, plus new branded ids such as `NotificationId` and a scheduled-reminder id.
+  Update [data-model.md](../../reference/data-model.md), add the inbox and "verify an email to
+  also get these by email" states to [`docs/web/FEATURES.md`](../../web/FEATURES.md), and
+  regenerate the OpenAPI document from the new Zod route specs.
 
 ## Out of Scope
 
@@ -450,6 +398,8 @@ Known Issue. v1 does not display an actor.
   are built to extend (registration renewals, inspections), but v1 ships the one due-soon reminder
 - **Configurable or per-task lead times** — 7 days is fixed for v1 (a consumer-owned policy per
   ADR-0010); per-user/per-task lead-time preferences are future work
+- **Preferred local send hour** — v1 sends on the first sweep on or after `fireAt`; a preferred
+  local send hour such as 8am needs a stored user timezone and is future work
 - **Overdue escalation / repeat reminders** — v1 sends a single reminder per due-cycle; on-due and
   overdue re-nudges are future work
 - **A scheduled daily/weekly digest across sweeps** — v1 aggregates per sweep only; a fixed-time
@@ -464,19 +414,14 @@ Known Issue. v1 does not display an actor.
 - **Channels other than in-app + email** — no SMS, push, or webhooks
 - **Real-time/live inbox updates** — the inbox refreshes on fetch, not via push
 - **Retroactively emailing suppressed past reminders** after a later verification
+- **Cancel-on-archive** — archive is currently a dormant field with no action or event. Until
+  archive becomes a real action, a reminder for a task on an out-of-band archived asset may still
+  fire; the worked-out cascade is parked in [archive-asset.md](../backlog/archive-asset.md).
 - **The contact-email value, its endpoints, and the verification flow** — owned by
   [user-profile.md](./user-profile.md) and [email-verification.md](./email-verification.md)
 - **Cross-user or team-wide notifications** — single-owner scope in v1
 
-## Open Questions
+## Future Considerations
 
-- [x] Inbox page size — **resolved**: default 20, max 50 (see the inbox read model); exact cursor
-      encoding is the implementer's call.
-- [x] Queue topology — **resolved**: two dedicated queues (inbound `MaintenanceTask*` consumer +
-      outbound aggregated-email sender), each with its own DLQ (see Flags).
-- [x] Backfill at launch — **resolved**: a one-time bootstrap seeds scheduled-reminder state from
-      existing tasks so the current fleet gets reminders (see The Durable Scheduler).
-- [x] Cancel-on-archive — **deferred, out of scope**: the design (an `ArchiveAsset` cascade emitting
-      `MaintenanceTaskSuspended` / `Reactivated` that notifications consumes on its existing
-      cancel/reschedule paths) is parked in [backlog/archive-asset.md](../backlog/archive-asset.md);
-      revisit when archive becomes a real action
+- Team/delegate notifications. v1 records `actorId` (`"system"`) separately from `ownerId` for
+  future attribution, but does not display an actor or support cross-user inboxes.

@@ -1,4 +1,4 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-01
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-02
 
 # Spec Index
 
@@ -36,12 +36,12 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [app-search.md](./features/app-search.md)                     | Assets        | draft  |
 | [dashboard.md](./features/dashboard.md)                       | Home          | draft  |
 | [activity-history.md](./features/activity-history.md)         | History       | draft  |
-| [notifications.md](./features/notifications.md)               | Notifications | review |
+| [notifications.md](./features/notifications.md)               | Notifications | active |
 | [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | draft  |
-| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | draft  |
+| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | active |
 | [marketing-home.md](./features/marketing-home.md)             | Marketing     | active |
-| [user-profile.md](./features/user-profile.md)                 | Identity      | review |
-| [email-verification.md](./features/email-verification.md)     | Identity      | review |
+| [user-profile.md](./features/user-profile.md)                 | Identity      | active |
+| [email-verification.md](./features/email-verification.md)     | Identity      | active |
 | [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft  |
 
 ## Backlog (parked specs)

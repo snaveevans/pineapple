@@ -8,8 +8,8 @@ metadata:
 # Archive Asset
 
 **Status:** `parked` — **deferred; out of scope for the current notifications work.** This is preserved design thinking, not active scope: it captures how archive _should_ behave when it graduates from a dormant `Asset.archivedAt` field to a real feature, so [notifications.md](../features/notifications.md) can consume its events then. To activate, move this file back to `docs/specs/features/` and add it to the active index in [SPECS.md](../SPECS.md).
-**Owner:** [unknown — assign on review]
-**Last Updated:** 2026-07-01
+**Owner:** product and engineering
+**Last Updated:** 2026-07-02
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [create-asset.md](../features/create-asset.md), [asset-library.md](../features/asset-library.md), [dashboard.md](../features/dashboard.md), [maintenance-task.md](../features/maintenance-task.md), [notifications.md](../features/notifications.md), [activity-history.md](../features/activity-history.md)
 
 ---
@@ -104,8 +104,8 @@ cross-aggregate cascade (ADR-0003); each aggregate owns its own state transition
       reminder (same path as `MaintenanceTaskDeleted`); `MaintenanceTaskReactivated` → **reschedule**
       from the carried `nextDue` (same path as `MaintenanceTaskAdvanced`).
 - [ ] [activity-history.md](../features/activity-history.md) **may** add `asset_archived` / `task_suspended`
-      entry types once these events exist; that adoption is a separate, optional change (see Flags),
-      not required by this spec.
+      entry types once these events exist; that adoption is a separate, optional change, not
+      required by this spec.
 
 ## Validation & Ownership
 
@@ -115,10 +115,9 @@ cross-aggregate cascade (ADR-0003); each aggregate owns its own state transition
 returns 404 (existence not revealed); the same ownership rule governs the cascade — only the
 owner's tasks are touched.
 
-**Proposed endpoints (flagged):** `POST /api/assets/{assetId}/archive` and
-`POST /api/assets/{assetId}/unarchive`, returning the updated asset. Exact shape (dedicated actions
-vs. a `PATCH` on an `archived` field) is an implementation decision — see Flags. Whatever the shape,
-Zod validates at the HTTP edge (ADR-0007) and the OpenAPI document is regenerated.
+**Endpoints:** `POST /api/assets/{assetId}/archive` and `POST /api/assets/{assetId}/unarchive`,
+returning the updated asset. Dedicated action routes make the cascade and events explicit. Zod
+validates at the HTTP edge (ADR-0007) and the OpenAPI document is regenerated.
 
 ## Edge Cases & Error States
 
@@ -152,29 +151,13 @@ snapshot/title fields ride in the event payload and outbox message, never Analyt
 Full ordered `blobs[]`/`doubles[]` contracts are authored at implementation, following the pattern
 of the existing `MaintenanceTask*` events.
 
-## Flags
+## Implementation Requirements
 
-**DEFERRED — not built now:** Archive is inert today, so there is no live path that produces the
-gap this spec closes. Build it when asset archive/unarchive graduates to a real feature; until then
-[notifications.md](../features/notifications.md) carries the accepted, currently-unreachable gap.
-
-**DECISION — read-path filters vs. task status:** Once tasks carry an explicit `active`/`suspended`
-status, the read-time archived exclusion (`findByOwnerForActiveAssets` JOIN, use-case `.filter`s)
-_could_ move to a `task.status = 'active'` check. Whether to migrate those reads or leave them is an
-implementation call; correctness does not require the migration, but it would remove the implicit
-"archived ⇒ excluded" rule from the read layer.
-
-**DECISION — endpoint shape:** Dedicated `archive`/`unarchive` action routes vs. a `PATCH` toggling
-an `archived` field. Recommend dedicated action routes so the cascade and events are unambiguous.
-
-**FOLLOW-UP — activity-history adoption:** [activity-history.md](../features/activity-history.md) lists asset
-archive as untracked _because no event exists_. These events unblock it; adding `asset_archived` /
-`task_suspended` entry types is an optional follow-up in that spec, not part of this one.
-
-**FOLLOW-UP — reference docs at implementation time:** Add the task `status` column + a migration,
-update [data-model.md](../../reference/data-model.md) (Asset/MaintenanceTask fields, the four new
-events, the `nextDue`-carrying task events), and reflect archive/unarchive UX in
-[`docs/web/FEATURES.md`](../../web/FEATURES.md). Regenerate the OpenAPI document.
+- Add the task `status` column and migration.
+- Update [data-model.md](../../reference/data-model.md) with Asset/MaintenanceTask fields, the four
+  new events, and the `nextDue`-carrying task event payloads.
+- Reflect archive/unarchive UX in [`docs/web/FEATURES.md`](../../web/FEATURES.md).
+- Regenerate the OpenAPI document.
 
 ## Out of Scope
 
@@ -186,11 +169,15 @@ events, the `nextDue`-carrying task events), and reflect archive/unarchive UX in
   user action is future work; here suspension is only a consequence of asset archive
 - **Reminder, dashboard, or history behavior internals** — owned by their respective specs; this
   spec only provides the events they consume
+- **Activity-history adoption** — [activity-history.md](../features/activity-history.md) lists asset
+  archive as untracked because no event exists. These events unblock `asset_archived` /
+  `task_suspended` entry types, but adding them is optional and not part of this parked design.
 
-## Open Questions
+## Future Considerations
 
-- [ ] Whether reactivating an asset should also re-notify overdue tasks immediately or wait for the
-      normal sweep — engineering — resolve at implementation (notifications' normal behavior already
-      covers it)
-- [ ] Whether suspended tasks appear (greyed) on the asset's own maintenance page or are hidden —
-      design — resolve during web design
+- Once tasks carry an explicit `active`/`suspended` status, active read paths can either keep the
+  current archived-asset exclusion or migrate to `task.status = 'active'`. Correctness does not
+  require the migration, but it would remove the implicit "archived implies excluded" rule from the
+  read layer.
+- Web design should decide whether suspended tasks appear greyed on the asset's own maintenance page
+  or are hidden.
