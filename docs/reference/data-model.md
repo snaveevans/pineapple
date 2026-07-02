@@ -118,6 +118,7 @@ Aggregates raise events when something significant happens. Today:
 | `NotificationEmailUpdated`  | a user sets/changes their contact email | event id and `userId` only (no address — PII stays out of the event)                                                                                |
 | `NotificationEmailVerified` | a user's contact email becomes verified | event id and `userId` only (no address)                                                                                                             |
 | `NotificationEmailRemoved`  | a user clears their contact email       | event id and `userId` only (no address)                                                                                                             |
+| `MaintenanceReminderCreated` | a due-soon reminder is created          | event id, notification/task/asset/owner ids, notification type, system actor, and lead-days conclusion                                               |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1
