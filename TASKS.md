@@ -20,7 +20,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Implement contact-email application use cases. Add `SetNotificationEmail` and `RemoveNotificationEmail`, a verification-request port used by the set path, and tests for auto-verify provider match, unverified non-provider email, idempotent verified re-submit, address change, removal, and rate-limit error propagation. Validate with the full check.
 
-- [ ] Add contact-email API contracts and handlers. Extend `UserProfileResponseSchema`; add `PUT /api/users/me/notification-email` and `DELETE /api/users/me/notification-email` schemas, route specs, worker handlers, serialization, technical telemetry mappings/tests, and generated OpenAPI. Validate with OpenAPI generation, lint, type-check, and tests.
+- [x] Add contact-email API contracts and handlers. Extend `UserProfileResponseSchema`; add `PUT /api/users/me/notification-email` and `DELETE /api/users/me/notification-email` schemas, route specs, worker handlers, serialization, technical telemetry mappings/tests, and generated OpenAPI. Validate with OpenAPI generation, lint, type-check, and tests.
 
 ## Email Verification
 

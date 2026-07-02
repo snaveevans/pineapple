@@ -145,6 +145,18 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   if (pathname === "/api/users/me" && method === "PATCH") {
     return { operation: "UpdateUserProfile", routePattern: "/api/users/me" };
   }
+  if (pathname === "/api/users/me/notification-email" && method === "PUT") {
+    return {
+      operation: "SetNotificationEmail",
+      routePattern: "/api/users/me/notification-email",
+    };
+  }
+  if (pathname === "/api/users/me/notification-email" && method === "DELETE") {
+    return {
+      operation: "RemoveNotificationEmail",
+      routePattern: "/api/users/me/notification-email",
+    };
+  }
   if (pathname === "/api/assets" && method === "POST") {
     return { operation: "CreateAsset", routePattern: "/api/assets" };
   }

@@ -25,6 +25,7 @@ import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
 import { ActivityQuerySchema, ActivityResponseSchema } from "./schemas/activitySchemas.ts";
 import { SearchAssetsQuerySchema, SearchAssetsResponseSchema } from "./schemas/searchSchemas.ts";
 import {
+  SetNotificationEmailBodySchema,
   UpdateUserProfileBodySchema,
   UserProfileResponseSchema,
 } from "./schemas/userProfileSchemas.ts";
@@ -433,6 +434,60 @@ export const updateUserProfileRoute = createRoute({
   },
 });
 
+export const setNotificationEmailRoute = createRoute({
+  method: "put",
+  path: "/api/users/me/notification-email",
+  tags: ["Users"],
+  summary: "Set my contact / notification email",
+  description:
+    "Stores the caller's contact email. When it matches the provider-verified auth email it is stored verified immediately; otherwise it is stored unverified and a verification email is requested. Returns the updated profile.",
+  security: [cookieAuth],
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: SetNotificationEmailBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated profile",
+      content: { "application/json": { schema: UserProfileResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    429: {
+      description: "Verification send rejected by a rate limit",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const removeNotificationEmailRoute = createRoute({
+  method: "delete",
+  path: "/api/users/me/notification-email",
+  tags: ["Users"],
+  summary: "Remove my contact / notification email",
+  description:
+    "Clears the caller's contact email and its verified state. Idempotent: succeeds with the unchanged profile when none is set. Returns the updated profile.",
+  security: [cookieAuth],
+  responses: {
+    200: {
+      description: "Updated profile",
+      content: { "application/json": { schema: UserProfileResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const deleteMaintenanceTaskRoute = createRoute({
   method: "delete",
   path: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
@@ -499,6 +554,8 @@ export function getApiDocument() {
   doc.openapi(getActivityRoute, stub);
   doc.openapi(getUserProfileRoute, stub);
   doc.openapi(updateUserProfileRoute, stub);
+  doc.openapi(setNotificationEmailRoute, stub);
+  doc.openapi(removeNotificationEmailRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }

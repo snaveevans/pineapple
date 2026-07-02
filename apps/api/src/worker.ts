@@ -7,10 +7,14 @@ import {
   AssetId,
   calendarDaysBetween,
   DomainError,
+  Email,
   MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceTaskId,
+  ok,
+  type Result,
 } from "@snaveevans/pineapple-shared";
 import type { AuthenticatedCaller } from "./application/ports/AuthenticatedUserResolver.ts";
+import type { EmailVerificationRequests } from "./application/ports/EmailVerificationRequests.ts";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -46,6 +50,8 @@ import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
 import { SearchAssets } from "./application/usecases/SearchAssets.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
+import { SetNotificationEmail } from "./application/usecases/SetNotificationEmail.ts";
+import { RemoveNotificationEmail } from "./application/usecases/RemoveNotificationEmail.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -59,6 +65,8 @@ import {
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
+  setNotificationEmailRoute,
+  removeNotificationEmailRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
@@ -270,11 +278,25 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
+/**
+ * Temporary no-op verification requester. The contact-email set path stores the
+ * address unverified and asks for a verification send; until the email-verification
+ * token/rate-limit pipeline is wired, this accepts the request without sending.
+ * Replace with the real verification-send use case when it lands.
+ */
+class NoopEmailVerificationRequests implements EmailVerificationRequests {
+  request(): Promise<Result<void, DomainError>> {
+    return Promise.resolve(ok(undefined));
+  }
+}
+
 function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSchema> {
   return {
     email: user.email,
     name: user.name,
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
+    notificationEmail: user.notificationEmail,
+    notificationEmailVerified: user.notificationEmailVerifiedAt !== null,
   };
 }
 
@@ -332,6 +354,35 @@ app.openapi(updateUserProfileRoute, async (c) => {
     userId: user.id,
     name,
   });
+  if (!result.ok) throw result.error;
+  return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(setNotificationEmailRoute, async (c) => {
+  const caller = c.get("authCaller");
+  const { email } = c.req.valid("json");
+  const result = await new SetNotificationEmail(
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+    // TODO(email-verification): swap the no-op requester for the real
+    // verification-send use case once token/rate-limit storage lands.
+    new NoopEmailVerificationRequests(),
+  ).execute({
+    userId: caller.user.id,
+    email: Email.from(email),
+    providerAuthEmail: caller.providerAuthEmail,
+    providerAuthEmailVerified: caller.providerAuthEmailVerified,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(removeNotificationEmailRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new RemoveNotificationEmail(
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({ userId: user.id });
   if (!result.ok) throw result.error;
   return c.json(serializeUserProfile(result.value), 200);
 });

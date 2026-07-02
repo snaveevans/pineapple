@@ -284,6 +284,40 @@ describe("buildApiRequestTelemetryDataPoint", () => {
   });
 
   it.each([
+    ["PUT", "SetNotificationEmail"],
+    ["DELETE", "RemoveNotificationEmail"],
+  ])("maps %s /api/users/me/notification-email to %s", (method, operation) => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method,
+        pathname: "/api/users/me/notification-email",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: [operation],
+      blobs: [
+        operation,
+        "/api/users/me/notification-email",
+        method,
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it.each([
     ["POST", "CreateMaintenanceRecord"],
     ["GET", "ListMaintenanceRecords"],
   ])("maps %s maintenance routes to %s", (method, operation) => {

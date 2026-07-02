@@ -1024,12 +1024,26 @@
             "nullable": true,
             "format": "date-time",
             "example": "2026-06-11T12:00:00.000Z"
+          },
+          "notificationEmail": {
+            "type": "string",
+            "nullable": true,
+            "format": "email",
+            "description": "User-controlled contact email reminders may be sent to. Null when unset; distinct from the read-only provider auth email.",
+            "example": "contact@example.com"
+          },
+          "notificationEmailVerified": {
+            "type": "boolean",
+            "description": "Whether the contact email is verified. Reminder emails are only delivered when true.",
+            "example": false
           }
         },
         "required": [
           "email",
           "name",
-          "onboardingCompletedAt"
+          "onboardingCompletedAt",
+          "notificationEmail",
+          "notificationEmailVerified"
         ]
       },
       "UpdateUserProfileBody": {
@@ -1042,6 +1056,19 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "SetNotificationEmailBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "contact@example.com"
+          }
+        },
+        "required": [
+          "email"
         ]
       }
     },
@@ -1901,6 +1928,106 @@
           },
           "422": {
             "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/notification-email": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Set my contact / notification email",
+        "description": "Stores the caller's contact email. When it matches the provider-verified auth email it is stored verified immediately; otherwise it is stored unverified and a verification email is requested. Returns the updated profile.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetNotificationEmailBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Verification send rejected by a rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove my contact / notification email",
+        "description": "Clears the caller's contact email and its verified state. Idempotent: succeeds with the unchanged profile when none is set. Returns the updated profile.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
             "content": {
               "application/json": {
                 "schema": {
