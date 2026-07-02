@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAINTENANCE_DUE_SOON_LEAD_DAYS } from "@snaveevans/pineapple-shared";
 import { addCalendarDays, calendarDaysBetween } from "./DateOnly.ts";
 import { compareTaskUrgency, deriveTaskStatus, mostUrgentTaskStatus } from "./TaskUrgency.ts";
 
@@ -19,6 +20,15 @@ describe("deriveTaskStatus", () => {
 
   it("returns ok when nextDue is more than 7 calendar days after todayUtc", () => {
     expect(deriveTaskStatus(addCalendarDays(today, 8), today)).toBe("ok");
+  });
+
+  it("defaults its lead time to the shared due-soon lead constant", () => {
+    expect(deriveTaskStatus(addCalendarDays(today, MAINTENANCE_DUE_SOON_LEAD_DAYS), today)).toBe(
+      "soon",
+    );
+    expect(
+      deriveTaskStatus(addCalendarDays(today, MAINTENANCE_DUE_SOON_LEAD_DAYS + 1), today),
+    ).toBe("ok");
   });
 });
 

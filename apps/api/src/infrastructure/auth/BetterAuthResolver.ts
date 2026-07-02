@@ -2,7 +2,10 @@ import { Email, InvariantError, UnauthorizedError } from "@snaveevans/pineapple-
 import { User } from "../../domain/identity/User.ts";
 import { UserProvisioned } from "../../domain/identity/events/UserProvisioned.ts";
 import type { UserRepository } from "../../domain/identity/UserRepository.ts";
-import type { AuthenticatedUserResolver } from "../../application/ports/AuthenticatedUserResolver.ts";
+import type {
+  AuthenticatedCaller,
+  AuthenticatedUserResolver,
+} from "../../application/ports/AuthenticatedUserResolver.ts";
 import type { EventBus } from "../../application/ports/EventBus.ts";
 import type { Auth } from "./auth.ts";
 
@@ -30,7 +33,7 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
     private readonly eventBus?: EventBus,
   ) {}
 
-  async resolve(request: Request): Promise<User> {
+  async resolve(request: Request): Promise<AuthenticatedCaller> {
     const session = await this.#resolveSession(request);
 
     let user = await this.users.findByEmail(session.email);
@@ -39,14 +42,21 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
       await this.users.save(user);
       await this.eventBus?.publish(UserProvisioned({ userId: user.id }));
     }
-    return user;
+    return {
+      user,
+      providerAuthEmail: session.email,
+      providerAuthEmailVerified: session.emailVerified,
+    };
   }
 
   async #resolveSession(request: Request): Promise<{
     email: Email;
     providerName: string | null;
+    emailVerified: boolean;
   }> {
-    let session: { user?: { email?: string; name?: string | null } } | null = null;
+    let session: {
+      user?: { email?: string; name?: string | null; emailVerified?: boolean };
+    } | null = null;
     try {
       session = await this.auth.api.getSession({ headers: request.headers });
     } catch {
@@ -57,7 +67,8 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
       const raw = session.user.email;
       if (typeof raw === "string" && raw.length > 0) {
         const providerName = typeof session.user.name === "string" ? session.user.name : null;
-        return { email: Email.from(raw), providerName };
+        const emailVerified = session.user.emailVerified === true;
+        return { email: Email.from(raw), providerName, emailVerified };
       }
     }
 
@@ -68,7 +79,10 @@ export class BetterAuthResolver implements AuthenticatedUserResolver {
           "DEV_AUTH_EMAIL may only be used when ENVIRONMENT is set to development",
         );
       }
-      return { email: Email.from(devEmail), providerName: null };
+      // The local dev bypass is a trusted identity, so its auth email is treated
+      // as provider-verified — this lets the auto-verify contact-email path be
+      // exercised locally without a real OAuth round-trip.
+      return { email: Email.from(devEmail), providerName: null, emailVerified: true };
     }
 
     throw new UnauthorizedError(

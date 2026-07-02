@@ -1,6 +1,6 @@
 # Error Handling Strategy
 
-- Status: accepted
+- Status: superseded by [0014](0014-layered-error-handling-policy.md)
 - Date: 2026-05-24
 
 ## Context and Problem Statement

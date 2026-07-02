@@ -9,8 +9,27 @@ export const UserProfileResponseSchema = z
       .datetime()
       .nullable()
       .openapi({ example: "2026-06-11T12:00:00.000Z" }),
+    notificationEmail: z.string().email().nullable().openapi({
+      example: "contact@example.com",
+      description:
+        "User-controlled contact email reminders may be sent to. Null when unset; distinct from the read-only provider auth email.",
+    }),
+    notificationEmailVerified: z.boolean().openapi({
+      example: false,
+      description:
+        "Whether the contact email is verified. Reminder emails are only delivered when true.",
+    }),
   })
   .openapi("UserProfile");
+
+export const SetNotificationEmailBodySchema = z
+  .object({
+    email: z
+      .string()
+      .email("A valid email address is required")
+      .openapi({ example: "contact@example.com" }),
+  })
+  .openapi("SetNotificationEmailBody");
 
 export const UpdateUserProfileBodySchema = z
   .object({

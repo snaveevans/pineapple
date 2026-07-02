@@ -7,8 +7,16 @@ import {
   AssetId,
   calendarDaysBetween,
   DomainError,
+  Email,
+  MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceTaskId,
+  NotificationId,
 } from "@snaveevans/pineapple-shared";
+import type { AuthenticatedCaller } from "./application/ports/AuthenticatedUserResolver.ts";
+import type {
+  EmailDeliveryResult,
+  TransactionalEmailSender,
+} from "./application/ports/TransactionalEmailSender.ts";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -20,9 +28,25 @@ import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
 import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
+import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
+import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSweepStore.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
+import { D1NotificationEmailOutboxRepository } from "./infrastructure/notifications/D1NotificationEmailOutboxRepository.ts";
+import { D1NotificationOutboxRepository } from "./infrastructure/notifications/D1NotificationOutboxRepository.ts";
+import { handleNotificationEventBatch } from "./infrastructure/notifications/NotificationEventQueueConsumer.ts";
+import {
+  NOTIFICATION_EVENTS_DLQ_NAME,
+  NOTIFICATION_EVENTS_QUEUE_NAME,
+  type NotificationEventMessage,
+} from "./infrastructure/notifications/NotificationEventMessage.ts";
+import {
+  REMINDER_EMAIL_DLQ_NAME,
+  REMINDER_EMAIL_QUEUE_NAME,
+  type ReminderEmailMessage,
+} from "./infrastructure/notifications/ReminderEmailMessage.ts";
+import { handleReminderEmailQueueBatch } from "./infrastructure/notifications/ReminderEmailQueueConsumer.ts";
 import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEventMessage.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
@@ -44,6 +68,22 @@ import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
 import { SearchAssets } from "./application/usecases/SearchAssets.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
+import { SetNotificationEmail } from "./application/usecases/SetNotificationEmail.ts";
+import { RemoveNotificationEmail } from "./application/usecases/RemoveNotificationEmail.ts";
+import { RequestEmailVerification } from "./application/usecases/RequestEmailVerification.ts";
+import { ConfirmEmailVerification } from "./application/usecases/ConfirmEmailVerification.ts";
+import { ListNotifications } from "./application/usecases/ListNotifications.ts";
+import { MarkNotificationRead } from "./application/usecases/MarkNotificationRead.ts";
+import { MarkAllNotificationsRead } from "./application/usecases/MarkAllNotificationsRead.ts";
+import { SweepMaintenanceReminders } from "./application/usecases/SweepMaintenanceReminders.ts";
+import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
+import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
+import { SystemClock } from "./infrastructure/time/SystemClock.ts";
+import { WebCryptoVerificationTokenService } from "./infrastructure/verification/WebCryptoVerificationTokenService.ts";
+import {
+  CloudflareEmailSender,
+  type CloudflareSendEmailBinding,
+} from "./infrastructure/email/CloudflareEmailSender.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -57,6 +97,13 @@ import {
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
+  setNotificationEmailRoute,
+  removeNotificationEmailRoute,
+  requestEmailVerificationRoute,
+  confirmEmailVerificationRoute,
+  listNotificationsRoute,
+  markNotificationReadRoute,
+  markAllNotificationsReadRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
@@ -71,6 +118,11 @@ import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
 import type { ActivityEntrySchema } from "./api/schemas/activitySchemas.ts";
+import type {
+  MarkAllNotificationsReadResponseSchema,
+  NotificationListResponseSchema,
+  NotificationSchema,
+} from "./api/schemas/notificationSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
@@ -81,13 +133,29 @@ type Bindings = AuthEnv & {
   ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   MAINTENANCE_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  NOTIFICATION_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
+  NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
+  REMINDER_EMAIL_QUEUE: Queue<ReminderEmailMessage>;
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
+  /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
+  APP_BASE_URL?: string;
+  /** Cloudflare Email Sending binding. Absent locally → sends fall back to a no-op. */
+  EMAIL?: CloudflareSendEmailBinding;
+  /** Verified sender address for outbound email; required to actually send. */
+  EMAIL_FROM_ADDRESS?: string;
+  /** Optional sender display name. */
+  EMAIL_FROM_NAME?: string;
 };
-type Variables = { user: User; auth: Auth; eventBus: EventBus };
+type Variables = {
+  user: User;
+  authCaller: AuthenticatedCaller;
+  auth: Auth;
+  eventBus: EventBus;
+};
 type AppEnv = { Bindings: Bindings; Variables: Variables };
 
 const app = new OpenAPIHono<AppEnv>({
@@ -174,7 +242,7 @@ function serializeMaintenanceTask(
   task: MaintenanceTask,
   todayUtc: string,
 ): z.infer<typeof MaintenanceTaskResponseSchema> {
-  const sevenDaysOut = addCalendarDays(todayUtc, 7);
+  const sevenDaysOut = addCalendarDays(todayUtc, MAINTENANCE_DUE_SOON_LEAD_DAYS);
   return {
     id: task.id,
     assetId: task.assetId,
@@ -220,15 +288,7 @@ app.use("/api/*", async (c, next) => {
   const auth = createAuth(c.env, baseURL);
   c.set("auth", auth);
 
-  const eventBus = new InMemoryEventBus();
-  registerDomainTelemetry({
-    eventBus,
-    assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
-    maintenanceDomainDataset: c.env.MAINTENANCE_DOMAIN_TELEMETRY,
-    maintenanceTaskDomainDataset: c.env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
-    userDomainDataset: c.env.USER_DOMAIN_TELEMETRY,
-  });
-  c.set("eventBus", eventBus);
+  c.set("eventBus", buildDomainEventBus(c.env));
 
   await next();
 });
@@ -240,10 +300,28 @@ app.use("/api/*", async (c, next) => {
   c.executionCtx.waitUntil(
     new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
   );
+  c.executionCtx.waitUntil(
+    new D1NotificationOutboxRepository(c.env.DB).relayPending(c.env.NOTIFICATION_EVENTS_QUEUE),
+  );
 });
 
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
 app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
+
+// Public verification confirm — registered BEFORE the auth gate below so it stays
+// session-optional: the token is the proof. See authentication.md exceptions.
+app.openapi(confirmEmailVerificationRoute, async (c) => {
+  const { token } = c.req.valid("json");
+  const result = await new ConfirmEmailVerification(
+    new D1UserRepository(c.env.DB),
+    new D1VerificationTokenRepository(c.env.DB),
+    new WebCryptoVerificationTokenService(),
+    c.get("eventBus"),
+    new SystemClock(),
+  ).execute({ token });
+  if (!result.ok) throw result.error;
+  return c.json({ status: result.value.status }, 200);
+});
 
 // ── Auth gate for the application API ────────────────────────────────────────
 
@@ -257,17 +335,89 @@ app.use("/api/*", async (c, next) => {
     c.env.DEV_AUTH_EMAIL,
     c.get("eventBus"),
   );
-  const user = await resolver.resolve(c.req.raw);
-  c.set("user", user);
+  const caller = await resolver.resolve(c.req.raw);
+  c.set("user", caller.user);
+  c.set("authCaller", caller);
   await next();
 });
+
+/**
+ * No-op email sender used when no email binding/sender address is configured
+ * (e.g. local dev before the domain is onboarded). Token issuance, rate limiting,
+ * and audit still run; only the actual send is skipped.
+ */
+class NoopTransactionalEmailSender implements TransactionalEmailSender {
+  send(): Promise<EmailDeliveryResult> {
+    return Promise.resolve({ status: "sent" });
+  }
+}
+
+function resolveEmailSenderFromEnv(env: Bindings): TransactionalEmailSender {
+  if (env.EMAIL && env.EMAIL_FROM_ADDRESS) {
+    return new CloudflareEmailSender(env.EMAIL, {
+      email: env.EMAIL_FROM_ADDRESS,
+      ...(env.EMAIL_FROM_NAME ? { name: env.EMAIL_FROM_NAME } : {}),
+    });
+  }
+  return new NoopTransactionalEmailSender();
+}
+
+function resolveEmailSender(c: Context<AppEnv>): TransactionalEmailSender {
+  return resolveEmailSenderFromEnv(c.env);
+}
+
+/**
+ * Wires the verification-send use case for a request. The verification link
+ * points at the web app's public `/verify-email` page; the email goes out through
+ * the Cloudflare Email Sending adapter when configured.
+ */
+function buildRequestEmailVerification(c: Context<AppEnv>): RequestEmailVerification {
+  const appBase = c.env.APP_BASE_URL ?? new URL(c.req.url).origin;
+  return new RequestEmailVerification(
+    new D1UserRepository(c.env.DB),
+    new D1VerificationTokenRepository(c.env.DB),
+    new D1VerificationSendLog(c.env.DB),
+    resolveEmailSender(c),
+    new WebCryptoVerificationTokenService(),
+    c.get("eventBus"),
+    new SystemClock(),
+    (token) => `${appBase}/verify-email?token=${encodeURIComponent(token)}`,
+  );
+}
 
 function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSchema> {
   return {
     email: user.email,
     name: user.name,
     onboardingCompletedAt: user.onboardingCompletedAt?.toISOString() ?? null,
+    notificationEmail: user.notificationEmail,
+    notificationEmailVerified: user.notificationEmailVerifiedAt !== null,
   };
+}
+
+async function runMaintenanceReminderSweep(env: Bindings): Promise<void> {
+  const result = await new SweepMaintenanceReminders(
+    new D1ReminderSweepStore(env.DB),
+    new SystemUtcDateProvider(),
+    new SystemClock(),
+    buildDomainEventBus(env),
+  ).execute();
+  if (!result.ok) {
+    console.error({ error: result.error }, "Maintenance reminder sweep failed");
+  }
+}
+
+function buildDomainEventBus(env: Bindings): EventBus {
+  const eventBus = new InMemoryEventBus();
+  registerDomainTelemetry({
+    eventBus,
+    assetDomainDataset: env.ASSET_DOMAIN_TELEMETRY,
+    maintenanceDomainDataset: env.MAINTENANCE_DOMAIN_TELEMETRY,
+    maintenanceTaskDomainDataset: env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
+    notificationDomainDataset: env.NOTIFICATION_DOMAIN_TELEMETRY,
+    userDomainDataset: env.USER_DOMAIN_TELEMETRY,
+  });
+  return eventBus;
 }
 
 // ── Dashboard endpoint ───────────────────────────────────────────────────────
@@ -326,6 +476,82 @@ app.openapi(updateUserProfileRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(setNotificationEmailRoute, async (c) => {
+  const caller = c.get("authCaller");
+  const { email } = c.req.valid("json");
+  const result = await new SetNotificationEmail(
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+    buildRequestEmailVerification(c),
+    new SystemClock(),
+  ).execute({
+    userId: caller.user.id,
+    email: Email.from(email),
+    providerAuthEmail: caller.providerAuthEmail,
+    providerAuthEmailVerified: caller.providerAuthEmailVerified,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(removeNotificationEmailRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new RemoveNotificationEmail(
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({ userId: user.id });
+  if (!result.ok) throw result.error;
+  return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(requestEmailVerificationRoute, async (c) => {
+  const user = c.get("user");
+  const result = await buildRequestEmailVerification(c).execute({
+    userId: user.id,
+    source: "resend",
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ status: "accepted" as const }, 202);
+});
+
+// ── Notification endpoints ──────────────────────────────────────────────────
+
+app.openapi(listNotificationsRoute, async (c) => {
+  const user = c.get("user");
+  const { cursor, limit } = c.req.valid("query");
+  const result = await new ListNotifications(new D1NotificationRepository(c.env.DB)).execute({
+    ownerId: user.id,
+    limit,
+    cursor: cursor ?? null,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof NotificationListResponseSchema>, 200);
+});
+
+app.openapi(markNotificationReadRoute, async (c) => {
+  const user = c.get("user");
+  const { notificationId } = c.req.valid("param");
+  const result = await new MarkNotificationRead(
+    new D1NotificationRepository(c.env.DB),
+    new SystemClock(),
+  ).execute({
+    notificationId: NotificationId.from(notificationId),
+    ownerId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof NotificationSchema>, 200);
+});
+
+app.openapi(markAllNotificationsReadRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new MarkAllNotificationsRead(
+    new D1NotificationRepository(c.env.DB),
+    new SystemClock(),
+  ).execute({ ownerId: user.id });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof MarkAllNotificationsReadResponseSchema>, 200);
 });
 
 // ── Asset endpoints ──────────────────────────────────────────────────────────
@@ -482,10 +708,33 @@ const worker: ExportedHandler<Bindings, unknown> = {
     return app.fetch(request, env, ctx);
   },
   async queue(batch, env) {
+    if (
+      batch.queue === NOTIFICATION_EVENTS_QUEUE_NAME ||
+      batch.queue === NOTIFICATION_EVENTS_DLQ_NAME
+    ) {
+      await handleNotificationEventBatch(batch, env.DB);
+      return;
+    }
+    if (batch.queue === REMINDER_EMAIL_QUEUE_NAME || batch.queue === REMINDER_EMAIL_DLQ_NAME) {
+      await handleReminderEmailQueueBatch(batch, {
+        db: env.DB,
+        emailSender: resolveEmailSenderFromEnv(env),
+        eventBus: buildDomainEventBus(env),
+        clock: new SystemClock(),
+      });
+      return;
+    }
     await handleActivityQueueBatch(batch, env.DB);
   },
   scheduled(_event, env, ctx) {
+    ctx.waitUntil(runMaintenanceReminderSweep(env));
     ctx.waitUntil(new D1ActivityOutboxRepository(env.DB).relayPending(env.ACTIVITY_HISTORY_QUEUE));
+    ctx.waitUntil(
+      new D1NotificationOutboxRepository(env.DB).relayPending(env.NOTIFICATION_EVENTS_QUEUE),
+    );
+    ctx.waitUntil(
+      new D1NotificationEmailOutboxRepository(env.DB).relayPending(env.REMINDER_EMAIL_QUEUE),
+    );
   },
 };
 

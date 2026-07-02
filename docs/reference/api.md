@@ -20,7 +20,8 @@ code. If this prose and the spec disagree, the spec wins.
 ## Authentication
 
 Auth is **Better Auth + Google OAuth**, handled inside the Worker under
-`/api/auth/*`. Every other `/api/*` route requires an authenticated session.
+`/api/auth/*`. Every other `/api/*` route requires an authenticated session
+except `POST /api/verify-email`, which authorizes by verification token.
 
 **Flow:**
 
@@ -43,18 +44,32 @@ sign-in. There is no separate "register" step.
 
 ## Endpoints
 
-| Method | Path                                        | Auth | Description                              |
-| ------ | ------------------------------------------- | ---- | ---------------------------------------- |
-| GET    | `/health`                                   | no   | Liveness check                           |
-| GET    | `/openapi.json`                             | no   | The OpenAPI spec                         |
-| GET    | `/reference`                                | no   | Interactive API docs (Scalar)            |
-| `*`    | `/api/auth/*`                               | —    | Better Auth (sign-in, callback, session) |
-| POST   | `/api/assets`                               | yes  | Create an asset                          |
-| GET    | `/api/assets`                               | yes  | List the caller's active assets          |
-| GET    | `/api/assets/{id}`                          | yes  | Get one asset the caller owns            |
-| GET    | `/api/activity`                             | yes  | List the caller's activity history       |
-| POST   | `/api/assets/{assetId}/maintenance-records` | yes  | Create a maintenance record              |
-| GET    | `/api/assets/{assetId}/maintenance-records` | yes  | List an asset's maintenance history      |
+| Method | Path                                                     | Auth  | Description                                      |
+| ------ | -------------------------------------------------------- | ----- | ------------------------------------------------ |
+| GET    | `/health`                                                | no    | Liveness check                                   |
+| GET    | `/openapi.json`                                          | no    | The OpenAPI spec                                 |
+| GET    | `/reference`                                             | no    | Interactive API docs (Scalar)                    |
+| `*`    | `/api/auth/*`                                            | —     | Better Auth (sign-in, callback, session)         |
+| POST   | `/api/assets`                                            | yes   | Create an asset                                  |
+| GET    | `/api/assets`                                            | yes   | List the caller's active assets                  |
+| GET    | `/api/assets/{id}`                                       | yes   | Get one asset the caller owns                    |
+| GET    | `/api/search`                                            | yes   | Search the caller's assets                       |
+| GET    | `/api/dashboard`                                         | yes   | Get dashboard summary data                       |
+| GET    | `/api/activity`                                          | yes   | List the caller's activity history               |
+| POST   | `/api/assets/{assetId}/maintenance-records`              | yes   | Create a maintenance record                      |
+| GET    | `/api/assets/{assetId}/maintenance-records`              | yes   | List an asset's maintenance history              |
+| POST   | `/api/assets/{assetId}/maintenance-tasks`                | yes   | Create a maintenance task                        |
+| GET    | `/api/assets/{assetId}/maintenance-tasks`                | yes   | List an asset's maintenance tasks                |
+| DELETE | `/api/assets/{assetId}/maintenance-tasks/{taskId}`       | yes   | Delete a maintenance task                        |
+| GET    | `/api/users/me`                                          | yes   | Get the caller's profile                         |
+| PATCH  | `/api/users/me`                                          | yes   | Update the caller's profile                      |
+| PUT    | `/api/users/me/notification-email`                       | yes   | Set contact / notification email                 |
+| DELETE | `/api/users/me/notification-email`                       | yes   | Remove contact / notification email              |
+| POST   | `/api/users/me/notification-email/verification`          | yes   | Resend contact-email verification                |
+| POST   | `/api/verify-email`                                      | token | Confirm contact-email verification               |
+| GET    | `/api/notifications`                                     | yes   | List the caller's notifications                  |
+| POST   | `/api/notifications/{notificationId}/read`               | yes   | Mark one notification read                       |
+| POST   | `/api/notifications/read-all`                            | yes   | Mark all caller notifications read               |
 
 See [`data-model.md`](data-model.md) for the shape of an asset and its metadata
 variants.
@@ -92,6 +107,7 @@ All errors share one JSON shape:
 | 403    | Authenticated, but the resource isn't yours |
 | 404    | Resource not found                          |
 | 409    | Conflict (e.g. uniqueness violation)        |
+| 429    | Too many requests                           |
 | 422    | Request body/params failed validation       |
 | 500    | Unexpected server error                     |
 

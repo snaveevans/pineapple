@@ -3,6 +3,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
 } from "@snaveevans/pineapple-shared";
@@ -144,6 +145,42 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   if (pathname === "/api/users/me" && method === "PATCH") {
     return { operation: "UpdateUserProfile", routePattern: "/api/users/me" };
   }
+  if (pathname === "/api/users/me/notification-email" && method === "PUT") {
+    return {
+      operation: "SetNotificationEmail",
+      routePattern: "/api/users/me/notification-email",
+    };
+  }
+  if (pathname === "/api/users/me/notification-email" && method === "DELETE") {
+    return {
+      operation: "RemoveNotificationEmail",
+      routePattern: "/api/users/me/notification-email",
+    };
+  }
+  if (pathname === "/api/users/me/notification-email/verification" && method === "POST") {
+    return {
+      operation: "RequestEmailVerification",
+      routePattern: "/api/users/me/notification-email/verification",
+    };
+  }
+  if (pathname === "/api/verify-email" && method === "POST") {
+    return { operation: "ConfirmEmailVerification", routePattern: "/api/verify-email" };
+  }
+  if (pathname === "/api/notifications" && method === "GET") {
+    return { operation: "ListNotifications", routePattern: "/api/notifications" };
+  }
+  if (pathname === "/api/notifications/read-all" && method === "POST") {
+    return {
+      operation: "MarkAllNotificationsRead",
+      routePattern: "/api/notifications/read-all",
+    };
+  }
+  if (/^\/api\/notifications\/[^/]+\/read$/.test(pathname) && method === "POST") {
+    return {
+      operation: "MarkNotificationRead",
+      routePattern: "/api/notifications/{notificationId}/read",
+    };
+  }
   if (pathname === "/api/assets" && method === "POST") {
     return { operation: "CreateAsset", routePattern: "/api/assets" };
   }
@@ -195,12 +232,13 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   return { operation: "Unknown", routePattern: "Unknown" };
 }
 
-function statusFromError(error: unknown): number {
+export function statusFromError(error: unknown): number {
   if (error instanceof NotFoundError) return 404;
   if (error instanceof UnauthorizedError) return 401;
   if (error instanceof ForbiddenError) return 403;
   if (error instanceof ValidationError) return 422;
   if (error instanceof ConflictError) return 409;
+  if (error instanceof TooManyRequestsError) return 429;
   return 500;
 }
 

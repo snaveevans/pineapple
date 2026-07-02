@@ -7,9 +7,9 @@ metadata:
 
 # Maintenance Task
 
-**Status:** draft
-**Owner:** [unknown - assign on review]
-**Last Updated:** 2026-06-17
+**Status:** active
+**Owner:** product and engineering
+**Last Updated:** 2026-07-02
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-record.md](./maintenance-record.md), [dashboard.md](./dashboard.md)
 
 ---
@@ -133,6 +133,8 @@ All three route patterns must be added to the operation name mapping in `technic
 
 **Domain events:** Three events are published to dataset `pineapple_maintenance_task_domain_events` (binding: `MAINTENANCE_TASK_DOMAIN_TELEMETRY`). None may include user-entered title text in telemetry blobs.
 
+**Enriched event payload vs. telemetry blobs (Smart Events, [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)):** The blob tables below are the _thin telemetry projection_ written to Analytics Engine (IDs and enums only, no PII). The _event payload_ carried on the bus/queue to durable consumers is richer — it additionally carries the asset snapshot (`name`, `type`), the task `title`, the History `activityEntryType` conclusion, and, for `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced`, the resulting **`nextDue`** as a producer-owned conclusion. `nextDue` is required so the [notifications](./notifications.md) durable scheduler can schedule/reschedule a reminder **without reading maintenance-task storage back** (ADR-0010); `MaintenanceTaskDeleted` needs no `nextDue` (its consumer cancels). These payload fields are **not** added to the telemetry blobs, which stay PII-free. The full payload contract lives in [data-model.md](../../reference/data-model.md) (domain-events table). Implementation must populate `nextDue` where these events are constructed in the application layer, using the task's `nextDue` after creation or advancement.
+
 ### `MaintenanceTaskCreated` — on successful task creation
 
 | Field        | Name                   | Value                                                                                         |
@@ -189,23 +191,31 @@ Published only when `record.performedAt > task.lastCompletedDate` (i.e. when `ne
 | `doubles[1]` | `event_time_ms`         | Event timestamp (ms since epoch)                      |
 | `doubles[2]` | `performed_date_ms`     | `record.performedAt` at UTC midnight (ms since epoch) |
 
-## Flags
-
-**NOT SPECIFIED — UI entry points and post-creation navigation:** This spec covers the API contract only. The exact UI entry points (asset detail page layout, task list placement, "Log maintenance" shortcut interaction, form presentation) are not specified here and should be addressed in a UI design pass.
-
-**FOLLOW-UP NEEDED — Mileage-based intervals (Phase 2):** The original user stories include "change oil every 5,000 miles." Odometer tracking and mileage-based `nextDue` computation are out of scope for phase 1. When implementing, do NOT simply add `"mile"` to the `intervalUnit` enum — time tasks carry `lastCompletedDate`/`nextDue` (dates) while distance tasks would need `lastCompletedOdometer`/`nextDueMileage` (integers). Introduce a `type: "time" | "distance"` discriminator and treat them as two explicit shapes. Existing time-based tasks require no changes.
-
-**FOLLOW-UP NEEDED — Dashboard detail fields:** The dashboard prototype displays estimated duration, location/where, assignee/vendor, and task notes. Those fields are not part of the current maintenance-task contract and must be specified here before the dashboard can render them from live API data.
-
-**FOLLOW-UP NEEDED — Cross-cutting time spec:** Same flag as [maintenance-record.md](./maintenance-record.md). Date-only arithmetic for `nextDue` computation — especially month and year intervals — should be revisited when a cross-cutting time spec is authored.
-
 ## Out of Scope
 
 - Mileage/odometer-based intervals (Phase 2)
+- Distance-based intervals must not be implemented by adding `"mile"` or `"hour"` to the time
+  interval enum. Future distance/hour tasks need an explicit discriminator such as
+  `type: "time" | "distance"` and separate fields like `lastCompletedOdometer` /
+  `nextDueMileage`.
 - Editing a task's title or interval after creation
-- Reminders and push/email notifications when maintenance is due
+- UI entry points and post-creation navigation. This spec covers the API contract; asset detail
+  placement, task list presentation, the "Log maintenance" shortcut, and inline/modal/drawer/route
+  choices belong to a UI design pass.
+- Dashboard-only detail fields such as estimated duration, location/where, assignee/vendor, and
+  task notes. They are not part of the current maintenance-task contract and must be specified
+  before the dashboard can render them from live API data.
+- **Sending** reminders or push/email notifications — this feature does not deliver reminders; it
+  publishes the task lifecycle events that the [notifications](./notifications.md) durable
+  scheduler consumes
 - A standalone schedule/task-management screen beyond the dashboard read model
-- Archiving or disabling tasks (only hard delete is supported in this iteration)
+- Archiving or disabling tasks directly (only hard delete in this iteration); task **suspension as a consequence of archiving the parent asset** — a task `active`/`suspended` status and `MaintenanceTaskSuspended`/`Reactivated` events — is a **parked** design in [backlog/archive-asset.md](../backlog/archive-asset.md), out of current scope
 - Automatic record creation triggered by tasks
 - Bulk task management
 - Task templates or task categories
+
+## Future Considerations
+
+- A cross-cutting time spec should eventually define project-wide rules for date-only fields,
+  timestamps, user time zones, server clock comparisons, and telemetry conversions. Until then,
+  this spec's date-only arithmetic rules are authoritative for maintenance tasks.

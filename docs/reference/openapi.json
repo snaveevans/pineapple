@@ -39,6 +39,10 @@
     {
       "name": "Activity",
       "description": "Authenticated cross-asset history feed"
+    },
+    {
+      "name": "Notifications",
+      "description": "Authenticated durable notification inbox and read lifecycle"
     }
   ],
   "components": {
@@ -1024,12 +1028,26 @@
             "nullable": true,
             "format": "date-time",
             "example": "2026-06-11T12:00:00.000Z"
+          },
+          "notificationEmail": {
+            "type": "string",
+            "nullable": true,
+            "format": "email",
+            "description": "User-controlled contact email reminders may be sent to. Null when unset; distinct from the read-only provider auth email.",
+            "example": "contact@example.com"
+          },
+          "notificationEmailVerified": {
+            "type": "boolean",
+            "description": "Whether the contact email is verified. Reminder emails are only delivered when true.",
+            "example": false
           }
         },
         "required": [
           "email",
           "name",
-          "onboardingCompletedAt"
+          "onboardingCompletedAt",
+          "notificationEmail",
+          "notificationEmailVerified"
         ]
       },
       "UpdateUserProfileBody": {
@@ -1042,6 +1060,198 @@
         },
         "required": [
           "name"
+        ]
+      },
+      "SetNotificationEmailBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "contact@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "RequestEmailVerificationResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "accepted"
+            ],
+            "example": "accepted"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ConfirmEmailVerificationResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "invalid"
+            ],
+            "description": "`verified` when the address is now confirmed; `invalid` is the single non-leaking outcome for any unknown, expired, used, superseded, or address-changed token.",
+            "example": "verified"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ConfirmEmailVerificationBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1,
+            "example": "kQ8s2f...opaque-token"
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "NotificationAssetSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Truck"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "vehicle",
+              "property",
+              "equipment"
+            ],
+            "example": "vehicle"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "NotificationTaskSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-4890-abcd-ef1234567890"
+          },
+          "title": {
+            "type": "string",
+            "example": "Oil change"
+          },
+          "nextDue": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-07-20"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "nextDue"
+        ]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "maintenance_due_soon"
+            ],
+            "example": "maintenance_due_soon"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-13T00:00:00.000Z"
+          },
+          "readAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "example": null
+          },
+          "asset": {
+            "$ref": "#/components/schemas/NotificationAssetSnapshot"
+          },
+          "task": {
+            "$ref": "#/components/schemas/NotificationTaskSnapshot"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "createdAt",
+          "readAt",
+          "asset",
+          "task"
+        ]
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "notifications",
+          "unreadCount",
+          "nextCursor"
+        ]
+      },
+      "MarkAllNotificationsReadResponse": {
+        "type": "object",
+        "properties": {
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          }
+        },
+        "required": [
+          "unreadCount"
         ]
       }
     },
@@ -1901,6 +2111,377 @@
           },
           "422": {
             "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/notification-email": {
+      "put": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Set my contact / notification email",
+        "description": "Stores the caller's contact email. When it matches the provider-verified auth email it is stored verified immediately; otherwise it is stored unverified and a verification email is requested. Returns the updated profile.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetNotificationEmailBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Verification send rejected by a rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Remove my contact / notification email",
+        "description": "Clears the caller's contact email and its verified state. Idempotent: succeeds with the unchanged profile when none is set. Returns the updated profile.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me/notification-email/verification": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Resend my contact-email verification",
+        "description": "Requests a fresh verification email for the caller's current, still-unverified contact email. Subject to per-address cooldown and per-address / per-user daily caps.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Verification send accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestEmailVerificationResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No contact email is set to verify",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rejected by a verification-send rate limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/verify-email": {
+      "post": {
+        "tags": [
+          "Users"
+        ],
+        "summary": "Confirm a contact-email verification token",
+        "description": "Public, session-optional endpoint that confirms a verification token from the emailed link. Returns a generic `invalid` outcome for any unknown, expired, used, superseded, or address-changed token without revealing which case applied.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmEmailVerificationBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmation outcome",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfirmEmailVerificationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Malformed request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List my notifications",
+        "description": "Returns the caller's durable notification inbox with unread count and cursor pagination. Rows include self-contained asset and task snapshots.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "MjAyNi0wNy0xM1QwMDowMDowMC4wMDBafG5vdGlmaWNhdGlvbi0xMjM"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "example": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's notification inbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/{notificationId}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark one notification read",
+        "description": "Marks a single caller-owned notification read and returns the updated notification. Unknown or foreign ids return 404.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
+            },
+            "required": true,
+            "name": "notificationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated notification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notification"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such caller-owned notification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark all my notifications read",
+        "description": "Marks all unread notifications owned by the caller read and returns unreadCount.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unread count after marking all read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkAllNotificationsReadResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
             "content": {
               "application/json": {
                 "schema": {

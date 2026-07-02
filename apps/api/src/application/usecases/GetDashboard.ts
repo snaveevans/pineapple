@@ -3,6 +3,7 @@ import {
   calendarDaysBetween,
   type DomainError,
   DomainError as DomainErrorClass,
+  MAINTENANCE_DUE_SOON_LEAD_DAYS,
   ok,
   err,
   type Result,
@@ -124,7 +125,7 @@ function enrichTasks(
   assetById: Map<string, Asset>,
   todayUtc: string,
 ): EnrichedTask[] {
-  const sevenDaysOut = addCalendarDays(todayUtc, 7);
+  const sevenDaysOut = addCalendarDays(todayUtc, MAINTENANCE_DUE_SOON_LEAD_DAYS);
   const enriched: EnrichedTask[] = [];
   for (const task of tasks) {
     const asset = assetById.get(task.assetId);

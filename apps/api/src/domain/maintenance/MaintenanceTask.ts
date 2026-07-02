@@ -115,6 +115,7 @@ export class MaintenanceTask {
         title: task.title,
         intervalValue: task.intervalValue,
         intervalUnit: task.intervalUnit,
+        nextDue: task.nextDue,
       }),
     );
     return task;
@@ -143,6 +144,7 @@ export class MaintenanceTask {
         assetType: assetSnapshot.assetType,
         title: this.title,
         performedAt,
+        nextDue: this._nextDue,
       }),
     );
     return true;

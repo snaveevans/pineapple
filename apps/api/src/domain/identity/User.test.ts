@@ -1,9 +1,11 @@
-import { Email, ValidationError } from "@snaveevans/pineapple-shared";
+import { Email, InvariantError, ValidationError } from "@snaveevans/pineapple-shared";
 import { describe, expect, it } from "vitest";
 import { DISPLAY_NAME_MAX_LENGTH, User } from "./User.ts";
 
 describe("User", () => {
   const email = Email.from("dale@example.com");
+  const contactEmail = Email.from("contact@example.com");
+  const verifiedAt = new Date("2026-07-02T12:00:00.000Z");
 
   describe("create", () => {
     it("copies a trimmed provider name when valid", () => {
@@ -90,6 +92,133 @@ describe("User", () => {
       } catch (error) {
         expect(error).toMatchObject({ field: "name" });
       }
+    });
+  });
+
+  describe("contact / notification email", () => {
+    it("defaults to no contact email", () => {
+      const user = User.create(email);
+      expect(user.notificationEmail).toBeNull();
+      expect(user.notificationEmailVerifiedAt).toBeNull();
+    });
+
+    it("stores an unverified contact email and emits NotificationEmailUpdated", () => {
+      const user = User.create(email);
+      user.setUnverifiedNotificationEmail(contactEmail);
+
+      expect(user.notificationEmail).toBe(contactEmail);
+      expect(user.notificationEmailVerifiedAt).toBeNull();
+      const events = user.pullEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe("NotificationEmailUpdated");
+    });
+
+    it("clears prior verified state when a new unverified address is stored", () => {
+      const user = User.create(email);
+      user.setVerifiedNotificationEmail(email, verifiedAt);
+      user.pullEvents();
+
+      user.setUnverifiedNotificationEmail(contactEmail);
+      expect(user.notificationEmail).toBe(contactEmail);
+      expect(user.notificationEmailVerifiedAt).toBeNull();
+    });
+
+    it("stores a verified contact email and emits both update and verified events", () => {
+      const user = User.create(email);
+      user.setVerifiedNotificationEmail(email, verifiedAt);
+
+      expect(user.notificationEmail).toBe(email);
+      expect(user.notificationEmailVerifiedAt).not.toBeNull();
+      const events = user.pullEvents();
+      expect(events.map((e) => e.type)).toEqual([
+        "NotificationEmailUpdated",
+        "NotificationEmailVerified",
+      ]);
+    });
+
+    it("marks the current contact email verified and emits NotificationEmailVerified", () => {
+      const user = User.create(email);
+      user.setUnverifiedNotificationEmail(contactEmail);
+      user.pullEvents();
+
+      user.markNotificationEmailVerified(contactEmail, verifiedAt);
+      expect(user.notificationEmailVerifiedAt).not.toBeNull();
+      const events = user.pullEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe("NotificationEmailVerified");
+    });
+
+    it("stamps the verified timestamp from the caller's clock, not the wall clock", () => {
+      const setUser = User.create(email);
+      setUser.setVerifiedNotificationEmail(email, verifiedAt);
+      expect(setUser.notificationEmailVerifiedAt).toBe(verifiedAt);
+
+      const markUser = User.create(email);
+      markUser.setUnverifiedNotificationEmail(contactEmail);
+      markUser.markNotificationEmailVerified(contactEmail, verifiedAt);
+      expect(markUser.notificationEmailVerifiedAt).toBe(verifiedAt);
+    });
+
+    it("is idempotent when marking an already-verified address", () => {
+      const user = User.create(email);
+      user.setVerifiedNotificationEmail(email, verifiedAt);
+      const priorVerifiedAt = user.notificationEmailVerifiedAt;
+      user.pullEvents();
+
+      // A second verify at a different instant must not move the timestamp.
+      user.markNotificationEmailVerified(email, new Date("2027-01-01T00:00:00.000Z"));
+      expect(user.notificationEmailVerifiedAt).toBe(priorVerifiedAt);
+      expect(user.pullEvents()).toHaveLength(0);
+    });
+
+    it("rejects verifying an address that is not the current contact email", () => {
+      const user = User.create(email);
+      user.setUnverifiedNotificationEmail(contactEmail);
+      user.pullEvents();
+
+      expect(() => user.markNotificationEmailVerified(email, verifiedAt)).toThrow(InvariantError);
+    });
+
+    it("rejects verifying when no contact email is set", () => {
+      const user = User.create(email);
+      expect(() => user.markNotificationEmailVerified(contactEmail, verifiedAt)).toThrow(
+        InvariantError,
+      );
+    });
+
+    it("removes the contact email and emits NotificationEmailRemoved", () => {
+      const user = User.create(email);
+      user.setVerifiedNotificationEmail(email, verifiedAt);
+      user.pullEvents();
+
+      user.removeNotificationEmail();
+      expect(user.notificationEmail).toBeNull();
+      expect(user.notificationEmailVerifiedAt).toBeNull();
+      const events = user.pullEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]?.type).toBe("NotificationEmailRemoved");
+    });
+
+    it("is an idempotent no-op when removing with no contact email set", () => {
+      const user = User.create(email);
+      user.removeNotificationEmail();
+      expect(user.notificationEmail).toBeNull();
+      expect(user.pullEvents()).toHaveLength(0);
+    });
+
+    it("rehydrates contact-email state via reconstitute", () => {
+      const verifiedAt = new Date("2026-06-01T00:00:00.000Z");
+      const user = User.reconstitute({
+        id: User.create(email).id,
+        email,
+        name: "Dale",
+        onboardingCompletedAt: new Date(),
+        createdAt: new Date(),
+        notificationEmail: contactEmail,
+        notificationEmailVerifiedAt: verifiedAt,
+      });
+      expect(user.notificationEmail).toBe(contactEmail);
+      expect(user.notificationEmailVerifiedAt).toBe(verifiedAt);
     });
   });
 });

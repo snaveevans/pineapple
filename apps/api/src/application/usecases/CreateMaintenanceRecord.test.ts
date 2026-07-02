@@ -319,6 +319,7 @@ describe("CreateMaintenanceRecord", () => {
           assetType: "vehicle",
           title: "Replace furnace filter",
           performedAt: "2026-06-09",
+          nextDue: "2026-08-09",
         }),
       );
       expect(records.savedEvents).toContainEqual(
@@ -328,6 +329,7 @@ describe("CreateMaintenanceRecord", () => {
           assetType: "vehicle",
           title: "Replace furnace filter",
           performedAt: "2026-06-09",
+          nextDue: "2026-08-09",
         }),
       );
     });
@@ -363,6 +365,7 @@ describe("CreateMaintenanceRecord", () => {
           assetType: "vehicle",
           title: "Replace furnace filter",
           performedAt: "2026-06-09",
+          nextDue: "2026-08-09",
         }),
       );
     });
