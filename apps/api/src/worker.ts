@@ -10,6 +10,7 @@ import {
   Email,
   MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceTaskId,
+  NotificationId,
 } from "@snaveevans/pineapple-shared";
 import type { AuthenticatedCaller } from "./application/ports/AuthenticatedUserResolver.ts";
 import type {
@@ -27,6 +28,7 @@ import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
 import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
+import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
@@ -62,6 +64,9 @@ import { SetNotificationEmail } from "./application/usecases/SetNotificationEmai
 import { RemoveNotificationEmail } from "./application/usecases/RemoveNotificationEmail.ts";
 import { RequestEmailVerification } from "./application/usecases/RequestEmailVerification.ts";
 import { ConfirmEmailVerification } from "./application/usecases/ConfirmEmailVerification.ts";
+import { ListNotifications } from "./application/usecases/ListNotifications.ts";
+import { MarkNotificationRead } from "./application/usecases/MarkNotificationRead.ts";
+import { MarkAllNotificationsRead } from "./application/usecases/MarkAllNotificationsRead.ts";
 import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
 import { SystemClock } from "./infrastructure/time/SystemClock.ts";
@@ -87,6 +92,9 @@ import {
   removeNotificationEmailRoute,
   requestEmailVerificationRoute,
   confirmEmailVerificationRoute,
+  listNotificationsRoute,
+  markNotificationReadRoute,
+  markAllNotificationsReadRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
@@ -101,6 +109,11 @@ import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
 import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
 import type { ActivityEntrySchema } from "./api/schemas/activitySchemas.ts";
+import type {
+  MarkAllNotificationsReadResponseSchema,
+  NotificationListResponseSchema,
+  NotificationSchema,
+} from "./api/schemas/notificationSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
@@ -468,6 +481,44 @@ app.openapi(requestEmailVerificationRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json({ status: "accepted" as const }, 202);
+});
+
+// ── Notification endpoints ──────────────────────────────────────────────────
+
+app.openapi(listNotificationsRoute, async (c) => {
+  const user = c.get("user");
+  const { cursor, limit } = c.req.valid("query");
+  const result = await new ListNotifications(new D1NotificationRepository(c.env.DB)).execute({
+    ownerId: user.id,
+    limit,
+    cursor: cursor ?? null,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof NotificationListResponseSchema>, 200);
+});
+
+app.openapi(markNotificationReadRoute, async (c) => {
+  const user = c.get("user");
+  const { notificationId } = c.req.valid("param");
+  const result = await new MarkNotificationRead(
+    new D1NotificationRepository(c.env.DB),
+    new SystemClock(),
+  ).execute({
+    notificationId: NotificationId.from(notificationId),
+    ownerId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof NotificationSchema>, 200);
+});
+
+app.openapi(markAllNotificationsReadRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new MarkAllNotificationsRead(
+    new D1NotificationRepository(c.env.DB),
+    new SystemClock(),
+  ).execute({ ownerId: user.id });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof MarkAllNotificationsReadResponseSchema>, 200);
 });
 
 // ── Asset endpoints ──────────────────────────────────────────────────────────

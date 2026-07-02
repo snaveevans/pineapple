@@ -39,6 +39,10 @@
     {
       "name": "Activity",
       "description": "Authenticated cross-asset history feed"
+    },
+    {
+      "name": "Notifications",
+      "description": "Authenticated durable notification inbox and read lifecycle"
     }
   ],
   "components": {
@@ -1115,6 +1119,140 @@
         "required": [
           "token"
         ]
+      },
+      "NotificationAssetSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Truck"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "vehicle",
+              "property",
+              "equipment"
+            ],
+            "example": "vehicle"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "NotificationTaskSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-4890-abcd-ef1234567890"
+          },
+          "title": {
+            "type": "string",
+            "example": "Oil change"
+          },
+          "nextDue": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-07-20"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "nextDue"
+        ]
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "maintenance_due_soon"
+            ],
+            "example": "maintenance_due_soon"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-13T00:00:00.000Z"
+          },
+          "readAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "example": null
+          },
+          "asset": {
+            "$ref": "#/components/schemas/NotificationAssetSnapshot"
+          },
+          "task": {
+            "$ref": "#/components/schemas/NotificationTaskSnapshot"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "createdAt",
+          "readAt",
+          "asset",
+          "task"
+        ]
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "notifications",
+          "unreadCount",
+          "nextCursor"
+        ]
+      },
+      "MarkAllNotificationsReadResponse": {
+        "type": "object",
+        "properties": {
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 0
+          }
+        },
+        "required": [
+          "unreadCount"
+        ]
       }
     },
     "parameters": {}
@@ -2170,6 +2308,180 @@
           },
           "422": {
             "description": "Malformed request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "List my notifications",
+        "description": "Returns the caller's durable notification inbox with unread count and cursor pagination. Rows include self-contained asset and task snapshots.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "example": "MjAyNi0wNy0xM1QwMDowMDowMC4wMDBafG5vdGlmaWNhdGlvbi0xMjM"
+            },
+            "required": false,
+            "name": "cursor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "example": 20
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's notification inbox",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationListResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/{notificationId}/read": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark one notification read",
+        "description": "Marks a single caller-owned notification read and returns the updated notification. Unknown or foreign ids return 404.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
+            },
+            "required": true,
+            "name": "notificationId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Updated notification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Notification"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such caller-owned notification",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mark all my notifications read",
+        "description": "Marks all unread notifications owned by the caller read and returns unreadCount.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Unread count after marking all read",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkAllNotificationsReadResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
             "content": {
               "application/json": {
                 "schema": {

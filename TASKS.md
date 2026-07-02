@@ -56,7 +56,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Implement mark-read use cases. Add mark-one and mark-all behavior, owner scoping, 404 for unknown/foreign notification ids, idempotent already-read success, and unread count result for mark-all. Validate with tests and the full check.
 
-- [ ] Add notification API contracts and handlers. Add `GET /api/notifications`, `POST /api/notifications/{notificationId}/read`, and `POST /api/notifications/read-all` schemas, route specs, worker handlers, technical telemetry mappings/tests, and generated OpenAPI. Validate with OpenAPI generation and the full check.
+- [x] Add notification API contracts and handlers. Add `GET /api/notifications`, `POST /api/notifications/{notificationId}/read`, and `POST /api/notifications/read-all` schemas, route specs, worker handlers, technical telemetry mappings/tests, and generated OpenAPI. Validate with OpenAPI generation and the full check.
 
 ## Reminder Email Delivery
 

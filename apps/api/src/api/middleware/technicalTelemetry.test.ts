@@ -379,6 +379,99 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     });
   });
 
+  it("maps GET /api/notifications to ListNotifications", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "GET",
+        pathname: "/api/notifications",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["ListNotifications"],
+      blobs: [
+        "ListNotifications",
+        "/api/notifications",
+        "GET",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/notifications/{notificationId}/read to MarkNotificationRead", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/notifications/d5b3b826-2d77-494a-b99d-0d9fcf7c47c0/read",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["MarkNotificationRead"],
+      blobs: [
+        "MarkNotificationRead",
+        "/api/notifications/{notificationId}/read",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/notifications/read-all to MarkAllNotificationsRead", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/notifications/read-all",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["MarkAllNotificationsRead"],
+      blobs: [
+        "MarkAllNotificationsRead",
+        "/api/notifications/read-all",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
   it.each([
     ["POST", "CreateMaintenanceRecord"],
     ["GET", "ListMaintenanceRecords"],

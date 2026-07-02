@@ -166,6 +166,21 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   if (pathname === "/api/verify-email" && method === "POST") {
     return { operation: "ConfirmEmailVerification", routePattern: "/api/verify-email" };
   }
+  if (pathname === "/api/notifications" && method === "GET") {
+    return { operation: "ListNotifications", routePattern: "/api/notifications" };
+  }
+  if (pathname === "/api/notifications/read-all" && method === "POST") {
+    return {
+      operation: "MarkAllNotificationsRead",
+      routePattern: "/api/notifications/read-all",
+    };
+  }
+  if (/^\/api\/notifications\/[^/]+\/read$/.test(pathname) && method === "POST") {
+    return {
+      operation: "MarkNotificationRead",
+      routePattern: "/api/notifications/{notificationId}/read",
+    };
+  }
   if (pathname === "/api/assets" && method === "POST") {
     return { operation: "CreateAsset", routePattern: "/api/assets" };
   }

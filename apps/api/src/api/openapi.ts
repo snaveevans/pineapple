@@ -34,6 +34,13 @@ import {
   ConfirmEmailVerificationResponseSchema,
   RequestEmailVerificationResponseSchema,
 } from "./schemas/emailVerificationSchemas.ts";
+import {
+  MarkAllNotificationsReadResponseSchema,
+  NotificationIdParamSchema,
+  NotificationListResponseSchema,
+  NotificationQuerySchema,
+  NotificationSchema,
+} from "./schemas/notificationSchemas.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenAPI route specs (metadata only — no handlers, no infrastructure).
@@ -82,6 +89,10 @@ export const openApiConfig = {
     {
       name: "Activity",
       description: "Authenticated cross-asset history feed",
+    },
+    {
+      name: "Notifications",
+      description: "Authenticated durable notification inbox and read lifecycle",
     },
   ],
 };
@@ -546,6 +557,79 @@ export const confirmEmailVerificationRoute = createRoute({
   },
 });
 
+export const listNotificationsRoute = createRoute({
+  method: "get",
+  path: "/api/notifications",
+  tags: ["Notifications"],
+  summary: "List my notifications",
+  description:
+    "Returns the caller's durable notification inbox with unread count and cursor pagination. Rows include self-contained asset and task snapshots.",
+  security: [cookieAuth],
+  request: { query: NotificationQuerySchema },
+  responses: {
+    200: {
+      description: "The caller's notification inbox",
+      content: { "application/json": { schema: NotificationListResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const markNotificationReadRoute = createRoute({
+  method: "post",
+  path: "/api/notifications/{notificationId}/read",
+  tags: ["Notifications"],
+  summary: "Mark one notification read",
+  description:
+    "Marks a single caller-owned notification read and returns the updated notification. Unknown or foreign ids return 404.",
+  security: [cookieAuth],
+  request: { params: NotificationIdParamSchema },
+  responses: {
+    200: {
+      description: "Updated notification",
+      content: { "application/json": { schema: NotificationSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such caller-owned notification",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const markAllNotificationsReadRoute = createRoute({
+  method: "post",
+  path: "/api/notifications/read-all",
+  tags: ["Notifications"],
+  summary: "Mark all my notifications read",
+  description: "Marks all unread notifications owned by the caller read and returns unreadCount.",
+  security: [cookieAuth],
+  responses: {
+    200: {
+      description: "Unread count after marking all read",
+      content: { "application/json": { schema: MarkAllNotificationsReadResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const deleteMaintenanceTaskRoute = createRoute({
   method: "delete",
   path: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
@@ -616,6 +700,9 @@ export function getApiDocument() {
   doc.openapi(removeNotificationEmailRoute, stub);
   doc.openapi(requestEmailVerificationRoute, stub);
   doc.openapi(confirmEmailVerificationRoute, stub);
+  doc.openapi(listNotificationsRoute, stub);
+  doc.openapi(markNotificationReadRoute, stub);
+  doc.openapi(markAllNotificationsReadRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }
