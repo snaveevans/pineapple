@@ -30,7 +30,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Implement verification token and rate-limit use cases. Add request/resend logic with 60-second cooldown, 5 per-address rolling 24h cap across users, 10 per-user rolling 24h cap, prior-token invalidation, `EmailVerificationRequested` event emission, and no-op behavior for already verified addresses. Validate with focused unit tests and the full check.
 
-- [ ] Implement email verification confirmation. Add `ConfirmEmailVerification` with token hashing, 24-hour TTL, single-use consumption, superseded/current-address checks, generic invalid outcome, idempotent success for already verified current address, and `NotificationEmailVerified` event emission. Validate with focused unit tests and the full check.
+- [x] Implement email verification confirmation. Add `ConfirmEmailVerification` with token hashing, 24-hour TTL, single-use consumption, superseded/current-address checks, generic invalid outcome, idempotent success for already verified current address, and `NotificationEmailVerified` event emission. Validate with focused unit tests and the full check.
 
 - [ ] Add email verification API contracts and unauthenticated confirm route. Add `POST /api/users/me/notification-email/verification` and public `POST /api/verify-email`, Zod schemas, OpenAPI route specs, worker wiring before the auth gate for confirm, technical telemetry mappings/tests, `authentication.md` exception update, and generated OpenAPI. Validate with OpenAPI generation and the full check.
 
