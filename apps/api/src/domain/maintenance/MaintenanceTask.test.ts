@@ -58,6 +58,7 @@ describe("MaintenanceTask.create", () => {
       assetName,
       assetType,
       title: "Replace furnace filter",
+      nextDue: "2026-08-11",
     });
   });
 
@@ -127,6 +128,7 @@ describe("MaintenanceTask.advance", () => {
       assetType,
       title: "Replace furnace filter",
       performedAt: "2026-06-11",
+      nextDue: "2026-08-11",
     });
   });
 

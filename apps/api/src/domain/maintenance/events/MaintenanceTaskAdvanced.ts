@@ -18,6 +18,7 @@ export type MaintenanceTaskAdvanced = DomainEvent & {
   assetType: AssetType;
   title: string;
   performedAt: string;
+  nextDue: string;
   activityEntryType: "task_completed";
 };
 
@@ -31,6 +32,7 @@ export const MaintenanceTaskAdvanced = (props: {
   assetType: AssetType;
   title: string;
   performedAt: string;
+  nextDue: string;
 }): MaintenanceTaskAdvanced => ({
   ...createDomainEventMetadata(),
   type: "MaintenanceTaskAdvanced",
@@ -43,5 +45,6 @@ export const MaintenanceTaskAdvanced = (props: {
   assetType: props.assetType,
   title: props.title,
   performedAt: props.performedAt,
+  nextDue: props.nextDue,
   activityEntryType: "task_completed",
 });

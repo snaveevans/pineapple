@@ -8,7 +8,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Add shared primitives for the upcoming work. Add branded ids for notifications, scheduled reminders, verification tokens, and email batches; add one shared maintenance due-soon/reminder lead constant so dashboard and notifications use the same 7-day policy. Replace existing hardcoded dashboard/task-status 7-day use sites. Validate with focused tests plus `pnpm lint`, `pnpm type-check`, and `pnpm -r test`.
 
-- [ ] Enrich maintenance task events with `nextDue`. Update `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` event types/factories, populate `nextDue` in `MaintenanceTask.create()` and `advance()`, update tests and any queue/message validators affected by event shape. Do not add `nextDue` to Analytics Engine telemetry blobs. Validate with maintenance task/application tests plus the full check.
+- [x] Enrich maintenance task events with `nextDue`. Update `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` event types/factories, populate `nextDue` in `MaintenanceTask.create()` and `advance()`, update tests and any queue/message validators affected by event shape. Do not add `nextDue` to Analytics Engine telemetry blobs. Validate with maintenance task/application tests plus the full check.
 
 ## User Contact Email
 
