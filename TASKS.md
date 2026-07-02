@@ -16,7 +16,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Persist contact-email state. Add a D1 migration for `users.notification_email` and `users.notification_email_verified_at`; update `D1UserRepository`, repository tests, and `docs/reference/data-model.md` for the domain user fields/events. Apply the migration locally. Validate with migration apply, lint, type-check, and tests.
 
-- [ ] Expose provider verified-email context to application code. Extend the auth resolver/context so contact-email use cases can compare against the provider-controlled auth email and know whether the provider asserted it as verified, without making route handlers call Better Auth directly. Cover real-session and `DEV_AUTH_EMAIL` behavior in tests. Validate with the full check.
+- [x] Expose provider verified-email context to application code. Extend the auth resolver/context so contact-email use cases can compare against the provider-controlled auth email and know whether the provider asserted it as verified, without making route handlers call Better Auth directly. Cover real-session and `DEV_AUTH_EMAIL` behavior in tests. Validate with the full check.
 
 - [ ] Implement contact-email application use cases. Add `SetNotificationEmail` and `RemoveNotificationEmail`, a verification-request port used by the set path, and tests for auto-verify provider match, unverified non-provider email, idempotent verified re-submit, address change, removal, and rate-limit error propagation. Validate with the full check.
 

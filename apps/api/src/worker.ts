@@ -10,6 +10,7 @@ import {
   MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceTaskId,
 } from "@snaveevans/pineapple-shared";
+import type { AuthenticatedCaller } from "./application/ports/AuthenticatedUserResolver.ts";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -88,7 +89,12 @@ type Bindings = AuthEnv & {
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
 };
-type Variables = { user: User; auth: Auth; eventBus: EventBus };
+type Variables = {
+  user: User;
+  authCaller: AuthenticatedCaller;
+  auth: Auth;
+  eventBus: EventBus;
+};
 type AppEnv = { Bindings: Bindings; Variables: Variables };
 
 const app = new OpenAPIHono<AppEnv>({
@@ -258,8 +264,9 @@ app.use("/api/*", async (c, next) => {
     c.env.DEV_AUTH_EMAIL,
     c.get("eventBus"),
   );
-  const user = await resolver.resolve(c.req.raw);
-  c.set("user", user);
+  const caller = await resolver.resolve(c.req.raw);
+  c.set("user", caller.user);
+  c.set("authCaller", caller);
   await next();
 });
 
