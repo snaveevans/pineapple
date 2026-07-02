@@ -118,6 +118,13 @@ the address value itself.
 - [ ] The verification email is put on the wire through the email-sending port
       ([ADR-0012](../../decisions/0012-transactional-email-via-cloudflare-email-sending.md));
       the concrete provider is a swappable infrastructure adapter
+- [ ] The send is **synchronous** with the request, so its failure is knowable at response
+      time. If the provider send fails **after** the rate limits have passed, the explicit resend
+      endpoint fails with **500** (`InvariantError`) instead of reporting acceptance — the caller
+      learns the link was not sent and can retry immediately. A failed send is recorded as the
+      `send_failed` outcome (Telemetry below) and is **not** counted against the cooldown or the
+      daily caps, so the immediate retry is not itself throttled and a provider outage cannot
+      silently exhaust a user's quota
 - [ ] The email contains a link to the web app's public `/verify-email` page carrying the
       opaque token as a query parameter; it carries no other secret and no session assumption
 
@@ -202,33 +209,37 @@ deliberately avoided (it would leak existence and block legitimately shared inbo
 - `UnauthorizedError` (401) — resend without a session
 - `ConflictError` (409) — resend when no contact email is set
 - `TooManyRequestsError` (429) — a send blocked by any rate-limit dimension
+- `InvariantError` (500) — the provider send failed after the limits passed on the explicit
+  resend endpoint; the caller learns the send did not go out and the failure is recorded as
+  `send_failed`
 - `ValidationError` (422) — malformed confirm body at the Zod edge
 - The generic "link no longer valid" confirm outcome is a deliberate non-leaking result rather
   than a distinct not-found error, so token existence is never revealed
 
 ## Edge Cases & Error States
 
-| Scenario                                                      | Expected Behavior                                                                                                                                                                          |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| User sets a contact email that differs from their auth email  | Address stored unverified; an initial verification send is requested (subject to rate limits)                                                                                              |
-| User sets a contact email equal to their Google sign-in email | Stored **verified immediately**; no token, no email sent; `NotificationEmailVerified` emitted                                                                                              |
-| Resend requested within the cooldown window                   | 429; no email sent; no new token issued                                                                                                                                                    |
-| Resend requested past the per-address daily cap               | 429; no email sent                                                                                                                                                                         |
-| Resend requested past the per-user daily cap                  | 429; no email sent                                                                                                                                                                         |
-| Resend requested for an already-verified current address      | Idempotent success; no email, no new token                                                                                                                                                 |
-| Resend requested when no contact email is set                 | 409                                                                                                                                                                                        |
-| User changes A→B before verifying A                           | A's outstanding token is invalidated; a fresh send goes to B                                                                                                                               |
-| User clicks a valid, current link                             | Address marked verified; 200; reminders may now be emailed                                                                                                                                 |
-| User clicks a link after its TTL                              | Generic "no longer valid" outcome                                                                                                                                                          |
-| User clicks a link that was superseded by a newer send        | Generic "no longer valid" outcome                                                                                                                                                          |
-| User clicks the same valid link twice                         | First confirms; second returns generic "no longer valid" (single-use), unless address is already verified (idempotent success)                                                             |
-| User clicks a link for an address they have since replaced    | Current address is **not** verified; generic "no longer valid" outcome                                                                                                                     |
-| Token is malformed at the Zod edge                            | 422 validation error                                                                                                                                                                       |
-| Token is well-formed but unknown/never existed                | Generic "no longer valid" outcome; existence never revealed                                                                                                                                |
-| Confirm attempted with no session                             | Allowed — token is the proof; the address's owning user is derived from the token                                                                                                          |
-| Email-scanner prefetches the emailed link                     | No token is consumed — confirmation is a `POST` issued by the web page, not a bare `GET`                                                                                                   |
-| Email provider send fails after limits pass                   | Send failure is logged/observable; the user may resend once the cooldown allows (see notifications deliverability note)                                                                    |
-| Bad actor targets a victim's address, even from many accounts | Per-address cap is **global across users**, bounding total sends to that inbox regardless of how many accounts try; the victim never gets reminders (never clicks); no account enumeration |
+| Scenario                                                      | Expected Behavior                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| User sets a contact email that differs from their auth email  | Address stored unverified; an initial verification send is requested (subject to rate limits)                                                                                                                                                                      |
+| User sets a contact email equal to their Google sign-in email | Stored **verified immediately**; no token, no email sent; `NotificationEmailVerified` emitted                                                                                                                                                                      |
+| Resend requested within the cooldown window                   | 429; no email sent; no new token issued                                                                                                                                                                                                                            |
+| Resend requested past the per-address daily cap               | 429; no email sent                                                                                                                                                                                                                                                 |
+| Resend requested past the per-user daily cap                  | 429; no email sent                                                                                                                                                                                                                                                 |
+| Resend requested for an already-verified current address      | Idempotent success; no email, no new token                                                                                                                                                                                                                         |
+| Resend requested when no contact email is set                 | 409                                                                                                                                                                                                                                                                |
+| User changes A→B before verifying A                           | A's outstanding token is invalidated; a fresh send goes to B                                                                                                                                                                                                       |
+| User clicks a valid, current link                             | Address marked verified; 200; reminders may now be emailed                                                                                                                                                                                                         |
+| User clicks a link after its TTL                              | Generic "no longer valid" outcome                                                                                                                                                                                                                                  |
+| User clicks a link that was superseded by a newer send        | Generic "no longer valid" outcome                                                                                                                                                                                                                                  |
+| User clicks the same valid link twice                         | First confirms; second returns generic "no longer valid" (single-use), unless address is already verified (idempotent success)                                                                                                                                     |
+| User clicks a link for an address they have since replaced    | Current address is **not** verified; generic "no longer valid" outcome                                                                                                                                                                                             |
+| Token is malformed at the Zod edge                            | 422 validation error                                                                                                                                                                                                                                               |
+| Token is well-formed but unknown/never existed                | Generic "no longer valid" outcome; existence never revealed                                                                                                                                                                                                        |
+| Confirm attempted with no session                             | Allowed — token is the proof; the address's owning user is derived from the token                                                                                                                                                                                  |
+| Email-scanner prefetches the emailed link                     | No token is consumed — confirmation is a `POST` issued by the web page, not a bare `GET`                                                                                                                                                                           |
+| Resend endpoint: provider send fails after limits pass        | Request fails with **500**; the failure is recorded as `send_failed` telemetry (not `sent`); the failed send is **not** counted against the cooldown/daily caps, so the user can retry immediately                                                                 |
+| Initial send on `PUT …/notification-email` fails at provider  | The address is still stored **unverified** (the profile update owns that write and succeeds); the send failure is surfaced to the client so it can prompt a resend, and is recorded as `send_failed` — the update is not rolled back over a transient send failure |
+| Bad actor targets a victim's address, even from many accounts | Per-address cap is **global across users**, bounding total sends to that inbox regardless of how many accounts try; the victim never gets reminders (never clicks); no account enumeration                                                                         |
 
 ## Telemetry
 
@@ -251,22 +262,24 @@ PII anti-pattern.
 
 ### `EmailVerificationRequested` — on each verification send decision (index: `user_id`)
 
-Records both accepted sends and rate-limited rejections via `result`, so the throttle is
-observable.
+Records accepted sends, rate-limited rejections, and **provider send failures** via `result`, so
+both the throttle and a silently-undelivered verification link are observable. A `send_failed`
+outcome means the send passed every rate limit and a token was issued, but the wire-send failed —
+it is emitted instead of `sent`, never in addition to it.
 
-| Field        | Name              | Value                                                              |
-| ------------ | ----------------- | ------------------------------------------------------------------ |
-| `indexes[0]` | —                 | `user_id`                                                          |
-| `blobs[0]`   | `event_type`      | `"EmailVerificationRequested"`                                     |
-| `blobs[1]`   | `aggregate_type`  | `"User"`                                                           |
-| `blobs[2]`   | `user_id`         | Domain user UUID                                                   |
-| `blobs[3]`   | `purpose`         | `"notification_email"`                                             |
-| `blobs[4]`   | `source`          | `"profile_update"` or `"resend"`                                   |
-| `blobs[5]`   | `schema_version`  | `"v1"`                                                             |
-| `blobs[6]`   | `result`          | `"sent"`, `"throttled"`, `"noop_already_verified"`, `"no_address"` |
-| `blobs[7]`   | `throttle_reason` | `"cooldown"`, `"per_address_cap"`, `"per_user_cap"`, or `"none"`   |
-| `doubles[0]` | `count`           | Always `1`                                                         |
-| `doubles[1]` | `event_time_ms`   | Event timestamp (ms since epoch)                                   |
+| Field        | Name              | Value                                                                                         |
+| ------------ | ----------------- | --------------------------------------------------------------------------------------------- |
+| `indexes[0]` | —                 | `user_id`                                                                                     |
+| `blobs[0]`   | `event_type`      | `"EmailVerificationRequested"`                                                                |
+| `blobs[1]`   | `aggregate_type`  | `"User"`                                                                                      |
+| `blobs[2]`   | `user_id`         | Domain user UUID                                                                              |
+| `blobs[3]`   | `purpose`         | `"notification_email"`                                                                        |
+| `blobs[4]`   | `source`          | `"profile_update"` or `"resend"`                                                              |
+| `blobs[5]`   | `schema_version`  | `"v1"`                                                                                        |
+| `blobs[6]`   | `result`          | `"sent"`, `"throttled"`, `"noop_already_verified"`, `"no_address"`, `"send_failed"`           |
+| `blobs[7]`   | `throttle_reason` | `"cooldown"`, `"per_address_cap"`, `"per_user_cap"`, or `"none"` (`"none"` for `send_failed`) |
+| `doubles[0]` | `count`           | Always `1`                                                                                    |
+| `doubles[1]` | `event_time_ms`   | Event timestamp (ms since epoch)                                                              |
 
 ### `NotificationEmailVerified` — on successful confirmation (index: `user_id`)
 
@@ -288,6 +301,10 @@ observable.
   other expected outcome and mapped centrally at the API boundary. [ADR-0014](../../decisions/0014-layered-error-handling-policy.md)
   keeps the concrete error catalog out of the ADR ledger; add the subclass, central mapping, and
   [error-handling.md](../cross-cutting/error-handling.md) row with this implementation.
+- A provider send failure is **not** an expected outcome: the request use case returns
+  `err(InvariantError)` (500), and the `send_failed` telemetry is emitted before that error is
+  returned so the failure is recorded even though the request fails. The rate-limit counters are
+  advanced only for a send that actually reached the wire, so a `send_failed` never consumes quota.
 - Verification tokens are stored in this domain capability's own D1 table, not Better Auth's
   singular `verification` table. Better Auth owns that table for auth flows; email verification
   needs a separate table and branded id keyed by `(user, address, purpose)`.
