@@ -64,3 +64,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0010](0010-smart-events-for-durable-consumers.md)               | Smart Events for durable consumers               | accepted |
 | [0011](0011-reliable-event-delivery-via-cloudflare-queues.md)    | Reliable event delivery via Cloudflare Queues    | accepted |
 | [0012](0012-transactional-email-via-cloudflare-email-sending.md) | Transactional email via Cloudflare Email Sending | accepted |
+| [0013](0013-reminder-scheduler-via-cron-sweeps.md)               | Reminder scheduler via Cron sweeps               | accepted |
