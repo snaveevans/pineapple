@@ -23,6 +23,10 @@ class NotificationRepoFake implements NotificationRepository {
     return Promise.resolve(false);
   }
 
+  listByEmailBatch(): Promise<NotificationRecord[]> {
+    return Promise.resolve([]);
+  }
+
   findByIdForOwner(): Promise<NotificationRecord | null> {
     return Promise.resolve(this.found);
   }

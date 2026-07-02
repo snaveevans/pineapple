@@ -1,5 +1,6 @@
 import type {
   AssetId,
+  EmailBatchId,
   MaintenanceTaskId,
   NotificationId,
   UserId,
@@ -34,6 +35,8 @@ export interface NotificationPage {
 export interface NotificationRepository {
   /** Inserts a notification, ignoring a duplicate `(taskId, nextDue)`; returns true if newly inserted. */
   insertIfAbsent(notification: NotificationRecord): Promise<boolean>;
+  /** Notifications covered by one owner-scoped reminder email batch. */
+  listByEmailBatch(batchId: EmailBatchId, ownerId: UserId): Promise<NotificationRecord[]>;
   findByIdForOwner(id: NotificationId, ownerId: UserId): Promise<NotificationRecord | null>;
   listByOwner(ownerId: UserId, limit: number, cursor: string | null): Promise<NotificationPage>;
   countUnread(ownerId: UserId): Promise<number>;

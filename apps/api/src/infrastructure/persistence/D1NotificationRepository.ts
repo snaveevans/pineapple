@@ -1,4 +1,10 @@
-import { AssetId, MaintenanceTaskId, NotificationId, UserId } from "@snaveevans/pineapple-shared";
+import {
+  AssetId,
+  EmailBatchId,
+  MaintenanceTaskId,
+  NotificationId,
+  UserId,
+} from "@snaveevans/pineapple-shared";
 import type {
   NotificationPage,
   NotificationRecord,
@@ -51,6 +57,21 @@ export class D1NotificationRepository implements NotificationRepository {
       )
       .run();
     return (result.meta.changes ?? 0) > 0;
+  }
+
+  async listByEmailBatch(
+    batchId: EmailBatchId,
+    ownerId: UserId,
+  ): Promise<NotificationRecord[]> {
+    const result = await this.db
+      .prepare(
+        `SELECT ${COLUMNS} FROM notifications
+         WHERE email_batch_id = ? AND owner_id = ?
+         ORDER BY next_due ASC, created_at ASC, id ASC`,
+      )
+      .bind(batchId, ownerId)
+      .all<Row>();
+    return (result.results ?? []).map(rowToRecord);
   }
 
   async findByIdForOwner(id: NotificationId, ownerId: UserId): Promise<NotificationRecord | null> {

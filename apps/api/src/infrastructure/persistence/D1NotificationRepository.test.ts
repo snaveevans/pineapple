@@ -1,4 +1,10 @@
-import { AssetId, MaintenanceTaskId, NotificationId, UserId } from "@snaveevans/pineapple-shared";
+import {
+  AssetId,
+  EmailBatchId,
+  MaintenanceTaskId,
+  NotificationId,
+  UserId,
+} from "@snaveevans/pineapple-shared";
 import { describe, expect, it, vi } from "vitest";
 import type { NotificationRecord } from "../../application/ports/NotificationRepository.ts";
 import { D1NotificationRepository } from "./D1NotificationRepository.ts";
@@ -51,6 +57,22 @@ describe("D1NotificationRepository", () => {
     const { db } = harness({ changes: 0 });
     const inserted = await new D1NotificationRepository(db).insertIfAbsent(record());
     expect(inserted).toBe(false);
+  });
+
+  it("lists notifications covered by an owner-scoped email batch in email display order", async () => {
+    const ownerId = UserId.generate();
+    const batchId = EmailBatchId.generate();
+    const { db, statements } = harness({ rows: [row({ owner_id: ownerId })] });
+
+    const notifications = await new D1NotificationRepository(db).listByEmailBatch(
+      batchId,
+      ownerId,
+    );
+
+    expect(statements[0]?.query).toContain("WHERE email_batch_id = ? AND owner_id = ?");
+    expect(statements[0]?.query).toContain("ORDER BY next_due ASC, created_at ASC, id ASC");
+    expect(statements[0]?.values).toEqual([batchId, ownerId]);
+    expect(notifications).toEqual([expect.objectContaining({ ownerId })]);
   });
 
   it("lists owner notifications newest-first with a fetch-ahead limit", async () => {

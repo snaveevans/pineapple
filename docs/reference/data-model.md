@@ -119,6 +119,7 @@ Aggregates raise events when something significant happens. Today:
 | `NotificationEmailVerified` | a user's contact email becomes verified | event id and `userId` only (no address)                                                                                                             |
 | `NotificationEmailRemoved`  | a user clears their contact email       | event id and `userId` only (no address)                                                                                                             |
 | `MaintenanceReminderCreated` | a due-soon reminder is created          | event id, notification/task/asset/owner ids, notification type, system actor, and lead-days conclusion                                               |
+| `ReminderEmailDispatched`   | an aggregated reminder email decision is recorded | event id, email batch id, owner id, result, suppress reason, and covered notification count; no email address or reminder copy                      |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1

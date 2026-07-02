@@ -62,7 +62,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Add email batch creation to the sweep. For each owner with notifications created in one sweep, create one email batch and enqueue one outbound email job atomically with the reminder changes. Ensure in-app notifications remain one per task and email aggregation is per owner per sweep. Validate with sweep tests and the full check.
 
-- [ ] Implement outbound reminder email consumer. Resolve verified contact email at send time, send through the email port only when verified, record `sent` / `suppressed` / `failed` outcomes with suppress reasons, make redelivery idempotent on batch id, and emit `ReminderEmailDispatched` telemetry events without PII. Validate with focused tests and the full check.
+- [x] Implement outbound reminder email consumer. Resolve verified contact email at send time, send through the email port only when verified, record `sent` / `suppressed` / `failed` outcomes with suppress reasons, make redelivery idempotent on batch id, and emit `ReminderEmailDispatched` telemetry events without PII. Validate with focused tests and the full check.
 
 - [ ] Wire outbound email queue and DLQ. Add queue bindings/consumers to `wrangler.toml`, idempotent creation entries to `.github/workflows/deploy.yml`, worker queue dispatch, durable DLQ draining into D1, and tests for malformed/exhausted jobs. Validate with lint, type-check, tests, and config review.
 
