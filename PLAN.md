@@ -12,7 +12,7 @@ This branch is decision-complete and ready for implementation planning. The acti
 - `docs/decisions/0014-layered-error-handling-policy.md`
 - Cross-cutting specs under `docs/specs/cross-cutting/`
 
-`docs/specs/backlog/archive-asset.md` is parked. Do not implement archive/unarchive, task suspension/reactivation, archive action routes, or archive-driven notification cancellation in this loop.
+`docs/specs/backlog/archive-asset.md` is parked. Do not implement archive/unarchive, task suspension/reactivation, archive action routes, or archive-driven notification cancellation in this work.
 
 ## Objective
 
@@ -25,7 +25,7 @@ Implement verified contact email and maintenance due-soon notifications end to e
 - Reminder email delivery is idempotent, resolves the verified contact email at send time, records `sent` / `suppressed` / `failed`, and persists exhausted DLQ messages durably.
 - OpenAPI, `data-model.md`, cross-cutting specs, and telemetry docs are kept consistent with the code.
 
-Web UX is intentionally out of scope for this implementation plan. The designer has not produced the interaction/design work yet, so do not add profile contact-email UI, a `/verify-email` page, a notifications inbox, bell behavior, or `docs/web/FEATURES.md` updates in these loops. Backend API contracts should be ready for future web work, but `apps/web/**` should remain untouched unless a task explicitly says otherwise after design is available.
+Web UX is intentionally out of scope for this implementation plan. The designer has not produced the interaction/design work yet, so do not add profile contact-email UI, a `/verify-email` page, a notifications inbox, bell behavior, or `docs/web/FEATURES.md` updates in this work. Backend API contracts should be ready for future web work, but `apps/web/**` should remain untouched unless a task explicitly says otherwise after design is available.
 
 ## Non-Negotiable Constraints
 
@@ -51,7 +51,7 @@ Use the existing architecture and patterns:
 - API: Zod schemas, OpenAPI route specs, central error mapping, request telemetry mapping.
 - Worker: composition root, route handlers, queue dispatch, scheduled dispatch.
 
-Each implementation loop must follow the local `spec-implement` skill in spirit and, when available to the agent, directly:
+Each implementation turn must follow the local `spec-implement` skill in spirit and, when available to the agent, directly:
 
 - Read `/Users/tyler/workspace/pineapple/.claude/skills/spec-implement/SKILL.md`.
 - Read `/Users/tyler/workspace/pineapple/.claude/skills/spec-implement/layer-checklist.md`.
@@ -190,26 +190,25 @@ A task is complete only when:
 Use small commits — one task per commit. Do not batch multiple tasks into a
 single commit or start the next task before the current one is committed.
 
-## Loop Execution Model
+## Goal Execution Model
 
-`LOOP_PROMPT.md` runs under the `/loop` skill in self-paced (dynamic) mode. The
-loop is continuous, not one-shot:
+`GOAL_PROMPT.md` runs under the `/goal` command. You set a completion condition
+and Claude keeps working across turns until a fast evaluator model confirms the
+condition holds. The session is continuous, not one-shot:
 
-- Each iteration completes and commits exactly one task, then the loop advances
-  on its own to the next unchecked task. Completing a task is **not** a reason to
-  stop the whole loop.
-- Iterations run back-to-back at the model's own pace. Do not wait on a
-  wall-clock interval and do not idle-poll; only schedule a longer wait when
-  genuinely blocked on external long-running work.
-- The loop ends only when `TASKS.md` has no `- [ ]` items left — at which point
-  it runs the Final Completion Gate below — or when it hits a hard blocker that
-  requires the user (in which case it reports the blocker and stops).
-
-Commit messages must end with:
-
-```text
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
-```
+- Each turn completes and commits exactly one task, then returns. The `/goal`
+  evaluator inspects the turn and, if the completion condition is not yet met,
+  automatically starts the next turn for the next unchecked task. Completing a
+  task is **not** a reason to end the session.
+- Turn continuation is handled by `/goal`; there is no wall-clock interval, no
+  self-scheduling, and no idle-polling. Just do the next task each turn.
+- The evaluator only judges what you surface in the conversation — it cannot run
+  commands — so each turn must print the proof the condition checks (the count of
+  remaining `- [ ]` tasks, and the Final Completion Gate output on the last turn).
+- The session ends when the evaluator confirms the completion condition
+  (`TASKS.md` has no `- [ ]` items left and the Final Completion Gate below has
+  passed with its output shown), or when a hard blocker requires the user (report
+  it and stop; the user can `/goal clear`).
 
 ## Final Completion Gate
 

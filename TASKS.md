@@ -1,6 +1,6 @@
 # Implementation Tasks
 
-Work one unchecked task at a time. Pick the first `- [ ]` item, complete only that item, validate it against `PLAN.md`, change it to `- [x]`, stage the changed files, commit, and stop.
+Work one unchecked task per turn. Pick the first `- [ ]` item, complete only that item, validate it against `PLAN.md`, change it to `- [x]`, stage the changed files, and commit. Under the `/goal` session (see `GOAL_PROMPT.md`), the goal evaluator then starts the next turn for the next unchecked task until every item is `- [x]` and the Final Completion Gate passes.
 
 ## Foundation
 
