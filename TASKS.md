@@ -72,4 +72,4 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Regenerate and audit API/reference documentation. Run OpenAPI generation, update `docs/reference/openapi.json`, confirm `docs/reference/data-model.md` documents only domain/storage/event details, and ensure active specs/cross-cutting specs match implemented route and telemetry names. Validate with `git diff --exit-code docs/reference/openapi.json` after generation and the full check.
 
-- [ ] Run final branch verification. Run `pnpm --filter @snaveevans/pineapple-api openapi:generate`, `git diff --exit-code docs/reference/openapi.json`, `pnpm lint`, `pnpm type-check`, and `pnpm -r test`. Fix only final integration drift, mark this task complete, stage, commit, and stop.
+- [x] Run final branch verification. Run `pnpm --filter @snaveevans/pineapple-api openapi:generate`, `git diff --exit-code docs/reference/openapi.json`, `pnpm lint`, `pnpm type-check`, and `pnpm -r test`. Fix only final integration drift, mark this task complete, stage, commit, and stop.
