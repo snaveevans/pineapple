@@ -26,7 +26,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Add the transactional email application port. Define provider-agnostic request/result types that cover verification emails and reminder emails, with application tests/fakes where needed. Do not add Cloudflare-specific types outside infrastructure. Validate with the full check.
 
-- [ ] Add email verification storage. Create D1 tables/repositories for verification tokens and verification-send rate-limit/audit records. Tokens must be hashed at rest and scoped by `(user, email, purpose)`. Include repository tests and update `docs/reference/data-model.md`. Apply migrations locally and run the full check.
+- [x] Add email verification storage. Create D1 tables/repositories for verification tokens and verification-send rate-limit/audit records. Tokens must be hashed at rest and scoped by `(user, email, purpose)`. Include repository tests and update `docs/reference/data-model.md`. Apply migrations locally and run the full check.
 
 - [ ] Implement verification token and rate-limit use cases. Add request/resend logic with 60-second cooldown, 5 per-address rolling 24h cap across users, 10 per-user rolling 24h cap, prior-token invalidation, `EmailVerificationRequested` event emission, and no-op behavior for already verified addresses. Validate with focused unit tests and the full check.
 

@@ -70,6 +70,7 @@ These are **branded** types, not raw strings — constructed via `.from()` /
 | `ActivityEntryId`     | UUID string | stable id for history entries |
 | `MaintenanceRecordId` | UUID string | `.generate()` for new records |
 | `Email`               | string      | validated email format        |
+| `VerificationTokenId` | UUID string | id for a verification token   |
 
 ## Maintenance Record
 
@@ -121,6 +122,24 @@ batch as the domain change and then delivered to the activity-history queue.
 Telemetry handlers ignore the user-supplied snapshot/title fields so PII does
 not enter Analytics Engine.
 
+## Email verification
+
+Proving that a user-entered **contact email** ([User](#user)) belongs to the
+user, before anything else is sent to it. This is a separate capability from
+Better Auth's provider-verified auth email and uses its own tables — never
+Better Auth's singular `verification` table.
+
+- **Tokens** (`email_verification_tokens`) are scoped by `(user_id, email,
+purpose)`. In v1 the only `purpose` is `notification_email`. The raw token is
+  **never stored** — only a hash (`token_hash`); a presented token is matched by
+  hashing it. Each token has a 24-hour TTL (`expires_at`) and is single-use:
+  `consumed_at` is stamped both when a token is confirmed and when it is
+  superseded (a newer send, or the user changing/removing the address).
+- **Send records** (`email_verification_sends`) are an audit trail and the
+  backing store for the anti-abuse rate limits: a 60-second per-address
+  cooldown, 5 sends per address per rolling 24h (counted across all users so a
+  targeted inbox is protected), and 10 sends per user per rolling 24h.
+
 ## Storage mapping
 
 | Domain concept      | D1 table                                     | Notes                                                                  |
@@ -130,6 +149,8 @@ not enter Analytics Engine.
 | `MaintenanceRecord` | `maintenance_records`                        | `performed_at` is a date-only text column                              |
 | `ActivityEntry`     | `activity_entries`                           | append-only history projection, ordered by `occurred_at` then `id`     |
 | Activity outbox     | `activity_event_outbox`                      | producer-side transactional outbox for the activity-history queue      |
+| Verification tokens | `email_verification_tokens`                  | hashed, single-use, 24h TTL, scoped by `(user, email, purpose)`        |
+| Verification sends  | `email_verification_sends`                   | per-send audit rows backing the cooldown / per-address / per-user caps |
 | Queue dead letters  | `dead_letters`                               | durable copy of malformed or exhausted activity queue messages         |
 | Auth (Better Auth)  | `user`, `session`, `account`, `verification` | **singular** names; auth infra, separate from the domain `users` table |
 
