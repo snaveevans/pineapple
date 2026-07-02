@@ -133,6 +133,7 @@ type Bindings = AuthEnv & {
   ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   MAINTENANCE_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  NOTIFICATION_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
@@ -287,15 +288,7 @@ app.use("/api/*", async (c, next) => {
   const auth = createAuth(c.env, baseURL);
   c.set("auth", auth);
 
-  const eventBus = new InMemoryEventBus();
-  registerDomainTelemetry({
-    eventBus,
-    assetDomainDataset: c.env.ASSET_DOMAIN_TELEMETRY,
-    maintenanceDomainDataset: c.env.MAINTENANCE_DOMAIN_TELEMETRY,
-    maintenanceTaskDomainDataset: c.env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
-    userDomainDataset: c.env.USER_DOMAIN_TELEMETRY,
-  });
-  c.set("eventBus", eventBus);
+  c.set("eventBus", buildDomainEventBus(c.env));
 
   await next();
 });
@@ -407,11 +400,24 @@ async function runMaintenanceReminderSweep(env: Bindings): Promise<void> {
     new D1ReminderSweepStore(env.DB),
     new SystemUtcDateProvider(),
     new SystemClock(),
-    new InMemoryEventBus(),
+    buildDomainEventBus(env),
   ).execute();
   if (!result.ok) {
     console.error({ error: result.error }, "Maintenance reminder sweep failed");
   }
+}
+
+function buildDomainEventBus(env: Bindings): EventBus {
+  const eventBus = new InMemoryEventBus();
+  registerDomainTelemetry({
+    eventBus,
+    assetDomainDataset: env.ASSET_DOMAIN_TELEMETRY,
+    maintenanceDomainDataset: env.MAINTENANCE_DOMAIN_TELEMETRY,
+    maintenanceTaskDomainDataset: env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
+    notificationDomainDataset: env.NOTIFICATION_DOMAIN_TELEMETRY,
+    userDomainDataset: env.USER_DOMAIN_TELEMETRY,
+  });
+  return eventBus;
 }
 
 // ── Dashboard endpoint ───────────────────────────────────────────────────────
@@ -712,7 +718,7 @@ const worker: ExportedHandler<Bindings, unknown> = {
       await handleReminderEmailQueueBatch(batch, {
         db: env.DB,
         emailSender: resolveEmailSenderFromEnv(env),
-        eventBus: new InMemoryEventBus(),
+        eventBus: buildDomainEventBus(env),
         clock: new SystemClock(),
       });
       return;

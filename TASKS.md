@@ -66,7 +66,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Wire outbound email queue and DLQ. Add queue bindings/consumers to `wrangler.toml`, idempotent creation entries to `.github/workflows/deploy.yml`, worker queue dispatch, durable DLQ draining into D1, and tests for malformed/exhausted jobs. Validate with lint, type-check, tests, and config review.
 
-- [ ] Add notification telemetry handlers. Implement `MaintenanceReminderCreated` and `ReminderEmailDispatched` Analytics Engine handlers, add the `NOTIFICATION_DOMAIN_TELEMETRY` binding/dataset, register handlers, update `docs/specs/cross-cutting/telemetry.md`, and verify no PII is written. Validate with telemetry tests and the full check.
+- [x] Add notification telemetry handlers. Implement `MaintenanceReminderCreated` and `ReminderEmailDispatched` Analytics Engine handlers, add the `NOTIFICATION_DOMAIN_TELEMETRY` binding/dataset, register handlers, update `docs/specs/cross-cutting/telemetry.md`, and verify no PII is written. Validate with telemetry tests and the full check.
 
 ## Final Consistency
 
