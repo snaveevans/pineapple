@@ -28,7 +28,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Add email verification storage. Create D1 tables/repositories for verification tokens and verification-send rate-limit/audit records. Tokens must be hashed at rest and scoped by `(user, email, purpose)`. Include repository tests and update `docs/reference/data-model.md`. Apply migrations locally and run the full check.
 
-- [ ] Implement verification token and rate-limit use cases. Add request/resend logic with 60-second cooldown, 5 per-address rolling 24h cap across users, 10 per-user rolling 24h cap, prior-token invalidation, `EmailVerificationRequested` event emission, and no-op behavior for already verified addresses. Validate with focused unit tests and the full check.
+- [x] Implement verification token and rate-limit use cases. Add request/resend logic with 60-second cooldown, 5 per-address rolling 24h cap across users, 10 per-user rolling 24h cap, prior-token invalidation, `EmailVerificationRequested` event emission, and no-op behavior for already verified addresses. Validate with focused unit tests and the full check.
 
 - [ ] Implement email verification confirmation. Add `ConfirmEmailVerification` with token hashing, 24-hour TTL, single-use consumption, superseded/current-address checks, generic invalid outcome, idempotent success for already verified current address, and `NotificationEmailVerified` event emission. Validate with focused unit tests and the full check.
 
