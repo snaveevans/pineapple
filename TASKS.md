@@ -44,7 +44,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Implement the inbound notification event consumer. Consume maintenance task event messages, dedupe by event id, schedule/reschedule/cancel reminders keyed by task, preserve snapshots, compute `fireAt = nextDue - lead`, and resolve out-of-order delivery by event occurrence time/version. Add unit tests and DLQ persistence tests. Validate with the full check.
 
-- [ ] Wire inbound notification queue delivery. Add producer outbox/relay or equivalent durable enqueue path for maintenance task events to the notification queue, configure the queue and DLQ in `wrangler.toml`, update `.github/workflows/deploy.yml`, and dispatch the correct consumer from `worker.queue()`. Validate with lint, type-check, tests, and config review.
+- [x] Wire inbound notification queue delivery. Add producer outbox/relay or equivalent durable enqueue path for maintenance task events to the notification queue, configure the queue and DLQ in `wrangler.toml`, update `.github/workflows/deploy.yml`, and dispatch the correct consumer from `worker.queue()`. Validate with lint, type-check, tests, and config review.
 
 - [ ] Implement the one-time reminder bootstrap. Seed scheduled reminders idempotently from existing tasks on active assets, deduped on `(taskId, nextDue)`, with copied asset/task snapshots and computed `fireAt`. Keep this as launch bootstrap only, not steady-state scheduling. Add tests or migration verification and run required checks.
 

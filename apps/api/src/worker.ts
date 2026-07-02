@@ -30,6 +30,13 @@ import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1Main
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
+import { D1NotificationOutboxRepository } from "./infrastructure/notifications/D1NotificationOutboxRepository.ts";
+import { handleNotificationEventBatch } from "./infrastructure/notifications/NotificationEventQueueConsumer.ts";
+import {
+  NOTIFICATION_EVENTS_DLQ_NAME,
+  NOTIFICATION_EVENTS_QUEUE_NAME,
+  type NotificationEventMessage,
+} from "./infrastructure/notifications/NotificationEventMessage.ts";
 import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEventMessage.ts";
 import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
@@ -107,6 +114,7 @@ type Bindings = AuthEnv & {
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
+  NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
   /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
@@ -275,6 +283,9 @@ app.use("/api/*", async (c, next) => {
 
   c.executionCtx.waitUntil(
     new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
+  );
+  c.executionCtx.waitUntil(
+    new D1NotificationOutboxRepository(c.env.DB).relayPending(c.env.NOTIFICATION_EVENTS_QUEUE),
   );
 });
 
@@ -613,10 +624,20 @@ const worker: ExportedHandler<Bindings, unknown> = {
     return app.fetch(request, env, ctx);
   },
   async queue(batch, env) {
+    if (
+      batch.queue === NOTIFICATION_EVENTS_QUEUE_NAME ||
+      batch.queue === NOTIFICATION_EVENTS_DLQ_NAME
+    ) {
+      await handleNotificationEventBatch(batch, env.DB);
+      return;
+    }
     await handleActivityQueueBatch(batch, env.DB);
   },
   scheduled(_event, env, ctx) {
     ctx.waitUntil(new D1ActivityOutboxRepository(env.DB).relayPending(env.ACTIVITY_HISTORY_QUEUE));
+    ctx.waitUntil(
+      new D1NotificationOutboxRepository(env.DB).relayPending(env.NOTIFICATION_EVENTS_QUEUE),
+    );
   },
 };
 

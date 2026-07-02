@@ -10,6 +10,7 @@ import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
+import { prepareNotificationOutboxInsert } from "../notifications/D1NotificationOutboxRepository.ts";
 import { prepareMaintenanceTaskSave } from "./D1MaintenanceTaskRepository.ts";
 
 type MaintenanceRecordRow = {
@@ -71,7 +72,10 @@ export class D1MaintenanceRecordRepository
     }
 
     const outboxStatements = events
-      .map((event) => prepareActivityOutboxInsert(this.db, event))
+      .flatMap((event) => [
+        prepareActivityOutboxInsert(this.db, event),
+        prepareNotificationOutboxInsert(this.db, event),
+      ])
       .filter((statement): statement is D1PreparedStatement => statement !== null);
 
     const statements = [recordStatement];

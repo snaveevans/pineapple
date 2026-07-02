@@ -96,3 +96,24 @@ max_batch_timeout = 5
 # ActivityQueueConsumer emits a terminal error log before the platform exhausts
 # the message. Chaining another DLQ would only move the same D1 outage edge.
 max_retries = 3
+
+# Inbound notification-events queue: enriched MaintenanceTask* events consumed by
+# the durable scheduler. Relayed from notification_event_outbox (ADR-0011).
+[[queues.producers]]
+binding = "NOTIFICATION_EVENTS_QUEUE"
+queue = "pineapple-notification-events"
+
+[[queues.consumers]]
+queue = "pineapple-notification-events"
+max_batch_size = 10
+max_batch_timeout = 5
+max_retries = 5
+dead_letter_queue = "pineapple-notification-events-dlq"
+
+[[queues.consumers]]
+queue = "pineapple-notification-events-dlq"
+max_batch_size = 10
+max_batch_timeout = 5
+# Terminal DLQ: NotificationEventQueueConsumer durably persists exhausted messages
+# to notification_dead_letters; a terminal error log covers a D1 outage edge.
+max_retries = 3
