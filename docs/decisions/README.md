@@ -50,18 +50,19 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 
 <!-- Keep this list up to date as ADRs are added -->
 
-| #                                                                | Title                                            | Status   |
-| ---------------------------------------------------------------- | ------------------------------------------------ | -------- |
-| [0001](0001-use-madr-for-adrs.md)                                | Use MADR for architecture decision records       | accepted |
-| [0002](0002-use-tactical-ddd-patterns-for-the-domain-layer.md)   | Use tactical DDD patterns for the domain layer   | accepted |
-| [0003](0003-monorepo-layer-architecture-and-dependency-rules.md) | Monorepo layer architecture and dependency rules | accepted |
-| [0004](0004-error-handling-strategy.md)                          | Error handling strategy                          | accepted |
-| [0005](0005-repository-contract.md)                              | Repository contract                              | accepted |
-| [0006](0006-deployment-platform.md)                              | Deployment platform                              | accepted |
-| [0007](0007-api-validation-boundary.md)                          | API validation boundary                          | accepted |
-| [0008](0008-documentation-method.md)                             | Documentation method                             | accepted |
-| [0009](0009-computed-fields-belong-in-api-read-models.md)        | Computed fields belong in API read models        | accepted |
-| [0010](0010-smart-events-for-durable-consumers.md)               | Smart Events for durable consumers               | accepted |
-| [0011](0011-reliable-event-delivery-via-cloudflare-queues.md)    | Reliable event delivery via Cloudflare Queues    | accepted |
-| [0012](0012-transactional-email-via-cloudflare-email-sending.md) | Transactional email via Cloudflare Email Sending | accepted |
-| [0013](0013-reminder-scheduler-via-cron-sweeps.md)               | Reminder scheduler via Cron sweeps               | accepted |
+| #                                                                | Title                                            | Status                                                      |
+| ---------------------------------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------- |
+| [0001](0001-use-madr-for-adrs.md)                                | Use MADR for architecture decision records       | accepted                                                    |
+| [0002](0002-use-tactical-ddd-patterns-for-the-domain-layer.md)   | Use tactical DDD patterns for the domain layer   | accepted                                                    |
+| [0003](0003-monorepo-layer-architecture-and-dependency-rules.md) | Monorepo layer architecture and dependency rules | accepted                                                    |
+| [0004](0004-error-handling-strategy.md)                          | Error handling strategy                          | superseded by [0014](0014-layered-error-handling-policy.md) |
+| [0005](0005-repository-contract.md)                              | Repository contract                              | accepted                                                    |
+| [0006](0006-deployment-platform.md)                              | Deployment platform                              | accepted                                                    |
+| [0007](0007-api-validation-boundary.md)                          | API validation boundary                          | accepted                                                    |
+| [0008](0008-documentation-method.md)                             | Documentation method                             | accepted                                                    |
+| [0009](0009-computed-fields-belong-in-api-read-models.md)        | Computed fields belong in API read models        | accepted                                                    |
+| [0010](0010-smart-events-for-durable-consumers.md)               | Smart Events for durable consumers               | accepted                                                    |
+| [0011](0011-reliable-event-delivery-via-cloudflare-queues.md)    | Reliable event delivery via Cloudflare Queues    | accepted                                                    |
+| [0012](0012-transactional-email-via-cloudflare-email-sending.md) | Transactional email via Cloudflare Email Sending | accepted                                                    |
+| [0013](0013-reminder-scheduler-via-cron-sweeps.md)               | Reminder scheduler via Cron sweeps               | accepted                                                    |
+| [0014](0014-layered-error-handling-policy.md)                    | Layered error handling policy                    | accepted                                                    |
