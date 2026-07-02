@@ -179,6 +179,10 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `GET /api/search`                                         | `SearchAssets`            |
 | `GET /api/users/me`                                       | `GetUserProfile`          |
 | `PATCH /api/users/me`                                     | `UpdateUserProfile`       |
+| `PUT /api/users/me/notification-email`                    | `SetNotificationEmail`    |
+| `DELETE /api/users/me/notification-email`                 | `RemoveNotificationEmail` |
+| `POST /api/users/me/notification-email/verification`      | `RequestEmailVerification` |
+| `POST /api/verify-email`                                  | `ConfirmEmailVerification` |
 | `GET /api/notifications`                                  | `ListNotifications`       |
 | `POST /api/notifications/{notificationId}/read`            | `MarkNotificationRead`    |
 | `POST /api/notifications/read-all`                         | `MarkAllNotificationsRead` |
