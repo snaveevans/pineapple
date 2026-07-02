@@ -187,7 +187,23 @@ A task is complete only when:
 - The corresponding checkbox in `TASKS.md` is changed from `[ ]` to `[x]`.
 - The task changes, including the checkbox update, are staged and committed.
 
-Use small commits. Do not start the next unchecked task in the same loop.
+Use small commits — one task per commit. Do not batch multiple tasks into a
+single commit or start the next task before the current one is committed.
+
+## Loop Execution Model
+
+`LOOP_PROMPT.md` runs under the `/loop` skill in self-paced (dynamic) mode. The
+loop is continuous, not one-shot:
+
+- Each iteration completes and commits exactly one task, then the loop advances
+  on its own to the next unchecked task. Completing a task is **not** a reason to
+  stop the whole loop.
+- Iterations run back-to-back at the model's own pace. Do not wait on a
+  wall-clock interval and do not idle-poll; only schedule a longer wait when
+  genuinely blocked on external long-running work.
+- The loop ends only when `TASKS.md` has no `- [ ]` items left — at which point
+  it runs the Final Completion Gate below — or when it hits a hard blocker that
+  requires the user (in which case it reports the blocker and stops).
 
 Commit messages must end with:
 
