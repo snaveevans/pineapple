@@ -42,7 +42,7 @@ Work one unchecked task at a time. Pick the first `- [ ]` item, complete only th
 
 - [x] Add notification scheduling message contracts. Define inbound queue message types/factories/validators for enriched `MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskDeleted` events carrying the snapshot/title/`nextDue` needed by notifications. Ensure PII does not go to telemetry blobs. Validate with message conversion/validation tests and the full check.
 
-- [ ] Implement the inbound notification event consumer. Consume maintenance task event messages, dedupe by event id, schedule/reschedule/cancel reminders keyed by task, preserve snapshots, compute `fireAt = nextDue - lead`, and resolve out-of-order delivery by event occurrence time/version. Add unit tests and DLQ persistence tests. Validate with the full check.
+- [x] Implement the inbound notification event consumer. Consume maintenance task event messages, dedupe by event id, schedule/reschedule/cancel reminders keyed by task, preserve snapshots, compute `fireAt = nextDue - lead`, and resolve out-of-order delivery by event occurrence time/version. Add unit tests and DLQ persistence tests. Validate with the full check.
 
 - [ ] Wire inbound notification queue delivery. Add producer outbox/relay or equivalent durable enqueue path for maintenance task events to the notification queue, configure the queue and DLQ in `wrangler.toml`, update `.github/workflows/deploy.yml`, and dispatch the correct consumer from `worker.queue()`. Validate with lint, type-check, tests, and config review.
 

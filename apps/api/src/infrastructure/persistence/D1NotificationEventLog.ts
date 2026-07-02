@@ -12,6 +12,17 @@ export class D1NotificationEventLog implements NotificationEventLog {
     return row !== null;
   }
 
+  async maxOccurredAtForTask(taskId: MaintenanceTaskId): Promise<Date | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT MAX(occurred_at) AS latest FROM notification_ingested_events
+         WHERE maintenance_task_id = ?`,
+      )
+      .bind(taskId)
+      .first<{ latest: string | null }>();
+    return row?.latest ? new Date(row.latest) : null;
+  }
+
   async recordProcessed(entry: {
     eventId: string;
     maintenanceTaskId: MaintenanceTaskId;

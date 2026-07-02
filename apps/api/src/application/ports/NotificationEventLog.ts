@@ -7,6 +7,11 @@ import type { MaintenanceTaskId } from "@snaveevans/pineapple-shared";
  */
 export interface NotificationEventLog {
   hasProcessed(eventId: string): Promise<boolean>;
+  /**
+   * The greatest `occurredAt` of any event already processed for the task, or
+   * null if none — the ordering signal used to drop late, out-of-order events.
+   */
+  maxOccurredAtForTask(taskId: MaintenanceTaskId): Promise<Date | null>;
   recordProcessed(entry: {
     eventId: string;
     maintenanceTaskId: MaintenanceTaskId;
