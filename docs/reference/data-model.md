@@ -155,7 +155,9 @@ it renders even after the source task is deleted or the asset archived.
   `canceled` / `superseded`), the `next_due` snapshot, the derived `fire_at`
   (`next_due − 7-day lead`, date-only), and `last_event_id` /
   `last_event_occurred_at` for dedupe and order resolution. A partial unique
-  index enforces at most one `pending` reminder per task.
+  index enforces at most one `pending` reminder per task, and a task-cycle
+  unique index makes the one-time launch bootstrap idempotent on
+  `(maintenance_task_id, next_due)`.
 - **`notifications`** — the durable in-app inbox. One row per `(task, cycle)`
   (unique on `maintenance_task_id, next_due`), owner-scoped, newest-first with an
   `id` tiebreak, `read_at` nullable. Snapshots (`asset_*`, `task_title`,

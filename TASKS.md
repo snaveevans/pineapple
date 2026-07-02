@@ -46,7 +46,7 @@ Work one unchecked task per turn. Pick the first `- [ ]` item, complete only tha
 
 - [x] Wire inbound notification queue delivery. Add producer outbox/relay or equivalent durable enqueue path for maintenance task events to the notification queue, configure the queue and DLQ in `wrangler.toml`, update `.github/workflows/deploy.yml`, and dispatch the correct consumer from `worker.queue()`. Validate with lint, type-check, tests, and config review.
 
-- [ ] Implement the one-time reminder bootstrap. Seed scheduled reminders idempotently from existing tasks on active assets, deduped on `(taskId, nextDue)`, with copied asset/task snapshots and computed `fireAt`. Keep this as launch bootstrap only, not steady-state scheduling. Add tests or migration verification and run required checks.
+- [x] Implement the one-time reminder bootstrap. Seed scheduled reminders idempotently from existing tasks on active assets, deduped on `(taskId, nextDue)`, with copied asset/task snapshots and computed `fireAt`. Keep this as launch bootstrap only, not steady-state scheduling. Add tests or migration verification and run required checks.
 
 - [ ] Implement the notification sweep use case. Scan only notifications-owned scheduled-reminder state for `pending` reminders where `fireAt <= today`; create one `maintenance_due_soon` notification per `(taskId, nextDue)` idempotently; mark reminders fired; group created notifications by owner; record `MaintenanceReminderCreated` events. Validate with focused tests and the full check.
 
