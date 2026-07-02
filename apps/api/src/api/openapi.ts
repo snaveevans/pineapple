@@ -29,6 +29,11 @@ import {
   UpdateUserProfileBodySchema,
   UserProfileResponseSchema,
 } from "./schemas/userProfileSchemas.ts";
+import {
+  ConfirmEmailVerificationBodySchema,
+  ConfirmEmailVerificationResponseSchema,
+  RequestEmailVerificationResponseSchema,
+} from "./schemas/emailVerificationSchemas.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenAPI route specs (metadata only — no handlers, no infrastructure).
@@ -488,6 +493,59 @@ export const removeNotificationEmailRoute = createRoute({
   },
 });
 
+export const requestEmailVerificationRoute = createRoute({
+  method: "post",
+  path: "/api/users/me/notification-email/verification",
+  tags: ["Users"],
+  summary: "Resend my contact-email verification",
+  description:
+    "Requests a fresh verification email for the caller's current, still-unverified contact email. Subject to per-address cooldown and per-address / per-user daily caps.",
+  security: [cookieAuth],
+  responses: {
+    202: {
+      description: "Verification send accepted",
+      content: { "application/json": { schema: RequestEmailVerificationResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "No contact email is set to verify",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    429: {
+      description: "Rejected by a verification-send rate limit",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const confirmEmailVerificationRoute = createRoute({
+  method: "post",
+  path: "/api/verify-email",
+  tags: ["Users"],
+  summary: "Confirm a contact-email verification token",
+  description:
+    "Public, session-optional endpoint that confirms a verification token from the emailed link. Returns a generic `invalid` outcome for any unknown, expired, used, superseded, or address-changed token without revealing which case applied.",
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: ConfirmEmailVerificationBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Confirmation outcome",
+      content: { "application/json": { schema: ConfirmEmailVerificationResponseSchema } },
+    },
+    422: {
+      description: "Malformed request body",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const deleteMaintenanceTaskRoute = createRoute({
   method: "delete",
   path: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
@@ -556,6 +614,8 @@ export function getApiDocument() {
   doc.openapi(updateUserProfileRoute, stub);
   doc.openapi(setNotificationEmailRoute, stub);
   doc.openapi(removeNotificationEmailRoute, stub);
+  doc.openapi(requestEmailVerificationRoute, stub);
+  doc.openapi(confirmEmailVerificationRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }

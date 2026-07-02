@@ -43,13 +43,14 @@ Every feature spec must document:
 
 ## Exceptions
 
-| Feature                           | Deviation                     | Reason                                                          |
-| --------------------------------- | ----------------------------- | --------------------------------------------------------------- |
-| Google OAuth flow (`/api/auth/*`) | Unauthenticated by definition | Initiates the session; cannot require one                       |
-| Marketing / landing page          | Unauthenticated               | Public content, no domain data                                  |
-| `GET /health`                     | Unauthenticated               | Operational liveness check; must be reachable without a session |
-| `GET /openapi.json`               | Unauthenticated               | Public API spec                                                 |
-| `GET /reference`                  | Unauthenticated               | Public API documentation UI                                     |
+| Feature                           | Deviation                     | Reason                                                                                                |
+| --------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Google OAuth flow (`/api/auth/*`) | Unauthenticated by definition | Initiates the session; cannot require one                                                             |
+| Marketing / landing page          | Unauthenticated               | Public content, no domain data                                                                        |
+| `GET /health`                     | Unauthenticated               | Operational liveness check; must be reachable without a session                                       |
+| `GET /openapi.json`               | Unauthenticated               | Public API spec                                                                                       |
+| `GET /reference`                  | Unauthenticated               | Public API documentation UI                                                                           |
+| `POST /api/verify-email`          | Unauthenticated               | Email-verification confirm authorizes on the token, not a session; the link must work when signed out |
 
 ## Anti-Patterns
 

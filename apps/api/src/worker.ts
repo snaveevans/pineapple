@@ -10,11 +10,12 @@ import {
   Email,
   MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceTaskId,
-  ok,
-  type Result,
 } from "@snaveevans/pineapple-shared";
 import type { AuthenticatedCaller } from "./application/ports/AuthenticatedUserResolver.ts";
-import type { EmailVerificationRequests } from "./application/ports/EmailVerificationRequests.ts";
+import type {
+  EmailDeliveryResult,
+  TransactionalEmailSender,
+} from "./application/ports/TransactionalEmailSender.ts";
 import type { User } from "./domain/identity/User.ts";
 import type { Asset } from "./domain/asset/Asset.ts";
 import type { AssetMetadata } from "./domain/asset/AssetMetadata.ts";
@@ -52,6 +53,12 @@ import { SearchAssets } from "./application/usecases/SearchAssets.ts";
 import { UpdateUserProfile } from "./application/usecases/UpdateUserProfile.ts";
 import { SetNotificationEmail } from "./application/usecases/SetNotificationEmail.ts";
 import { RemoveNotificationEmail } from "./application/usecases/RemoveNotificationEmail.ts";
+import { RequestEmailVerification } from "./application/usecases/RequestEmailVerification.ts";
+import { ConfirmEmailVerification } from "./application/usecases/ConfirmEmailVerification.ts";
+import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
+import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
+import { SystemClock } from "./infrastructure/time/SystemClock.ts";
+import { WebCryptoVerificationTokenService } from "./infrastructure/verification/WebCryptoVerificationTokenService.ts";
 import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
@@ -67,6 +74,8 @@ import {
   getUserProfileRoute,
   setNotificationEmailRoute,
   removeNotificationEmailRoute,
+  requestEmailVerificationRoute,
+  confirmEmailVerificationRoute,
   getAssetRoute,
   healthRoute,
   listAssetsRoute,
@@ -96,6 +105,8 @@ type Bindings = AuthEnv & {
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
   /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
   DEV_AUTH_EMAIL?: string;
+  /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
+  APP_BASE_URL?: string;
 };
 type Variables = {
   user: User;
@@ -260,6 +271,21 @@ app.use("/api/*", async (c, next) => {
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
 app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 
+// Public verification confirm — registered BEFORE the auth gate below so it stays
+// session-optional: the token is the proof. See authentication.md exceptions.
+app.openapi(confirmEmailVerificationRoute, async (c) => {
+  const { token } = c.req.valid("json");
+  const result = await new ConfirmEmailVerification(
+    new D1UserRepository(c.env.DB),
+    new D1VerificationTokenRepository(c.env.DB),
+    new WebCryptoVerificationTokenService(),
+    c.get("eventBus"),
+    new SystemClock(),
+  ).execute({ token });
+  if (!result.ok) throw result.error;
+  return c.json({ status: result.value.status }, 200);
+});
+
 // ── Auth gate for the application API ────────────────────────────────────────
 
 // Resolves (and JIT-provisions) the domain User from the Better Auth session.
@@ -279,15 +305,33 @@ app.use("/api/*", async (c, next) => {
 });
 
 /**
- * Temporary no-op verification requester. The contact-email set path stores the
- * address unverified and asks for a verification send; until the email-verification
- * token/rate-limit pipeline is wired, this accepts the request without sending.
- * Replace with the real verification-send use case when it lands.
+ * Temporary no-op email sender. Token issuance, rate limiting, and audit are
+ * real; only the actual send is stubbed until the Cloudflare Email Sending
+ * adapter lands. Swap this for that adapter to start delivering mail.
  */
-class NoopEmailVerificationRequests implements EmailVerificationRequests {
-  request(): Promise<Result<void, DomainError>> {
-    return Promise.resolve(ok(undefined));
+class NoopTransactionalEmailSender implements TransactionalEmailSender {
+  send(): Promise<EmailDeliveryResult> {
+    return Promise.resolve({ status: "sent" });
   }
+}
+
+/**
+ * Wires the verification-send use case for a request. The email send is stubbed
+ * (see {@link NoopTransactionalEmailSender}); everything else is real. The
+ * verification link points at the web app's public `/verify-email` page.
+ */
+function buildRequestEmailVerification(c: Context<AppEnv>): RequestEmailVerification {
+  const appBase = c.env.APP_BASE_URL ?? new URL(c.req.url).origin;
+  return new RequestEmailVerification(
+    new D1UserRepository(c.env.DB),
+    new D1VerificationTokenRepository(c.env.DB),
+    new D1VerificationSendLog(c.env.DB),
+    new NoopTransactionalEmailSender(),
+    new WebCryptoVerificationTokenService(),
+    c.get("eventBus"),
+    new SystemClock(),
+    (token) => `${appBase}/verify-email?token=${encodeURIComponent(token)}`,
+  );
 }
 
 function serializeUserProfile(user: User): z.infer<typeof UserProfileResponseSchema> {
@@ -364,9 +408,7 @@ app.openapi(setNotificationEmailRoute, async (c) => {
   const result = await new SetNotificationEmail(
     new D1UserRepository(c.env.DB),
     c.get("eventBus"),
-    // TODO(email-verification): swap the no-op requester for the real
-    // verification-send use case once token/rate-limit storage lands.
-    new NoopEmailVerificationRequests(),
+    buildRequestEmailVerification(c),
   ).execute({
     userId: caller.user.id,
     email: Email.from(email),
@@ -385,6 +427,16 @@ app.openapi(removeNotificationEmailRoute, async (c) => {
   ).execute({ userId: user.id });
   if (!result.ok) throw result.error;
   return c.json(serializeUserProfile(result.value), 200);
+});
+
+app.openapi(requestEmailVerificationRoute, async (c) => {
+  const user = c.get("user");
+  const result = await buildRequestEmailVerification(c).execute({
+    userId: user.id,
+    source: "resend",
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ status: "accepted" as const }, 202);
 });
 
 // ── Asset endpoints ──────────────────────────────────────────────────────────

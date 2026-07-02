@@ -317,6 +317,68 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     });
   });
 
+  it("maps POST /api/users/me/notification-email/verification to RequestEmailVerification", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/users/me/notification-email/verification",
+        status: 202,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["RequestEmailVerification"],
+      blobs: [
+        "RequestEmailVerification",
+        "/api/users/me/notification-email/verification",
+        "POST",
+        "2xx",
+        "202",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
+
+  it("maps POST /api/verify-email to ConfirmEmailVerification (unauthenticated)", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname: "/api/verify-email",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: false,
+        country: "US",
+        userId: "anonymous",
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["ConfirmEmailVerification"],
+      blobs: [
+        "ConfirmEmailVerification",
+        "/api/verify-email",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "false",
+        "v2",
+        "US",
+        "anonymous",
+      ],
+    });
+  });
+
   it.each([
     ["POST", "CreateMaintenanceRecord"],
     ["GET", "ListMaintenanceRecords"],

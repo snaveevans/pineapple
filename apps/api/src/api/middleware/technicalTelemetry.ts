@@ -157,6 +157,15 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
       routePattern: "/api/users/me/notification-email",
     };
   }
+  if (pathname === "/api/users/me/notification-email/verification" && method === "POST") {
+    return {
+      operation: "RequestEmailVerification",
+      routePattern: "/api/users/me/notification-email/verification",
+    };
+  }
+  if (pathname === "/api/verify-email" && method === "POST") {
+    return { operation: "ConfirmEmailVerification", routePattern: "/api/verify-email" };
+  }
   if (pathname === "/api/assets" && method === "POST") {
     return { operation: "CreateAsset", routePattern: "/api/assets" };
   }
