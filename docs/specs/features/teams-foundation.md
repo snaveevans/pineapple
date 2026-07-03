@@ -7,7 +7,7 @@ metadata:
 
 # Teams Foundation
 
-**Status:** draft
+**Status:** review
 **Owner:** [unknown — assign on review]
 **Last Updated:** 2026-07-03
 **Related Specs:** [ADR-0015](../../decisions/0015-teams-as-opt-in-sharing-scope.md), [authentication.md](../cross-cutting/authentication.md), [permissions.md](../cross-cutting/permissions.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [dashboard.md](./dashboard.md), [app-search.md](./app-search.md)
@@ -52,7 +52,7 @@ authoritative in `openapi.json`.
 
 - [ ] An authenticated user who belongs to no team can create a team by providing a **name**; on success they become the team's **owner** and its only member
 - [ ] Creating a team when the requester already belongs to a team (as owner or member) fails with **409 Conflict** and no team is created
-- [ ] The team name is **required**, trimmed, and bounded by a maximum length (see Validation); an invalid name fails with **422** before any team is created
+- [ ] The team name is **required**, trimmed, and at most **100 characters** (matching `DISPLAY_NAME_MAX_LENGTH`); it need not be unique. An invalid name fails with **422** before any team is created
 - [ ] A new team starts with exactly one membership: the creator, with role `owner`
 
 **Reading your team**
@@ -72,7 +72,7 @@ authoritative in `openapi.json`.
 **Member access to shared assets (full parity)**
 
 - [ ] A team member can read an asset shared with their team and all of its dependent records (maintenance tasks, maintenance records, activity)
-- [ ] A team member can perform the same **write** actions on a shared asset that its owner can — add, edit, and delete maintenance tasks, and log maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
+- [ ] A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
 - [ ] Access to a shared asset's dependent records **follows the asset**: authorization for maintenance/record/activity operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
 - [ ] When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
 
@@ -154,12 +154,12 @@ the History projection. Reads (`GetMyTeam`, the expanded lists) publish no domai
 **DEFERRED — Reminder recipient for shared assets:** Maintenance reminders continue to go to
 the **asset owner** only; team-wide reminder delivery for shared assets is not decided here.
 Decide it in the notifications/invitations work, where the recipient set and notification
-plumbing already live. Owner: engineering.
+plumbing already live. Tracked in [#55](https://github.com/snaveevans/pineapple/issues/55).
 
 **OUT OF SCOPE / FUTURE — Shared asset when its owner leaves the team:** A shared asset is
 owned by one user but editable by the whole team. What happens to it when that owner leaves or
 is removed (auto-unshare? reassign ownership? block removal?) is a **team-management** concern
-and is not decided here. Owner: engineering; resolve in the team-management spec.
+and is not decided here. Resolve in the team-management spec; tracked in [#56](https://github.com/snaveevans/pineapple/issues/56).
 
 **REVIEW NEEDED — 403 vs 404 for non-member single-resource access:** Requesting an asset
 shared to a team the requester is not in inherits the unresolved 403-vs-404 question in
@@ -172,10 +172,6 @@ spec will follow that decision once made.
 [dashboard.md](./dashboard.md), and [app-search.md](./app-search.md) describe "the user's own
 assets." Once this lands they must be updated to state that team-shared assets also appear and
 carry the `sharing` descriptor. Tracked in [#53](https://github.com/snaveevans/pineapple/issues/53).
-
-**NOT SPECIFIED — Team name maximum length:** The name is required and bounded, but the exact
-limit is not fixed here. `DISPLAY_NAME_MAX_LENGTH` (100) is a reasonable precedent; confirm at
-implementation and encode it in the Zod schema.
 
 ## Out of Scope
 
