@@ -1,4 +1,4 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-02
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-03
 
 # Spec Index
 
@@ -43,12 +43,18 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [user-profile.md](./features/user-profile.md)                 | Identity      | active |
 | [email-verification.md](./features/email-verification.md)     | Identity      | active |
 | [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft  |
+| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | draft  |
 
 ## Backlog (parked specs)
 
-Preserved design thinking that is **not** part of any active work. Parked specs live in
-`backlog/` and are excluded from the active feature set above. Reactivate one by moving it into
-`features/` and adding a row to the table above.
+**Backlog and future work now live in GitHub issues, not this repo.** The codebase reflects
+the current state of the app and the decisions behind it (ADRs); planned, proposed, or deferred
+work is tracked as issues. See the convention in [`docs/README.md`](../README.md).
+
+The `backlog/` folder is retained only for the one grandfathered **parked spec** below —
+preserved design thinking that predates this convention. Do **not** add new deferrals here; file
+an issue instead. Reactivate the parked spec by moving it into `features/` and adding a row to
+the table above.
 
 | Spec                                           | Area   | Why parked                                                                                                                                                                     |
 | ---------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
