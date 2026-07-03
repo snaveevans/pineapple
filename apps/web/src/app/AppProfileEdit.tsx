@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import {
@@ -27,8 +27,6 @@ import { HFTopBar, HFBottomNav } from "./AppChrome";
 import "../design/styles/hifi.css";
 import "../design/styles/hifi-add-asset.css";
 import "./styles/profile-edit.css";
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type EmailNotice = "saved" | "verification-sent" | "removed" | "cooldown" | null;
 
@@ -77,6 +75,7 @@ function ProfileLoading() {
 export function AppProfileEdit() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const contactEmailInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState("");
   const [fieldError, setFieldError] = useState<DisplayNameFieldError | null>(null);
   const [showSaved, setShowSaved] = useState(false);
@@ -245,7 +244,7 @@ export function AppProfileEdit() {
     emailNotice === "cooldown"
       ? "You can request another verification email in a few minutes."
       : emailNotice === "verification-sent"
-        ? `Verification email sent to ${savedContactEmail || contactEmail.trim()}; check your inbox.`
+        ? `Verification email sent to ${savedContactEmail}; check your inbox.`
         : `We sent a verification link to ${savedContactEmail}. Didn't get it?`;
 
   const handleSubmit = (event: FormEvent) => {
@@ -273,7 +272,7 @@ export function AppProfileEdit() {
 
   const handleSaveContactEmail = () => {
     const nextEmail = contactEmail.trim();
-    if (!EMAIL_PATTERN.test(nextEmail)) {
+    if (nextEmail.length === 0 || contactEmailInputRef.current?.validity.valid === false) {
       setEmailError("A valid email address is required.");
       setEmailNotice(null);
       return;
@@ -281,6 +280,12 @@ export function AppProfileEdit() {
     setEmailError(null);
     setEmailNotice(null);
     setEmailMutation.mutate(nextEmail);
+  };
+
+  const handleContactEmailKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    handleSaveContactEmail();
   };
 
   const handleRemoveContactEmail = () => {
@@ -402,6 +407,7 @@ export function AppProfileEdit() {
               <div className="pe-email-row">
                 <input
                   id="pe-email-input"
+                  ref={contactEmailInputRef}
                   className={`hf-input${emailError !== null ? " is-invalid" : ""}`}
                   type="email"
                   value={contactEmail}
@@ -413,10 +419,11 @@ export function AppProfileEdit() {
                   placeholder="you@example.com"
                   autoComplete="email"
                   disabled={emailBusy}
+                  onKeyDown={handleContactEmailKeyDown}
                 />
                 <button
                   type="button"
-                  className="hf-btn hf-btn-secondary hf-btn-sm"
+                  className="hf-btn hf-btn-secondary pe-btn-sm"
                   disabled={emailBusy}
                   onClick={handleSaveContactEmail}
                 >
@@ -435,7 +442,7 @@ export function AppProfileEdit() {
                 {hasContactEmail && (
                   <button
                     type="button"
-                    className="hf-btn hf-btn-secondary hf-btn-sm pe-btn-ghost"
+                    className="hf-btn hf-btn-secondary pe-btn-sm pe-btn-ghost"
                     title="Remove contact email"
                     aria-label="Remove contact email"
                     disabled={emailBusy}
@@ -460,7 +467,7 @@ export function AppProfileEdit() {
                 <span className="pe-verify-row-text">{verificationRowText}</span>
                 <button
                   type="button"
-                  className="hf-btn hf-btn-secondary hf-btn-sm"
+                  className="hf-btn hf-btn-secondary pe-btn-sm"
                   disabled={resendEmailMutation.isPending || emailNotice === "cooldown"}
                   onClick={handleResendVerification}
                 >

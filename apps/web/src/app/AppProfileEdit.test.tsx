@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../api/client";
 import {
   getUserProfile,
   removeNotificationEmail,
@@ -148,9 +149,29 @@ async function typeEmail(value: string) {
   });
 }
 
+async function pressEnterInEmail() {
+  const input = document.querySelector<HTMLInputElement>("#pe-email-input");
+  if (input === null) throw new Error("Contact email input was not rendered");
+
+  await act(async () => {
+    input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+  });
+  await flushAsync();
+}
+
 async function click(label: string) {
   await act(async () => {
     buttonByText(label).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+  await flushAsync();
+}
+
+async function clickByLabel(label: string) {
+  const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  if (button === null) throw new Error(`Button ${label} was not rendered`);
+
+  await act(async () => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
   await flushAsync();
 }
@@ -179,6 +200,33 @@ describe("AppProfileEdit contact email", () => {
     );
   });
 
+  it("saves the contact email instead of the display name when pressing enter in the email field", async () => {
+    await renderProfileEdit();
+
+    await typeEmail("dale@homemail.com");
+    await pressEnterInEmail();
+
+    expect(setNotificationEmailMock).toHaveBeenCalledWith("dale@homemail.com");
+    expect(updateUserProfileMock).not.toHaveBeenCalled();
+    expect(document.body.textContent).toContain(
+      "Verification email sent to dale@homemail.com; check your inbox.",
+    );
+  });
+
+  it("removes an existing contact email", async () => {
+    getUserProfileMock.mockResolvedValue(
+      profile({ notificationEmail: "dale@homemail.com", notificationEmailVerified: true }),
+    );
+
+    await renderProfileEdit();
+    await clickByLabel("Remove contact email");
+
+    expect(removeNotificationEmailMock).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain(
+      "Contact email removed. Maintenance reminders will not be sent until you add one.",
+    );
+  });
+
   it("resends verification for an unverified contact email", async () => {
     getUserProfileMock.mockResolvedValue(
       profile({ notificationEmail: "dale@homemail.com", notificationEmailVerified: false }),
@@ -191,5 +239,23 @@ describe("AppProfileEdit contact email", () => {
     expect(document.body.textContent).toContain(
       "Verification email sent to dale@homemail.com; check your inbox.",
     );
+  });
+
+  it("shows cooldown feedback when verification resend is rate-limited", async () => {
+    getUserProfileMock.mockResolvedValue(
+      profile({ notificationEmail: "dale@homemail.com", notificationEmailVerified: false }),
+    );
+    requestEmailVerificationMock.mockRejectedValueOnce(
+      new ApiError(429, { error: "Verification email requested too frequently" }),
+    );
+
+    await renderProfileEdit();
+    await click("Resend verification email");
+
+    expect(requestEmailVerificationMock).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain(
+      "You can request another verification email in a few minutes.",
+    );
+    expect(buttonByText("Resend verification email").disabled).toBe(true);
   });
 });
