@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { NavLink, useLocation } from "react-router";
+import { ApiError } from "../api/client";
+import { listNotifications, notificationsPageQueryKey } from "../api/notifications";
 import { getUserProfile, userProfileQueryKey } from "../api/userProfile";
 import { Icon, type IconName } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
@@ -37,6 +39,13 @@ export function HFTopBar() {
     queryKey: userProfileQueryKey,
     queryFn: getUserProfile,
   });
+  const { data: notificationsPage } = useQuery({
+    queryKey: notificationsPageQueryKey({ limit: 1 }),
+    queryFn: () => listNotifications({ limit: 1 }),
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status === 401) && failureCount < 2,
+  });
+  const unreadCount = notificationsPage?.unreadCount ?? 0;
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
   const closeSearch = useCallback(() => {
@@ -92,10 +101,21 @@ export function HFTopBar() {
           >
             <Icon name="search" size={16} />
           </button>
-          <button type="button" className="hf-icon-btn hf-icon-btn-badge" title="Notifications">
+          <NavLink
+            to={paths.notifications}
+            className={({ isActive }) =>
+              `hf-icon-btn hf-icon-btn-badge ${isActive ? "active" : ""}`
+            }
+            title="Notifications"
+            aria-label={
+              unreadCount > 0
+                ? `Notifications, ${unreadCount} unread`
+                : "Notifications"
+            }
+          >
             <Icon name="bell" size={16} />
-            <span className="hf-badge">3</span>
-          </button>
+            {unreadCount > 0 && <span className="hf-badge">{unreadCount}</span>}
+          </NavLink>
           <NavLink
             to={paths.profile}
             className={`hf-avatar${profileActive ? " hf-avatar-ring" : ""}`}
