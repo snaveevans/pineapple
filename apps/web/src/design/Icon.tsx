@@ -36,7 +36,8 @@ export type IconName =
   | "car"
   | "info"
   | "image"
-  | "lock";
+  | "lock"
+  | "mail";
 
 export interface IconProps {
   name: IconName;
@@ -204,6 +205,12 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="5" y="11" width="14" height="10" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </>
+  ),
+  mail: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="M3 6.5 12 13l9-6.5" />
     </>
   ),
 };

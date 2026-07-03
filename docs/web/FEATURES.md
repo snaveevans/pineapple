@@ -61,10 +61,15 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Saving: disable duplicate submits while `PATCH /api/users/me` is in flight
 - Complete: enter the originally requested authenticated route, or `/app` by default
 - Later profile edit: read and update the same domain profile name
+- Later profile edit: add, change, remove, and resend verification for the contact email used for maintenance reminders
+- Contact email unset: show an empty optional email field with a save action
+- Contact email unverified: show the saved address, an unverified badge, and a resend-verification action
+- Contact email verified: show a verified badge and reminder-delivery confirmation copy
 
 **Non-obvious behavior:**
 
 - Email identifies the account but is never displayed as, or transformed into, the user's name
+- The contact email is separate from the Google sign-in email; reminders are delivered only after that contact address is verified
 - Provider session data can seed the first value, but later provider sign-ins must not overwrite the Pineapple profile name
 - The route guard is a UX control only; the API deliberately remains accessible to authenticated users with incomplete onboarding for now
 - A future multi-client or security requirement may require API middleware that limits incomplete users to auth and self-profile endpoints

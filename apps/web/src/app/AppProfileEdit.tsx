@@ -1,7 +1,15 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
-import { getUserProfile, updateUserProfile, userProfileQueryKey } from "../api/userProfile";
+import {
+  getUserProfile,
+  removeNotificationEmail,
+  requestEmailVerification,
+  setNotificationEmail,
+  updateUserProfile,
+  userProfileQueryKey,
+  type UserProfile,
+} from "../api/userProfile";
 import { ApiError } from "../api/client";
 import { Icon } from "../design/Icon";
 import { paths } from "../routes";
@@ -19,6 +27,8 @@ import { HFTopBar, HFBottomNav } from "./AppChrome";
 import "../design/styles/hifi.css";
 import "../design/styles/hifi-add-asset.css";
 import "./styles/profile-edit.css";
+
+type EmailNotice = "saved" | "verification-sent" | "removed" | "cooldown" | null;
 
 function GoogleG({ size = 14 }: { size?: number }) {
   return (
@@ -65,10 +75,14 @@ function ProfileLoading() {
 export function AppProfileEdit() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const contactEmailInputRef = useRef<HTMLInputElement | null>(null);
   const [name, setName] = useState("");
   const [fieldError, setFieldError] = useState<DisplayNameFieldError | null>(null);
   const [showSaved, setShowSaved] = useState(false);
   const [apiError, setApiError] = useState(false);
+  const [contactEmail, setContactEmail] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailNotice, setEmailNotice] = useState<EmailNotice>(null);
 
   const {
     data: profile,
@@ -96,23 +110,39 @@ export function AppProfileEdit() {
   }, [profile?.name]);
 
   useEffect(() => {
+    if (profile?.notificationEmail !== undefined) {
+      setContactEmail(profile.notificationEmail ?? "");
+      setEmailError(null);
+    }
+  }, [profile?.notificationEmail]);
+
+  useEffect(() => {
     document.title = "FieldOps — Edit profile";
   }, []);
+
+  const applyUpdatedProfile = async (updated: UserProfile) => {
+    await queryClient.setQueryData(userProfileQueryKey, updated);
+  };
+
+  const handleAuthError = (requestError: unknown) => {
+    if (requestError instanceof ApiError && requestError.status === 401) {
+      void navigate(paths.login(), { replace: true });
+      return true;
+    }
+    return false;
+  };
 
   const mutation = useMutation({
     mutationFn: (nextName: string) => updateUserProfile(nextName),
     onSuccess: async (updated) => {
-      await queryClient.setQueryData(userProfileQueryKey, updated);
+      await applyUpdatedProfile(updated);
       setName(updated.name ?? "");
       setFieldError(null);
       setApiError(false);
       setShowSaved(true);
     },
     onError: (mutationError) => {
-      if (mutationError instanceof ApiError && mutationError.status === 401) {
-        void navigate(paths.login(), { replace: true });
-        return;
-      }
+      if (handleAuthError(mutationError)) return;
       const mapped = mutationError instanceof ApiError ? toProfileFormError(mutationError) : null;
       if (mapped) {
         setFieldError(mapped);
@@ -124,11 +154,66 @@ export function AppProfileEdit() {
     },
   });
 
+  const setEmailMutation = useMutation({
+    mutationFn: (nextEmail: string) => setNotificationEmail(nextEmail),
+    onSuccess: async (updated) => {
+      await applyUpdatedProfile(updated);
+      setContactEmail(updated.notificationEmail ?? "");
+      setEmailError(null);
+      setEmailNotice(updated.notificationEmailVerified ? "saved" : "verification-sent");
+    },
+    onError: async (mutationError) => {
+      if (handleAuthError(mutationError)) return;
+      if (mutationError instanceof ApiError && mutationError.status === 422) {
+        setEmailError("A valid email address is required.");
+      } else if (mutationError instanceof ApiError && mutationError.status === 429) {
+        setEmailNotice("cooldown");
+        await queryClient.invalidateQueries({ queryKey: userProfileQueryKey });
+      } else {
+        setEmailError("Contact email could not be saved. Try again.");
+      }
+    },
+  });
+
+  const removeEmailMutation = useMutation({
+    mutationFn: removeNotificationEmail,
+    onSuccess: async (updated) => {
+      await applyUpdatedProfile(updated);
+      setContactEmail("");
+      setEmailError(null);
+      setEmailNotice("removed");
+    },
+    onError: (mutationError) => {
+      if (handleAuthError(mutationError)) return;
+      setEmailError("Contact email could not be removed. Try again.");
+    },
+  });
+
+  const resendEmailMutation = useMutation({
+    mutationFn: requestEmailVerification,
+    onSuccess: () => {
+      setEmailError(null);
+      setEmailNotice("verification-sent");
+    },
+    onError: (mutationError) => {
+      if (handleAuthError(mutationError)) return;
+      if (mutationError instanceof ApiError && mutationError.status === 429) {
+        setEmailNotice("cooldown");
+      } else {
+        setEmailError("Verification email could not be sent. Try again.");
+      }
+    },
+  });
+
   if (isLoading || !profile) {
     return <ProfileLoading />;
   }
 
   const savedName = profile.name ?? "";
+  const savedContactEmail = profile.notificationEmail ?? "";
+  const hasContactEmail = profile.notificationEmail !== null;
+  const isContactEmailVerified = hasContactEmail && profile.notificationEmailVerified;
+  const isContactEmailUnverified = hasContactEmail && !profile.notificationEmailVerified;
   const trimmedName = name.trim();
   const trimmedSaved = savedName.trim();
   const hasChanges = trimmedName !== trimmedSaved;
@@ -142,6 +227,25 @@ export function AppProfileEdit() {
       : hasChanges
         ? "Changes haven't been saved yet."
         : "This name appears on your dashboard and in your profile avatar.";
+
+  const emailBusy =
+    setEmailMutation.isPending || removeEmailMutation.isPending || resendEmailMutation.isPending;
+
+  const contactEmailSubText =
+    emailNotice === "removed"
+      ? "Contact email removed. Maintenance reminders will not be sent until you add one."
+      : emailNotice === "saved"
+        ? "This address is verified; reminders will be sent here."
+        : isContactEmailVerified
+          ? "This address is verified; reminders will be sent here."
+          : "Where maintenance reminders are sent; separate from your Google sign-in email.";
+
+  const verificationRowText =
+    emailNotice === "cooldown"
+      ? "You can request another verification email in a few minutes."
+      : emailNotice === "verification-sent"
+        ? `Verification email sent to ${savedContactEmail}; check your inbox.`
+        : `We sent a verification link to ${savedContactEmail}. Didn't get it?`;
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -164,6 +268,36 @@ export function AppProfileEdit() {
 
   const handleCancel = () => {
     void navigate(paths.appHome);
+  };
+
+  const handleSaveContactEmail = () => {
+    const nextEmail = contactEmail.trim();
+    if (nextEmail.length === 0 || contactEmailInputRef.current?.validity.valid === false) {
+      setEmailError("A valid email address is required.");
+      setEmailNotice(null);
+      return;
+    }
+    setEmailError(null);
+    setEmailNotice(null);
+    setEmailMutation.mutate(nextEmail);
+  };
+
+  const handleContactEmailKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    handleSaveContactEmail();
+  };
+
+  const handleRemoveContactEmail = () => {
+    setEmailError(null);
+    setEmailNotice(null);
+    removeEmailMutation.mutate();
+  };
+
+  const handleResendVerification = () => {
+    setEmailError(null);
+    setEmailNotice(null);
+    resendEmailMutation.mutate();
   };
 
   return (
@@ -249,6 +383,105 @@ export function AppProfileEdit() {
                 fieldSubText && <span className="pe-field-sub">{fieldSubText}</span>
               )}
             </div>
+          </div>
+
+          <div className="hf-aa-section">
+            <div className="hf-aa-section-head">
+              <span className="hf-aa-section-title">Contact email</span>
+              {hasContactEmail && (
+                <span
+                  className={`pe-verify-badge ${
+                    isContactEmailVerified ? "is-verified" : "is-unverified"
+                  }`}
+                >
+                  <Icon name={isContactEmailVerified ? "check" : "alert"} size={11} stroke={2.4} />
+                  {isContactEmailVerified ? "Verified" : "Unverified"}
+                </span>
+              )}
+            </div>
+
+            <div className={`hf-field${emailError !== null ? " has-error" : ""}`}>
+              <label className="hf-field-label" htmlFor="pe-email-input">
+                Email address
+              </label>
+              <div className="pe-email-row">
+                <input
+                  id="pe-email-input"
+                  ref={contactEmailInputRef}
+                  className={`hf-input${emailError !== null ? " is-invalid" : ""}`}
+                  type="email"
+                  value={contactEmail}
+                  onChange={(event) => {
+                    setContactEmail(event.target.value);
+                    if (emailError) setEmailError(null);
+                    if (emailNotice) setEmailNotice(null);
+                  }}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  disabled={emailBusy}
+                  onKeyDown={handleContactEmailKeyDown}
+                />
+                <button
+                  type="button"
+                  className="hf-btn hf-btn-secondary pe-btn-sm"
+                  disabled={emailBusy}
+                  onClick={handleSaveContactEmail}
+                >
+                  {setEmailMutation.isPending ? (
+                    <>
+                      <span className="pe-btn-spinner pe-btn-spinner-dark" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="mail" size={13} stroke={2} />
+                      {hasContactEmail ? "Update" : "Save"}
+                    </>
+                  )}
+                </button>
+                {hasContactEmail && (
+                  <button
+                    type="button"
+                    className="hf-btn hf-btn-secondary pe-btn-sm pe-btn-ghost"
+                    title="Remove contact email"
+                    aria-label="Remove contact email"
+                    disabled={emailBusy}
+                    onClick={handleRemoveContactEmail}
+                  >
+                    <Icon name="x" size={13} stroke={2.2} />
+                  </button>
+                )}
+              </div>
+              {emailError !== null ? (
+                <span className="hf-field-error" role="alert">
+                  <Icon name="alert" size={12} stroke={2} />
+                  {emailError}
+                </span>
+              ) : (
+                <span className="pe-field-sub">{contactEmailSubText}</span>
+              )}
+            </div>
+
+            {isContactEmailUnverified && (
+              <div className="pe-verify-row">
+                <span className="pe-verify-row-text">{verificationRowText}</span>
+                <button
+                  type="button"
+                  className="hf-btn hf-btn-secondary pe-btn-sm"
+                  disabled={resendEmailMutation.isPending || emailNotice === "cooldown"}
+                  onClick={handleResendVerification}
+                >
+                  {resendEmailMutation.isPending ? (
+                    <>
+                      <span className="pe-btn-spinner pe-btn-spinner-dark" />
+                      Sending...
+                    </>
+                  ) : (
+                    "Resend verification email"
+                  )}
+                </button>
+              </div>
+            )}
           </div>
 
           {showSaved && !hasFieldError && !apiError && (
