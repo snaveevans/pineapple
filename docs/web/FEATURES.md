@@ -86,14 +86,42 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 **Key states:**
 
-- Desktop: top bar shows the FieldOps brand, route tabs for Home, Assets, and History, plus search, notifications, and profile controls
+- Desktop: top bar shows the FieldOps brand, route tabs for Home, Assets, and History, plus search, a live notifications badge/link, and profile controls
 - Mobile: bottom tab bar shows the same Home, Assets, and History destinations
 - Active route: the matching tab is highlighted for the current page
 
 **Non-obvious behavior:**
 
+- The notifications control links to `/app/notifications`; its badge is driven by the API unread count and hides when there are no unread notifications
 - The shell exposes only destinations with implemented routes; there is no disabled Schedule placeholder tab
 - Scheduled maintenance workflows remain available from Dashboard and asset maintenance screens until a dedicated Schedule route is specified and built
+
+---
+
+## Notifications
+
+**Route:** `/app/notifications`
+**Goal:** Let the authenticated user review due-soon maintenance reminders and clear unread items.
+
+**Key states:**
+
+- Loading: fetches `GET /api/notifications` and shows row skeletons
+- Empty inbox: explains that maintenance reminders will appear when tasks come due
+- Populated: newest-first notification list with unread marker, asset icon, task title, due copy, asset name, reminder date, and relative created time
+- Pagination: "Load older notifications" requests the next cursor when available
+- Mark one read: clicking an unread row calls `POST /api/notifications/{notificationId}/read`
+- Mark all read: header action calls `POST /api/notifications/read-all` and disables when there is nothing unread
+- Error: retryable load error; mutation errors surface above the list
+- Unauthenticated: 401 redirects to `/login`
+
+**Non-obvious behavior:**
+
+- The list renders only the self-contained notification snapshots returned by the API; it does not look up live asset or task records
+- The unread badge in the app shell and the inbox share the same notifications query family, so mark-read actions invalidate both views
+- Due copy is display formatting only; the reminder creation policy and unread count come from the API
+- Deleted tasks and renamed/archived assets can still render from their notification snapshots
+
+**Spec:** [`docs/specs/features/notifications.md`](../specs/features/notifications.md)
 
 ---
 

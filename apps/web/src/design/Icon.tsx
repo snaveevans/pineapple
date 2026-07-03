@@ -24,6 +24,7 @@ export type IconName =
   | "chevron-right"
   | "chevron-down"
   | "bell"
+  | "bell-off"
   | "search"
   | "plus"
   | "alert"
@@ -148,6 +149,15 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" />
       <path d="M10 20a2 2 0 0 0 4 0" />
+    </>
+  ),
+  "bell-off": (
+    <>
+      <path d="M6 16V11a6 6 0 0 1 9.5-4.9" />
+      <path d="M18 13.5V11a6 6 0 0 0-.6-2.6" />
+      <path d="M10 20a2 2 0 0 0 4 0" />
+      <path d="M4 11v5l-1.5 2h15" />
+      <path d="M3 3l18 18" />
     </>
   ),
   search: (
