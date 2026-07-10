@@ -336,6 +336,14 @@ export function AppProfileEdit() {
 
           <div className="hf-aa-rule" />
 
+          <Link to={paths.team} className="pe-link-row">
+            <Icon name="grid" size={16} stroke={1.75} />
+            <span>My team</span>
+            <Icon name="chevron-right" size={14} stroke={1.75} />
+          </Link>
+
+          <div className="hf-aa-rule" />
+
           <div className="hf-aa-section">
             <div className="hf-aa-section-head">
               <span className="hf-aa-section-title">Display name</span>

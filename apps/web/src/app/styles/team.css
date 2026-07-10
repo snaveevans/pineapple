@@ -1,0 +1,162 @@
+.tm-col {
+  max-width: 560px;
+}
+
+/* ── Create-team form ─────────────────────────────────────────────────────── */
+
+.tm-create {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.75rem 0;
+}
+
+.tm-create-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--hf-r-lg);
+  background: var(--hf-surface-2);
+  color: var(--hf-brand);
+  margin-bottom: 0.25rem;
+}
+
+.tm-create h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--hf-ink-1);
+  margin: 0;
+}
+
+.tm-create-sub {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--hf-ink-3);
+  margin: 0;
+}
+
+.tm-create-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+/* ── Team details ──────────────────────────────────────────────────────────── */
+
+.tm-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1.75rem 0;
+}
+
+.tm-details-head {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+}
+
+.tm-details-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+  color: var(--hf-brand);
+}
+
+.tm-details-info h2 {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--hf-ink-1);
+  margin: 0;
+}
+
+.tm-details-sub {
+  font-size: 0.8125rem;
+  color: var(--hf-ink-3);
+  margin: 0.125rem 0 0;
+}
+
+/* ── Member list ──────────────────────────────────────────────────────────── */
+
+.tm-members {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tm-member {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-1);
+  border: 1px solid var(--hf-border);
+}
+
+.tm-member-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--hf-brand);
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tm-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tm-member-name {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--hf-ink-1);
+}
+
+.tm-member-role {
+  font-size: 0.75rem;
+  color: var(--hf-ink-3);
+}
+
+.tm-member-badge {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--hf-brand);
+  background: var(--hf-brand-tint, oklch(0.95 0.04 150));
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* ── Info note ────────────────────────────────────────────────────────────── */
+
+.tm-info-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.875rem 1rem;
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+  color: var(--hf-ink-3);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.tm-info-note svg {
+  flex-shrink: 0;
+  margin-top: 0.0625rem;
+  color: var(--hf-ink-4);
+}
