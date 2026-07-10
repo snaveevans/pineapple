@@ -23,6 +23,10 @@ One paragraph. What this feature does and the user problem it solves. No impleme
 
 ## Acceptance Criteria
 
+<!-- These boxes are the live implementation checklist: check a box (`- [x]`) only when the
+behavior is implemented AND covered by a test on `main`. Large specs ship in slices (tracked as
+GitHub issues); each PR checks off only the criteria it lands. See docs/specs/SPECS.md. -->
+
 - [ ] [Specific, testable behavior]
 - [ ] [Another testable criterion]
 

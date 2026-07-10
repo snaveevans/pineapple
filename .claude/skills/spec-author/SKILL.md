@@ -119,6 +119,7 @@ Before writing the file, verify:
 
 - The spec lives in `docs/specs/features/`
 - Every user story maps to at least one acceptance criterion
+- Each acceptance criterion is **atomic and independently testable** — it becomes a checkbox on the spec's live implementation checklist, checked off (and backed by a test) one at a time as the feature is built (see `docs/specs/SPECS.md`)
 - Every cross-cutting concern has been addressed or explicitly flagged
 - The Telemetry section names the operation(s) and states whether domain events apply
 - If the feature has a web UI, confirm the relevant entry in `docs/web/FEATURES.md` is up to date

@@ -96,10 +96,24 @@ Present the interpreted impact list to the user and confirm before writing any c
 
 ---
 
+## Slicing a large spec
+
+A spec too large to implement and review in one PR is delivered in **vertical slices**, each its own PR, tracked as GitHub issues (see `docs/specs/SPECS.md`).
+
+- The spec file stays whole — do not split it.
+- Each slice PR implements one coherent group of acceptance criteria and **checks off only those boxes** in the spec (`- [ ]` → `- [x]`), in the same PR.
+- Criteria are grouped by concern, so slices usually own disjoint groups and their checkmarks rarely conflict; if two in-flight slices touch the same group, resolve the checkmark in the later merge.
+- The spec reaches `status: active` only when the final slice checks the last box.
+
+---
+
 ## Completion
 
-When implementation is done:
+When a PR's implementation is done:
 
-- Confirm all acceptance criteria in the spec are satisfied — walk through them one by one
+- Walk through the acceptance criteria this PR set out to satisfy, one by one, and **check off each satisfied box in the spec** (`- [ ]` → `- [x]`), committing that edit in the same PR. Check a box only when its behavior is implemented **and covered by a test** — not merely written.
+- If this PR implements the **whole** spec, confirm every box is checked and advance the spec's `status` to `active`. If it implements only a slice (see above), check off just this slice's criteria and leave `status` unchanged — the spec becomes `active` when the final slice checks the last box.
 - Note any criteria that could not be met and why (flag candidates for the spec)
 - Remind the user to run `/spec-author` (document existing code) if behavior diverged from the spec during implementation
+
+See `docs/specs/SPECS.md` (Spec lifecycle & acceptance criteria) for the canonical convention.

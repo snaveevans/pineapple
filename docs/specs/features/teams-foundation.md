@@ -48,15 +48,6 @@ authoritative in `openapi.json`.
 
 ## Acceptance Criteria
 
-> **Implementation status (live checklist).** These boxes track the build. A box is checked
-> only once its behavior is implemented **and covered by a test** on `main`; the spec's `status`
-> advances to `active` when all are checked. The feature ships in slices, so boxes are checked
-> across several PRs — in order: the **Team creation** and **Reading your team** groups first
-> (team + membership core), then **Sharing & unsharing**, **Member access to shared assets**,
-> **Read-path integration**, and **Permissions extension** (sharing + access). The web surface
-> is tracked separately in [`docs/web/FEATURES.md`](../../web/FEATURES.md). Each PR checks off
-> only the criteria it lands, so any reader can see remaining work at a glance.
-
 **Team creation**
 
 - [ ] An authenticated user who belongs to no team can create a team by providing a **name**; on success they become the team's **owner** and its only member
