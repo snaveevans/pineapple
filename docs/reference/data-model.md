@@ -67,6 +67,7 @@ These are **branded** types, not raw strings — constructed via `.from()` /
 | --------------------- | ----------- | -------------------------------- |
 | `UserId`              | UUID string | `.generate()` for new users      |
 | `AssetId`             | UUID string | `.generate()` for new assets     |
+| `TeamId`              | UUID string | `.generate()` for new teams      |
 | `ActivityEntryId`     | UUID string | stable id for history entries    |
 | `MaintenanceRecordId` | UUID string | `.generate()` for new records    |
 | `Email`               | string      | validated email format           |
@@ -104,22 +105,40 @@ details:
   idempotently from this id so at-least-once delivery cannot duplicate history.
 - Entries are immutable and append-only. There is no edit/delete history path.
 
+## Team
+
+An opt-in sharing scope on top of user-owned assets (see
+[ADR-0015](../decisions/0015-teams-as-opt-in-sharing-scope.md)). A user belongs
+to at most one team; creating a team makes the caller its owner and sole member.
+
+Field shapes and validation rules live in the [OpenAPI spec](openapi.json)
+(`Team`, `TeamMember`, `CreateTeamBody`, `MyTeam`). Domain-only details:
+
+- **`ownerId`** — the `UserId` of the team's creator/owner. Exposed in the API
+  response (unlike assets).
+- **`role`** — `"owner"` for the creator; `"member"` for future invitees
+  (invitations are a separate spec). Until the invitations spec lands, every team
+  has exactly one member with role `owner`.
+- A unique index on `team_members.user_id` enforces the one-team-per-user rule at
+  the storage level, in addition to the application-level 409 check.
+
 ## Domain events
 
 Aggregates raise events when something significant happens. Today:
 
-| Event                       | Raised when                             | Carries                                                                                                                                             |
-| --------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AssetCreated`              | an asset is created                     | event id, asset/owner/actor, asset snapshot, type, optional year, and History `activityEntryType` conclusion                                        |
-| `MaintenanceRecordCreated`  | a maintenance record is created         | event id, record/asset/owner/actor, asset snapshot, title, performed date, linked task id, and History `activityEntryType` conclusion               |
-| `MaintenanceTaskCreated`    | a maintenance task is scheduled         | event id, task/asset/owner/actor, asset snapshot, title, interval, resulting **`nextDue`**, and History `activityEntryType` conclusion              |
-| `MaintenanceTaskAdvanced`   | a task is completed by a record         | event id, task/record/asset/owner/actor, asset snapshot, title, performed date, resulting **`nextDue`**, and History `activityEntryType` conclusion |
-| `MaintenanceTaskDeleted`    | a maintenance task is removed           | event id, task/asset/owner/actor, asset snapshot, title, and History `activityEntryType` conclusion                                                 |
-| `NotificationEmailUpdated`  | a user sets/changes their contact email | event id and `userId` only (no address — PII stays out of the event)                                                                                |
-| `NotificationEmailVerified` | a user's contact email becomes verified | event id and `userId` only (no address)                                                                                                             |
-| `NotificationEmailRemoved`  | a user clears their contact email       | event id and `userId` only (no address)                                                                                                             |
-| `MaintenanceReminderCreated` | a due-soon reminder is created          | event id, notification/task/asset/owner ids, notification type, system actor, and lead-days conclusion                                               |
-| `ReminderEmailDispatched`   | an aggregated reminder email decision is recorded | event id, email batch id, owner id, result, suppress reason, and covered notification count; no email address or reminder copy                      |
+| Event                        | Raised when                                       | Carries                                                                                                                                             |
+| ---------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AssetCreated`               | an asset is created                               | event id, asset/owner/actor, asset snapshot, type, optional year, and History `activityEntryType` conclusion                                        |
+| `MaintenanceRecordCreated`   | a maintenance record is created                   | event id, record/asset/owner/actor, asset snapshot, title, performed date, linked task id, and History `activityEntryType` conclusion               |
+| `MaintenanceTaskCreated`     | a maintenance task is scheduled                   | event id, task/asset/owner/actor, asset snapshot, title, interval, resulting **`nextDue`**, and History `activityEntryType` conclusion              |
+| `MaintenanceTaskAdvanced`    | a task is completed by a record                   | event id, task/record/asset/owner/actor, asset snapshot, title, performed date, resulting **`nextDue`**, and History `activityEntryType` conclusion |
+| `MaintenanceTaskDeleted`     | a maintenance task is removed                     | event id, task/asset/owner/actor, asset snapshot, title, and History `activityEntryType` conclusion                                                 |
+| `NotificationEmailUpdated`   | a user sets/changes their contact email           | event id and `userId` only (no address — PII stays out of the event)                                                                                |
+| `NotificationEmailVerified`  | a user's contact email becomes verified           | event id and `userId` only (no address)                                                                                                             |
+| `NotificationEmailRemoved`   | a user clears their contact email                 | event id and `userId` only (no address)                                                                                                             |
+| `MaintenanceReminderCreated` | a due-soon reminder is created                    | event id, notification/task/asset/owner ids, notification type, system actor, and lead-days conclusion                                              |
+| `ReminderEmailDispatched`    | an aggregated reminder email decision is recorded | event id, email batch id, owner id, result, suppress reason, and covered notification count; no email address or reminder copy                      |
+| `TeamCreated`                | a team is created                                 | event id, team/owner/actor, and team name                                                                                                           |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1
@@ -184,23 +203,24 @@ it renders even after the source task is deleted or the asset archived.
 
 ## Storage mapping
 
-| Domain concept      | D1 table                                     | Notes                                                                  |
-| ------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
-| `User`              | `users`                                      |                                                                        |
-| `Asset`             | `assets`                                     | `metadata` is a JSON string column                                     |
-| `MaintenanceRecord` | `maintenance_records`                        | `performed_at` is a date-only text column                              |
-| `ActivityEntry`     | `activity_entries`                           | append-only history projection, ordered by `occurred_at` then `id`     |
-| Activity outbox     | `activity_event_outbox`                      | producer-side transactional outbox for the activity-history queue      |
-| Verification tokens | `email_verification_tokens`                  | hashed, single-use, 24h TTL, scoped by `(user, email, purpose)`        |
-| Verification sends  | `email_verification_sends`                   | per-send audit rows backing the cooldown / per-address / per-user caps |
-| Scheduled reminders | `scheduled_reminders`                        | notifications' own cancelable schedule, keyed by source task           |
-| Notifications       | `notifications`                              | durable in-app inbox; one per `(task, cycle)`                          |
-| Email batches       | `email_batches`                              | one aggregated reminder email per owner per sweep                      |
-| Reminder email outbox | `notification_email_outbox`                | producer-side transactional outbox for aggregated reminder email jobs   |
-| Notification events | `notification_ingested_events`               | inbound event dedupe/order markers                                     |
-| Notification DLQ    | `notification_dead_letters`                  | durable copy of exhausted notification-queue messages                  |
-| Queue dead letters  | `dead_letters`                               | durable copy of malformed or exhausted activity queue messages         |
-| Auth (Better Auth)  | `user`, `session`, `account`, `verification` | **singular** names; auth infra, separate from the domain `users` table |
+| Domain concept        | D1 table                                     | Notes                                                                  |
+| --------------------- | -------------------------------------------- | ---------------------------------------------------------------------- |
+| `User`                | `users`                                      |                                                                        |
+| `Asset`               | `assets`                                     | `metadata` is a JSON string column                                     |
+| `Team`                | `teams` + `team_members`                     | unique index on `team_members.user_id` enforces one team per user      |
+| `MaintenanceRecord`   | `maintenance_records`                        | `performed_at` is a date-only text column                              |
+| `ActivityEntry`       | `activity_entries`                           | append-only history projection, ordered by `occurred_at` then `id`     |
+| Activity outbox       | `activity_event_outbox`                      | producer-side transactional outbox for the activity-history queue      |
+| Verification tokens   | `email_verification_tokens`                  | hashed, single-use, 24h TTL, scoped by `(user, email, purpose)`        |
+| Verification sends    | `email_verification_sends`                   | per-send audit rows backing the cooldown / per-address / per-user caps |
+| Scheduled reminders   | `scheduled_reminders`                        | notifications' own cancelable schedule, keyed by source task           |
+| Notifications         | `notifications`                              | durable in-app inbox; one per `(task, cycle)`                          |
+| Email batches         | `email_batches`                              | one aggregated reminder email per owner per sweep                      |
+| Reminder email outbox | `notification_email_outbox`                  | producer-side transactional outbox for aggregated reminder email jobs  |
+| Notification events   | `notification_ingested_events`               | inbound event dedupe/order markers                                     |
+| Notification DLQ      | `notification_dead_letters`                  | durable copy of exhausted notification-queue messages                  |
+| Queue dead letters    | `dead_letters`                               | durable copy of malformed or exhausted activity queue messages         |
+| Auth (Better Auth)    | `user`, `session`, `account`, `verification` | **singular** names; auth infra, separate from the domain `users` table |
 
 Timestamps are stored as ISO-8601 strings. Schema lives in
 [`/migrations`](../../migrations) and is applied with

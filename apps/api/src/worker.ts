@@ -26,6 +26,7 @@ import type { ActivityEntry } from "./domain/activity/ActivityEntry.ts";
 // Infrastructure
 import { D1UserRepository } from "./infrastructure/persistence/D1UserRepository.ts";
 import { D1AssetRepository } from "./infrastructure/persistence/D1AssetRepository.ts";
+import { D1TeamRepository } from "./infrastructure/persistence/D1TeamRepository.ts";
 import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1MaintenanceRecordRepository.ts";
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
@@ -76,6 +77,8 @@ import { ListNotifications } from "./application/usecases/ListNotifications.ts";
 import { MarkNotificationRead } from "./application/usecases/MarkNotificationRead.ts";
 import { MarkAllNotificationsRead } from "./application/usecases/MarkAllNotificationsRead.ts";
 import { SweepMaintenanceReminders } from "./application/usecases/SweepMaintenanceReminders.ts";
+import { CreateTeam } from "./application/usecases/CreateTeam.ts";
+import { GetMyTeam } from "./application/usecases/GetMyTeam.ts";
 import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
 import { SystemClock } from "./infrastructure/time/SystemClock.ts";
@@ -111,6 +114,8 @@ import {
   listMaintenanceTasksRoute,
   searchAssetsRoute,
   updateUserProfileRoute,
+  createTeamRoute,
+  getMyTeamRoute,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
 import openApiSpec from "../../../docs/reference/openapi.json";
@@ -124,6 +129,7 @@ import type {
   NotificationSchema,
 } from "./api/schemas/notificationSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
+import type { TeamResponseSchema } from "./api/schemas/teamSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
@@ -135,6 +141,7 @@ type Bindings = AuthEnv & {
   MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   NOTIFICATION_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  TEAM_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
   NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
@@ -416,6 +423,7 @@ function buildDomainEventBus(env: Bindings): EventBus {
     maintenanceTaskDomainDataset: env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
     notificationDomainDataset: env.NOTIFICATION_DOMAIN_TELEMETRY,
     userDomainDataset: env.USER_DOMAIN_TELEMETRY,
+    teamDomainDataset: env.TEAM_DOMAIN_TELEMETRY,
   });
   return eventBus;
 }
@@ -552,6 +560,33 @@ app.openapi(markAllNotificationsReadRoute, async (c) => {
   ).execute({ ownerId: user.id });
   if (!result.ok) throw result.error;
   return c.json(result.value satisfies z.infer<typeof MarkAllNotificationsReadResponseSchema>, 200);
+});
+
+// ── Team endpoints ───────────────────────────────────────────────────────────
+
+app.openapi(createTeamRoute, async (c) => {
+  const user = c.get("user");
+  const { name } = c.req.valid("json");
+  const result = await new CreateTeam(
+    new D1TeamRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({
+    ownerId: user.id,
+    name,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(result.value satisfies z.infer<typeof TeamResponseSchema>, 201);
+});
+
+app.openapi(getMyTeamRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new GetMyTeam(
+    new D1TeamRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+  ).execute({ userId: user.id });
+  if (!result.ok) throw result.error;
+  return c.json(result.value, 200);
 });
 
 // ── Asset endpoints ──────────────────────────────────────────────────────────

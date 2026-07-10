@@ -43,6 +43,10 @@
     {
       "name": "Notifications",
       "description": "Authenticated durable notification inbox and read lifecycle"
+    },
+    {
+      "name": "Teams",
+      "description": "Create and read the caller's team for sharing assets"
     }
   ],
   "components": {
@@ -1252,6 +1256,97 @@
         },
         "required": [
           "unreadCount"
+        ]
+      },
+      "TeamMember": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
+          },
+          "name": {
+            "type": "string",
+            "example": "Dale"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "member"
+            ],
+            "example": "owner"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role"
+        ]
+      },
+      "Team": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "aaa11100-0000-0000-0000-000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Field Ops"
+          },
+          "ownerId": {
+            "type": "string",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TeamMember"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-10T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "ownerId",
+          "members",
+          "createdAt"
+        ]
+      },
+      "CreateTeamBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Field Ops"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "MyTeam": {
+        "type": "object",
+        "properties": {
+          "team": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Team"
+              },
+              {
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "required": [
+          "team"
         ]
       }
     },
@@ -2476,6 +2571,108 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MarkAllNotificationsReadResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams": {
+      "post": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "Create a team",
+        "description": "Creates a team with the caller as owner and sole member. Fails with 409 if the caller already belongs to a team.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTeamBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Team created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Caller already belongs to a team",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/teams/me": {
+      "get": {
+        "tags": [
+          "Teams"
+        ],
+        "summary": "Get my team",
+        "description": "Returns the caller's team with its members, or an explicit null when the caller has no team.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The caller's team, or null",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyTeam"
                 }
               }
             }

@@ -50,15 +50,15 @@ authoritative in `openapi.json`.
 
 **Team creation**
 
-- [ ] An authenticated user who belongs to no team can create a team by providing a **name**; on success they become the team's **owner** and its only member
-- [ ] Creating a team when the requester already belongs to a team (as owner or member) fails with **409 Conflict** and no team is created
-- [ ] The team name is **required**, trimmed, and at most **100 characters** (matching `DISPLAY_NAME_MAX_LENGTH`); it need not be unique. An invalid name fails with **422** before any team is created
-- [ ] A new team starts with exactly one membership: the creator, with role `owner`
+- [x] An authenticated user who belongs to no team can create a team by providing a **name**; on success they become the team's **owner** and its only member
+- [x] Creating a team when the requester already belongs to a team (as owner or member) fails with **409 Conflict** and no team is created
+- [x] The team name is **required**, trimmed, and at most **100 characters** (matching `DISPLAY_NAME_MAX_LENGTH`); it need not be unique. An invalid name fails with **422** before any team is created
+- [x] A new team starts with exactly one membership: the creator, with role `owner`
 
 **Reading your team**
 
-- [ ] A member can read their own team, including its name and the list of members with each member's display name and role
-- [ ] A user who belongs to no team gets an explicit "no team" result (not an error), so the client can render a create-team prompt
+- [x] A member can read their own team, including its name and the list of members with each member's display name and role
+- [x] A user who belongs to no team gets an explicit "no team" result (not an error), so the client can render a create-team prompt
 
 **Sharing & unsharing (asset-owner only)**
 
