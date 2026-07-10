@@ -21,10 +21,10 @@ Telemetry is split into two independent systems: request-level telemetry (every 
 
 ### Two Systems
 
-| System       | Dataset                         | Trigger                             | Capture point                        |
-| ------------ | ------------------------------- | ----------------------------------- | ------------------------------------ |
-| API Request  | `pineapple_api_request_events`  | Every HTTP request                  | `createTechnicalTelemetryMiddleware` |
-| Domain Event | Per-domain datasets (asset, user, maintenance, notification) | Domain event published to event bus | Per-event telemetry handler          |
+| System       | Dataset                                                            | Trigger                             | Capture point                        |
+| ------------ | ------------------------------------------------------------------ | ----------------------------------- | ------------------------------------ |
+| API Request  | `pineapple_api_request_events`                                     | Every HTTP request                  | `createTechnicalTelemetryMiddleware` |
+| Domain Event | Per-domain datasets (asset, user, maintenance, notification, team) | Domain event published to event bus | Per-event telemetry handler          |
 
 The two systems are complementary, not interchangeable. API request telemetry answers operational questions (latency, error rates, traffic). Domain event telemetry answers business questions (what entities were created, by whom, with what attributes).
 
@@ -81,6 +81,24 @@ Both systems write to Cloudflare Analytics Engine using the same envelope:
 | `doubles[1]` | `event_time_ms`    | Event timestamp (ms since epoch)                                               |
 | `doubles[2]` | `asset_model_year` | Model year for vehicles; `0` for other asset types                             |
 
+**Domain event data point — `TeamCreated`** (dataset: `pineapple_team_domain_events`, index: `owner_id`):
+
+| Field        | Name              | Value                                                                          |
+| ------------ | ----------------- | ------------------------------------------------------------------------------ |
+| `indexes[0]` | —                 | `owner_id` (the creator; partition key for per-owner queries)                  |
+| `blobs[0]`   | `event_type`      | `"TeamCreated"`                                                                |
+| `blobs[1]`   | `aggregate_type`  | `"Team"`                                                                       |
+| `blobs[2]`   | `team_id`         | Team UUID                                                                      |
+| `blobs[3]`   | `owner_id`        | Owner UUID (the team's sole member at creation)                                |
+| `blobs[4]`   | `actor_id`        | UUID of the user who performed the action — currently always equals `owner_id` |
+| `blobs[5]`   | `source_use_case` | `"CreateTeam"`                                                                 |
+| `blobs[6]`   | `schema_version`  | `"v1"`                                                                         |
+| `blobs[7]`   | `result`          | `"success"`                                                                    |
+| `doubles[0]` | `count`           | Always `1`                                                                     |
+| `doubles[1]` | `event_time_ms`   | Event timestamp (ms since epoch)                                               |
+
+The team's user-supplied `name` is intentionally excluded from blobs (PII — see Anti-Patterns).
+
 **Domain event data point — `MaintenanceRecordCreated`** (dataset: `pineapple_maintenance_domain_events`, index: `owner_id`):
 
 | Field        | Name                    | Value                                                   |
@@ -113,34 +131,35 @@ These limits apply to every data point written and must be respected when design
 
 ### Planned Datasets
 
-| Dataset                               | Binding                        | Purpose                                 |
-| ------------------------------------- | ------------------------------ | --------------------------------------- |
-| `pineapple_asset_domain_events`       | `ASSET_DOMAIN_TELEMETRY`       | Asset lifecycle events — implemented    |
-| `pineapple_api_request_events`        | `API_REQUEST_TELEMETRY`        | HTTP request telemetry — implemented    |
-| `pineapple_user_domain_events`        | `USER_DOMAIN_TELEMETRY`        | User lifecycle events — planned         |
-| `pineapple_maintenance_domain_events` | `MAINTENANCE_DOMAIN_TELEMETRY` | Maintenance record events — implemented |
+| Dataset                                | Binding                         | Purpose                                                       |
+| -------------------------------------- | ------------------------------- | ------------------------------------------------------------- |
+| `pineapple_asset_domain_events`        | `ASSET_DOMAIN_TELEMETRY`        | Asset lifecycle events — implemented                          |
+| `pineapple_api_request_events`         | `API_REQUEST_TELEMETRY`         | HTTP request telemetry — implemented                          |
+| `pineapple_user_domain_events`         | `USER_DOMAIN_TELEMETRY`         | User lifecycle events — planned                               |
+| `pineapple_maintenance_domain_events`  | `MAINTENANCE_DOMAIN_TELEMETRY`  | Maintenance record events — implemented                       |
 | `pineapple_notification_domain_events` | `NOTIFICATION_DOMAIN_TELEMETRY` | Notification reminder and email delivery events — implemented |
+| `pineapple_team_domain_events`         | `TEAM_DOMAIN_TELEMETRY`         | Team lifecycle events — implemented                           |
 
 ### Notification Domain Event Data Points
 
 **`MaintenanceReminderCreated`** (dataset: `pineapple_notification_domain_events`, index:
 `owner_id`):
 
-| Field        | Name                  | Value                                           |
-| ------------ | --------------------- | ----------------------------------------------- |
-| `indexes[0]` | —                     | `owner_id`                                      |
-| `blobs[0]`   | `event_type`          | `"MaintenanceReminderCreated"`                  |
-| `blobs[1]`   | `aggregate_type`      | `"Notification"`                                |
-| `blobs[2]`   | `notification_id`     | Notification UUID                               |
-| `blobs[3]`   | `notification_type`   | `"maintenance_due_soon"`                        |
-| `blobs[4]`   | `maintenance_task_id` | Task UUID                                       |
-| `blobs[5]`   | `asset_id`            | Asset UUID                                      |
-| `blobs[6]`   | `owner_id`            | Owner UUID                                      |
-| `blobs[7]`   | `actor_id`            | `"system"`                                      |
-| `blobs[8]`   | `schema_version`      | `"v1"`                                          |
-| `blobs[9]`   | `result`              | `"success"`                                     |
-| `doubles[0]` | `count`               | Always `1`                                      |
-| `doubles[1]` | `event_time_ms`       | Event timestamp (ms since epoch)                |
+| Field        | Name                  | Value                                             |
+| ------------ | --------------------- | ------------------------------------------------- |
+| `indexes[0]` | —                     | `owner_id`                                        |
+| `blobs[0]`   | `event_type`          | `"MaintenanceReminderCreated"`                    |
+| `blobs[1]`   | `aggregate_type`      | `"Notification"`                                  |
+| `blobs[2]`   | `notification_id`     | Notification UUID                                 |
+| `blobs[3]`   | `notification_type`   | `"maintenance_due_soon"`                          |
+| `blobs[4]`   | `maintenance_task_id` | Task UUID                                         |
+| `blobs[5]`   | `asset_id`            | Asset UUID                                        |
+| `blobs[6]`   | `owner_id`            | Owner UUID                                        |
+| `blobs[7]`   | `actor_id`            | `"system"`                                        |
+| `blobs[8]`   | `schema_version`      | `"v1"`                                            |
+| `blobs[9]`   | `result`              | `"success"`                                       |
+| `doubles[0]` | `count`               | Always `1`                                        |
+| `doubles[1]` | `event_time_ms`       | Event timestamp (ms since epoch)                  |
 | `doubles[2]` | `lead_days`           | Whole calendar days between creation and due date |
 
 **`ReminderEmailDispatched`** (dataset: `pineapple_notification_domain_events`, index:
@@ -164,37 +183,39 @@ These limits apply to every data point written and must be respected when design
 
 Every API route maps to a named operation used as the `indexes[0]` value in request telemetry. The current mapping:
 
-| Route                                                     | Operation                 |
-| --------------------------------------------------------- | ------------------------- |
-| `POST /api/auth/sign-in/social`                           | `SignIn`                  |
-| `GET /api/auth/callback/google`                           | `OAuthCallback`           |
-| `GET /api/auth/get-session`                               | `SessionCheck`            |
-| `POST /api/auth/sign-out`                                 | `SignOut`                 |
-| `/api/auth/*` (other)                                     | `Auth`                    |
-| `POST /api/assets`                                        | `CreateAsset`             |
-| `GET /api/assets`                                         | `ListAssets`              |
-| `GET /api/assets/{id}`                                    | `GetAsset`                |
-| `GET /api/activity`                                       | `ListActivity`            |
-| `GET /api/dashboard`                                      | `GetDashboard`            |
-| `GET /api/search`                                         | `SearchAssets`            |
-| `GET /api/users/me`                                       | `GetUserProfile`          |
-| `PATCH /api/users/me`                                     | `UpdateUserProfile`       |
-| `PUT /api/users/me/notification-email`                    | `SetNotificationEmail`    |
-| `DELETE /api/users/me/notification-email`                 | `RemoveNotificationEmail` |
+| Route                                                     | Operation                  |
+| --------------------------------------------------------- | -------------------------- |
+| `POST /api/auth/sign-in/social`                           | `SignIn`                   |
+| `GET /api/auth/callback/google`                           | `OAuthCallback`            |
+| `GET /api/auth/get-session`                               | `SessionCheck`             |
+| `POST /api/auth/sign-out`                                 | `SignOut`                  |
+| `/api/auth/*` (other)                                     | `Auth`                     |
+| `POST /api/assets`                                        | `CreateAsset`              |
+| `GET /api/assets`                                         | `ListAssets`               |
+| `GET /api/assets/{id}`                                    | `GetAsset`                 |
+| `GET /api/activity`                                       | `ListActivity`             |
+| `GET /api/dashboard`                                      | `GetDashboard`             |
+| `GET /api/search`                                         | `SearchAssets`             |
+| `GET /api/users/me`                                       | `GetUserProfile`           |
+| `PATCH /api/users/me`                                     | `UpdateUserProfile`        |
+| `PUT /api/users/me/notification-email`                    | `SetNotificationEmail`     |
+| `DELETE /api/users/me/notification-email`                 | `RemoveNotificationEmail`  |
 | `POST /api/users/me/notification-email/verification`      | `RequestEmailVerification` |
 | `POST /api/verify-email`                                  | `ConfirmEmailVerification` |
-| `GET /api/notifications`                                  | `ListNotifications`       |
-| `POST /api/notifications/{notificationId}/read`            | `MarkNotificationRead`    |
-| `POST /api/notifications/read-all`                         | `MarkAllNotificationsRead` |
-| `POST /api/assets/{assetId}/maintenance-records`          | `CreateMaintenanceRecord` |
-| `GET /api/assets/{assetId}/maintenance-records`           | `ListMaintenanceRecords`  |
-| `POST /api/assets/{assetId}/maintenance-tasks`            | `CreateMaintenanceTask`   |
-| `GET /api/assets/{assetId}/maintenance-tasks`             | `ListMaintenanceTasks`    |
-| `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}` | `DeleteMaintenanceTask`   |
-| `GET /health`                                             | `Health`                  |
-| `GET /openapi.json`                                       | `OpenApiDocument`         |
-| `GET /reference`                                          | `ApiReference`            |
-| (anything else)                                           | `Unknown`                 |
+| `GET /api/notifications`                                  | `ListNotifications`        |
+| `POST /api/notifications/{notificationId}/read`           | `MarkNotificationRead`     |
+| `POST /api/notifications/read-all`                        | `MarkAllNotificationsRead` |
+| `POST /api/assets/{assetId}/maintenance-records`          | `CreateMaintenanceRecord`  |
+| `GET /api/assets/{assetId}/maintenance-records`           | `ListMaintenanceRecords`   |
+| `POST /api/assets/{assetId}/maintenance-tasks`            | `CreateMaintenanceTask`    |
+| `GET /api/assets/{assetId}/maintenance-tasks`             | `ListMaintenanceTasks`     |
+| `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}` | `DeleteMaintenanceTask`    |
+| `POST /api/teams`                                         | `CreateTeam`               |
+| `GET /api/teams/me`                                       | `GetMyTeam`                |
+| `GET /health`                                             | `Health`                   |
+| `GET /openapi.json`                                       | `OpenApiDocument`          |
+| `GET /reference`                                          | `ApiReference`             |
+| (anything else)                                           | `Unknown`                  |
 
 ### Failure Policy
 

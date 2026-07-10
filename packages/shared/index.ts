@@ -3,6 +3,7 @@ export { ActivityEntryId } from "./types/ActivityEntryId.ts";
 export { MaintenanceRecordId } from "./types/MaintenanceRecordId.ts";
 export { MaintenanceTaskId } from "./types/MaintenanceTaskId.ts";
 export { UserId } from "./types/UserId.ts";
+export { TeamId } from "./types/TeamId.ts";
 export { Email } from "./types/Email.ts";
 export { NotificationId } from "./types/NotificationId.ts";
 export { ScheduledReminderId } from "./types/ScheduledReminderId.ts";

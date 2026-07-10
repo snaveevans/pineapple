@@ -505,6 +505,40 @@ describe("buildApiRequestTelemetryDataPoint", () => {
       ],
     });
   });
+
+  it.each([
+    ["POST", "/api/teams", "CreateTeam"],
+    ["GET", "/api/teams/me", "GetMyTeam"],
+  ])("maps %s %s to %s", (method, pathname, operation) => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method,
+        pathname,
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: [operation],
+      blobs: [
+        operation,
+        pathname,
+        method,
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
 });
 
 describe("requestCountry", () => {

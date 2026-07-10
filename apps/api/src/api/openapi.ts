@@ -41,6 +41,11 @@ import {
   NotificationQuerySchema,
   NotificationSchema,
 } from "./schemas/notificationSchemas.ts";
+import {
+  CreateTeamBodySchema,
+  MyTeamResponseSchema,
+  TeamResponseSchema,
+} from "./schemas/teamSchemas.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // OpenAPI route specs (metadata only — no handlers, no infrastructure).
@@ -93,6 +98,10 @@ export const openApiConfig = {
     {
       name: "Notifications",
       description: "Authenticated durable notification inbox and read lifecycle",
+    },
+    {
+      name: "Teams",
+      description: "Create and read the caller's team (ADR-0015 teams foundation)",
     },
   ],
 };
@@ -656,6 +665,59 @@ export const deleteMaintenanceTaskRoute = createRoute({
   },
 });
 
+export const createTeamRoute = createRoute({
+  method: "post",
+  path: "/api/teams",
+  tags: ["Teams"],
+  summary: "Create a team",
+  description: "Creates a team owned solely by the caller. A user belongs to at most one team.",
+  security: [cookieAuth],
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: CreateTeamBodySchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: "Team created",
+      content: { "application/json": { schema: TeamResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "The requester already belongs to a team",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const getMyTeamRoute = createRoute({
+  method: "get",
+  path: "/api/teams/me",
+  tags: ["Teams"],
+  summary: "Get the caller's team",
+  description:
+    "Returns the caller's team and members, or `{ team: null }` when the caller has no team.",
+  security: [cookieAuth],
+  responses: {
+    200: {
+      description: "The caller's team, or null",
+      content: { "application/json": { schema: MyTeamResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 /**
  * Register shared OpenAPI components (security schemes) on a registry.
  * Keyed off the registry type (not the app's Env) so it works for both the
@@ -703,6 +765,8 @@ export function getApiDocument() {
   doc.openapi(listNotificationsRoute, stub);
   doc.openapi(markNotificationReadRoute, stub);
   doc.openapi(markAllNotificationsReadRoute, stub);
+  doc.openapi(createTeamRoute, stub);
+  doc.openapi(getMyTeamRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }

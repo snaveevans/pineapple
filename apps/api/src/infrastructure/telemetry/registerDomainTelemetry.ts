@@ -7,6 +7,7 @@ import { MaintenanceTaskCreatedTelemetryHandler } from "./maintenance/Maintenanc
 import { MaintenanceTaskDeletedTelemetryHandler } from "./maintenance/MaintenanceTaskDeletedTelemetryHandler.ts";
 import { MaintenanceReminderCreatedTelemetryHandler } from "./notification/MaintenanceReminderCreatedTelemetryHandler.ts";
 import { ReminderEmailDispatchedTelemetryHandler } from "./notification/ReminderEmailDispatchedTelemetryHandler.ts";
+import { TeamCreatedTelemetryHandler } from "./team/TeamCreatedTelemetryHandler.ts";
 import { UserNameUpdatedTelemetryHandler } from "./user/UserNameUpdatedTelemetryHandler.ts";
 import { UserOnboardingCompletedTelemetryHandler } from "./user/UserOnboardingCompletedTelemetryHandler.ts";
 import { UserProvisionedTelemetryHandler } from "./user/UserProvisionedTelemetryHandler.ts";
@@ -18,6 +19,7 @@ export function registerDomainTelemetry(deps: {
   maintenanceTaskDomainDataset: AnalyticsEngineDataset;
   notificationDomainDataset: AnalyticsEngineDataset;
   userDomainDataset: AnalyticsEngineDataset;
+  teamDomainDataset: AnalyticsEngineDataset;
 }): void {
   const assetDomainSink = new AnalyticsEngineTelemetrySink(deps.assetDomainDataset);
   deps.eventBus.subscribe(new AssetCreatedTelemetryHandler(assetDomainSink));
@@ -37,9 +39,10 @@ export function registerDomainTelemetry(deps: {
   deps.eventBus.subscribe(new MaintenanceTaskDeletedTelemetryHandler(maintenanceTaskDomainSink));
   deps.eventBus.subscribe(new MaintenanceTaskAdvancedTelemetryHandler(maintenanceTaskDomainSink));
 
-  const notificationDomainSink = new AnalyticsEngineTelemetrySink(
-    deps.notificationDomainDataset,
-  );
+  const notificationDomainSink = new AnalyticsEngineTelemetrySink(deps.notificationDomainDataset);
   deps.eventBus.subscribe(new MaintenanceReminderCreatedTelemetryHandler(notificationDomainSink));
   deps.eventBus.subscribe(new ReminderEmailDispatchedTelemetryHandler(notificationDomainSink));
+
+  const teamDomainSink = new AnalyticsEngineTelemetrySink(deps.teamDomainDataset);
+  deps.eventBus.subscribe(new TeamCreatedTelemetryHandler(teamDomainSink));
 }

@@ -30,6 +30,7 @@ import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1Ma
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
 import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSweepStore.ts";
+import { D1TeamRepository } from "./infrastructure/persistence/D1TeamRepository.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
@@ -76,6 +77,9 @@ import { ListNotifications } from "./application/usecases/ListNotifications.ts";
 import { MarkNotificationRead } from "./application/usecases/MarkNotificationRead.ts";
 import { MarkAllNotificationsRead } from "./application/usecases/MarkAllNotificationsRead.ts";
 import { SweepMaintenanceReminders } from "./application/usecases/SweepMaintenanceReminders.ts";
+import { CreateTeam } from "./application/usecases/CreateTeam.ts";
+import { GetMyTeam } from "./application/usecases/GetMyTeam.ts";
+import type { TeamWithMembers } from "./application/teams/TeamReadModel.ts";
 import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
 import { SystemClock } from "./infrastructure/time/SystemClock.ts";
@@ -112,6 +116,8 @@ import {
   searchAssetsRoute,
   updateUserProfileRoute,
   registerOpenApiComponents,
+  createTeamRoute,
+  getMyTeamRoute,
 } from "./api/openapi.ts";
 import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
@@ -124,6 +130,7 @@ import type {
   NotificationSchema,
 } from "./api/schemas/notificationSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
+import type { MyTeamResponseSchema, TeamResponseSchema } from "./api/schemas/teamSchemas.ts";
 import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
@@ -135,6 +142,7 @@ type Bindings = AuthEnv & {
   MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   NOTIFICATION_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
+  TEAM_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
   API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
   ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
   NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
@@ -254,6 +262,20 @@ function serializeMaintenanceTask(
     status: deriveTaskStatus(task.nextDue, todayUtc, sevenDaysOut),
     daysDue: calendarDaysBetween(todayUtc, task.nextDue),
     createdAt: task.createdAt.toISOString(),
+  };
+}
+
+function serializeTeam(team: TeamWithMembers): z.infer<typeof TeamResponseSchema> {
+  return {
+    id: team.id,
+    name: team.name,
+    ownerId: team.ownerId,
+    members: team.members.map((member) => ({
+      userId: member.userId,
+      name: member.name,
+      role: member.role,
+    })),
+    createdAt: team.createdAt.toISOString(),
   };
 }
 
@@ -416,6 +438,7 @@ function buildDomainEventBus(env: Bindings): EventBus {
     maintenanceTaskDomainDataset: env.MAINTENANCE_TASK_DOMAIN_TELEMETRY,
     notificationDomainDataset: env.NOTIFICATION_DOMAIN_TELEMETRY,
     userDomainDataset: env.USER_DOMAIN_TELEMETRY,
+    teamDomainDataset: env.TEAM_DOMAIN_TELEMETRY,
   });
   return eventBus;
 }
@@ -605,6 +628,35 @@ app.openapi(searchAssetsRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json({ results: result.value }, 200);
+});
+
+// ── Team endpoints ───────────────────────────────────────────────────────────
+
+app.openapi(createTeamRoute, async (c) => {
+  const user = c.get("user");
+  const { name } = c.req.valid("json");
+  const result = await new CreateTeam(
+    new D1TeamRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({ requesterId: user.id, name });
+  if (!result.ok) throw result.error;
+  return c.json(serializeTeam(result.value), 201);
+});
+
+app.openapi(getMyTeamRoute, async (c) => {
+  const user = c.get("user");
+  const result = await new GetMyTeam(
+    new D1TeamRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+  ).execute({ requesterId: user.id });
+  if (!result.ok) throw result.error;
+  return c.json(
+    {
+      team: result.value.team ? serializeTeam(result.value.team) : null,
+    } satisfies z.infer<typeof MyTeamResponseSchema>,
+    200,
+  );
 });
 
 // ── Maintenance record endpoints ────────────────────────────────────────────
