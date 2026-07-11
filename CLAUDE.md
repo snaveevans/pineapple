@@ -177,9 +177,53 @@ When in doubt, ask the user whether to split rather than expanding the branch.
 
 ## Workflow
 
-Work on a branch, open a PR (CI must pass), merge → auto-deploys to Cloudflare.
+Work on a branch → open a PR → CI must pass → merge → auto-deploys to Cloudflare.
 Don't commit to `main` directly. End commit messages with the Co-Authored-By
 trailer.
+
+### Branch naming
+
+```
+{type}/{issue}-{slug}   # with a GitHub issue
+{type}/{slug}           # without
+```
+
+- **type:** `feat` | `fix` | `docs` | `refactor` | `chore` | `ci` | `test` | `perf`
+- **issue:** bare digits only (no `#`) — first segment after `type/` when numeric
+- **slug:** lowercase kebab-case, short
+
+Examples: `feat/42-team-invite`, `fix/87-null-session`, `docs/adr-0016`,
+`chore/upgrade-wrangler`.
+
+Regex: `^(feat|fix|docs|refactor|chore|ci|test|perf)/(?:[0-9]+-)?[a-z0-9]+(?:-[a-z0-9]+)*$`
+
+### Issue linking
+
+| Place       | Rule                                                                                                                   |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Branch      | Optional: include the issue number for human signal                                                                    |
+| Commits     | `Closes #N` or `Refs #N` footer when useful                                                                            |
+| **PR body** | **Required** when an issue exists: `Closes #N` / `Fixes #N` if this PR fully resolves it; `Refs #N` for partial slices |
+
+GitHub only auto-closes/links from PR and commit text — not branch names. Use
+`Refs #N` on intermediate slices; `Closes #N` only on the PR that finishes the
+issue.
+
+### Opening a PR
+
+Use the template in `.github/pull_request_template.md`. Before opening:
+
+1. `pnpm lint && pnpm type-check && pnpm -r test`
+2. Regenerate OpenAPI if the contract changed
+3. Confirm one concern (scope discipline above)
+
+Agent shortcuts: `/start` (branch from type + optional issue + slug), `/pr`
+(open PR with issue link filled in).
+
+### After merge
+
+When the PR lands a feature slice, run `docs/specs/prompts/pr-sync.md` against
+the diff to keep the spec honest.
 
 When making a meaningful change to `apps/web` — adding a screen, changing a user
 flow, adding or removing a feature — read `docs/web/FEATURES.md` and update it to
