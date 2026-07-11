@@ -2,8 +2,9 @@ import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "../onboarding/onbo
 
 export { DISPLAY_NAME_MAX_LENGTH };
 
-export const TEAM_NAME_REQUIRED_MESSAGE = "A team name is required.";
-export const TEAM_NAME_TOO_LONG_MESSAGE = "Team name must be 100 characters or fewer.";
+/** Matches domain `Team.#validateName` and Zod `CreateTeamBody` (no trailing period). */
+export const TEAM_NAME_REQUIRED_MESSAGE = "Team name is required";
+export const TEAM_NAME_TOO_LONG_MESSAGE = "Team name must be 100 characters or fewer";
 
 export type TeamNameFieldError = "empty" | "too-long";
 
@@ -24,6 +25,7 @@ export function toTeamFormError(error: {
   message: string;
 }): TeamNameFieldError | null {
   if (error.field !== "name") return null;
-  if (error.message === TEAM_NAME_TOO_LONG_MESSAGE) return "too-long";
+  // Match server messages with or without trailing punctuation / minor wording drift.
+  if (/100 characters|too long|fewer/i.test(error.message)) return "too-long";
   return "empty";
 }

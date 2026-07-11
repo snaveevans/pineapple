@@ -45,9 +45,12 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let queryResult: unknown;
 
+const VIEWER_ID = "7d914909-c903-41a4-a13a-82cbd0f61851";
+const OTHER_MEMBER_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+
 function noTeamQueryResult() {
   return {
-    data: { team: null },
+    data: { team: null, viewerUserId: VIEWER_ID },
     isLoading: false,
     isPending: false,
     isError: false,
@@ -61,16 +64,22 @@ function teamQueryResult() {
       team: {
         id: "aaa11100-0000-0000-0000-000000000001",
         name: "The Ortega Household",
-        ownerId: "7d914909-c903-41a4-a13a-82cbd0f61851",
+        ownerId: VIEWER_ID,
         members: [
           {
-            userId: "7d914909-c903-41a4-a13a-82cbd0f61851",
+            userId: VIEWER_ID,
             name: "Jamie Ortega",
             role: "owner",
+          },
+          {
+            userId: OTHER_MEMBER_ID,
+            name: "Alex Partner",
+            role: "member",
           },
         ],
         createdAt: new Date().toISOString(),
       },
+      viewerUserId: VIEWER_ID,
     },
     isLoading: false,
     isPending: false,
@@ -172,6 +181,8 @@ describe("AppTeam", () => {
     expect(document.body.textContent).toContain("Team created");
     expect(document.body.textContent).toContain("The Ortega Household");
     expect(document.body.textContent).toContain("Jamie Ortega (you)");
+    expect(document.body.textContent).toContain("Alex Partner");
+    expect(document.body.textContent).not.toContain("Alex Partner (you)");
     expect(document.body.textContent).toContain("Owner");
   });
 
@@ -235,7 +246,13 @@ describe("toTeamFormError", () => {
     expect(toTeamFormError({ field: "name", message: "Team name is required." })).toBe("empty");
   });
 
-  it("maps a too-long field error to the too-long type", () => {
+  it("maps a too-long field error to the too-long type (server message, no trailing period)", () => {
+    expect(
+      toTeamFormError({ field: "name", message: "Team name must be 100 characters or fewer" }),
+    ).toBe("too-long");
+  });
+
+  it("maps a too-long field error even with trailing punctuation", () => {
     expect(
       toTeamFormError({ field: "name", message: "Team name must be 100 characters or fewer." }),
     ).toBe("too-long");

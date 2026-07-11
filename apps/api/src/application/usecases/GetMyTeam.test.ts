@@ -70,6 +70,7 @@ describe("GetMyTeam", () => {
     if (!result.ok) return;
 
     expect(result.value.team).not.toBeNull();
+    expect(result.value.viewerUserId).toBe(ownerId);
     expect(result.value.team!.name).toBe("Field Ops");
     expect(result.value.team!.members).toHaveLength(1);
     expect(result.value.team!.members[0]).toMatchObject({
@@ -79,7 +80,7 @@ describe("GetMyTeam", () => {
     });
   });
 
-  it("returns { team: null } when the user has no team", async () => {
+  it("returns { team: null } with viewerUserId when the user has no team", async () => {
     const teams = new FakeTeamRepository(null);
     const users = new FakeUserRepository([]);
 
@@ -88,5 +89,6 @@ describe("GetMyTeam", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.team).toBeNull();
+    expect(result.value.viewerUserId).toBe(ownerId);
   });
 });

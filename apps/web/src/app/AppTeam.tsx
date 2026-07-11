@@ -9,6 +9,8 @@ import { HFTopBar, HFBottomNav } from "./AppChrome";
 import { profileAvatarInitial } from "./profilePresentation";
 import {
   DISPLAY_NAME_MAX_LENGTH,
+  TEAM_NAME_REQUIRED_MESSAGE,
+  TEAM_NAME_TOO_LONG_MESSAGE,
   toTeamFormError,
   validateTeamName,
   type TeamNameFieldError,
@@ -111,7 +113,7 @@ function CreateForm({
   const charCount = name.length;
 
   return (
-    <>
+    <form className="tm-create-form" onSubmit={handleSubmit} noValidate>
       <div className="hf-aa-col tm-form-inner tm-fade-enter">
         <div className="hf-aa-section">
           <div className="hf-aa-section-head">
@@ -154,8 +156,8 @@ function CreateForm({
               <span className="hf-field-error" role="alert">
                 <Icon name="alert" size={12} stroke={2} />
                 {fieldError === "empty"
-                  ? "A team name is required."
-                  : "Team name must be 100 characters or fewer."}
+                  ? TEAM_NAME_REQUIRED_MESSAGE
+                  : TEAM_NAME_TOO_LONG_MESSAGE}
               </span>
             ) : (
               <span className="hf-field-sub">
@@ -229,12 +231,7 @@ function CreateForm({
           >
             Cancel
           </button>
-          <button
-            type="submit"
-            className="hf-btn hf-btn-primary hf-btn-lg"
-            disabled={mutation.isPending}
-            onClick={handleSubmit}
-          >
+          <button type="submit" className="hf-btn hf-btn-primary hf-btn-lg" disabled={mutation.isPending}>
             {mutation.isPending ? (
               <>
                 <span className="pe-btn-spinner" />
@@ -249,11 +246,11 @@ function CreateForm({
           </button>
         </div>
       </div>
-    </>
+    </form>
   );
 }
 
-function CreatedState({ team }: { team: Team }) {
+function CreatedState({ team, currentUserId }: { team: Team; currentUserId: string }) {
   const memberCount = team.members.length;
   const createdDate = new Date(team.createdAt);
   const isToday = new Date().toDateString() === createdDate.toDateString();
@@ -296,7 +293,7 @@ function CreatedState({ team }: { team: Team }) {
               <div className="tm-member-info">
                 <div className="tm-member-name">
                   {member.name}
-                  {member.userId === team.ownerId ? " (you)" : ""}
+                  {member.userId === currentUserId ? " (you)" : ""}
                 </div>
               </div>
               <span className="tm-role-pill">
@@ -330,6 +327,7 @@ export function AppTeam() {
   const queryClient = useQueryClient();
   const [view, setView] = useState<ViewState>("loading");
   const [createdTeam, setCreatedTeam] = useState<Team | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: teamQueryKey,
@@ -356,6 +354,9 @@ export function AppTeam() {
       setView("error");
       return;
     }
+    if (data?.viewerUserId) {
+      setCurrentUserId(data.viewerUserId);
+    }
     if (data?.team) {
       setCreatedTeam(data.team);
       setView("created");
@@ -371,7 +372,9 @@ export function AppTeam() {
   }, []);
 
   const handleCreated = async (team: Team) => {
-    await queryClient.setQueryData(teamQueryKey, { team });
+    const viewerUserId = team.ownerId;
+    await queryClient.setQueryData(teamQueryKey, { team, viewerUserId });
+    setCurrentUserId(viewerUserId);
     setCreatedTeam(team);
     setView("created");
   };
@@ -412,7 +415,9 @@ export function AppTeam() {
             <CreateForm onCancel={() => setView("empty")} onCreated={handleCreated} />
           )}
 
-          {view === "created" && createdTeam && <CreatedState team={createdTeam} />}
+          {view === "created" && createdTeam && currentUserId && (
+            <CreatedState team={createdTeam} currentUserId={currentUserId} />
+          )}
 
           {view === "error" && (
             <div className="hf-aa-banner is-error" role="alert">

@@ -38,5 +38,9 @@ export const TeamResponseSchema = z
 export const MyTeamResponseSchema = z
   .object({
     team: TeamResponseSchema.nullable(),
+    viewerUserId: z.string().openapi({
+      example: "7d914909-c903-41a4-a13a-82cbd0f61851",
+      description: "The authenticated caller's user id (for client-side 'you' labels).",
+    }),
   })
   .openapi("MyTeam");

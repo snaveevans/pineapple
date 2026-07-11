@@ -2,7 +2,7 @@ import { TeamId, UserId, ConflictError } from "@snaveevans/pineapple-shared";
 import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { createMembership, type Membership } from "../../domain/team/Membership.ts";
-import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
+import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 
 type TeamRow = {
   id: string;
@@ -47,10 +47,15 @@ export class D1TeamRepository implements TeamRepository {
     return this.#loadMembers(teamRow);
   }
 
-  async save(
-    team: Team,
-    events: readonly import("../../domain/events/DomainEvent.ts").DomainEvent[] = [],
-  ): Promise<void> {
+  /**
+   * Persist the team and its members. Domain events are accepted for interface
+   * symmetry with asset/maintenance repos but are **not** written to the activity
+   * outbox: Activity History is asset-scoped (see ActivityEventMessage factories)
+   * and has no team entry type. TeamCreated is published via the in-memory event
+   * bus for telemetry only (CreateTeam use case).
+   */
+  async save(team: Team, events: readonly DomainEvent[] = []): Promise<void> {
+    void events;
     const teamStatement = this.db
       .prepare(
         `INSERT INTO teams (id, owner_id, name, created_at)
@@ -72,12 +77,8 @@ export class D1TeamRepository implements TeamRepository {
         .bind(crypto.randomUUID(), team.id, m.userId, m.role, m.joinedAt.toISOString()),
     );
 
-    const outboxStatements = events
-      .map((event) => prepareActivityOutboxInsert(this.db, event))
-      .filter((statement): statement is D1PreparedStatement => statement !== null);
-
     try {
-      await this.db.batch([teamStatement, ...memberStatements, ...outboxStatements]);
+      await this.db.batch([teamStatement, ...memberStatements]);
     } catch (e) {
       if (e instanceof Error && /UNIQUE constraint/i.test(e.message)) {
         throw new ConflictError("User already belongs to a team");

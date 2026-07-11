@@ -16,6 +16,7 @@ export type Team = {
 
 export type MyTeam = {
   team: Team | null;
+  viewerUserId: string;
 };
 
 export const teamQueryKey = ["team"] as const;

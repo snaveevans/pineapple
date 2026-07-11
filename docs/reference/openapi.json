@@ -1345,10 +1345,16 @@
                 "nullable": true
               }
             ]
+          },
+          "viewerUserId": {
+            "type": "string",
+            "description": "The authenticated caller's user id (for client-side 'you' labels).",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
           }
         },
         "required": [
-          "team"
+          "team",
+          "viewerUserId"
         ]
       }
     },
