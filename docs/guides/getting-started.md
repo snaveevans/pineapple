@@ -1,7 +1,7 @@
 # Getting Started
 
 > **Audience:** contributors & operators · **Purpose:** run, test, and deploy
-> Pineapple · **Source of truth:** this file · **Last reviewed:** 2026-05-29
+> Pineapple · **Source of truth:** this file · **Last reviewed:** 2026-07-10
 
 ## Prerequisites
 
@@ -127,3 +127,31 @@ secrets and fails if `DEV_AUTH_EMAIL` is present.
 Work on a branch → open a PR → CI must pass → merge → auto-deploy. `main` is
 protected (PR required, CI required, you can merge your own PRs). Don't push to
 `main` directly.
+
+### Branch naming
+
+```
+{type}/{issue}-{slug}   # with a GitHub issue
+{type}/{slug}           # without
+```
+
+| Part    | Rules                                                                                            |
+| ------- | ------------------------------------------------------------------------------------------------ |
+| `type`  | `feat`, `fix`, `docs`, `refactor`, `chore`, `ci`, `test`, `perf`                                 |
+| `issue` | Optional. Bare digits (no `#`). Only the first path segment after `type/` when it is all digits. |
+| `slug`  | Lowercase kebab-case, short                                                                      |
+
+Examples: `feat/42-team-invite`, `fix/87-null-session`, `chore/upgrade-wrangler`.
+
+### Issues and PRs
+
+- Prefer a GitHub issue for user-facing features and bugs; chores can skip one.
+- Link the issue in the **PR body** (not only the branch name):
+  - `Closes #42` / `Fixes #42` when this PR fully resolves the issue
+  - `Refs #42` for a partial slice (do not auto-close until the last slice)
+- Fill out `.github/pull_request_template.md` (summary, related issue, test plan,
+  spec/AC when relevant).
+- Commits use Conventional Commits; optional footers `Closes #N` / `Refs #N`.
+
+Before opening a PR: `pnpm lint && pnpm type-check && pnpm -r test` (and
+regenerate OpenAPI if the API contract changed).
