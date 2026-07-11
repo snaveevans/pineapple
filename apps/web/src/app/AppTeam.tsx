@@ -11,21 +11,22 @@ import {
   DISPLAY_NAME_MAX_LENGTH,
   toTeamFormError,
   validateTeamName,
-  TEAM_NAME_REQUIRED_MESSAGE,
-  TEAM_NAME_TOO_LONG_MESSAGE,
   type TeamNameFieldError,
 } from "./teamForm";
 
 import "../design/styles/hifi.css";
+import "../design/styles/hifi-add-asset.css";
 import "./styles/team.css";
+
+type ViewState = "loading" | "empty" | "form" | "created" | "error" | "unauthorized";
 
 function TeamLoading() {
   return (
     <div className="hf hf-app hf-aa-page">
       <HFTopBar />
       <div className="hf-aa-body">
-        <div className="hf-aa-col tm-col">
-          <p className="pe-field-sub">Loading…</p>
+        <div className="hf-aa-col">
+          <p className="hf-field-sub">Loading…</p>
         </div>
       </div>
       <HFBottomNav />
@@ -33,7 +34,32 @@ function TeamLoading() {
   );
 }
 
-function CreateTeamForm({ onCreated }: { onCreated: (team: Team) => void }) {
+function EmptyState({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="tm-empty tm-fade-enter">
+      <div className="tm-empty-icon">
+        <Icon name="grid" size={26} stroke={1.6} />
+      </div>
+      <div className="tm-empty-title">You don't have a team yet</div>
+      <div className="tm-empty-sub">
+        Create a team, then invite the one teammate you work with. You'll decide which assets to
+        share — the rest stay yours alone.
+      </div>
+      <button className="hf-btn hf-btn-primary hf-btn-lg" onClick={onStart}>
+        <Icon name="plus" size={15} stroke={2} color="white" />
+        Create a team
+      </button>
+    </div>
+  );
+}
+
+function CreateForm({
+  onCancel,
+  onCreated,
+}: {
+  onCancel: () => void;
+  onCreated: (team: Team) => void;
+}) {
   const [name, setName] = useState("");
   const [fieldError, setFieldError] = useState<TeamNameFieldError | null>(null);
   const [apiError, setApiError] = useState(false);
@@ -85,147 +111,215 @@ function CreateTeamForm({ onCreated }: { onCreated: (team: Team) => void }) {
   const charCount = name.length;
 
   return (
-    <form className="tm-create" onSubmit={handleSubmit} noValidate>
-      <div className="tm-create-icon">
-        <Icon name="grid" size={28} stroke={1.5} />
-      </div>
-      <h2>Start a team</h2>
-      <p className="tm-create-sub">
-        A team is a shared space for you and a teammate to manage assets together. You can share
-        individual assets with your team once it's created.
-      </p>
+    <>
+      <div className="hf-aa-col tm-form-inner tm-fade-enter">
+        <div className="hf-aa-section">
+          <div className="hf-aa-section-head">
+            <span className="hf-aa-section-title">Team details</span>
+          </div>
+          <div className={`hf-field${hasFieldError ? " has-error" : ""}`}>
+            <label className="hf-field-label" htmlFor="tm-name-input">
+              Team name
+              <span className="hf-field-req">*</span>
+              <span
+                className={
+                  "hf-field-hint" +
+                  (charCount > DISPLAY_NAME_MAX_LENGTH
+                    ? " pe-hint-bad"
+                    : charCount > 85
+                      ? " pe-hint-warn"
+                      : "")
+                }
+              >
+                {charCount}/{DISPLAY_NAME_MAX_LENGTH}
+              </span>
+            </label>
+            <input
+              id="tm-name-input"
+              className={`hf-input${hasFieldError ? " is-invalid" : ""}`}
+              type="text"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+                if (fieldError) setFieldError(null);
+                if (apiError) setApiError(false);
+                if (conflictError) setConflictError(false);
+              }}
+              placeholder="e.g. The Ortega Household"
+              disabled={mutation.isPending}
+              autoFocus
+              autoComplete="off"
+            />
+            {hasFieldError ? (
+              <span className="hf-field-error" role="alert">
+                <Icon name="alert" size={12} stroke={2} />
+                {fieldError === "empty"
+                  ? "A team name is required."
+                  : "Team name must be 100 characters or fewer."}
+              </span>
+            ) : (
+              <span className="hf-field-sub">
+                This is what your teammate will see once you invite them.
+              </span>
+            )}
+          </div>
+        </div>
 
-      <div className={`hf-field${hasFieldError ? " has-error" : ""}`}>
-        <label className="hf-field-label" htmlFor="tm-name-input">
-          Team name
-          <span className="hf-field-req">*</span>
-          <span
-            className={
-              "hf-field-hint" +
-              (charCount > DISPLAY_NAME_MAX_LENGTH
-                ? " pe-hint-bad"
-                : charCount > 85
-                  ? " pe-hint-warn"
-                  : "")
-            }
-          >
-            {charCount}/{DISPLAY_NAME_MAX_LENGTH}
-          </span>
-        </label>
-        <input
-          id="tm-name-input"
-          className={`hf-input${hasFieldError ? " is-invalid" : ""}`}
-          type="text"
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-            if (fieldError) setFieldError(null);
-            if (apiError) setApiError(false);
-            if (conflictError) setConflictError(false);
-          }}
-          placeholder="e.g. Field Ops"
-          disabled={mutation.isPending}
-          autoFocus
-        />
-        {hasFieldError ? (
-          <span className="hf-field-error" role="alert">
-            <Icon name="alert" size={12} stroke={2} />
-            {fieldError === "empty" ? TEAM_NAME_REQUIRED_MESSAGE : TEAM_NAME_TOO_LONG_MESSAGE}
-          </span>
-        ) : (
-          <span className="pe-field-sub">
-            Choose a name for your team. You can share assets with your team once it's created.
-          </span>
+        <div className="hf-aa-next">
+          <div className="hf-aa-next-icon">
+            <Icon name="grid" size={16} stroke={1.75} />
+          </div>
+          <div className="hf-aa-next-text">
+            <div className="hf-aa-next-title">Invites and sharing come next</div>
+            <div className="hf-aa-next-sub">
+              Creating a team just sets its name and makes you the owner. Inviting your teammate and
+              choosing which assets to share are the next steps, right here on this page.
+            </div>
+          </div>
+        </div>
+
+        {conflictError && (
+          <div className="hf-aa-banner is-error" role="alert">
+            <span className="hf-aa-banner-icon">
+              <Icon name="alert" size={15} stroke={2} />
+            </span>
+            <div className="hf-aa-banner-text">
+              <div className="hf-aa-banner-title">You already belong to a team</div>
+              <div className="hf-aa-banner-sub">
+                You can only be in one team at a time. Your team is shown above.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {apiError && (
+          <div className="hf-aa-banner is-error" role="alert">
+            <span className="hf-aa-banner-icon">
+              <Icon name="alert" size={15} stroke={2} />
+            </span>
+            <div className="hf-aa-banner-text">
+              <div className="hf-aa-banner-title">Team could not be created</div>
+              <div className="hf-aa-banner-sub">
+                Something went wrong — please try again in a moment.
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
-      {conflictError && (
-        <div className="hf-aa-banner is-error" role="alert">
-          <span className="hf-aa-banner-icon">
-            <Icon name="alert" size={15} stroke={2} />
-          </span>
-          <div className="hf-aa-banner-text">
-            <div className="hf-aa-banner-title">You already belong to a team</div>
-            <div className="hf-aa-banner-sub">
-              You can only be in one team at a time. Your team is shown above.
-            </div>
-          </div>
-        </div>
-      )}
-
-      {apiError && (
-        <div className="hf-aa-banner is-error" role="alert">
-          <span className="hf-aa-banner-icon">
-            <Icon name="alert" size={15} stroke={2} />
-          </span>
-          <div className="hf-aa-banner-text">
-            <div className="hf-aa-banner-title">Team could not be created</div>
-            <div className="hf-aa-banner-sub">Something went wrong — please try again in a moment.</div>
-          </div>
-        </div>
-      )}
-
-      <div className="tm-create-actions">
-        <button
-          type="submit"
-          className="hf-btn hf-btn-primary hf-btn-lg"
-          disabled={mutation.isPending}
-        >
-          {mutation.isPending ? (
-            <>
-              <span className="pe-btn-spinner" />
-              Creating…
-            </>
+      <div className="hf-aa-footer">
+        <div className="hf-aa-footer-note">
+          {hasFieldError ? (
+            <span className="hf-aa-footer-err">
+              <Icon name="alert" size={13} stroke={2} />
+              Fix the field above, then try again.
+            </span>
           ) : (
             <>
-              <Icon name="plus" size={15} stroke={2.2} color="white" />
-              Create team
+              Fields marked <span className="hf-field-req">*</span> are required
             </>
           )}
-        </button>
+        </div>
+        <div className="hf-aa-footer-actions">
+          <button
+            type="button"
+            className="hf-btn hf-btn-secondary hf-btn-lg"
+            disabled={mutation.isPending}
+            onClick={onCancel}
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="hf-btn hf-btn-primary hf-btn-lg"
+            disabled={mutation.isPending}
+            onClick={handleSubmit}
+          >
+            {mutation.isPending ? (
+              <>
+                <span className="pe-btn-spinner" />
+                Creating…
+              </>
+            ) : (
+              <>
+                <Icon name="check" size={15} stroke={2.2} color="white" />
+                Create team
+              </>
+            )}
+          </button>
+        </div>
       </div>
-    </form>
+    </>
   );
 }
 
-function TeamDetails({ team }: { team: Team }) {
+function CreatedState({ team }: { team: Team }) {
+  const memberCount = team.members.length;
+  const createdDate = new Date(team.createdAt);
+  const isToday = new Date().toDateString() === createdDate.toDateString();
+  const createdLabel = isToday ? "today" : createdDate.toLocaleDateString();
+
   return (
-    <div className="tm-details">
-      <div className="tm-details-head">
-        <div className="tm-details-icon">
-          <Icon name="grid" size={24} stroke={1.5} />
-        </div>
-        <div className="tm-details-info">
-          <h2>{team.name}</h2>
-          <p className="tm-details-sub">
-            {team.members.length} {team.members.length === 1 ? "member" : "members"}
-          </p>
-        </div>
-      </div>
-
-      <div className="tm-members">
-        {team.members.map((member) => (
-          <div key={member.userId} className="tm-member">
-            <div className="tm-member-avatar">{profileAvatarInitial(member.name)}</div>
-            <div className="tm-member-info">
-              <div className="tm-member-name">{member.name}</div>
-              <div className="tm-member-role">
-                {member.role === "owner" ? "Owner" : "Member"}
-              </div>
-            </div>
-            {member.role === "owner" && (
-              <span className="tm-member-badge">Owner</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="tm-info-note">
-        <Icon name="info" size={14} stroke={1.75} />
-        <span>
-          Inviting teammates and managing membership will be available in a future update. For now,
-          you can share individual assets to this team once that feature lands.
+    <div className="hf-aa-col tm-form-inner tm-fade-enter">
+      <div className="hf-aa-banner is-ok">
+        <span className="hf-aa-banner-icon">
+          <Icon name="check" size={15} stroke={2.5} />
         </span>
+        <div className="hf-aa-banner-text">
+          <div className="hf-aa-banner-title">Team created</div>
+          <div className="hf-aa-banner-sub">
+            You're the owner. Invite your teammate whenever you're ready.
+          </div>
+        </div>
+      </div>
+
+      <div className="tm-identity">
+        <div className="tm-team-mark">
+          <Icon name="grid" size={22} stroke={1.6} />
+        </div>
+        <div className="tm-identity-info">
+          <div className="tm-identity-name">{team.name}</div>
+          <div className="tm-identity-meta">
+            Created {createdLabel} · {memberCount} {memberCount === 1 ? "member" : "members"}
+          </div>
+        </div>
+      </div>
+
+      <div className="hf-aa-section">
+        <div className="hf-aa-section-head">
+          <span className="hf-aa-section-title">Members</span>
+        </div>
+        <div className="tm-members">
+          {team.members.map((member) => (
+            <div key={member.userId} className="tm-member-row">
+              <div className="tm-member-avatar">{profileAvatarInitial(member.name)}</div>
+              <div className="tm-member-info">
+                <div className="tm-member-name">
+                  {member.name}
+                  {member.userId === team.ownerId ? " (you)" : ""}
+                </div>
+              </div>
+              <span className="tm-role-pill">
+                {member.role === "owner" ? "Owner" : "Member"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="hf-aa-section">
+        <div className="hf-aa-section-head">
+          <span className="hf-aa-section-title">Invite a teammate</span>
+        </div>
+        <div className="tm-invite-row">
+          <div className="tm-invite-text">
+            <div className="tm-invite-title">Bring in your one teammate</div>
+            <div className="tm-invite-sub">
+              Invite links, roles, and per-asset sharing are landing here next.
+            </div>
+          </div>
+          <span className="tm-soon-badge">Coming soon</span>
+        </div>
       </div>
     </div>
   );
@@ -234,6 +328,8 @@ function TeamDetails({ team }: { team: Team }) {
 export function AppTeam() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [view, setView] = useState<ViewState>("loading");
+  const [createdTeam, setCreatedTeam] = useState<Team | null>(null);
 
   const { data, isLoading, error } = useQuery({
     queryKey: teamQueryKey,
@@ -245,41 +341,76 @@ export function AppTeam() {
   });
 
   useEffect(() => {
-    if (error instanceof ApiError && error.status === 401) {
-      void navigate(paths.login(), { replace: true });
+    if (isLoading) {
+      setView("loading");
+      return;
     }
-  }, [error, navigate]);
+    if (error instanceof ApiError && error.status === 401) {
+      setView("unauthorized");
+      void navigate(paths.login(), { replace: true });
+      return;
+    }
+    if (error) {
+      setView("error");
+      return;
+    }
+    if (data?.team) {
+      setCreatedTeam(data.team);
+      setView("created");
+    } else {
+      setView("empty");
+    }
+  }, [data, isLoading, error, navigate]);
 
   useEffect(() => {
-    document.title = "FieldOps — Team";
+    document.title = "FieldOps — My team";
   }, []);
 
   const handleCreated = async (team: Team) => {
     await queryClient.setQueryData(teamQueryKey, { team });
+    setCreatedTeam(team);
+    setView("created");
   };
 
-  if (isLoading) {
+  if (view === "loading") {
     return <TeamLoading />;
   }
 
-  if (error instanceof ApiError && error.status === 401) {
-    return (
-      <div className="hf hf-app hf-aa-page">
-        <HFTopBar />
-        <div className="hf-aa-body">
-          <p className="pe-field-sub">Redirecting to sign in…</p>
-        </div>
-        <HFBottomNav />
-      </div>
-    );
-  }
+  return (
+    <div className="hf hf-app hf-aa-page">
+      <HFTopBar />
 
-  if (error) {
-    return (
-      <div className="hf hf-app hf-aa-page">
-        <HFTopBar />
-        <div className="hf-aa-body">
-          <div className="hf-aa-col tm-col">
+      <div className="hf-aa-crumb">
+        <Link to={paths.appHome}>Dashboard</Link>
+        <span className="hf-aa-crumb-sep">
+          <Icon name="chevron-right" size={13} />
+        </span>
+        <Link to={paths.profile}>Profile</Link>
+        <span className="hf-aa-crumb-sep">
+          <Icon name="chevron-right" size={13} />
+        </span>
+        <span className="hf-aa-crumb-here">My team</span>
+      </div>
+
+      <div className="hf-aa-body">
+        <div className="hf-aa-col">
+          <div className="hf-aa-head">
+            <h1>My team</h1>
+            <p>
+              Share select assets with one teammate. Nothing changes until you choose to share
+              something — everything you own stays personal by default.
+            </p>
+          </div>
+
+          {view === "empty" && <EmptyState onStart={() => setView("form")} />}
+
+          {view === "form" && (
+            <CreateForm onCancel={() => setView("empty")} onCreated={handleCreated} />
+          )}
+
+          {view === "created" && createdTeam && <CreatedState team={createdTeam} />}
+
+          {view === "error" && (
             <div className="hf-aa-banner is-error" role="alert">
               <span className="hf-aa-banner-icon">
                 <Icon name="alert" size={15} stroke={2} />
@@ -287,47 +418,21 @@ export function AppTeam() {
               <div className="hf-aa-banner-text">
                 <div className="hf-aa-banner-title">Could not load your team</div>
                 <div className="hf-aa-banner-sub">
-                  {error.message || "Something went wrong — please try again in a moment."}
+                  {error instanceof Error
+                    ? error.message
+                    : "Something went wrong — please try again in a moment."}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-        <HFBottomNav />
-      </div>
-    );
-  }
+          )}
 
-  const team = data?.team ?? null;
-
-  return (
-    <div className="hf hf-app hf-aa-page">
-      <HFTopBar />
-
-      <div className="hf-aa-crumb">
-        <Link to={paths.profile}>Profile</Link>
-        <span className="hf-aa-crumb-sep">
-          <Icon name="chevron-right" size={13} />
-        </span>
-        <span className="hf-aa-crumb-here">Team</span>
-      </div>
-
-      <div className="hf-aa-body">
-        <div className="hf-aa-col tm-col">
-          <div className="hf-aa-head">
-            <h1>Team</h1>
-            <p>
-              {team
-                ? "Your team and its members."
-                : "Create a team to share assets with a teammate."}
-            </p>
-          </div>
-
-          {team ? <TeamDetails team={team} /> : <CreateTeamForm onCreated={handleCreated} />}
+          {view === "unauthorized" && (
+            <p className="hf-field-sub">Redirecting to sign in…</p>
+          )}
         </div>
       </div>
 
-      <HFBottomNav />
+      {view !== "form" && <HFBottomNav />}
     </div>
   );
 }

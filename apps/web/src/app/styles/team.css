@@ -1,85 +1,92 @@
-.tm-col {
-  max-width: 560px;
+/* FieldOps — Team page (tm-*). Extends hifi-add-asset shell classes. */
+
+.tm-form-inner {
+  gap: 20px;
+  padding: 0;
 }
 
-/* ── Create-team form ─────────────────────────────────────────────────────── */
+/* ── Empty state (no team) ────────────────────────────────────────────────── */
 
-.tm-create {
+.tm-empty {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  padding: 1.75rem 0;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 44px 28px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  background: var(--hf-surface);
 }
 
-.tm-create-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.tm-empty-icon {
   width: 52px;
   height: 52px;
-  border-radius: var(--hf-r-lg);
-  background: var(--hf-surface-2);
-  color: var(--hf-brand);
-  margin-bottom: 0.25rem;
-}
-
-.tm-create h2 {
-  font-size: 1.35rem;
-  font-weight: 600;
-  color: var(--hf-ink-1);
-  margin: 0;
-}
-
-.tm-create-sub {
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: var(--hf-ink-3);
-  margin: 0;
-}
-
-.tm-create-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-/* ── Team details ──────────────────────────────────────────────────────────── */
-
-.tm-details {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 1.75rem 0;
-}
-
-.tm-details-head {
-  display: flex;
-  align-items: center;
-  gap: 0.875rem;
-}
-
-.tm-details-icon {
+  border-radius: 14px;
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--hf-r);
-  background: var(--hf-surface-2);
-  color: var(--hf-brand);
 }
 
-.tm-details-info h2 {
-  font-size: 1.35rem;
+.tm-empty-title {
+  font-size: 16px;
   font-weight: 600;
-  color: var(--hf-ink-1);
-  margin: 0;
+  letter-spacing: -0.015em;
+  color: var(--hf-ink);
 }
 
-.tm-details-sub {
-  font-size: 0.8125rem;
-  color: var(--hf-ink-3);
-  margin: 0.125rem 0 0;
+.tm-empty-sub {
+  font-size: 13px;
+  color: var(--hf-ink-soft);
+  max-width: 400px;
+  line-height: 1.55;
+}
+
+/* ── Team identity card (created state) ─────────────────────────────────────── */
+
+.tm-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  box-shadow: var(--hf-shadow-1);
+}
+
+.tm-team-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tm-identity-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tm-identity-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hf-ink);
+  letter-spacing: -0.015em;
+}
+
+.tm-identity-meta {
+  font-size: 12px;
+  color: var(--hf-ink-faint);
 }
 
 /* ── Member list ──────────────────────────────────────────────────────────── */
@@ -87,76 +94,137 @@
 .tm-members {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 8px;
 }
 
-.tm-member {
+.tm-member-row {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--hf-line);
   border-radius: var(--hf-r);
-  background: var(--hf-surface-1);
-  border: 1px solid var(--hf-border);
+  background: var(--hf-surface);
 }
 
 .tm-member-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: var(--hf-brand);
-  color: white;
-  font-size: 0.875rem;
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: 600;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
 .tm-member-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.tm-member-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.tm-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--hf-ok-bg);
+  color: var(--hf-ok);
+  border: 1px solid oklch(88% 0.04 150);
+  flex-shrink: 0;
+}
+
+/* ── Invite placeholder row ────────────────────────────────────────────────── */
+
+.tm-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--hf-line);
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+}
+
+.tm-invite-text {
   flex: 1;
   min-width: 0;
 }
 
-.tm-member-name {
-  font-size: 0.9375rem;
-  font-weight: 500;
-  color: var(--hf-ink-1);
-}
-
-.tm-member-role {
-  font-size: 0.75rem;
-  color: var(--hf-ink-3);
-}
-
-.tm-member-badge {
-  font-size: 0.6875rem;
+.tm-invite-title {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.tm-invite-sub {
+  font-size: 11.5px;
+  color: var(--hf-ink-faint);
+  margin-top: 1px;
+}
+
+.tm-soon-badge {
+  font-family: var(--hf-mono);
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--hf-brand);
-  background: var(--hf-brand-tint, oklch(0.95 0.04 150));
-  padding: 0.2rem 0.5rem;
-  border-radius: 4px;
-}
-
-/* ── Info note ────────────────────────────────────────────────────────────── */
-
-.tm-info-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 0.875rem 1rem;
-  border-radius: var(--hf-r);
-  background: var(--hf-surface-2);
-  color: var(--hf-ink-3);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-}
-
-.tm-info-note svg {
+  letter-spacing: 0.06em;
+  color: var(--hf-ink-faint);
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: 999px;
+  padding: 3px 8px;
   flex-shrink: 0;
-  margin-top: 0.0625rem;
-  color: var(--hf-ink-4);
+}
+
+/* ── Fade animation on state transitions ───────────────────────────────────── */
+
+.tm-fade-enter {
+  animation: tm-fade 0.22s ease both;
+}
+
+@keyframes tm-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Error banner (extends hf-aa-banner) ──────────────────────────────────── */
+
+.hf-aa-banner.is-error {
+  background: var(--hf-bad-bg);
+  border-color: oklch(88% 0.04 28);
+  border-left: 3px solid var(--hf-bad);
+}
+
+.hf-aa-banner.is-error .hf-aa-banner-icon {
+  color: var(--hf-bad);
+  border: 1px solid oklch(88% 0.04 28);
+}
+
+.hf-aa-banner.is-error .hf-aa-banner-title {
+  color: var(--hf-bad);
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .tm-identity {
+    flex-wrap: wrap;
+  }
 }

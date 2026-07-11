@@ -4,7 +4,8 @@
   "description": "",
   "type": "module",
   "scripts": {
-    "kill-ports": "lsof -ti:8787,5173 | xargs kill -9 2>/dev/null || true",
+    "kill-ports": "lsof -ti:8787,5173,9229,9230 | xargs kill -9 2>/dev/null || true",
+    "dev": "pnpm -r --parallel --filter @snaveevans/pineapple-api --filter @snaveevans/pineapple-web run dev",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev --var ENVIRONMENT:development",
+    "dev": "wrangler dev --var ENVIRONMENT:development --inspector-port 9230",
     "deploy": "wrangler deploy",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
