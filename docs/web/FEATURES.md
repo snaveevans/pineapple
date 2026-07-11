@@ -291,3 +291,30 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - 401 on any fetch redirects to `/login`
 
 **Spec:** [`docs/specs/features/maintenance-record.md`](../specs/features/maintenance-record.md), [`docs/specs/features/maintenance-task.md`](../specs/features/maintenance-task.md)
+
+---
+
+## Team
+
+**Route:** `/app/team` (accessed via a "My team" link on the profile page)
+**Goal:** Let the user create a team and view their team and its members.
+
+**Key states:**
+
+- Loading: fetches `GET /api/teams/me` before rendering
+- No team: shows a create-team prompt with an inline name field and submit button; on success the page transitions to show the created team
+- Has team: shows the team name, member count, and a member list with display name and role
+- Validation error (empty or over-length name): inline field error on submit
+- 409 Conflict (already in a team): banner explaining the user already belongs to a team
+- API error: generic error banner with retry
+- Unauthenticated: 401 redirects to `/login`
+
+**Non-obvious behavior:**
+
+- A user can belong to at most one team; the create form is only shown when the query returns `{ team: null }`
+- The team name follows the same validation rules as the display name (required, trimmed, max 100 characters)
+- Until the invitations spec lands, a team has exactly one member — its creator — so the member list always shows a single owner
+- The page is accessed from the profile page via a "My team" link row, not from the app nav tabs — teams become more prominent once invitations and sharing are available
+- 401 from the API redirects to `/login`
+
+**Spec:** [`docs/specs/features/teams-foundation.md`](../specs/features/teams-foundation.md)

@@ -53,6 +53,16 @@ index; the root `README.md` keeps the doc map. When you add a doc, add the link.
 **Prose over cleverness.** Short sentences, concrete examples, real values.
 Assume the reader is competent but new to _this_ project.
 
+**Future work lives in the issue tracker, not the repo.** The codebase reflects
+the app's _current state_ and the _decisions_ behind it (ADRs). Planned, proposed,
+or deferred work — backlog items, follow-ups, tech-debt, "fix this later" notes —
+is tracked as **GitHub issues**, not as in-repo TODO or backlog documents. This
+keeps specs and docs describing what _is_, not what _might be_, and gives future
+work real triage (labels, assignees, close-on-merge). It extends the
+one-home-per-fact method of [ADR-0008](decisions/0008-documentation-method.md).
+The lone exception is `docs/specs/backlog/archive-asset.md`, a parked spec that
+predates this convention and will be migrated.
+
 ## The generated API spec
 
 `docs/reference/openapi.json` is produced from the Zod route specs in

@@ -7,6 +7,7 @@ import { AppActivityHistory } from "./app/AppActivityHistory";
 import { AppMaintenanceRecords } from "./app/AppMaintenanceRecords";
 import { AppNotifications } from "./app/AppNotifications";
 import { AppProfileEdit } from "./app/AppProfileEdit";
+import { AppTeam } from "./app/AppTeam";
 import { MarketingHome } from "./marketing/MarketingHome";
 import { OnboardingGuard } from "./onboarding/OnboardingGuard";
 import { OnboardingScreen } from "./onboarding/OnboardingScreen";
@@ -22,6 +23,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <AppHome /> },
       { path: "profile", element: <AppProfileEdit /> },
+      { path: "team", element: <AppTeam /> },
       { path: "notifications", element: <AppNotifications /> },
       { path: "assets", element: <AppAssets /> },
       { path: "history", element: <AppActivityHistory /> },

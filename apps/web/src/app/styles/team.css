@@ -1,0 +1,230 @@
+/* FieldOps — Team page (tm-*). Extends hifi-add-asset shell classes. */
+
+.tm-form-inner {
+  gap: 20px;
+  padding: 0;
+}
+
+/* ── Empty state (no team) ────────────────────────────────────────────────── */
+
+.tm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 44px 28px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  background: var(--hf-surface);
+}
+
+.tm-empty-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tm-empty-title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--hf-ink);
+}
+
+.tm-empty-sub {
+  font-size: 13px;
+  color: var(--hf-ink-soft);
+  max-width: 400px;
+  line-height: 1.55;
+}
+
+/* ── Team identity card (created state) ─────────────────────────────────────── */
+
+.tm-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  box-shadow: var(--hf-shadow-1);
+}
+
+.tm-team-mark {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tm-identity-info {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tm-identity-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--hf-ink);
+  letter-spacing: -0.015em;
+}
+
+.tm-identity-meta {
+  font-size: 12px;
+  color: var(--hf-ink-faint);
+}
+
+/* ── Member list ──────────────────────────────────────────────────────────── */
+
+.tm-members {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tm-member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+  background: var(--hf-surface);
+}
+
+.tm-member-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.tm-member-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.tm-member-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.tm-role-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--hf-ok-bg);
+  color: var(--hf-ok);
+  border: 1px solid oklch(88% 0.04 150);
+  flex-shrink: 0;
+}
+
+/* ── Invite placeholder row ────────────────────────────────────────────────── */
+
+.tm-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--hf-line);
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+}
+
+.tm-invite-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.tm-invite-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.tm-invite-sub {
+  font-size: 11.5px;
+  color: var(--hf-ink-faint);
+  margin-top: 1px;
+}
+
+.tm-soon-badge {
+  font-family: var(--hf-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hf-ink-faint);
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: 999px;
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
+/* ── Fade animation on state transitions ───────────────────────────────────── */
+
+.tm-fade-enter {
+  animation: tm-fade 0.22s ease both;
+}
+
+@keyframes tm-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ── Error banner (extends hf-aa-banner) ──────────────────────────────────── */
+
+.hf-aa-banner.is-error {
+  background: var(--hf-bad-bg);
+  border-color: oklch(88% 0.04 28);
+  border-left: 3px solid var(--hf-bad);
+}
+
+.hf-aa-banner.is-error .hf-aa-banner-icon {
+  color: var(--hf-bad);
+  border: 1px solid oklch(88% 0.04 28);
+}
+
+.hf-aa-banner.is-error .hf-aa-banner-title {
+  color: var(--hf-bad);
+}
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .tm-identity {
+    flex-wrap: wrap;
+  }
+}

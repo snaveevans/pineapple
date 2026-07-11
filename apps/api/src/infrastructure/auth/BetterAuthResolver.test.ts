@@ -31,6 +31,7 @@ function createHarness(options: {
   const auth = { api: { getSession } } as unknown as Auth;
   const users = {
     findById: vi.fn().mockResolvedValue(null),
+    findByIds: vi.fn().mockResolvedValue([]),
     findByEmail,
     save,
   } satisfies UserRepository;

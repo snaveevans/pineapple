@@ -26,6 +26,16 @@ export class D1UserRepository implements UserRepository {
     return row ? this.#rowToUser(row) : null;
   }
 
+  async findByIds(ids: readonly UserId[]): Promise<User[]> {
+    if (ids.length === 0) return [];
+    const placeholders = ids.map(() => "?").join(", ");
+    const result = await this.db
+      .prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id IN (${placeholders})`)
+      .bind(...ids)
+      .all<UserRow>();
+    return result.results.map((row) => this.#rowToUser(row));
+  }
+
   async findByEmail(email: Email): Promise<User | null> {
     const row = await this.db
       .prepare(`SELECT ${USER_COLUMNS} FROM users WHERE email = ?`)

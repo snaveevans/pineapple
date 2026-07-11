@@ -183,6 +183,31 @@
   flex-shrink: 0;
 }
 
+.pe-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+  border: 1px solid var(--hf-line-soft);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--hf-ink);
+  text-decoration: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.pe-link-row:hover {
+  border-color: var(--hf-line);
+  background: var(--hf-surface);
+}
+
+.pe-link-row > :last-child {
+  margin-left: auto;
+  color: var(--hf-ink-faint);
+}
+
 @container hfapp (max-width: 580px) {
   .pe-identity {
     flex-wrap: wrap;

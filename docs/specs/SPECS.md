@@ -1,4 +1,4 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-02
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-03
 
 # Spec Index
 
@@ -43,12 +43,18 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [user-profile.md](./features/user-profile.md)                 | Identity      | active |
 | [email-verification.md](./features/email-verification.md)     | Identity      | active |
 | [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft  |
+| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | review |
 
 ## Backlog (parked specs)
 
-Preserved design thinking that is **not** part of any active work. Parked specs live in
-`backlog/` and are excluded from the active feature set above. Reactivate one by moving it into
-`features/` and adding a row to the table above.
+**Backlog and future work now live in GitHub issues, not this repo.** The codebase reflects
+the current state of the app and the decisions behind it (ADRs); planned, proposed, or deferred
+work is tracked as issues. See the convention in [`docs/README.md`](../README.md).
+
+The `backlog/` folder is retained only for the one grandfathered **parked spec** below —
+preserved design thinking that predates this convention. Do **not** add new deferrals here; file
+an issue instead. Reactivate the parked spec by moving it into `features/` and adding a row to
+the table above.
 
 | Spec                                           | Area   | Why parked                                                                                                                                                                     |
 | ---------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -89,3 +95,22 @@ docs/specs/
 
 **After a PR merges:** run `prompts/pr-sync.md` against the diff to classify
 changes and update the spec if behavior changed.
+
+## Spec lifecycle & acceptance criteria
+
+A spec's **`status`** tracks its lifecycle: `draft` (being written) → `wip` (incomplete, not
+yet ready to implement) → `review` (complete, ready to implement) → `active` (implemented and
+live on `main`); `deprecated` when retired.
+
+The **acceptance-criteria checkboxes are the live implementation checklist.** A box is checked
+(`- [x]`) **only when its behavior is implemented and covered by a test on `main`** — not when
+code is merely written. The spec advances to `active` once every box is checked. This keeps the
+remaining work visible in the spec itself, so anyone (including a cold agent) can resume without
+relying on external notes.
+
+**Large specs are implemented in slices.** When a spec is too big for one PR, split the work
+into vertical slices, each tracked as a GitHub issue (see Backlog). The spec file stays whole;
+each slice PR implements one coherent group of criteria and checks off **only** the boxes it
+lands, including that spec edit in the same PR. Because criteria are grouped by concern, slices
+usually own disjoint groups, so checkmarks rarely conflict. The spec becomes `active` when the
+final slice checks the last box.
