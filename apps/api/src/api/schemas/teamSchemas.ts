@@ -11,7 +11,7 @@ export const CreateTeamBodySchema = z
           .min(1, "Team name is required")
           .max(100, "Team name must be 100 characters or fewer"),
       )
-      .openapi({ example: "Field Ops" }),
+      .openapi({ example: "Field Ops", minLength: 1, maxLength: 100 }),
   })
   .openapi("CreateTeamBody");
 

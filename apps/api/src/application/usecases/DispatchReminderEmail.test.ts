@@ -26,14 +26,12 @@ import type { Clock } from "../ports/Clock.ts";
 import { DispatchReminderEmail } from "./DispatchReminderEmail.ts";
 
 class EmailBatchRepoFake implements EmailBatchRepository {
-  outcome:
-    | {
-        id: EmailBatchId;
-        status: "sent" | "suppressed" | "failed";
-        suppressReason: "no_contact_email" | "unverified" | "none" | null;
-        updatedAt: Date;
-      }
-    | null = null;
+  outcome: {
+    id: EmailBatchId;
+    status: "sent" | "suppressed" | "failed";
+    suppressReason: "no_contact_email" | "unverified" | "none" | null;
+    updatedAt: Date;
+  } | null = null;
 
   constructor(private readonly batch: EmailBatchRecord | null) {}
 
@@ -96,6 +94,10 @@ class UserRepoFake implements UserRepository {
 
   findById(): Promise<User | null> {
     return Promise.resolve(this.user);
+  }
+
+  findByIds(): Promise<User[]> {
+    return Promise.resolve(this.user ? [this.user] : []);
   }
 
   findByEmail(): Promise<User | null> {

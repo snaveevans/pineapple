@@ -15,6 +15,10 @@ class RecordingUserRepository implements UserRepository {
     return Promise.resolve(this.user);
   }
 
+  findByIds(): Promise<User[]> {
+    return Promise.resolve(this.user ? [this.user] : []);
+  }
+
   findByEmail(): Promise<User | null> {
     return Promise.resolve(this.user);
   }

@@ -35,10 +35,10 @@ export class CreateTeam {
       await this.teams.save(team, events);
       await this.eventBus.publishAll(events);
 
-      const owner = await this.users.findById(cmd.ownerId);
+      const owner = await this.users.findByIds([cmd.ownerId]);
       const memberNames = new Map<string, string>();
-      if (owner) {
-        memberNames.set(cmd.ownerId, owner.name ?? "Unknown");
+      if (owner.length > 0) {
+        memberNames.set(cmd.ownerId, owner[0]!.name ?? "Unknown");
       }
 
       return ok(toTeamReadModel(team, memberNames));

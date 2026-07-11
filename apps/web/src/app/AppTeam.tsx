@@ -338,6 +338,8 @@ export function AppTeam() {
       if (queryError instanceof ApiError && queryError.status === 401) return false;
       return failureCount < 1;
     },
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
   });
 
   useEffect(() => {
@@ -357,10 +359,12 @@ export function AppTeam() {
     if (data?.team) {
       setCreatedTeam(data.team);
       setView("created");
-    } else {
+      return;
+    }
+    if (view !== "form") {
       setView("empty");
     }
-  }, [data, isLoading, error, navigate]);
+  }, [data, isLoading, error, navigate, view]);
 
   useEffect(() => {
     document.title = "FieldOps — My team";

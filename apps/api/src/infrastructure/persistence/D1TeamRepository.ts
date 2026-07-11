@@ -1,4 +1,4 @@
-import { TeamId, UserId } from "@snaveevans/pineapple-shared";
+import { TeamId, UserId, ConflictError } from "@snaveevans/pineapple-shared";
 import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { createMembership, type Membership } from "../../domain/team/Membership.ts";
@@ -65,7 +65,7 @@ export class D1TeamRepository implements TeamRepository {
         .prepare(
           `INSERT INTO team_members (id, team_id, user_id, role, joined_at)
            VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT (id) DO UPDATE SET
+           ON CONFLICT (team_id, user_id) DO UPDATE SET
              role = excluded.role,
              joined_at = excluded.joined_at`,
         )
@@ -76,7 +76,14 @@ export class D1TeamRepository implements TeamRepository {
       .map((event) => prepareActivityOutboxInsert(this.db, event))
       .filter((statement): statement is D1PreparedStatement => statement !== null);
 
-    await this.db.batch([teamStatement, ...memberStatements, ...outboxStatements]);
+    try {
+      await this.db.batch([teamStatement, ...memberStatements, ...outboxStatements]);
+    } catch (e) {
+      if (e instanceof Error && /UNIQUE constraint/i.test(e.message)) {
+        throw new ConflictError("User already belongs to a team");
+      }
+      throw e;
+    }
   }
 
   async #loadMembers(teamRow: TeamRow): Promise<Team> {

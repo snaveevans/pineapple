@@ -29,12 +29,10 @@ export class GetMyTeam {
       const team = await this.teams.findByMember(query.userId);
       if (!team) return ok({ team: null });
 
+      const users = await this.users.findByIds(team.members.map((m) => m.userId));
       const memberNames = new Map<string, string>();
-      for (const member of team.members) {
-        const user = await this.users.findById(member.userId);
-        if (user) {
-          memberNames.set(member.userId, user.name ?? "Unknown");
-        }
+      for (const user of users) {
+        memberNames.set(user.id, user.name ?? "Unknown");
       }
 
       return ok({ team: toTeamReadModel(team, memberNames) });

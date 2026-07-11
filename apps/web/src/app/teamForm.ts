@@ -1,8 +1,8 @@
-import { DISPLAY_NAME_MAX_LENGTH } from "../onboarding/onboardingForm";
+import { DISPLAY_NAME_MAX_LENGTH, validateDisplayName } from "../onboarding/onboardingForm";
 
 export { DISPLAY_NAME_MAX_LENGTH };
 
-export const TEAM_NAME_REQUIRED_MESSAGE = "Team name is required.";
+export const TEAM_NAME_REQUIRED_MESSAGE = "A team name is required.";
 export const TEAM_NAME_TOO_LONG_MESSAGE = "Team name must be 100 characters or fewer.";
 
 export type TeamNameFieldError = "empty" | "too-long";
@@ -10,14 +10,13 @@ export type TeamNameFieldError = "empty" | "too-long";
 export function validateTeamName(
   name: string,
 ): { ok: true; value: string } | { ok: false; error: TeamNameFieldError; message: string } {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    return { ok: false, error: "empty", message: TEAM_NAME_REQUIRED_MESSAGE };
-  }
-  if (trimmed.length > DISPLAY_NAME_MAX_LENGTH) {
-    return { ok: false, error: "too-long", message: TEAM_NAME_TOO_LONG_MESSAGE };
-  }
-  return { ok: true, value: trimmed };
+  const result = validateDisplayName(name);
+  if (result.ok) return result;
+  return {
+    ok: false,
+    error: result.error,
+    message: result.error === "empty" ? TEAM_NAME_REQUIRED_MESSAGE : TEAM_NAME_TOO_LONG_MESSAGE,
+  };
 }
 
 export function toTeamFormError(error: {
