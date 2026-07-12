@@ -3,6 +3,7 @@ import {
   AssetIdParamSchema,
   AssetListResponseSchema,
   AssetResponseSchema,
+  AssetShareParamSchema,
   CreateAssetBodySchema,
   CreatedAssetResponseSchema,
   ErrorResponseSchema,
@@ -155,11 +156,12 @@ export const listAssetsRoute = createRoute({
   path: "/api/assets",
   tags: ["Assets"],
   summary: "List my assets",
-  description: "Returns the caller's active (non-archived) assets and their counts by category.",
+  description:
+    "Returns the caller's active (non-archived) assets — owned and shared with their team — and category counts over that set. Each asset includes a computed `sharing` descriptor.",
   security: [cookieAuth],
   responses: {
     200: {
-      description: "The caller's assets",
+      description: "The caller's visible assets",
       content: { "application/json": { schema: AssetListResponseSchema } },
     },
     401: {
@@ -174,6 +176,8 @@ export const getAssetRoute = createRoute({
   path: "/api/assets/{id}",
   tags: ["Assets"],
   summary: "Get an asset by id",
+  description:
+    "Returns an asset the caller owns or that is shared with their team, including a computed `sharing` descriptor.",
   security: [cookieAuth],
   request: { params: AssetIdParamSchema },
   responses: {
@@ -186,7 +190,7 @@ export const getAssetRoute = createRoute({
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
     403: {
-      description: "The asset belongs to another user",
+      description: "The asset is not visible to the caller",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
     404: {
@@ -201,7 +205,8 @@ export const searchAssetsRoute = createRoute({
   path: "/api/search",
   tags: ["Assets"],
   summary: "Search my assets",
-  description: "Returns up to 20 active assets owned by the caller that match the free-text query.",
+  description:
+    "Returns up to 20 active assets visible to the caller (owned or shared with their team) that match the free-text query.",
   security: [cookieAuth],
   request: { query: SearchAssetsQuerySchema },
   responses: {
@@ -665,6 +670,67 @@ export const deleteMaintenanceTaskRoute = createRoute({
   },
 });
 
+export const shareAssetRoute = createRoute({
+  method: "post",
+  path: "/api/assets/{assetId}/share",
+  tags: ["Assets"],
+  summary: "Share an asset to my team",
+  description:
+    "Shares the asset to the caller's team. Asset-owner only. Idempotent when already shared to that team.",
+  security: [cookieAuth],
+  request: { params: AssetShareParamSchema },
+  responses: {
+    200: {
+      description: "Asset shared (or already shared)",
+      content: { "application/json": { schema: AssetResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "Caller is not the asset owner",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "Caller does not belong to a team",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const unshareAssetRoute = createRoute({
+  method: "delete",
+  path: "/api/assets/{assetId}/share",
+  tags: ["Assets"],
+  summary: "Unshare an asset",
+  description: "Returns the asset to personal. Asset-owner only. Idempotent when already personal.",
+  security: [cookieAuth],
+  request: { params: AssetShareParamSchema },
+  responses: {
+    200: {
+      description: "Asset unshared (or already personal)",
+      content: { "application/json": { schema: AssetResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "Caller is not the asset owner",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const createTeamRoute = createRoute({
   method: "post",
   path: "/api/teams",
@@ -768,6 +834,8 @@ export function getApiDocument() {
   doc.openapi(markAllNotificationsReadRoute, stub);
   doc.openapi(createTeamRoute, stub);
   doc.openapi(getMyTeamRoute, stub);
+  doc.openapi(shareAssetRoute, stub);
+  doc.openapi(unshareAssetRoute, stub);
   registerOpenApiComponents(doc.openAPIRegistry);
   return doc.getOpenAPIDocument(openApiConfig);
 }

@@ -1,4 +1,4 @@
-import { AssetId, UserId } from "@snaveevans/pineapple-shared";
+import { AssetId, TeamId, UserId } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetMetadata } from "../../domain/asset/AssetMetadata.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
@@ -14,16 +14,18 @@ type AssetRow = {
   archived_at: string | null;
   created_at: string;
   updated_at: string;
+  shared_team_id: string | null;
 };
+
+const SELECT_COLUMNS =
+  "id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id";
 
 export class D1AssetRepository implements AssetRepository {
   constructor(private readonly db: D1Database) {}
 
   async findById(id: AssetId): Promise<Asset | null> {
     const row = await this.db
-      .prepare(
-        "SELECT id, owner_id, name, type, metadata, archived_at, created_at, updated_at FROM assets WHERE id = ?",
-      )
+      .prepare(`SELECT ${SELECT_COLUMNS} FROM assets WHERE id = ?`)
       .bind(id)
       .first<AssetRow>();
     return row ? this.#rowToAsset(row) : null;
@@ -31,10 +33,23 @@ export class D1AssetRepository implements AssetRepository {
 
   async findByOwner(ownerId: UserId): Promise<Asset[]> {
     const result = await this.db
-      .prepare(
-        "SELECT id, owner_id, name, type, metadata, archived_at, created_at, updated_at FROM assets WHERE owner_id = ?",
-      )
+      .prepare(`SELECT ${SELECT_COLUMNS} FROM assets WHERE owner_id = ?`)
       .bind(ownerId)
+      .all<AssetRow>();
+    return result.results.map((row) => this.#rowToAsset(row));
+  }
+
+  async findVisibleTo(userId: UserId): Promise<Asset[]> {
+    const result = await this.db
+      .prepare(
+        `SELECT ${SELECT_COLUMNS}
+         FROM assets
+         WHERE owner_id = ?
+            OR shared_team_id IN (
+                 SELECT team_id FROM team_members WHERE user_id = ?
+               )`,
+      )
+      .bind(userId, userId)
       .all<AssetRow>();
     return result.results.map((row) => this.#rowToAsset(row));
   }
@@ -42,13 +57,14 @@ export class D1AssetRepository implements AssetRepository {
   async save(asset: Asset, events: readonly DomainEvent[] = []): Promise<void> {
     const assetStatement = this.db
       .prepare(
-        `INSERT INTO assets (id, owner_id, name, type, metadata, archived_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO assets (id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
-           name        = excluded.name,
-           metadata    = excluded.metadata,
-           archived_at = excluded.archived_at,
-           updated_at  = excluded.updated_at`,
+           name           = excluded.name,
+           metadata       = excluded.metadata,
+           archived_at    = excluded.archived_at,
+           updated_at     = excluded.updated_at,
+           shared_team_id = excluded.shared_team_id`,
       )
       .bind(
         asset.id,
@@ -59,6 +75,7 @@ export class D1AssetRepository implements AssetRepository {
         asset.archivedAt?.toISOString() ?? null,
         asset.createdAt.toISOString(),
         asset.updatedAt.toISOString(),
+        asset.sharedTeamId,
       );
 
     const outboxStatements = events
@@ -82,6 +99,7 @@ export class D1AssetRepository implements AssetRepository {
       archivedAt: row.archived_at ? new Date(row.archived_at) : null,
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
+      sharedTeamId: row.shared_team_id ? TeamId.from(row.shared_team_id) : null,
     });
   }
 }

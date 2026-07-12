@@ -5,5 +5,7 @@ import type { Asset } from "./Asset.ts";
 export interface AssetRepository {
   findById(id: AssetId): Promise<Asset | null>;
   findByOwner(ownerId: UserId): Promise<Asset[]>;
+  /** Assets the user owns plus assets shared to a team they belong to. */
+  findVisibleTo(userId: UserId): Promise<Asset[]>;
   save(asset: Asset, events?: readonly DomainEvent[]): Promise<void>;
 }

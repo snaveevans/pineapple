@@ -10,6 +10,8 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import type { Team } from "../../domain/team/Team.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
@@ -30,6 +32,23 @@ class AssetRepositoryFake implements AssetRepository {
     return Promise.resolve([]);
   }
 
+  findVisibleTo(): Promise<Asset[]> {
+    return Promise.resolve([]);
+  }
+
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class TeamRepositoryFake implements TeamRepository {
+  constructor(private readonly team: Team | null = null) {}
+  findByMember(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  findById(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
   save(): Promise<void> {
     return Promise.resolve();
   }
@@ -58,7 +77,7 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
-  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+  findForVisibleActiveAssets(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
   findById(): Promise<MaintenanceTask | null> {
@@ -109,6 +128,7 @@ describe("CreateMaintenanceRecord", () => {
 
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       records,
       new MaintenanceTaskRepositoryFake(),
       events,
@@ -164,6 +184,7 @@ describe("CreateMaintenanceRecord", () => {
     const asset = assetFor();
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       new MaintenanceRecordWriterFake(),
       new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
@@ -187,6 +208,7 @@ describe("CreateMaintenanceRecord", () => {
     const records = new MaintenanceRecordWriterFake();
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       records,
       new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
@@ -208,6 +230,7 @@ describe("CreateMaintenanceRecord", () => {
     const asset = assetFor();
     const result = await new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       new MaintenanceRecordWriterFake(),
       new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
@@ -229,6 +252,7 @@ describe("CreateMaintenanceRecord", () => {
   function executeWithAsset(asset: Asset | null, requesterId: UserId) {
     return new CreateMaintenanceRecord(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       new MaintenanceRecordWriterFake(),
       new MaintenanceTaskRepositoryFake(),
       new EventBusFake(),
@@ -283,6 +307,7 @@ describe("CreateMaintenanceRecord", () => {
 
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         records,
         tasks,
         events,
@@ -342,6 +367,7 @@ describe("CreateMaintenanceRecord", () => {
 
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         records,
         new MaintenanceTaskRepositoryFake(task),
         events,
@@ -389,6 +415,7 @@ describe("CreateMaintenanceRecord", () => {
 
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         records,
         tasks,
         events,
@@ -439,6 +466,7 @@ describe("CreateMaintenanceRecord", () => {
 
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         records,
         tasks,
         events,
@@ -467,6 +495,7 @@ describe("CreateMaintenanceRecord", () => {
       const asset = assetFor();
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         new MaintenanceRecordWriterFake(),
         new MaintenanceTaskRepositoryFake(null),
         new EventBusFake(),
@@ -483,11 +512,13 @@ describe("CreateMaintenanceRecord", () => {
       if (!result.ok) expect(result.error).toBeInstanceOf(NotFoundError);
     });
 
-    it("returns not found when taskId belongs to another user's task", async () => {
+    it("allows a task on an accessible asset even when task.ownerId differs from requester", async () => {
+      // Access follows the asset; child ownerId is attribution, not the access gate.
       const asset = assetFor();
       const task = makeTask({ assetId: asset.id, ownerId: UserId.generate() });
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         new MaintenanceRecordWriterFake(),
         new MaintenanceTaskRepositoryFake(task),
         new EventBusFake(),
@@ -500,8 +531,7 @@ describe("CreateMaintenanceRecord", () => {
         taskId: task.id,
       });
 
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.error).toBeInstanceOf(NotFoundError);
+      expect(result.ok).toBe(true);
     });
 
     it("returns validation error when taskId belongs to a different asset", async () => {
@@ -509,6 +539,7 @@ describe("CreateMaintenanceRecord", () => {
       const task = makeTask({ assetId: AssetId.generate(), ownerId });
       const result = await new CreateMaintenanceRecord(
         new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
         new MaintenanceRecordWriterFake(),
         new MaintenanceTaskRepositoryFake(task),
         new EventBusFake(),

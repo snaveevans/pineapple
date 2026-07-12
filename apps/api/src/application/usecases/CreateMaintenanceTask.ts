@@ -14,8 +14,10 @@ import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { IntervalUnit } from "../../domain/maintenance/IntervalUnit.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
+import { canAccessAsset } from "./assetAccess.ts";
 
 export type CreateMaintenanceTaskCommand = {
   assetId: AssetId;
@@ -29,6 +31,7 @@ export type CreateMaintenanceTaskCommand = {
 export class CreateMaintenanceTask {
   constructor(
     private readonly assets: AssetRepository,
+    private readonly teams: TeamRepository,
     private readonly tasks: MaintenanceTaskRepository,
     private readonly eventBus: EventBus,
     private readonly dates: UtcDateProvider,
@@ -40,7 +43,7 @@ export class CreateMaintenanceTask {
     try {
       const asset = await this.assets.findById(command.assetId);
       if (!asset) return err(new NotFoundError("Asset not found"));
-      if (asset.ownerId !== command.requesterId) {
+      if (!(await canAccessAsset(asset, command.requesterId, this.teams))) {
         return err(new ForbiddenError("Access denied"));
       }
       if (asset.archivedAt !== null) {

@@ -16,9 +16,11 @@ import {
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
 import type { MaintenanceRecordWriter } from "../ports/MaintenanceRecordWriter.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
+import { canAccessAsset } from "./assetAccess.ts";
 
 export type CreateMaintenanceRecordCommand = {
   assetId: AssetId;
@@ -32,6 +34,7 @@ export type CreateMaintenanceRecordCommand = {
 export class CreateMaintenanceRecord {
   constructor(
     private readonly assets: AssetRepository,
+    private readonly teams: TeamRepository,
     private readonly records: MaintenanceRecordWriter,
     private readonly tasks: MaintenanceTaskRepository,
     private readonly eventBus: EventBus,
@@ -44,7 +47,7 @@ export class CreateMaintenanceRecord {
     try {
       const asset = await this.assets.findById(command.assetId);
       if (!asset) return err(new NotFoundError("Asset not found"));
-      if (asset.ownerId !== command.requesterId) {
+      if (!(await canAccessAsset(asset, command.requesterId, this.teams))) {
         return err(new ForbiddenError("Access denied"));
       }
       if (asset.archivedAt !== null) {
@@ -54,7 +57,7 @@ export class CreateMaintenanceRecord {
       let task = null;
       if (command.taskId !== undefined) {
         task = await this.tasks.findById(command.taskId);
-        if (!task || task.ownerId !== command.requesterId) {
+        if (!task) {
           return err(new NotFoundError("Maintenance task not found"));
         }
         if (task.assetId !== command.assetId) {

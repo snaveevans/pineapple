@@ -12,6 +12,8 @@ import {
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
+import { canAccessAsset } from "./assetAccess.ts";
 
 export type ListMaintenanceRecordsQuery = {
   assetId: AssetId;
@@ -21,6 +23,7 @@ export type ListMaintenanceRecordsQuery = {
 export class ListMaintenanceRecords {
   constructor(
     private readonly assets: AssetRepository,
+    private readonly teams: TeamRepository,
     private readonly records: MaintenanceRecordRepository,
   ) {}
 
@@ -30,11 +33,12 @@ export class ListMaintenanceRecords {
     try {
       const asset = await this.assets.findById(query.assetId);
       if (!asset) return err(new NotFoundError("Asset not found"));
-      if (asset.ownerId !== query.requesterId) {
+      if (!(await canAccessAsset(asset, query.requesterId, this.teams))) {
         return err(new ForbiddenError("Access denied"));
       }
 
-      const records = await this.records.findByAsset(asset.id, query.requesterId);
+      // Access follows the asset; records are stored under the asset owner.
+      const records = await this.records.findByAsset(asset.id, asset.ownerId);
       return ok(records);
     } catch (error) {
       if (error instanceof DomainErrorClass) return err(error);

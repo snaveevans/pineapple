@@ -8,6 +8,8 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import type { Team } from "../../domain/team/Team.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import { ListMaintenanceTasks } from "./ListMaintenanceTasks.ts";
@@ -20,6 +22,23 @@ class AssetRepositoryFake implements AssetRepository {
   findByOwner(): Promise<Asset[]> {
     return Promise.resolve([]);
   }
+
+  findVisibleTo(): Promise<Asset[]> {
+    return Promise.resolve([]);
+  }
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class TeamRepositoryFake implements TeamRepository {
+  constructor(private readonly team: Team | null = null) {}
+  findByMember(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  findById(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
   save(): Promise<void> {
     return Promise.resolve();
   }
@@ -30,7 +49,7 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve(this.tasks);
   }
-  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+  findForVisibleActiveAssets(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
   findById(): Promise<MaintenanceTask | null> {
@@ -70,6 +89,7 @@ describe("ListMaintenanceTasks", () => {
     const task = makeTask(a.id);
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake([task]),
     ).execute({ assetId: a.id, requesterId: ownerId });
 
@@ -81,6 +101,7 @@ describe("ListMaintenanceTasks", () => {
     const a = asset();
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake([]),
     ).execute({ assetId: a.id, requesterId: ownerId });
 
@@ -91,6 +112,7 @@ describe("ListMaintenanceTasks", () => {
   it("returns not found when the asset does not exist", async () => {
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(null),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake(),
     ).execute({ assetId: AssetId.generate(), requesterId: ownerId });
 
@@ -102,6 +124,7 @@ describe("ListMaintenanceTasks", () => {
     const a = asset(UserId.generate());
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake(),
     ).execute({ assetId: a.id, requesterId: ownerId });
 

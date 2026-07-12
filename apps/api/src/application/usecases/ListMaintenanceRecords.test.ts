@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ForbiddenError, NotFoundError, UserId } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import type { Team } from "../../domain/team/Team.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
 import { ListMaintenanceRecords } from "./ListMaintenanceRecords.ts";
@@ -17,6 +19,23 @@ class AssetRepositoryFake implements AssetRepository {
     return Promise.resolve([]);
   }
 
+  findVisibleTo(): Promise<Asset[]> {
+    return Promise.resolve([]);
+  }
+
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class TeamRepositoryFake implements TeamRepository {
+  constructor(private readonly team: Team | null = null) {}
+  findByMember(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  findById(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
   save(): Promise<void> {
     return Promise.resolve();
   }
@@ -51,6 +70,7 @@ describe("ListMaintenanceRecords", () => {
 
     const result = await new ListMaintenanceRecords(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       records,
     ).execute({ assetId: asset.id, requesterId: ownerId });
 
@@ -63,6 +83,7 @@ describe("ListMaintenanceRecords", () => {
     const assetId = assetFor().id;
     const result = await new ListMaintenanceRecords(
       new AssetRepositoryFake(null),
+      new TeamRepositoryFake(),
       new MaintenanceRecordRepositoryFake([]),
     ).execute({ assetId, requesterId: ownerId });
 
@@ -76,6 +97,7 @@ describe("ListMaintenanceRecords", () => {
 
     const result = await new ListMaintenanceRecords(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       new MaintenanceRecordRepositoryFake([]),
     ).execute({ assetId: asset.id, requesterId: UserId.generate() });
 

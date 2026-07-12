@@ -6,7 +6,7 @@ import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import { SearchAssets } from "./SearchAssets.ts";
 
 class AssetRepositoryFake implements AssetRepository {
-  requestedOwnerId: UserId | null = null;
+  requestedUserId: UserId | null = null;
 
   constructor(private readonly assets: Asset[]) {}
 
@@ -15,8 +15,12 @@ class AssetRepositoryFake implements AssetRepository {
   }
 
   findByOwner(ownerId: UserId): Promise<Asset[]> {
-    this.requestedOwnerId = ownerId;
     return Promise.resolve(this.assets.filter((asset) => asset.ownerId === ownerId));
+  }
+
+  findVisibleTo(userId: UserId): Promise<Asset[]> {
+    this.requestedUserId = userId;
+    return Promise.resolve(this.assets.filter((asset) => asset.ownerId === userId));
   }
 
   save(): Promise<void> {
@@ -48,7 +52,7 @@ function asset(props: {
 
 async function search(assets: Asset[], q: string) {
   const repository = new AssetRepositoryFake(assets);
-  const result = await new SearchAssets(repository).execute({ ownerId, q });
+  const result = await new SearchAssets(repository).execute({ requesterId: ownerId, q });
   expect(result.ok).toBe(true);
   if (!result.ok) throw result.error;
   return { repository, results: result.value };
@@ -76,7 +80,7 @@ describe("SearchAssets", () => {
 
     const { repository, results } = await search([active, archived, anotherOwner], "ram");
 
-    expect(repository.requestedOwnerId).toBe(ownerId);
+    expect(repository.requestedUserId).toBe(ownerId);
     expect(results.map((result) => result.id)).toEqual([active.id]);
   });
 

@@ -190,6 +190,12 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
   if (/^\/api\/assets\/[^/]+$/.test(pathname) && method === "GET") {
     return { operation: "GetAsset", routePattern: "/api/assets/{id}" };
   }
+  if (/^\/api\/assets\/[^/]+\/share$/.test(pathname) && method === "POST") {
+    return { operation: "ShareAsset", routePattern: "/api/assets/{assetId}/share" };
+  }
+  if (/^\/api\/assets\/[^/]+\/share$/.test(pathname) && method === "DELETE") {
+    return { operation: "UnshareAsset", routePattern: "/api/assets/{assetId}/share" };
+  }
   if (/^\/api\/assets\/[^/]+\/maintenance-records$/.test(pathname) && method === "POST") {
     return {
       operation: "CreateMaintenanceRecord",

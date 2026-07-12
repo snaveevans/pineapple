@@ -25,16 +25,17 @@ function createDatabaseHarness() {
 }
 
 describe("D1MaintenanceTaskRepository", () => {
-  it("findByOwnerForActiveAssets joins active assets and excludes archived rows", async () => {
+  it("findForVisibleActiveAssets joins active assets including team-shared", async () => {
     const { db, statements } = createDatabaseHarness();
     const ownerId = UserId.generate();
 
-    await new D1MaintenanceTaskRepository(db).findByOwnerForActiveAssets(ownerId);
+    await new D1MaintenanceTaskRepository(db).findForVisibleActiveAssets(ownerId);
 
     expect(statements).toHaveLength(1);
     const query = statements[0]?.query ?? "";
     expect(query).toContain("INNER JOIN assets a ON a.id = t.asset_id");
     expect(query).toContain("a.archived_at IS NULL");
-    expect(statements[0]?.values).toEqual([ownerId]);
+    expect(query).toContain("shared_team_id");
+    expect(statements[0]?.values).toEqual([ownerId, ownerId]);
   });
 });

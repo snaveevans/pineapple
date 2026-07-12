@@ -9,6 +9,8 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import type { Team } from "../../domain/team/Team.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
@@ -24,6 +26,23 @@ class AssetRepositoryFake implements AssetRepository {
   findByOwner(): Promise<Asset[]> {
     return Promise.resolve([]);
   }
+
+  findVisibleTo(): Promise<Asset[]> {
+    return Promise.resolve([]);
+  }
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class TeamRepositoryFake implements TeamRepository {
+  constructor(private readonly team: Team | null = null) {}
+  findByMember(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  findById(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
   save(): Promise<void> {
     return Promise.resolve();
   }
@@ -34,7 +53,7 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
-  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+  findForVisibleActiveAssets(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
   findById(): Promise<MaintenanceTask | null> {
@@ -81,6 +100,7 @@ describe("CreateMaintenanceTask", () => {
     const events = new EventBusFake();
     const result = await new CreateMaintenanceTask(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       tasks,
       events,
       dates,
@@ -124,6 +144,7 @@ describe("CreateMaintenanceTask", () => {
     const tasks = new MaintenanceTaskRepositoryFake();
     const result = await new CreateMaintenanceTask(
       new AssetRepositoryFake(null),
+      new TeamRepositoryFake(),
       tasks,
       new EventBusFake(),
       dates,
@@ -150,6 +171,7 @@ describe("CreateMaintenanceTask", () => {
     const tasks = new MaintenanceTaskRepositoryFake();
     const result = await new CreateMaintenanceTask(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       tasks,
       new EventBusFake(),
       dates,

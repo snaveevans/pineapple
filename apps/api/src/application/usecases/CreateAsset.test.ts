@@ -18,6 +18,10 @@ class RecordingAssetRepository implements AssetRepository {
     return Promise.resolve([]);
   }
 
+  findVisibleTo(): Promise<Asset[]> {
+    return Promise.resolve([]);
+  }
+
   save(asset: Asset): Promise<void> {
     this.saved = asset;
     return Promise.resolve();

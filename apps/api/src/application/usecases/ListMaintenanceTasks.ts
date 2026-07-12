@@ -12,6 +12,8 @@ import {
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
+import { canAccessAsset } from "./assetAccess.ts";
 
 export type ListMaintenanceTasksQuery = {
   assetId: AssetId;
@@ -21,6 +23,7 @@ export type ListMaintenanceTasksQuery = {
 export class ListMaintenanceTasks {
   constructor(
     private readonly assets: AssetRepository,
+    private readonly teams: TeamRepository,
     private readonly tasks: MaintenanceTaskRepository,
   ) {}
 
@@ -28,7 +31,7 @@ export class ListMaintenanceTasks {
     try {
       const asset = await this.assets.findById(query.assetId);
       if (!asset) return err(new NotFoundError("Asset not found"));
-      if (asset.ownerId !== query.requesterId) {
+      if (!(await canAccessAsset(asset, query.requesterId, this.teams))) {
         return err(new ForbiddenError("Access denied"));
       }
 

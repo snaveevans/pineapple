@@ -258,6 +258,31 @@
           "metadata"
         ]
       },
+      "AssetSharing": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "team"
+            ],
+            "example": "personal"
+          },
+          "isOwner": {
+            "type": "boolean",
+            "example": true
+          },
+          "ownerDisplayName": {
+            "type": "string",
+            "example": "Dale"
+          }
+        },
+        "required": [
+          "scope",
+          "isOwner"
+        ]
+      },
       "Asset": {
         "type": "object",
         "properties": {
@@ -296,6 +321,9 @@
             "type": "string",
             "format": "date-time",
             "example": "2026-05-29T03:25:24.887Z"
+          },
+          "sharing": {
+            "$ref": "#/components/schemas/AssetSharing"
           }
         },
         "required": [
@@ -305,7 +333,8 @@
           "metadata",
           "archivedAt",
           "createdAt",
-          "updatedAt"
+          "updatedAt",
+          "sharing"
         ]
       },
       "AssetCategoryCounts": {
@@ -1441,7 +1470,7 @@
           "Assets"
         ],
         "summary": "List my assets",
-        "description": "Returns the caller's active (non-archived) assets and their counts by category.",
+        "description": "Returns the caller's active (non-archived) assets — owned and shared with their team — and category counts over that set. Each asset includes a computed `sharing` descriptor.",
         "security": [
           {
             "cookieAuth": []
@@ -1449,7 +1478,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The caller's assets",
+            "description": "The caller's visible assets",
             "content": {
               "application/json": {
                 "schema": {
@@ -1477,6 +1506,7 @@
           "Assets"
         ],
         "summary": "Get an asset by id",
+        "description": "Returns an asset the caller owns or that is shared with their team, including a computed `sharing` descriptor.",
         "security": [
           {
             "cookieAuth": []
@@ -1515,7 +1545,7 @@
             }
           },
           "403": {
-            "description": "The asset belongs to another user",
+            "description": "The asset is not visible to the caller",
             "content": {
               "application/json": {
                 "schema": {
@@ -1543,7 +1573,7 @@
           "Assets"
         ],
         "summary": "Search my assets",
-        "description": "Returns up to 20 active assets owned by the caller that match the free-text query.",
+        "description": "Returns up to 20 active assets visible to the caller (owned or shared with their team) that match the free-text query.",
         "security": [
           {
             "cookieAuth": []
@@ -2687,6 +2717,148 @@
           },
           "401": {
             "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/share": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Share an asset to my team",
+        "description": "Shares the asset to the caller's team. Asset-owner only. Idempotent when already shared to that team.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset shared (or already shared)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not the asset owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Caller does not belong to a team",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Unshare an asset",
+        "description": "Returns the asset to personal. Asset-owner only. Idempotent when already personal.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Asset unshared (or already personal)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Caller is not the asset owner",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such asset",
             "content": {
               "application/json": {
                 "schema": {

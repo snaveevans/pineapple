@@ -22,6 +22,10 @@ class AssetRepositoryFake implements AssetRepository {
   findByOwner(): Promise<Asset[]> {
     return Promise.resolve(this.assets);
   }
+
+  findVisibleTo(): Promise<Asset[]> {
+    return Promise.resolve(this.assets);
+  }
   save(): Promise<void> {
     return Promise.resolve();
   }
@@ -32,7 +36,7 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
-  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+  findForVisibleActiveAssets(): Promise<MaintenanceTask[]> {
     return Promise.resolve(this.tasks);
   }
   findById(): Promise<MaintenanceTask | null> {
@@ -233,7 +237,7 @@ describe("GetDashboard", () => {
     });
     const result = await new GetDashboard(
       new AssetRepositoryFake([active, archived]),
-      // findByOwnerForActiveAssets omits archived-asset tasks; see D1MaintenanceTaskRepository.test.ts
+      // findForVisibleActiveAssets omits archived-asset tasks; see D1MaintenanceTaskRepository.test.ts
       new MaintenanceTaskRepositoryFake([
         task(active.id, { title: "Oil change", nextDue: "2026-06-20" }),
       ]),
