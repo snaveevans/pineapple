@@ -31,14 +31,6 @@ export class D1AssetRepository implements AssetRepository {
     return row ? this.#rowToAsset(row) : null;
   }
 
-  async findByOwner(ownerId: UserId): Promise<Asset[]> {
-    const result = await this.db
-      .prepare(`SELECT ${SELECT_COLUMNS} FROM assets WHERE owner_id = ?`)
-      .bind(ownerId)
-      .all<AssetRow>();
-    return result.results.map((row) => this.#rowToAsset(row));
-  }
-
   async findVisibleTo(userId: UserId): Promise<Asset[]> {
     const result = await this.db
       .prepare(

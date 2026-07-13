@@ -81,6 +81,7 @@ import { CreateTeam } from "./application/usecases/CreateTeam.ts";
 import { GetMyTeam } from "./application/usecases/GetMyTeam.ts";
 import { ShareAsset } from "./application/usecases/ShareAsset.ts";
 import { UnshareAsset } from "./application/usecases/UnshareAsset.ts";
+import { toSharingDescriptor } from "./application/usecases/assetSharing.ts";
 import type { AssetSharingDescriptor } from "./application/usecases/assetSharing.ts";
 import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
@@ -677,10 +678,7 @@ app.openapi(shareAssetRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(
-    serializeAsset(result.value, {
-      scope: result.value.sharedTeamId === null ? "personal" : "team",
-      isOwner: true,
-    }),
+    serializeAsset(result.value, toSharingDescriptor(result.value, user.id, null)),
     200,
   );
 });
@@ -698,10 +696,7 @@ app.openapi(unshareAssetRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(
-    serializeAsset(result.value, {
-      scope: result.value.sharedTeamId === null ? "personal" : "team",
-      isOwner: true,
-    }),
+    serializeAsset(result.value, toSharingDescriptor(result.value, user.id, null)),
     200,
   );
 });

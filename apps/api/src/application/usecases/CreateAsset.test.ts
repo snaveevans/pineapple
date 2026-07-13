@@ -14,10 +14,6 @@ class RecordingAssetRepository implements AssetRepository {
     return Promise.resolve(null);
   }
 
-  findByOwner(): Promise<Asset[]> {
-    return Promise.resolve([]);
-  }
-
   findVisibleTo(): Promise<Asset[]> {
     return Promise.resolve([]);
   }

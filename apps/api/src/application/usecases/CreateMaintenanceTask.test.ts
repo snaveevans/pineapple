@@ -23,9 +23,6 @@ class AssetRepositoryFake implements AssetRepository {
   findById(): Promise<Asset | null> {
     return Promise.resolve(this.asset);
   }
-  findByOwner(): Promise<Asset[]> {
-    return Promise.resolve([]);
-  }
 
   findVisibleTo(): Promise<Asset[]> {
     return Promise.resolve([]);

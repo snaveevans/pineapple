@@ -18,6 +18,11 @@ export type SearchAssetsQuery = {
   q: string;
 };
 
+/**
+ * Compact search hit. Intentionally omits the full asset `sharing` descriptor —
+ * list/get carry that; search stays a lightweight name/type/summary match list
+ * over the same visible set (owned + team-shared).
+ */
 export type SearchAssetResult = {
   id: string;
   name: string;

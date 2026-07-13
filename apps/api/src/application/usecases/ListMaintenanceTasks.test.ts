@@ -8,7 +8,8 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
-import type { Team } from "../../domain/team/Team.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
@@ -18,9 +19,6 @@ class AssetRepositoryFake implements AssetRepository {
   constructor(private readonly asset: Asset | null) {}
   findById(): Promise<Asset | null> {
     return Promise.resolve(this.asset);
-  }
-  findByOwner(): Promise<Asset[]> {
-    return Promise.resolve([]);
   }
 
   findVisibleTo(): Promise<Asset[]> {
@@ -130,5 +128,34 @@ describe("ListMaintenanceTasks", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to list tasks on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const a = asset(ownerId);
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    a.shareToTeam({ teamId: team.id, teamName: team.name, actorId: ownerId });
+    a.pullEvents();
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const task = makeTask(a.id);
+
+    const result = await new ListMaintenanceTasks(
+      new AssetRepositoryFake(a),
+      new TeamRepositoryFake(memberTeam),
+      new MaintenanceTaskRepositoryFake([task]),
+    ).execute({ assetId: a.id, requesterId: memberId });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual([task]);
   });
 });

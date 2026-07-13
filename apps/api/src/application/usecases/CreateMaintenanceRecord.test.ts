@@ -10,7 +10,8 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
-import type { Team } from "../../domain/team/Team.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
@@ -26,10 +27,6 @@ class AssetRepositoryFake implements AssetRepository {
 
   findById(): Promise<Asset | null> {
     return Promise.resolve(this.asset);
-  }
-
-  findByOwner(): Promise<Asset[]> {
-    return Promise.resolve([]);
   }
 
   findVisibleTo(): Promise<Asset[]> {
@@ -169,6 +166,54 @@ describe("CreateMaintenanceRecord", () => {
     const result = await executeWithAsset(assetFor(UserId.generate()), ownerId);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to log a record on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const asset = assetFor(ownerId);
+    asset.pullEvents();
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    asset.shareToTeam({ teamId: team.id, teamName: team.name, actorId: ownerId });
+    asset.pullEvents();
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const records = new MaintenanceRecordWriterFake();
+    const events = new EventBusFake();
+
+    const result = await new CreateMaintenanceRecord(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(memberTeam),
+      records,
+      new MaintenanceTaskRepositoryFake(),
+      events,
+      dates,
+    ).execute({
+      assetId: asset.id,
+      requesterId: memberId,
+      title: "Member logged oil",
+      performedAt: "2026-06-09",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.ownerId).toBe(ownerId);
+    expect(events.events).toEqual([
+      expect.objectContaining({
+        type: "MaintenanceRecordCreated",
+        ownerId,
+        actorId: memberId,
+        title: "Member logged oil",
+      }),
+    ]);
   });
 
   it("returns conflict for an archived asset", async () => {
