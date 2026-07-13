@@ -62,31 +62,33 @@ authoritative in `openapi.json`.
 
 **Sharing & unsharing (asset-owner only)**
 
-- [ ] The **owner of an asset** can share that asset to the team they belong to; after sharing, the asset is visible and editable to every member of that team
-- [ ] Sharing requires the requester to belong to a team; sharing when the requester has no team fails with a **409 Conflict** (there is nothing to share into)
-- [ ] Only the asset's owner may share or unshare it — a member who does not own the asset attempting to change its sharing fails with **403 Forbidden**
-- [ ] The asset owner can unshare a shared asset, returning it to **personal**; members immediately lose access
-- [ ] Sharing an asset that is already shared to the caller's team is an idempotent success (no duplicate, no error); unsharing an already-personal asset is an idempotent success
-- [ ] "Owner" here means the **asset's** owner (`ownerId`), which may be any team member — not necessarily the team's owner. Any member can share the assets **they** own
+- [x] The **owner of an asset** can share that asset to the team they belong to; after sharing, the asset is visible and editable to every member of that team
+- [x] Sharing requires the requester to belong to a team; sharing when the requester has no team fails with a **409 Conflict** (there is nothing to share into)
+- [x] Only the asset's owner may share or unshare it — a member who does not own the asset attempting to change its sharing fails with **403 Forbidden**
+- [x] The asset owner can unshare a shared asset, returning it to **personal**; members immediately lose access
+- [x] Sharing an asset that is already shared to the caller's team is an idempotent success (no duplicate, no error); unsharing an already-personal asset is an idempotent success
+- [x] "Owner" here means the **asset's** owner (`ownerId`), which may be any team member — not necessarily the team's owner. Any member can share the assets **they** own
 
 **Member access to shared assets (full parity)**
 
 - [ ] A team member can read an asset shared with their team and all of its dependent records (maintenance tasks, maintenance records, activity)
-- [ ] A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
-- [ ] Access to a shared asset's dependent records **follows the asset**: authorization for maintenance/record/activity operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
-- [ ] When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
+<!-- maintenance tasks/records: done; activity feed still owner-scoped — follow-up -->
+- [x] A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
+- [x] Access to a shared asset's dependent records **follows the asset**: authorization for maintenance task and record operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
+- [ ] Access to the **activity feed** for shared assets follows the asset the same way (still owner-scoped today — follow-up)
+- [x] When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
 
 **Read-path integration**
 
-- [ ] Every list of "the user's assets" — the asset library (`GET /api/assets`), the dashboard, and search — returns both the requester's own assets (personal and shared-by-them) **and** the assets shared to the requester's team by others
-- [ ] Each asset in a read model carries a computed **`sharing`** descriptor (computed server-side per ADR-0009, not derived by the client): its scope (`personal` or `team`) and whether the requester is its owner; for an asset shared **with** the requester by someone else, it also identifies the owner (e.g. owner display name) so the member can see whose asset it is
-- [ ] Per-category counts and any other aggregate read-model figures are computed over the full visible set (owned + shared-with-me), so counts and lists stay consistent
+- [x] Every list of "the user's assets" — the asset library (`GET /api/assets`), the dashboard, and search — returns both the requester's own assets (personal and shared-by-them) **and** the assets shared to the requester's team by others
+- [x] Each asset in a read model carries a computed **`sharing`** descriptor (computed server-side per ADR-0009, not derived by the client): its scope (`personal` or `team`) and whether the requester is its owner; for an asset shared **with** the requester by someone else, it also identifies the owner (e.g. owner display name) so the member can see whose asset it is
+- [x] Per-category counts and any other aggregate read-model figures are computed over the full visible set (owned + shared-with-me), so counts and lists stay consistent
 
 **Permissions extension**
 
-- [ ] The single-resource access rule is extended: a request for an asset (or its children) succeeds if the requester **owns it** _or_ **is a member of the team it is shared with**; otherwise the existing not-owned behavior applies
-- [ ] The collection query is extended to include team-shared assets in addition to owned ones; it must never return an asset that is neither owned by nor shared with the requester
-- [ ] [permissions.md](../cross-cutting/permissions.md) must be updated to document team visibility as an extension of the ownership model (per-user ownership remains the default; team sharing is additive)
+- [x] The single-resource access rule is extended: a request for an asset (or its children) succeeds if the requester **owns it** _or_ **is a member of the team it is shared with**; otherwise the existing not-owned behavior applies
+- [x] The collection query is extended to include team-shared assets in addition to owned ones; it must never return an asset that is neither owned by nor shared with the requester
+- [x] [permissions.md](../cross-cutting/permissions.md) must be updated to document team visibility as an extension of the ownership model (per-user ownership remains the default; team sharing is additive)
 
 ## Edge Cases & Error States
 

@@ -116,6 +116,27 @@ Both systems write to Cloudflare Analytics Engine using the same envelope:
 | `doubles[0]` | `count`           | Always `1`                                                                 |
 | `doubles[1]` | `event_time_ms`   | Event timestamp (ms since epoch)                                           |
 
+**Domain event data point — `AssetSharedToTeam`** (dataset: `pineapple_asset_domain_events`,
+index: `owner_id`). Telemetry records ids only — not asset or team names (ADR-0010):
+
+| Field        | Name              | Value                            |
+| ------------ | ----------------- | -------------------------------- |
+| `indexes[0]` | —                 | `owner_id`                       |
+| `blobs[0]`   | `event_type`      | `"AssetSharedToTeam"`            |
+| `blobs[1]`   | `aggregate_type`  | `"Asset"`                        |
+| `blobs[2]`   | `asset_id`        | Asset UUID                       |
+| `blobs[3]`   | `owner_id`        | Owner UUID                       |
+| `blobs[4]`   | `team_id`         | Team UUID                        |
+| `blobs[5]`   | `actor_id`        | Actor UUID                       |
+| `blobs[6]`   | `source_use_case` | `"ShareAsset"`                   |
+| `blobs[7]`   | `schema_version`  | `"v1"`                           |
+| `blobs[8]`   | `result`          | `"success"`                      |
+| `doubles[0]` | `count`           | Always `1`                       |
+| `doubles[1]` | `event_time_ms`   | Event timestamp (ms since epoch) |
+
+**Domain event data point — `AssetUnsharedFromTeam`** (dataset: `pineapple_asset_domain_events`,
+index: `owner_id`). Same shape as share; `source_use_case` is `"UnshareAsset"`.
+
 ### Analytics Engine Constraints
 
 These limits apply to every data point written and must be respected when designing new event schemas:
@@ -211,6 +232,8 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}` | `DeleteMaintenanceTask`    |
 | `POST /api/teams`                                         | `CreateTeam`               |
 | `GET /api/teams/me`                                       | `GetMyTeam`                |
+| `POST /api/assets/{assetId}/share`                        | `ShareAsset`               |
+| `DELETE /api/assets/{assetId}/share`                      | `UnshareAsset`             |
 | `GET /health`                                             | `Health`                   |
 | `GET /openapi.json`                                       | `OpenApiDocument`          |
 | `GET /reference`                                          | `ApiReference`             |

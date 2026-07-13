@@ -82,6 +82,14 @@ export const AssetIdParamSchema = z.object({
 
 // ── Responses ──────────────────────────────────────────────────────────────
 
+export const AssetSharingSchema = z
+  .object({
+    scope: z.enum(["personal", "team"]).openapi({ example: "personal" }),
+    isOwner: z.boolean().openapi({ example: true }),
+    ownerDisplayName: z.string().optional().openapi({ example: "Dale" }),
+  })
+  .openapi("AssetSharing");
+
 /** Serialized asset, matching `serializeAsset` in worker.ts. */
 export const AssetResponseSchema = z
   .object({
@@ -92,8 +100,16 @@ export const AssetResponseSchema = z
     archivedAt: z.string().datetime().nullable().openapi({ example: null }),
     createdAt: z.string().datetime().openapi({ example: "2026-05-29T03:25:24.887Z" }),
     updatedAt: z.string().datetime().openapi({ example: "2026-05-29T03:25:24.887Z" }),
+    sharing: AssetSharingSchema,
   })
   .openapi("Asset");
+
+export const AssetShareParamSchema = z.object({
+  assetId: z.string().openapi({
+    param: { name: "assetId", in: "path" },
+    example: "195d0ef0-47f5-439f-abfd-29f892c9a040",
+  }),
+});
 
 const AssetCategoryCountSchema = z.number().int().nonnegative().openapi({ example: 1 });
 const AssetCategoryCountProperties = Object.fromEntries(

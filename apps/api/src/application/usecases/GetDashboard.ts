@@ -92,8 +92,8 @@ export class GetDashboard {
     try {
       const todayUtc = this.dates.today();
       const [allAssets, tasks] = await Promise.all([
-        this.assets.findByOwner(query.ownerId),
-        this.tasks.findByOwnerForActiveAssets(query.ownerId),
+        this.assets.findVisibleTo(query.ownerId),
+        this.tasks.findForVisibleActiveAssets(query.ownerId),
       ]);
 
       const activeAssets = allAssets.filter((asset) => asset.archivedAt === null);

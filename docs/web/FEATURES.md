@@ -271,7 +271,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 ## Asset Maintenance Records & Tasks
 
 **Route:** `/app/assets/:id/maintenance`
-**Goal:** Let the user view and log maintenance history for a specific asset, and manage upcoming maintenance tasks for it.
+**Goal:** Let the user view and log maintenance history for a specific asset, manage upcoming maintenance tasks, and (if they own the asset) share or unshare it with their team.
 
 **Key states:**
 
@@ -283,14 +283,19 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Create record form: inline or modal; validates date and description; submits to API
 - Create task form: inline; validates title and due date
 - Delete task: confirmation before removal
+- Share (owner only): sheet/drawer to share the asset to the caller's team or unshare it back to personal
+- Shared-by-teammate (member view): badge + strip explaining who shared it; no share control
+- No team when sharing: sheet explains a team is required and links to `/app/team`
 
 **Non-obvious behavior:**
 
 - Records and tasks are fetched independently; one can load before the other
 - Dates are stored as ISO strings (YYYY-MM-DD) and displayed as human-readable relative dates ("3 days ago", "yesterday")
 - 401 on any fetch redirects to `/login`
+- Sharing uses the asset's server-computed `sharing` descriptor (`scope`, `isOwner`, optional `ownerDisplayName`); only the asset owner can change sharing
+- Share/unshare are idempotent on the API; the sheet closes on success and refreshes the asset query
 
-**Spec:** [`docs/specs/features/maintenance-record.md`](../specs/features/maintenance-record.md), [`docs/specs/features/maintenance-task.md`](../specs/features/maintenance-task.md)
+**Spec:** [`docs/specs/features/maintenance-record.md`](../specs/features/maintenance-record.md), [`docs/specs/features/maintenance-task.md`](../specs/features/maintenance-task.md), [`docs/specs/features/teams-foundation.md`](../specs/features/teams-foundation.md)
 
 ---
 

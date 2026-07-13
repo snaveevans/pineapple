@@ -2,8 +2,16 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../api/client.ts";
-import { getAsset, assetQueryKey } from "../api/assets.ts";
+import {
+  getAsset,
+  shareAsset,
+  unshareAsset,
+  assetQueryKey,
+  assetsQueryKey,
+  type AssetSharing,
+} from "../api/assets.ts";
 import { dashboardQueryKey, getDashboard } from "../api/dashboard.ts";
+import { getMyTeam, teamQueryKey } from "../api/teams.ts";
 import {
   listMaintenanceRecords,
   createMaintenanceRecord,
@@ -847,6 +855,129 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
   );
 }
 
+// ─── share sheet ─────────────────────────────────────────────────────────────
+
+function MRShareSheet({
+  assetName,
+  sharing,
+  teamName,
+  memberCount,
+  teamLoading,
+  noTeam,
+  busy,
+  error,
+  variant,
+  onClose,
+  onShare,
+  onUnshare,
+}: {
+  assetName: string;
+  sharing: AssetSharing;
+  teamName: string | null;
+  memberCount: number;
+  teamLoading: boolean;
+  noTeam: boolean;
+  busy: boolean;
+  error: string | null;
+  variant: "drawer" | "sheet";
+  onClose: () => void;
+  onShare: () => void;
+  onUnshare: () => void;
+}) {
+  const isShared = sharing.scope === "team";
+  const displayTeam = teamName ?? "your team";
+  const memberLabel = memberCount === 1 ? "1 member" : `${memberCount} members`;
+
+  return (
+    <div className={`mr-form mr-form-${variant}`} role="dialog" aria-labelledby="mr-share-title">
+      {variant === "sheet" && <div className="mr-sheet-grab" />}
+      <div className="mr-form-head">
+        <div>
+          <div className="mr-shr-head-title" id="mr-share-title">
+            {isShared ? "Shared with your team" : "Share to your team"}
+          </div>
+          <div className="mr-shr-head-sub">{assetName}</div>
+        </div>
+        <button type="button" className="mr-form-close" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={15} stroke={2.2} />
+        </button>
+      </div>
+      <div className="mr-form-body mr-shr-body">
+        <div className="mr-shr-tile">
+          <Icon name="users" size={24} stroke={1.6} />
+        </div>
+        {teamLoading ? (
+          <div className="mr-shr-sub">Loading team…</div>
+        ) : noTeam ? (
+          <>
+            <div className="mr-shr-sub">
+              You need a team before you can share this asset. Create one, then come back here.
+            </div>
+            <div className="mr-shr-error">
+              <Link to={paths.team}>Create a team</Link>
+            </div>
+          </>
+        ) : (
+          <>
+            {!isShared && (
+              <div className="mr-shr-sub">
+                Members of your team will be able to see this asset and log maintenance on it. Only
+                you can unshare it.
+              </div>
+            )}
+            <div className="mr-shr-team-row">
+              <div className="mr-shr-team-mark">
+                <Icon name="users" size={17} stroke={1.7} />
+              </div>
+              <div>
+                <div className="mr-shr-team-name">{displayTeam}</div>
+                <div className="mr-shr-team-sub">{memberLabel}</div>
+              </div>
+            </div>
+            {isShared && (
+              <div className="mr-shr-owner-note">
+                <Icon name="info" size={14} color="var(--hf-ink-faint)" style={{ flexShrink: 0, marginTop: 1 }} />
+                Unsharing removes access immediately for every team member.
+              </div>
+            )}
+            {error && (
+              <div className="mr-shr-error" role="alert">
+                {error}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+      <div className="mr-form-actions">
+        {noTeam ? (
+          <button type="button" className="mr-btn mr-btn-primary" style={{ width: "100%" }} onClick={onClose}>
+            Close
+          </button>
+        ) : isShared ? (
+          <button
+            type="button"
+            className="mr-shr-unshare-btn"
+            onClick={onUnshare}
+            disabled={busy || teamLoading}
+          >
+            {busy ? "Unsharing…" : "Unshare"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="mr-btn mr-btn-primary"
+            style={{ width: "100%" }}
+            onClick={onShare}
+            disabled={busy || teamLoading || noTeam}
+          >
+            {busy ? "Sharing…" : `Share with ${displayTeam}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── page ────────────────────────────────────────────────────────────────────
 
 export function AppMaintenanceRecords() {
@@ -874,6 +1005,8 @@ export function AppMaintenanceRecords() {
   const [formOpen, setFormOpen] = useState(false);
   const [logFromTaskId, setLogFromTaskId] = useState<string | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareError, setShareError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "maintenance">("overview");
   const [density, setDensity] = useState<"timeline" | "table">("timeline");
   const [taskDeleteError, setTaskDeleteError] = useState<string | null>(null);
@@ -911,7 +1044,52 @@ export function AppMaintenanceRecords() {
     select: (data) => data.todayUtc,
   });
 
+  const teamQuery = useQuery({
+    queryKey: teamQueryKey,
+    queryFn: getMyTeam,
+    enabled: shareOpen,
+    staleTime: 30_000,
+  });
+
   const taskFormTodayUtc = dashboardTodayQuery.data ?? todayDateOnly();
+
+  const shareMutation = useMutation({
+    mutationFn: () => shareAsset(assetId),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(assetQueryKey(assetId), updated);
+      void queryClient.invalidateQueries({ queryKey: assetsQueryKey });
+      setShareError(null);
+      setShareOpen(false);
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 409) {
+        setShareError("You need a team before you can share this asset.");
+        return;
+      }
+      if (err instanceof ApiError && err.status === 401) {
+        void navigate(paths.login(), { replace: true });
+        return;
+      }
+      setShareError(err instanceof Error ? err.message : "Could not share this asset.");
+    },
+  });
+
+  const unshareMutation = useMutation({
+    mutationFn: () => unshareAsset(assetId),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(assetQueryKey(assetId), updated);
+      void queryClient.invalidateQueries({ queryKey: assetsQueryKey });
+      setShareError(null);
+      setShareOpen(false);
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 401) {
+        void navigate(paths.login(), { replace: true });
+        return;
+      }
+      setShareError(err instanceof Error ? err.message : "Could not unshare this asset.");
+    },
+  });
 
   // Redirect on 401
   useEffect(() => {
@@ -923,6 +1101,7 @@ export function AppMaintenanceRecords() {
   }, [assetQuery.error, recordsQuery.error, tasksQuery.error, navigate]);
 
   const asset = assetQuery.data ? toAssetPresentation(assetQuery.data) : null;
+  const sharing = assetQuery.data?.sharing ?? null;
 
   const sorted = useMemo(
     () => sortRecords(recordsQuery.data?.maintenanceRecords ?? []),
@@ -1091,7 +1270,18 @@ export function AppMaintenanceRecords() {
     !assetQuery.isError &&
     (activeTab === "maintenance" ? (recordsQuery.isSuccess && sorted.length > 0) : true) &&
     !taskFormOpen &&
-    !formOpen;
+    !formOpen &&
+    !shareOpen;
+
+  const openShareSheet = () => {
+    setShareError(null);
+    setShareOpen(true);
+  };
+
+  const shareBusy = shareMutation.isPending || unshareMutation.isPending;
+  const team = teamQuery.data?.team ?? null;
+  const noTeam = teamQuery.isSuccess && team === null;
+  const ownerFirstName = sharing?.ownerDisplayName?.split(/\s+/)[0] ?? "the owner";
 
   return (
     <div ref={rootRef} className="hf mr-root" data-density={effectiveDensity}>
@@ -1117,15 +1307,49 @@ export function AppMaintenanceRecords() {
                   <span className="mr-dot" />
                   <span>{asset.summary}</span>
                 </div>
+                {sharing && sharing.scope === "team" && (
+                  sharing.isOwner ? (
+                    <button
+                      type="button"
+                      className="mr-share-badge is-owner"
+                      onClick={openShareSheet}
+                      title="Manage sharing"
+                    >
+                      <Icon name="users" size={11} stroke={2.2} />
+                      <span>Shared with team</span>
+                    </button>
+                  ) : (
+                    <span
+                      className="mr-share-badge is-member"
+                      title={`Shared by ${sharing.ownerDisplayName ?? "a teammate"}`}
+                    >
+                      <Icon name="users" size={11} stroke={2.2} />
+                      <span>Shared by {sharing.ownerDisplayName ?? "a teammate"}</span>
+                    </span>
+                  )
+                )}
               </div>
-              {!recordsQuery.isPending && (
-                <button
-                  className="mr-btn mr-btn-primary mr-hero-add"
-                  onClick={() => openLogForm()}
-                >
-                  <Icon name="plus" size={16} stroke={2.2} />Log maintenance
-                </button>
-              )}
+              <div className="mr-hero-actions">
+                {sharing?.isOwner && (
+                  <button
+                    type="button"
+                    className={`mr-share-btn${sharing.scope === "team" ? " is-active" : ""}`}
+                    onClick={openShareSheet}
+                    title={sharing.scope === "team" ? "Manage sharing" : "Share to team"}
+                    aria-label={sharing.scope === "team" ? "Manage sharing" : "Share to team"}
+                  >
+                    <Icon name="users" size={16} stroke={1.8} />
+                  </button>
+                )}
+                {!recordsQuery.isPending && (
+                  <button
+                    className="mr-btn mr-btn-primary mr-hero-add"
+                    onClick={() => openLogForm()}
+                  >
+                    <Icon name="plus" size={16} stroke={2.2} />Log maintenance
+                  </button>
+                )}
+              </div>
             </div>
           ) : assetQuery.isPending ? (
             <div className="mr-hero">
@@ -1187,9 +1411,41 @@ export function AppMaintenanceRecords() {
               onRetry={() => void assetQuery.refetch()}
             />
           ) : activeTab === "overview" ? (
-            overviewBlock
+            <>
+              {sharing && !sharing.isOwner && sharing.scope === "team" && (
+                <div className="mr-shr-strip">
+                  <Icon
+                    name="users"
+                    size={14}
+                    color="var(--hf-ink-faint)"
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  />
+                  <span>
+                    Shared by {sharing.ownerDisplayName ?? "a teammate"} — you can view and log
+                    maintenance here. Only {ownerFirstName} can unshare it.
+                  </span>
+                </div>
+              )}
+              {overviewBlock}
+            </>
           ) : (
-            histBlock
+            <>
+              {sharing && !sharing.isOwner && sharing.scope === "team" && (
+                <div className="mr-shr-strip">
+                  <Icon
+                    name="users"
+                    size={14}
+                    color="var(--hf-ink-faint)"
+                    style={{ flexShrink: 0, marginTop: 1 }}
+                  />
+                  <span>
+                    Shared by {sharing.ownerDisplayName ?? "a teammate"} — you can view and log
+                    maintenance here. Only {ownerFirstName} can unshare it.
+                  </span>
+                </div>
+              )}
+              {histBlock}
+            </>
           )}
         </div>
       </main>
@@ -1234,6 +1490,35 @@ export function AppMaintenanceRecords() {
               variant={overlayVariant}
               onClose={() => setTaskFormOpen(false)}
               onCreated={handleTaskCreated}
+            />
+          </div>
+        </div>
+      )}
+
+      {shareOpen && asset && sharing && (
+        <div className={`mr-overlay mr-overlay-${overlayVariant}`}>
+          <div
+            className="mr-scrim"
+            onClick={() => {
+              if (!shareBusy) setShareOpen(false);
+            }}
+          />
+          <div className={`mr-overlay-panel-${overlayVariant}`}>
+            <MRShareSheet
+              assetName={asset.name}
+              sharing={sharing}
+              teamName={team?.name ?? null}
+              memberCount={team?.members.length ?? 0}
+              teamLoading={teamQuery.isPending}
+              noTeam={noTeam}
+              busy={shareBusy}
+              error={shareError}
+              variant={overlayVariant}
+              onClose={() => {
+                if (!shareBusy) setShareOpen(false);
+              }}
+              onShare={() => shareMutation.mutate()}
+              onUnshare={() => unshareMutation.mutate()}
             />
           </div>
         </div>

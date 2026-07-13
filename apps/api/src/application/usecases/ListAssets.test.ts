@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import { AssetId, UserId } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import { User } from "../../domain/identity/User.ts";
+import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import { ListAssets } from "./ListAssets.ts";
 
 class AssetRepositoryFake implements AssetRepository {
-  requestedOwnerId: UserId | null = null;
+  requestedUserId: UserId | null = null;
 
   constructor(private readonly assets: Asset[]) {}
 
@@ -13,9 +15,27 @@ class AssetRepositoryFake implements AssetRepository {
     return Promise.resolve(null);
   }
 
-  findByOwner(ownerId: UserId): Promise<Asset[]> {
-    this.requestedOwnerId = ownerId;
-    return Promise.resolve(this.assets.filter((asset) => asset.ownerId === ownerId));
+  findVisibleTo(userId: UserId): Promise<Asset[]> {
+    this.requestedUserId = userId;
+    return Promise.resolve(this.assets.filter((asset) => asset.ownerId === userId));
+  }
+
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class UserRepositoryFake implements UserRepository {
+  findById(): Promise<User | null> {
+    return Promise.resolve(null);
+  }
+
+  findByIds(): Promise<User[]> {
+    return Promise.resolve([]);
+  }
+
+  findByEmail(): Promise<User | null> {
+    return Promise.resolve(null);
   }
 
   save(): Promise<void> {
@@ -73,16 +93,16 @@ describe("ListAssets", () => {
       otherOwnerAsset,
     ]);
 
-    const result = await new ListAssets(repository).execute({ ownerId });
-
-    expect(result).toEqual({
-      ok: true,
-      value: {
-        assets: [vehicle, equipment, property],
-        counts: { all: 3, vehicle: 1, equipment: 1, property: 1 },
-      },
+    const result = await new ListAssets(repository, new UserRepositoryFake()).execute({
+      requesterId: ownerId,
     });
-    expect(repository.requestedOwnerId).toBe(ownerId);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.assets.map((item) => item.asset)).toEqual([vehicle, equipment, property]);
+    expect(result.value.assets.every((item) => item.sharing.isOwner)).toBe(true);
+    expect(result.value.counts).toEqual({ all: 3, vehicle: 1, equipment: 1, property: 1 });
+    expect(repository.requestedUserId).toBe(ownerId);
   });
 
   it("returns zero counts when the owner has no active assets", async () => {
@@ -96,7 +116,10 @@ describe("ListAssets", () => {
       updatedAt: new Date("2026-06-01T00:00:00.000Z"),
     });
 
-    const result = await new ListAssets(new AssetRepositoryFake([archived])).execute({ ownerId });
+    const result = await new ListAssets(
+      new AssetRepositoryFake([archived]),
+      new UserRepositoryFake(),
+    ).execute({ requesterId: ownerId });
 
     expect(result).toEqual({
       ok: true,

@@ -88,6 +88,88 @@
 .mr-hero-meta .hf-mono { font-family: var(--hf-mono); font-size: 12px; color: var(--hf-ink); }
 .mr-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--hf-ink-faint); }
 .mr-hero-add { align-self: flex-start; flex-shrink: 0; }
+.mr-hero-actions {
+  display: flex; align-items: flex-start; gap: 8px; flex-shrink: 0; align-self: flex-start;
+}
+
+/* ============ sharing (hero badge + action + sheet) ============ */
+.mr-share-badge {
+  margin-top: 8px; display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px 3px 7px; border-radius: 999px; border: 1px solid transparent;
+  font-size: 11px; font-weight: 600; letter-spacing: -0.005em;
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: var(--hf-sans); background: none;
+}
+.mr-share-badge span { overflow: hidden; text-overflow: ellipsis; }
+.mr-share-badge.is-owner {
+  background: var(--hf-brand-bg); color: var(--hf-brand-2);
+  border-color: oklch(88% 0.04 150);
+  cursor: pointer;
+}
+.mr-share-badge.is-member {
+  background: var(--hf-surface-2); color: var(--hf-ink-soft); border-color: var(--hf-line);
+}
+.mr-share-btn {
+  flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px;
+  border: 1px solid var(--hf-line); background: var(--hf-surface);
+  color: var(--hf-ink-soft); display: flex; align-items: center; justify-content: center;
+}
+.mr-share-btn:hover { color: var(--hf-ink); border-color: var(--hf-ink-faint); }
+.mr-share-btn.is-active {
+  background: var(--hf-brand-bg); border-color: oklch(88% 0.04 150); color: var(--hf-brand-2);
+}
+.mr-share-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.mr-shr-strip {
+  display: flex; align-items: flex-start; gap: 9px;
+  margin-bottom: 14px; padding: 10px 12px;
+  background: var(--hf-surface-2); border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-sm, 10px);
+  font-size: 12px; color: var(--hf-ink-soft); line-height: 1.5;
+}
+
+.mr-shr-tile {
+  width: 52px; height: 52px; border-radius: 14px;
+  background: var(--hf-brand-bg); color: var(--hf-brand-2);
+  display: flex; align-items: center; justify-content: center;
+  margin: 2px auto 0;
+}
+.mr-shr-sub {
+  font-size: 13px; color: var(--hf-ink-soft); text-align: center; line-height: 1.5; padding: 0 6px;
+}
+.mr-shr-team-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 12px 13px; border: 1px solid var(--hf-line); border-radius: var(--hf-r, 12px);
+  background: var(--hf-surface-2);
+}
+.mr-shr-team-mark {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--hf-surface); border: 1px solid var(--hf-line); color: var(--hf-brand-2);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.mr-shr-team-name { font-size: 13.5px; font-weight: 600; color: var(--hf-ink); }
+.mr-shr-team-sub { font-size: 11.5px; color: var(--hf-ink-faint); margin-top: 1px; }
+.mr-shr-owner-note {
+  display: flex; gap: 8px; padding: 10px 12px;
+  background: var(--hf-surface-2); border-radius: var(--hf-r-sm, 10px);
+  font-size: 12px; color: var(--hf-ink-soft); line-height: 1.5;
+}
+.mr-shr-unshare-btn {
+  width: 100%; padding: 13px; border-radius: 12px;
+  background: var(--hf-surface); border: 1.5px solid var(--hf-bad); color: var(--hf-bad);
+  font-size: 14.5px; font-weight: 600;
+}
+.mr-shr-unshare-btn:hover { background: color-mix(in oklch, var(--hf-bad) 8%, var(--hf-surface)); }
+.mr-shr-unshare-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.mr-shr-body {
+  display: flex; flex-direction: column; gap: 14px; padding: 8px 4px 4px;
+}
+.mr-shr-head-title { font-size: 17px; font-weight: 700; color: var(--hf-ink); letter-spacing: -0.02em; }
+.mr-shr-head-sub { font-size: 12.5px; color: var(--hf-ink-soft); margin-top: 2px; }
+.mr-shr-error {
+  font-size: 12.5px; color: var(--hf-bad); line-height: 1.4; text-align: center;
+}
+.mr-shr-error a { color: var(--hf-bad); font-weight: 600; text-decoration: underline; }
 
 /* ============ tabs ============ */
 .mr-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--hf-line); margin-top: 2px; }

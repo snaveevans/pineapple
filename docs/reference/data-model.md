@@ -9,11 +9,13 @@ User 1 ──< owns >── * Asset 1 ──< has >── * MaintenanceRecord
                    └──< appears in >── * ActivityEntry
 ```
 
-A **User** owns many **Assets**. An asset always belongs to exactly one user,
-and a user only ever sees their own assets.
+A **User** owns many **Assets**. An asset always belongs to exactly one user.
+Assets may be **shared** to a team the owner belongs to; team members can then
+see and edit those assets. Unshared assets remain personal.
 
 An **Asset** has zero or more **Maintenance Records**. Each record belongs to
-exactly one asset and inherits access through that asset's owner.
+exactly one asset and inherits access through that asset (ownership or team
+sharing).
 
 An **Activity Entry** is an append-only projection of a tracked domain event.
 It belongs to the same owner as the source action and stores the asset snapshot
@@ -54,6 +56,9 @@ Field shapes and validation rules live in the [OpenAPI spec](openapi.json)
 
 - **`ownerId`** — the owning `UserId`; set on creation and immutable. Not
   exposed in the API response.
+- **`sharedTeamId`** — optional `TeamId`; null means personal. Set only by the
+  asset owner via share/unshare. Not exposed raw in the API; clients receive a
+  computed `sharing` descriptor instead.
 - **`type`** mirrors `metadata.kind` — there is no asset whose `type`
   disagrees with its metadata. Both are immutable after creation.
 
@@ -139,6 +144,8 @@ Aggregates raise events when something significant happens. Today:
 | `MaintenanceReminderCreated` | a due-soon reminder is created                    | event id, notification/task/asset/owner ids, notification type, system actor, and lead-days conclusion                                              |
 | `ReminderEmailDispatched`    | an aggregated reminder email decision is recorded | event id, email batch id, owner id, result, suppress reason, and covered notification count; no email address or reminder copy                      |
 | `TeamCreated`                | a team is created                                 | event id, team/owner/actor, and team name                                                                                                           |
+| `AssetSharedToTeam`          | an asset is shared to a team                      | event id, asset/owner/actor, asset name, team id + name                                                                                             |
+| `AssetUnsharedFromTeam`      | an asset is returned to personal                  | event id, asset/owner/actor, asset name, team id + name (of the team it left)                                                                       |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1

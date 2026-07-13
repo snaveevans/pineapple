@@ -1,6 +1,8 @@
 import type { EventBus } from "../../application/ports/EventBus.ts";
 import { AnalyticsEngineTelemetrySink } from "./AnalyticsEngineTelemetrySink.ts";
 import { AssetCreatedTelemetryHandler } from "./asset/AssetCreatedTelemetryHandler.ts";
+import { AssetSharedToTeamTelemetryHandler } from "./asset/AssetSharedToTeamTelemetryHandler.ts";
+import { AssetUnsharedFromTeamTelemetryHandler } from "./asset/AssetUnsharedFromTeamTelemetryHandler.ts";
 import { MaintenanceRecordCreatedTelemetryHandler } from "./maintenance/MaintenanceRecordCreatedTelemetryHandler.ts";
 import { MaintenanceTaskAdvancedTelemetryHandler } from "./maintenance/MaintenanceTaskAdvancedTelemetryHandler.ts";
 import { MaintenanceTaskCreatedTelemetryHandler } from "./maintenance/MaintenanceTaskCreatedTelemetryHandler.ts";
@@ -23,6 +25,8 @@ export function registerDomainTelemetry(deps: {
 }): void {
   const assetDomainSink = new AnalyticsEngineTelemetrySink(deps.assetDomainDataset);
   deps.eventBus.subscribe(new AssetCreatedTelemetryHandler(assetDomainSink));
+  deps.eventBus.subscribe(new AssetSharedToTeamTelemetryHandler(assetDomainSink));
+  deps.eventBus.subscribe(new AssetUnsharedFromTeamTelemetryHandler(assetDomainSink));
 
   const userDomainSink = new AnalyticsEngineTelemetrySink(deps.userDomainDataset);
   deps.eventBus.subscribe(new UserProvisionedTelemetryHandler(userDomainSink));

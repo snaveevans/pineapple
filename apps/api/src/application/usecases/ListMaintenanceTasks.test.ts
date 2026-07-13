@@ -8,6 +8,9 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import { ListMaintenanceTasks } from "./ListMaintenanceTasks.ts";
@@ -17,8 +20,22 @@ class AssetRepositoryFake implements AssetRepository {
   findById(): Promise<Asset | null> {
     return Promise.resolve(this.asset);
   }
-  findByOwner(): Promise<Asset[]> {
+
+  findVisibleTo(): Promise<Asset[]> {
     return Promise.resolve([]);
+  }
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class TeamRepositoryFake implements TeamRepository {
+  constructor(private readonly team: Team | null = null) {}
+  findByMember(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  findById(): Promise<Team | null> {
+    return Promise.resolve(this.team);
   }
   save(): Promise<void> {
     return Promise.resolve();
@@ -30,7 +47,7 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve(this.tasks);
   }
-  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+  findForVisibleActiveAssets(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
   findById(): Promise<MaintenanceTask | null> {
@@ -70,6 +87,7 @@ describe("ListMaintenanceTasks", () => {
     const task = makeTask(a.id);
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake([task]),
     ).execute({ assetId: a.id, requesterId: ownerId });
 
@@ -81,6 +99,7 @@ describe("ListMaintenanceTasks", () => {
     const a = asset();
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake([]),
     ).execute({ assetId: a.id, requesterId: ownerId });
 
@@ -91,6 +110,7 @@ describe("ListMaintenanceTasks", () => {
   it("returns not found when the asset does not exist", async () => {
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(null),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake(),
     ).execute({ assetId: AssetId.generate(), requesterId: ownerId });
 
@@ -102,10 +122,40 @@ describe("ListMaintenanceTasks", () => {
     const a = asset(UserId.generate());
     const result = await new ListMaintenanceTasks(
       new AssetRepositoryFake(a),
+      new TeamRepositoryFake(),
       new MaintenanceTaskRepositoryFake(),
     ).execute({ assetId: a.id, requesterId: ownerId });
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to list tasks on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const a = asset(ownerId);
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    a.shareToTeam({ teamId: team.id, teamName: team.name, actorId: ownerId });
+    a.pullEvents();
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const task = makeTask(a.id);
+
+    const result = await new ListMaintenanceTasks(
+      new AssetRepositoryFake(a),
+      new TeamRepositoryFake(memberTeam),
+      new MaintenanceTaskRepositoryFake([task]),
+    ).execute({ assetId: a.id, requesterId: memberId });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual([task]);
   });
 });

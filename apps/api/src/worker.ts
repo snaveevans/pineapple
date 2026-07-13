@@ -79,6 +79,10 @@ import { MarkAllNotificationsRead } from "./application/usecases/MarkAllNotifica
 import { SweepMaintenanceReminders } from "./application/usecases/SweepMaintenanceReminders.ts";
 import { CreateTeam } from "./application/usecases/CreateTeam.ts";
 import { GetMyTeam } from "./application/usecases/GetMyTeam.ts";
+import { ShareAsset } from "./application/usecases/ShareAsset.ts";
+import { UnshareAsset } from "./application/usecases/UnshareAsset.ts";
+import { toSharingDescriptor } from "./application/usecases/assetSharing.ts";
+import type { AssetSharingDescriptor } from "./application/usecases/assetSharing.ts";
 import { D1VerificationTokenRepository } from "./infrastructure/persistence/D1VerificationTokenRepository.ts";
 import { D1VerificationSendLog } from "./infrastructure/persistence/D1VerificationSendLog.ts";
 import { SystemClock } from "./infrastructure/time/SystemClock.ts";
@@ -116,6 +120,8 @@ import {
   updateUserProfileRoute,
   createTeamRoute,
   getMyTeamRoute,
+  shareAssetRoute,
+  unshareAssetRoute,
   registerOpenApiComponents,
 } from "./api/openapi.ts";
 import openApiSpec from "../../../docs/reference/openapi.json";
@@ -219,7 +225,10 @@ app.use(
 
 // ── Serializers ────────────────────────────────────────────────────────────
 
-function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
+function serializeAsset(
+  asset: Asset,
+  sharing: AssetSharingDescriptor,
+): z.infer<typeof AssetResponseSchema> {
   return {
     id: asset.id,
     name: asset.name,
@@ -228,6 +237,13 @@ function serializeAsset(asset: Asset): z.infer<typeof AssetResponseSchema> {
     archivedAt: asset.archivedAt?.toISOString() ?? null,
     createdAt: asset.createdAt.toISOString(),
     updatedAt: asset.updatedAt.toISOString(),
+    sharing: {
+      scope: sharing.scope,
+      isOwner: sharing.isOwner,
+      ...(sharing.ownerDisplayName !== undefined
+        ? { ownerDisplayName: sharing.ownerDisplayName }
+        : {}),
+    },
   };
 }
 
@@ -607,13 +623,16 @@ app.openapi(createAssetRoute, async (c) => {
 
 app.openapi(listAssetsRoute, async (c) => {
   const user = c.get("user");
-  const result = await new ListAssets(new D1AssetRepository(c.env.DB)).execute({
-    ownerId: user.id,
+  const result = await new ListAssets(
+    new D1AssetRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+  ).execute({
+    requesterId: user.id,
   });
   if (!result.ok) throw result.error;
   return c.json(
     {
-      assets: result.value.assets.map(serializeAsset),
+      assets: result.value.assets.map((item) => serializeAsset(item.asset, item.sharing)),
       counts: result.value.counts,
     },
     200,
@@ -623,23 +642,63 @@ app.openapi(listAssetsRoute, async (c) => {
 app.openapi(getAssetRoute, async (c) => {
   const user = c.get("user");
   const { id } = c.req.valid("param");
-  const result = await new GetAsset(new D1AssetRepository(c.env.DB)).execute({
+  const result = await new GetAsset(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+  ).execute({
     assetId: AssetId.from(id),
     requesterId: user.id,
   });
   if (!result.ok) throw result.error;
-  return c.json(serializeAsset(result.value), 200);
+  return c.json(serializeAsset(result.value.asset, result.value.sharing), 200);
 });
 
 app.openapi(searchAssetsRoute, async (c) => {
   const user = c.get("user");
   const { q } = c.req.valid("query");
   const result = await new SearchAssets(new D1AssetRepository(c.env.DB)).execute({
-    ownerId: user.id,
+    requesterId: user.id,
     q,
   });
   if (!result.ok) throw result.error;
   return c.json({ results: result.value }, 200);
+});
+
+app.openapi(shareAssetRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId } = c.req.valid("param");
+  const result = await new ShareAsset(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(
+    serializeAsset(result.value, toSharingDescriptor(result.value, user.id, null)),
+    200,
+  );
+});
+
+app.openapi(unshareAssetRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId } = c.req.valid("param");
+  const result = await new UnshareAsset(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(
+    serializeAsset(result.value, toSharingDescriptor(result.value, user.id, null)),
+    200,
+  );
 });
 
 // ── Maintenance record endpoints ────────────────────────────────────────────
@@ -650,6 +709,7 @@ app.openapi(createMaintenanceRecordRoute, async (c) => {
   const { title, performedAt, notes, taskId } = c.req.valid("json");
   const result = await new CreateMaintenanceRecord(
     new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
     new D1MaintenanceRecordRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
@@ -671,6 +731,7 @@ app.openapi(listMaintenanceRecordsRoute, async (c) => {
   const { assetId } = c.req.valid("param");
   const result = await new ListMaintenanceRecords(
     new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
     new D1MaintenanceRecordRepository(c.env.DB),
   ).execute({
     assetId: AssetId.from(assetId),
@@ -688,6 +749,7 @@ app.openapi(createMaintenanceTaskRoute, async (c) => {
   const { title, intervalValue, intervalUnit, lastCompletedDate } = c.req.valid("json");
   const result = await new CreateMaintenanceTask(
     new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
     new SystemUtcDateProvider(),
@@ -710,6 +772,7 @@ app.openapi(listMaintenanceTasksRoute, async (c) => {
   const todayUtc = new SystemUtcDateProvider().today();
   const result = await new ListMaintenanceTasks(
     new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
   ).execute({
     assetId: AssetId.from(assetId),
@@ -727,6 +790,7 @@ app.openapi(deleteMaintenanceTaskRoute, async (c) => {
   const { assetId, taskId } = c.req.valid("param");
   const result = await new DeleteMaintenanceTask(
     new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
   ).execute({

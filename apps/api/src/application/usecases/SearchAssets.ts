@@ -14,10 +14,15 @@ import type { AssetType } from "../../domain/asset/AssetType.ts";
 const MAX_SEARCH_RESULTS = 20;
 
 export type SearchAssetsQuery = {
-  ownerId: UserId;
+  requesterId: UserId;
   q: string;
 };
 
+/**
+ * Compact search hit. Intentionally omits the full asset `sharing` descriptor —
+ * list/get carry that; search stays a lightweight name/type/summary match list
+ * over the same visible set (owned + team-shared).
+ */
 export type SearchAssetResult = {
   id: string;
   name: string;
@@ -33,7 +38,7 @@ export class SearchAssets {
       const terms = searchTerms(query.q);
       if (terms.length === 0) return ok([]);
 
-      const assets = await this.assets.findByOwner(query.ownerId);
+      const assets = await this.assets.findVisibleTo(query.requesterId);
       const results = assets
         .filter((asset) => asset.archivedAt === null)
         .filter((asset) => matchesAllTerms(asset, terms))

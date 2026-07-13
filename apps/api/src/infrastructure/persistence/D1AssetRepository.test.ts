@@ -1,6 +1,6 @@
 import { UserId } from "@snaveevans/pineapple-shared";
 import { describe, expect, it, vi } from "vitest";
-import { D1MaintenanceTaskRepository } from "./D1MaintenanceTaskRepository.ts";
+import { D1AssetRepository } from "./D1AssetRepository.ts";
 
 type BoundStatement = {
   query: string;
@@ -15,6 +15,8 @@ function createDatabaseHarness() {
         statements.push({ query, values });
         return {
           all: vi.fn().mockResolvedValue({ results: [] }),
+          first: vi.fn().mockResolvedValue(null),
+          run: vi.fn().mockResolvedValue(undefined),
         };
       },
     } as unknown as D1PreparedStatement;
@@ -24,18 +26,18 @@ function createDatabaseHarness() {
   return { db, statements };
 }
 
-describe("D1MaintenanceTaskRepository", () => {
-  it("findForVisibleActiveAssets joins active assets including team-shared", async () => {
+describe("D1AssetRepository", () => {
+  it("findVisibleTo includes owned assets and team-shared assets via membership subquery", async () => {
     const { db, statements } = createDatabaseHarness();
-    const ownerId = UserId.generate();
+    const userId = UserId.generate();
 
-    await new D1MaintenanceTaskRepository(db).findForVisibleActiveAssets(ownerId);
+    await new D1AssetRepository(db).findVisibleTo(userId);
 
     expect(statements).toHaveLength(1);
     const query = statements[0]?.query ?? "";
-    expect(query).toContain("INNER JOIN assets a ON a.id = t.asset_id");
-    expect(query).toContain("a.archived_at IS NULL");
-    expect(query).toContain("shared_team_id");
-    expect(statements[0]?.values).toEqual([ownerId, ownerId]);
+    expect(query).toContain("owner_id = ?");
+    expect(query).toContain("shared_team_id IN");
+    expect(query).toContain("SELECT team_id FROM team_members WHERE user_id = ?");
+    expect(statements[0]?.values).toEqual([userId, userId]);
   });
 });

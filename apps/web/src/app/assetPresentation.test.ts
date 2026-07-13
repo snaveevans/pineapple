@@ -7,6 +7,7 @@ const BASE_ASSET = {
   archivedAt: null,
   createdAt: "2026-05-29T03:25:24.887Z",
   updatedAt: "2026-05-29T03:25:24.887Z",
+  sharing: { scope: "personal" as const, isOwner: true },
 } as const;
 
 describe("shortenAssetId", () => {

@@ -9,10 +9,26 @@ import {
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
+import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
 import { DeleteMaintenanceTask } from "./DeleteMaintenanceTask.ts";
+
+class TeamRepositoryFake implements TeamRepository {
+  constructor(private readonly team: Team | null = null) {}
+  findByMember(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  findById(): Promise<Team | null> {
+    return Promise.resolve(this.team);
+  }
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
 
 class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   deleted: MaintenanceTaskId | null = null;
@@ -20,7 +36,7 @@ class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
-  findByOwnerForActiveAssets(): Promise<MaintenanceTask[]> {
+  findForVisibleActiveAssets(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
   }
   findById(): Promise<MaintenanceTask | null> {
@@ -42,7 +58,7 @@ class AssetRepositoryFake implements AssetRepository {
     return Promise.resolve(this.asset);
   }
 
-  findByOwner(): Promise<Asset[]> {
+  findVisibleTo(): Promise<Asset[]> {
     return Promise.resolve([]);
   }
 
@@ -97,6 +113,7 @@ describe("DeleteMaintenanceTask", () => {
     const events = new EventBusFake();
     const result = await new DeleteMaintenanceTask(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       repo,
       events,
     ).execute({
@@ -121,6 +138,7 @@ describe("DeleteMaintenanceTask", () => {
     const repo = new MaintenanceTaskRepositoryFake(null);
     const result = await new DeleteMaintenanceTask(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       repo,
       new EventBusFake(),
     ).execute({
@@ -132,20 +150,85 @@ describe("DeleteMaintenanceTask", () => {
     if (!result.ok) expect(result.error).toBeInstanceOf(NotFoundError);
   });
 
-  it("returns forbidden for another owner's task", async () => {
-    const task = makeTask(UserId.generate());
-    const repo = new MaintenanceTaskRepositoryFake(task);
+  it("returns forbidden when the requester cannot access the parent asset", async () => {
+    const task = makeTask();
+    const otherAsset = Asset.create({
+      ownerId: UserId.generate(),
+      name: "Other truck",
+      metadata: { kind: "vehicle", make: "Ford", model: "F-150", year: 2020 },
+    });
+    const otherTask = MaintenanceTask.reconstitute({
+      id: task.id,
+      assetId: otherAsset.id,
+      ownerId: otherAsset.ownerId,
+      title: task.title,
+      intervalValue: task.intervalValue,
+      intervalUnit: task.intervalUnit,
+      lastCompletedDate: task.lastCompletedDate,
+      nextDue: task.nextDue,
+      createdAt: task.createdAt,
+    });
     const result = await new DeleteMaintenanceTask(
-      new AssetRepositoryFake(asset),
-      repo,
+      new AssetRepositoryFake(otherAsset),
+      new TeamRepositoryFake(),
+      new MaintenanceTaskRepositoryFake(otherTask),
       new EventBusFake(),
     ).execute({
-      taskId: task.id,
-      assetId,
+      taskId: otherTask.id,
+      assetId: otherAsset.id,
       requesterId: ownerId,
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to delete a task on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    const sharedAsset = Asset.reconstitute({
+      id: assetId,
+      ownerId,
+      name: asset.name,
+      metadata: asset.metadata,
+      archivedAt: null,
+      createdAt: asset.createdAt,
+      updatedAt: asset.updatedAt,
+      sharedTeamId: team.id,
+    });
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const task = makeTask();
+    const repo = new MaintenanceTaskRepositoryFake(task);
+    const events = new EventBusFake();
+
+    const result = await new DeleteMaintenanceTask(
+      new AssetRepositoryFake(sharedAsset),
+      new TeamRepositoryFake(memberTeam),
+      repo,
+      events,
+    ).execute({
+      taskId: task.id,
+      assetId,
+      requesterId: memberId,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(repo.deleted).toBe(task.id);
+    expect(events.events).toEqual([
+      expect.objectContaining({
+        type: "MaintenanceTaskDeleted",
+        actorId: memberId,
+      }),
+    ]);
   });
 
   it("returns not found when task belongs to a different asset", async () => {
@@ -153,6 +236,7 @@ describe("DeleteMaintenanceTask", () => {
     const repo = new MaintenanceTaskRepositoryFake(task);
     const result = await new DeleteMaintenanceTask(
       new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
       repo,
       new EventBusFake(),
     ).execute({
