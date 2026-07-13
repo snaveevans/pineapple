@@ -93,6 +93,12 @@ export class Asset {
   /**
    * Share this asset to a team. Idempotent when already shared to the same team
    * (no event). Cross-aggregate fields (teamName) are supplied by the application layer.
+   *
+   * If already shared to a *different* team, this overwrites `sharedTeamId` and emits
+   * only `AssetSharedToTeam` — not `AssetUnsharedFromTeam` for the outgoing team.
+   * Unreachable today (one team per user; share always targets the caller's team),
+   * but when multi-team / team-switching lands, emit an unshare for the prior team
+   * so durable consumers keep a complete audit trail (ADR-0010).
    */
   shareToTeam(props: { teamId: TeamId; teamName: string; actorId: UserId }): void {
     if (this._sharedTeamId === props.teamId) return;

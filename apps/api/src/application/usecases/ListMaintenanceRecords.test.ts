@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ForbiddenError, NotFoundError, UserId } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
-import type { Team } from "../../domain/team/Team.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
@@ -99,6 +100,39 @@ describe("ListMaintenanceRecords", () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to list records on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const asset = assetFor();
+    asset.pullEvents();
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    asset.shareToTeam({ teamId: team.id, teamName: team.name, actorId: ownerId });
+    asset.pullEvents();
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const history = [record(asset, "2026-06-01", "2026-06-02T00:00:00.000Z")];
+    const records = new MaintenanceRecordRepositoryFake(history);
+
+    const result = await new ListMaintenanceRecords(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(memberTeam),
+      records,
+    ).execute({ assetId: asset.id, requesterId: memberId });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toEqual(history);
+    // Records are stored under the asset owner; access follows the asset.
+    expect(records.requestedOwnerId).toBe(ownerId);
   });
 
   function assetFor(): Asset {

@@ -9,7 +9,8 @@ import {
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
-import type { Team } from "../../domain/team/Team.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
@@ -179,6 +180,55 @@ describe("DeleteMaintenanceTask", () => {
     });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to delete a task on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    const sharedAsset = Asset.reconstitute({
+      id: assetId,
+      ownerId,
+      name: asset.name,
+      metadata: asset.metadata,
+      archivedAt: null,
+      createdAt: asset.createdAt,
+      updatedAt: asset.updatedAt,
+      sharedTeamId: team.id,
+    });
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const task = makeTask();
+    const repo = new MaintenanceTaskRepositoryFake(task);
+    const events = new EventBusFake();
+
+    const result = await new DeleteMaintenanceTask(
+      new AssetRepositoryFake(sharedAsset),
+      new TeamRepositoryFake(memberTeam),
+      repo,
+      events,
+    ).execute({
+      taskId: task.id,
+      assetId,
+      requesterId: memberId,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(repo.deleted).toBe(task.id);
+    expect(events.events).toEqual([
+      expect.objectContaining({
+        type: "MaintenanceTaskDeleted",
+        actorId: memberId,
+      }),
+    ]);
   });
 
   it("returns not found when task belongs to a different asset", async () => {

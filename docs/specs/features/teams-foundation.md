@@ -74,7 +74,8 @@ authoritative in `openapi.json`.
 - [ ] A team member can read an asset shared with their team and all of its dependent records (maintenance tasks, maintenance records, activity)
 <!-- maintenance tasks/records: done; activity feed still owner-scoped — follow-up -->
 - [x] A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
-- [x] Access to a shared asset's dependent records **follows the asset**: authorization for maintenance/record/activity operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
+- [x] Access to a shared asset's dependent records **follows the asset**: authorization for maintenance task and record operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
+- [ ] Access to the **activity feed** for shared assets follows the asset the same way (still owner-scoped today — follow-up)
 - [x] When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
 
 **Read-path integration**

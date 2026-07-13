@@ -9,7 +9,8 @@ import {
 } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
-import type { Team } from "../../domain/team/Team.ts";
+import { createMembership } from "../../domain/team/Membership.ts";
+import { Team } from "../../domain/team/Team.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
@@ -160,6 +161,54 @@ describe("CreateMaintenanceTask", () => {
     const { result } = await execute({ requesterId: UserId.generate() });
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toBeInstanceOf(ForbiddenError);
+  });
+
+  it("allows a non-owner team member to create a task on a shared asset", async () => {
+    const memberId = UserId.generate();
+    const a = asset(ownerId);
+    a.pullEvents();
+    const team = Team.create({ ownerId, name: "Field Ops" });
+    team.pullEvents();
+    a.shareToTeam({ teamId: team.id, teamName: team.name, actorId: ownerId });
+    a.pullEvents();
+    const memberTeam = Team.reconstitute({
+      id: team.id,
+      ownerId: team.ownerId,
+      name: team.name,
+      createdAt: team.createdAt,
+      members: [
+        ...team.members,
+        createMembership({ userId: memberId, role: "member", joinedAt: new Date() }),
+      ],
+    });
+    const tasks = new MaintenanceTaskRepositoryFake();
+    const events = new EventBusFake();
+
+    const result = await new CreateMaintenanceTask(
+      new AssetRepositoryFake(a),
+      new TeamRepositoryFake(memberTeam),
+      tasks,
+      events,
+      dates,
+    ).execute({
+      assetId: a.id,
+      requesterId: memberId,
+      title: "Member scheduled oil",
+      intervalValue: 3,
+      intervalUnit: "month",
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.ownerId).toBe(ownerId);
+    expect(events.events).toEqual([
+      expect.objectContaining({
+        type: "MaintenanceTaskCreated",
+        ownerId,
+        actorId: memberId,
+        title: "Member scheduled oil",
+      }),
+    ]);
   });
 
   it("returns conflict for an archived asset", async () => {
