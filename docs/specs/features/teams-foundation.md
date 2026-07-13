@@ -7,9 +7,9 @@ metadata:
 
 # Teams Foundation
 
-**Status:** review
+**Status:** in-progress
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-07-03
+**Last Updated:** 2026-07-13
 **Related Specs:** [ADR-0015](../../decisions/0015-teams-as-opt-in-sharing-scope.md), [authentication.md](../cross-cutting/authentication.md), [permissions.md](../cross-cutting/permissions.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [dashboard.md](./dashboard.md), [app-search.md](./app-search.md)
 
 ---
@@ -48,47 +48,59 @@ authoritative in `openapi.json`.
 
 ## Acceptance Criteria
 
+_Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery Plan](#delivery-plan)._
+
 **Team creation**
 
-- [x] An authenticated user who belongs to no team can create a team by providing a **name**; on success they become the team's **owner** and its only member
-- [x] Creating a team when the requester already belongs to a team (as owner or member) fails with **409 Conflict** and no team is created
-- [x] The team name is **required**, trimmed, and at most **100 characters** (matching `DISPLAY_NAME_MAX_LENGTH`); it need not be unique. An invalid name fails with **422** before any team is created
-- [x] A new team starts with exactly one membership: the creator, with role `owner`
+- [x] `S1` An authenticated user who belongs to no team can create a team by providing a **name**; on success they become the team's **owner** and its only member
+- [x] `S1` Creating a team when the requester already belongs to a team (as owner or member) fails with **409 Conflict** and no team is created
+- [x] `S1` The team name is **required**, trimmed, and at most **100 characters** (matching `DISPLAY_NAME_MAX_LENGTH`); it need not be unique. An invalid name fails with **422** before any team is created
+- [x] `S1` A new team starts with exactly one membership: the creator, with role `owner`
 
 **Reading your team**
 
-- [x] A member can read their own team, including its name and the list of members with each member's display name and role
-- [x] A user who belongs to no team gets an explicit "no team" result (not an error), so the client can render a create-team prompt
+- [x] `S1` A member can read their own team, including its name and the list of members with each member's display name and role
+- [x] `S1` A user who belongs to no team gets an explicit "no team" result (not an error), so the client can render a create-team prompt
 
 **Sharing & unsharing (asset-owner only)**
 
-- [x] The **owner of an asset** can share that asset to the team they belong to; after sharing, the asset is visible and editable to every member of that team
-- [x] Sharing requires the requester to belong to a team; sharing when the requester has no team fails with a **409 Conflict** (there is nothing to share into)
-- [x] Only the asset's owner may share or unshare it — a member who does not own the asset attempting to change its sharing fails with **403 Forbidden**
-- [x] The asset owner can unshare a shared asset, returning it to **personal**; members immediately lose access
-- [x] Sharing an asset that is already shared to the caller's team is an idempotent success (no duplicate, no error); unsharing an already-personal asset is an idempotent success
-- [x] "Owner" here means the **asset's** owner (`ownerId`), which may be any team member — not necessarily the team's owner. Any member can share the assets **they** own
+- [x] `S2` The **owner of an asset** can share that asset to the team they belong to; after sharing, the asset is visible and editable to every member of that team
+- [x] `S2` Sharing requires the requester to belong to a team; sharing when the requester has no team fails with a **409 Conflict** (there is nothing to share into)
+- [x] `S2` Only the asset's owner may share or unshare it — a member who does not own the asset attempting to change its sharing fails with **403 Forbidden**
+- [x] `S2` The asset owner can unshare a shared asset, returning it to **personal**; members immediately lose access
+- [x] `S2` Sharing an asset that is already shared to the caller's team is an idempotent success (no duplicate, no error); unsharing an already-personal asset is an idempotent success
+- [x] `S2` "Owner" here means the **asset's** owner (`ownerId`), which may be any team member — not necessarily the team's owner. Any member can share the assets **they** own
 
 **Member access to shared assets (full parity)**
 
-- [ ] A team member can read an asset shared with their team and all of its dependent records (maintenance tasks, maintenance records, activity)
-<!-- maintenance tasks/records: done; activity feed still owner-scoped — follow-up -->
-- [x] A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
-- [x] Access to a shared asset's dependent records **follows the asset**: authorization for maintenance task and record operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
-- [ ] Access to the **activity feed** for shared assets follows the asset the same way (still owner-scoped today — follow-up)
-- [x] When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
+- [x] `S2` A team member can read an asset shared with their team and its **maintenance tasks and records** (the activity feed is `S3`, below)
+- [x] `S2` A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
+- [x] `S2` Access to a shared asset's dependent records **follows the asset**: authorization for maintenance task and record operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
+- [ ] `S3` Access to the **activity feed** for shared assets follows the asset the same way — specified in [activity-history.md](./activity-history.md) (team visibility of shared-asset activity, with actor attribution)
+- [x] `S2` When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
 
 **Read-path integration**
 
-- [x] Every list of "the user's assets" — the asset library (`GET /api/assets`), the dashboard, and search — returns both the requester's own assets (personal and shared-by-them) **and** the assets shared to the requester's team by others
-- [x] Each asset in a read model carries a computed **`sharing`** descriptor (computed server-side per ADR-0009, not derived by the client): its scope (`personal` or `team`) and whether the requester is its owner; for an asset shared **with** the requester by someone else, it also identifies the owner (e.g. owner display name) so the member can see whose asset it is
-- [x] Per-category counts and any other aggregate read-model figures are computed over the full visible set (owned + shared-with-me), so counts and lists stay consistent
+- [x] `S2` Every list of "the user's assets" — the asset library (`GET /api/assets`), the dashboard, and search — returns both the requester's own assets (personal and shared-by-them) **and** the assets shared to the requester's team by others
+- [x] `S2` Each asset in the **`GET /api/assets`** read model carries a computed **`sharing`** descriptor (computed server-side per ADR-0009, not derived by the client): its scope (`personal` or `team`) and whether the requester is its owner; for an asset shared **with** the requester by someone else, it also identifies the owner (e.g. owner display name) so the member can see whose asset it is
+- [ ] `S4` The **dashboard and search** read models also carry the computed `sharing` descriptor per asset, the same shape as the library — so shared items can be marked and attributed on those surfaces (see [dashboard.md](./dashboard.md), [app-search.md](./app-search.md))
+- [x] `S2` Per-category counts and any other aggregate read-model figures are computed over the full visible set (owned + shared-with-me), so counts and lists stay consistent
 
 **Permissions extension**
 
-- [x] The single-resource access rule is extended: a request for an asset (or its children) succeeds if the requester **owns it** _or_ **is a member of the team it is shared with**; otherwise the existing not-owned behavior applies
-- [x] The collection query is extended to include team-shared assets in addition to owned ones; it must never return an asset that is neither owned by nor shared with the requester
-- [x] [permissions.md](../cross-cutting/permissions.md) must be updated to document team visibility as an extension of the ownership model (per-user ownership remains the default; team sharing is additive)
+- [x] `S2` The single-resource access rule is extended: a request for an asset (or its children) succeeds if the requester **owns it** _or_ **is a member of the team it is shared with**; otherwise the existing not-owned behavior applies
+- [x] `S2` The collection query is extended to include team-shared assets in addition to owned ones; it must never return an asset that is neither owned by nor shared with the requester
+- [x] `S2` [permissions.md](../cross-cutting/permissions.md) must be updated to document team visibility as an extension of the ownership model (per-user ownership remains the default; team sharing is additive)
+
+## Delivery Plan
+
+| Slice | Scope                                                                                                                                                                                                                                                                | Issue                                                    | Depends on |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
+| `S1`  | Team + membership core — create a team, read your team                                                                                                                                                                                                               | [#57](https://github.com/snaveevans/pineapple/issues/57) | —          |
+| `S2`  | Asset sharing + access (backend) — share/unshare, single-resource + collection access extension, maintenance follows the asset, `sharing` on `GET /api/assets`, permissions.md                                                                                       | [#58](https://github.com/snaveevans/pineapple/issues/58) | `S1`       |
+| `S3`  | Shared-asset activity + actor attribution — detailed criteria in [activity-history.md](./activity-history.md)                                                                                                                                                        | [#73](https://github.com/snaveevans/pineapple/issues/73) | `S2`       |
+| `S4`  | `sharing` descriptor on the dashboard + search read models                                                                                                                                                                                                           | [#74](https://github.com/snaveevans/pineapple/issues/74) | `S2`       |
+| `S5`  | Web sharing badges — library / dashboard / search. No tagged criteria here; they live in the read specs ([asset-library.md](./asset-library.md), [dashboard.md](./dashboard.md), [app-search.md](./app-search.md)) and [docs/web/FEATURES.md](../../web/FEATURES.md) | [#59](https://github.com/snaveevans/pineapple/issues/59) | `S4`       |
 
 ## Edge Cases & Error States
 
@@ -170,10 +182,14 @@ canonical behavior (403 for exists-but-forbidden) to match the rest of the app; 
 switch to 404 is tracked in [#52](https://github.com/snaveevans/pineapple/issues/52), and this
 spec will follow that decision once made.
 
-**REVIEW NEEDED — Existing read specs must note shared assets:** [asset-library.md](./asset-library.md),
-[dashboard.md](./dashboard.md), and [app-search.md](./app-search.md) describe "the user's own
-assets." Once this lands they must be updated to state that team-shared assets also appear and
-carry the `sharing` descriptor. Tracked in [#53](https://github.com/snaveevans/pineapple/issues/53).
+**RESOLVED — Existing read specs note shared assets:** [asset-library.md](./asset-library.md),
+[dashboard.md](./dashboard.md), and [app-search.md](./app-search.md) have been updated to state
+that team-shared assets also appear and carry the `sharing` descriptor; [activity-history.md](./activity-history.md)
+was reconciled to grant team visibility of shared-asset activity with actor attribution. Spec pass
+tracked in [#53](https://github.com/snaveevans/pineapple/issues/53); the implementation those specs
+now call for is split across [#73](https://github.com/snaveevans/pineapple/issues/73) (activity),
+[#74](https://github.com/snaveevans/pineapple/issues/74) (dashboard/search descriptor), and
+[#59](https://github.com/snaveevans/pineapple/issues/59) (web badges).
 
 ## Out of Scope
 

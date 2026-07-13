@@ -7,16 +7,16 @@ metadata:
 
 # Dashboard
 
-**Status:** draft
+**Status:** review
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-06-17
-**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [maintenance-task.md](./maintenance-task.md), [maintenance-record.md](./maintenance-record.md)
+**Last Updated:** 2026-07-13
+**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [maintenance-task.md](./maintenance-task.md), [maintenance-record.md](./maintenance-record.md), [teams-foundation.md](./teams-foundation.md)
 
 ---
 
 ## Summary
 
-The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. The first API-backed version is read-oriented: it can launch existing maintenance flows and can mark a time-based task complete through the existing maintenance-record creation endpoint, but rescheduling, snoozing, reminders, and richer service-task metadata are future work.
+The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. "Its assets" means every active asset the caller can access — those they **own** and those a teammate has **shared with their team** ([teams-foundation.md](./teams-foundation.md)) — so totals, health, and the queue reflect everything the operator helps maintain, with shared assets marked. The first API-backed version is read-oriented: it can launch existing maintenance flows and can mark a time-based task complete through the existing maintenance-record creation endpoint, but rescheduling, snoozing, reminders, and richer service-task metadata are future work.
 
 ## Implementation Notes
 
@@ -34,6 +34,7 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 - As an **authenticated owner-operator**, I can **see overdue and upcoming maintenance tasks across all active assets in urgency order** so that **I can act on the right task first**
 - As an **authenticated owner-operator with no assets or no scheduled tasks**, I can **see an explicit empty state** so that **I know whether to add an asset or add maintenance tasks**
 - As an **authenticated owner-operator**, I can **start completion for a due task from the dashboard** so that **completed work advances the existing maintenance schedule**
+- As a **team member**, I can **see maintenance for assets shared with my team on the dashboard, marked as shared** so that **I know what needs attention across everything I help maintain and whose it is**
 
 ## API Requirements
 
@@ -41,8 +42,10 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 
 - [ ] Add `GET /api/dashboard` as a protected application API endpoint
 - [ ] The endpoint returns the caller's dashboard state in a single response; the web app must not need to call `GET /api/assets` and then fan out to per-asset task endpoints for initial dashboard render
-- [ ] The endpoint uses the resolved authenticated `User.id` as the ownership input; no `ownerId` is accepted from the request
-- [ ] Only active, non-archived assets owned by the caller are included in fleet totals, category counts, health counts, and queue items
+- [ ] The endpoint uses the resolved authenticated `User.id` as the identity input; no `ownerId` is accepted from the request
+- [ ] Every active, non-archived asset the caller can **access** — owned **and** currently shared with the caller's team ([teams-foundation.md](./teams-foundation.md)) — is included in fleet totals, category counts, health counts, and queue items; assets neither owned by nor shared with the caller are never included
+- [ ] Each asset represented on the dashboard (in fleet data and in every queue item) carries the computed **`sharing`** descriptor (`scope`, `isOwner`, and `ownerDisplayName` when shared with the caller) per ADR-0009, so the client can mark shared items and attribute the owner without a second lookup
+- [ ] A queue item for an asset shared with the caller by a teammate is rendered with a shared indicator and the owner's display name; an item for an asset the caller owns and has shared shows a "shared with team" indicator; personal assets show none
 - [ ] Tasks belonging to archived assets are excluded from the dashboard queue, even though asset-scoped task history may remain readable elsewhere
 - [ ] The response includes a viewer display name suitable for the greeting, derived from the authenticated session profile when available
 - [ ] The response includes `todayUtc`, the server-side calendar date used to calculate task urgency; date-only calculations must follow the maintenance date rules in [maintenance-task.md](./maintenance-task.md)
@@ -76,7 +79,7 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 
 **Authentication:** The dashboard is available only to authenticated users. A missing or invalid session returns 401 through the shared authentication middleware.
 
-**Permissions:** Dashboard data is scoped entirely by the resolved `User.id`. Collection queries must filter by owner and active asset state. The response must never expose another user's assets, tasks, maintenance records, `ownerId`, or auth-provider identifiers.
+**Permissions:** Dashboard data is scoped by what the resolved `User.id` can **access**. Collection queries filter to active assets the caller owns **or** that are currently shared with the caller's team ([teams-foundation.md](./teams-foundation.md), [permissions.md](../cross-cutting/permissions.md)), not by ownership alone. Shared-asset visibility is evaluated against current sharing state. The response may expose a shared asset's owner display name (via the `sharing` descriptor) but must never expose an asset the caller cannot access, nor raw `ownerId` or auth-provider identifiers.
 
 **Validation:** `GET /api/dashboard` has no request body. If query parameters are added later for server-side filtering or pagination, they must be validated at the Zod HTTP edge and reflected in the generated OpenAPI document.
 
@@ -93,6 +96,9 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 | Multiple tasks on one asset                                   | The queue may show multiple rows for that asset; fleet health counts the asset once using its most urgent task                                 |
 | Task due today                                                | Status is `soon`; frontend may render "Today"                                                                                                  |
 | Task from archived asset                                      | Excluded from dashboard queue and health counts                                                                                                |
+| Asset shared with the caller by a teammate                    | Its active tasks appear in the queue and its health counts toward fleet totals; the queue row shows a shared indicator with the owner's name   |
+| Asset the caller owns and has shared to their team            | Appears as normal, marked "shared with team"                                                                                                   |
+| A shared asset is unshared after the dashboard loaded         | On the next fetch it drops out of a non-owner member's totals, health, and queue                                                               |
 | Asset type is not one of the supported API types              | Not possible under the current asset schema; dashboard must not synthesize `lawn`/`grounds`                                                    |
 | Dashboard request fails with non-401 error                    | Frontend shows a dashboard-level error state with retry                                                                                        |
 | Queue becomes empty after filtering                           | Frontend shows a filtered-empty state; this is not an API error                                                                                |
@@ -122,5 +128,5 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 - Reminder delivery through notifications, email, or background jobs
 - Reschedule, snooze, or bulk task management
 - Editing task detail fields from the dashboard
-- Team assignment, delegation, or multi-user visibility
+- Assigning or delegating tasks to specific teammates, and any per-member views — shared-asset **visibility** is in scope (shared assets appear and are marked), but task assignment/delegation is not
 - Frontend interaction telemetry

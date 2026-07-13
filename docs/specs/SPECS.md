@@ -28,22 +28,22 @@ relevant cross-cutting specs rather than re-describing the behavior.
 
 ## Feature Specs
 
-| Spec                                                          | Area          | Status |
-| ------------------------------------------------------------- | ------------- | ------ |
-| [sign-in.md](./features/sign-in.md)                           | Auth          | review |
-| [create-asset.md](./features/create-asset.md)                 | Assets        | draft  |
-| [asset-library.md](./features/asset-library.md)               | Assets        | review |
-| [app-search.md](./features/app-search.md)                     | Assets        | draft  |
-| [dashboard.md](./features/dashboard.md)                       | Home          | draft  |
-| [activity-history.md](./features/activity-history.md)         | History       | draft  |
-| [notifications.md](./features/notifications.md)               | Notifications | active |
-| [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | draft  |
-| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | active |
-| [marketing-home.md](./features/marketing-home.md)             | Marketing     | active |
-| [user-profile.md](./features/user-profile.md)                 | Identity      | active |
-| [email-verification.md](./features/email-verification.md)     | Identity      | active |
-| [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft  |
-| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | review |
+| Spec                                                          | Area          | Status      |
+| ------------------------------------------------------------- | ------------- | ----------- |
+| [sign-in.md](./features/sign-in.md)                           | Auth          | review      |
+| [create-asset.md](./features/create-asset.md)                 | Assets        | draft       |
+| [asset-library.md](./features/asset-library.md)               | Assets        | review      |
+| [app-search.md](./features/app-search.md)                     | Assets        | review      |
+| [dashboard.md](./features/dashboard.md)                       | Home          | review      |
+| [activity-history.md](./features/activity-history.md)         | History       | in-progress |
+| [notifications.md](./features/notifications.md)               | Notifications | active      |
+| [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | draft       |
+| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | active      |
+| [marketing-home.md](./features/marketing-home.md)             | Marketing     | active      |
+| [user-profile.md](./features/user-profile.md)                 | Identity      | active      |
+| [email-verification.md](./features/email-verification.md)     | Identity      | active      |
+| [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft       |
+| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | in-progress |
 
 ## Backlog (parked specs)
 
@@ -99,18 +99,27 @@ changes and update the spec if behavior changed.
 ## Spec lifecycle & acceptance criteria
 
 A spec's **`status`** tracks its lifecycle: `draft` (being written) → `wip` (incomplete, not
-yet ready to implement) → `review` (complete, ready to implement) → `active` (implemented and
-live on `main`); `deprecated` when retired.
+yet ready to implement) → `review` (complete, ready to implement, no slice shipped yet) →
+`in-progress` (at least one slice shipped but boxes remain) → `active` (fully implemented and
+live on `main` — no `[ ]` remain); `deprecated` when retired. A single-slice feature can go
+straight from `review` to `active`; `in-progress` is the natural state of a multi-slice spec
+mid-delivery.
 
 The **acceptance-criteria checkboxes are the live implementation checklist.** A box is checked
 (`- [x]`) **only when its behavior is implemented and covered by a test on `main`** — not when
-code is merely written. The spec advances to `active` once every box is checked. This keeps the
-remaining work visible in the spec itself, so anyone (including a cold agent) can resume without
-relying on external notes.
+code is merely written. Each box carries exactly one **slice tag** (`` `S1` ``…) tying it to the
+spec's Delivery Plan (see below). The spec advances to `active` once every box is checked. This
+keeps the remaining work visible in the spec itself, so anyone (including a cold agent) can
+resume without relying on external notes.
 
-**Large specs are implemented in slices.** When a spec is too big for one PR, split the work
-into vertical slices, each tracked as a GitHub issue (see Backlog). The spec file stays whole;
-each slice PR implements one coherent group of criteria and checks off **only** the boxes it
-lands, including that spec edit in the same PR. Because criteria are grouped by concern, slices
-usually own disjoint groups, so checkmarks rarely conflict. The spec becomes `active` when the
-final slice checks the last box.
+**Large specs are implemented in slices, planned in the spec itself.** Every feature spec carries
+a **Delivery Plan** — a table of the slices it ships in (`| Slice | Scope | Issue | Depends on |`),
+each slice an independently-reviewable increment normally tracked as a GitHub issue (see Backlog).
+Each acceptance criterion carries **exactly one slice tag** (`` `S1` ``…) matching the plan, so
+every box has a home and none is orphaned; a criterion that resists a single tag is too coarse and
+gets split. A slice is **done** when its tagged boxes are all `[x]` with tests; its PR checks off
+**only** its own boxes and includes that spec edit. The spec is `in-progress` from the first shipped
+slice and becomes `active` when the final slice checks the last box. A feature that fits one PR uses
+a one-line plan ("Single slice — the whole feature (`S1`)") and tags every box `S1`. A slice may be a
+thin web increment whose criteria live in a sibling spec or `docs/web/FEATURES.md` rather than as
+tagged boxes here — note that in the plan's Scope cell.
