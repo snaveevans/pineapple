@@ -38,7 +38,8 @@ export type IconName =
   | "info"
   | "image"
   | "lock"
-  | "mail";
+  | "mail"
+  | "users";
 
 export interface IconProps {
   name: IconName;
@@ -221,6 +222,14 @@ const PATHS: Record<IconName, ReactNode> = {
     <>
       <rect x="3" y="5" width="18" height="14" rx="2" />
       <path d="M3 6.5 12 13l9-6.5" />
+    </>
+  ),
+  users: (
+    <>
+      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+      <circle cx="10" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.2a4 4 0 0 1 0 7.6" />
     </>
   ),
 };
