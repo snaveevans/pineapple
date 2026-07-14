@@ -7,23 +7,34 @@ metadata:
 
 # Activity History
 
-**Status:** draft
+**Status:** in-progress
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-06-22
-**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [create-asset.md](./create-asset.md), [maintenance-record.md](./maintenance-record.md), [maintenance-task.md](./maintenance-task.md), [dashboard.md](./dashboard.md), [asset-library.md](./asset-library.md)
+**Last Updated:** 2026-07-13
+**Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [create-asset.md](./create-asset.md), [maintenance-record.md](./maintenance-record.md), [maintenance-task.md](./maintenance-task.md), [dashboard.md](./dashboard.md), [asset-library.md](./asset-library.md), [teams-foundation.md](./teams-foundation.md)
 
 ---
 
 ## Summary
 
 Activity History gives an authenticated owner-operator a single, dedicated screen
-that answers "what have I done?" — a reverse-chronological, cross-asset record of
-the meaningful actions they have taken: adding an asset, logging maintenance,
+that answers "what's been done across everything I look after?" — a
+reverse-chronological, cross-asset record of the meaningful actions taken on the
+assets they can access: adding an asset, logging maintenance,
 scheduling a service task, completing a scheduled task, and removing a task. It is
 distinct from the per-asset maintenance log ([maintenance-record.md](./maintenance-record.md),
 which is one asset's service history) and from the [dashboard](./dashboard.md)
 (which is forward-looking — what's due). History is backward-looking and spans
 every asset.
+
+**Team visibility.** With teams ([teams-foundation.md](./teams-foundation.md)), the feed
+is no longer strictly single-owner: it spans every asset the caller can currently access —
+their own assets **and** the assets teammates have shared with the caller's team. When an
+action on a shared asset was taken by a teammate, the entry **attributes who did it** (an
+acting-user display name), so "logged by Sam" reads correctly. Access follows _current_
+sharing state: if an asset is later unshared, its entries drop out of the member's feed. A
+member sees a shared asset's **full** history — including actions taken before it was shared —
+exactly as its dependent maintenance records follow the asset. Everything not shared with the
+caller stays invisible to them, as before.
 
 History is backed by a **durable activity log**: a new consumer of the existing
 domain-event stream persists each action to its own store, separate from the
@@ -53,15 +64,20 @@ defines the API capability and behavior.
 - **System actor: activity-log consumer** — a durable queue consumer, fed from the
   producer-side outbox ([ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)),
   that writes one entry per tracked action.
-- **Future: team member / delegate** — a second person acting on the same fleet.
-  Out of scope for v1, but entries record an `actorId` distinct from the owner so
-  multi-actor attribution is possible later (see Flags).
+- **Team member viewing shared-asset activity** — a teammate who can access an asset
+  shared with their team ([teams-foundation.md](./teams-foundation.md)). They see that
+  asset's activity in their own feed and can tell which entries a teammate performed
+  versus which are their own. Entries record an `actorId` distinct from the fleet
+  owner, so multi-actor attribution is exposed (see Flags).
+- **Team member acting on a shared asset** — when a member logs maintenance or manages
+  tasks on an asset owned by a teammate, the resulting entry is attributed to them as
+  the actor while remaining part of the asset's history.
 
 ## User Stories
 
 - As an **authenticated owner-operator**, I can **open a dedicated History page and
-  see a reverse-chronological feed of the actions I've taken across all my assets**
-  so that **I can recall what I've done without opening each asset one by one**
+  see a reverse-chronological feed of activity across every asset I can access**
+  so that **I can recall what's been done without opening each asset one by one**
 - As an **owner-operator**, I can **see each entry labeled with what happened, which
   asset it relates to, and when** so that **the feed is understandable at a glance**
 - As an **owner-operator**, I can **filter the feed by action type** so that **I can
@@ -77,6 +93,13 @@ defines the API capability and behavior.
 - As an **owner-operator who completed a scheduled task by logging work**, I can
   **see that as a single entry** so that **the feed isn't cluttered with duplicate
   rows for one action**
+- As a **team member**, I can **see activity for the assets shared with my team in my
+  feed** so that **I can follow what's been done to assets I help maintain without
+  opening each one**
+- As a **team member**, I can **tell who performed each action on a shared asset** so
+  that **I know whether a teammate or I logged it**
+- As a **user whose shared asset is later unshared**, I **stop seeing that asset's
+  activity in my feed** so that **the feed only ever shows assets I can currently access**
 
 ## What Counts as Activity
 
@@ -132,69 +155,98 @@ These are behavioral guarantees, not storage prescriptions:
   entries the maintenance `performedAt` date is carried as display context but does
   not reorder the feed.
 
+## Delivery Plan
+
+| Slice | Scope                                                                                                                                                                                                          | Issue                                                    | Depends on                  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------- |
+| `S1`  | Base activity history — durable log + queue consumer, `GET /api/activity`, entries, server-side filtering, cursor pagination, the `/app/history` page. Shipped on `main` (see Flags: `S1` box reconciliation). | —                                                        | —                           |
+| `S2`  | Shared-asset activity + actor attribution — feed spans owned + team-shared assets, entries expose the acting user, full shared-asset history. Delivers teams-foundation `S3`.                                  | [#73](https://github.com/snaveevans/pineapple/issues/73) | `S1`, teams-foundation `S2` |
+
 ## API Requirements
+
+_Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Delivery Plan above._
 
 ### Read model
 
-- [ ] Add `GET /api/activity` as a protected application API endpoint
-- [ ] The endpoint uses the resolved authenticated `User.id` as the ownership input;
+- [ ] `S1` Add `GET /api/activity` as a protected application API endpoint
+- [ ] `S1` The endpoint uses the resolved authenticated `User.id` as the identity input;
       no `ownerId` is accepted from the request
-- [ ] The initial response returns the caller's activity in a single read model
+- [ ] `S1` The initial response returns the caller's activity in a single read model
       containing: the page of entries, the available filters with counts, and a
       pagination cursor
-- [ ] Only the caller's own activity is ever returned; the response never exposes
-      another user's entries, `ownerId`, or auth-provider identifiers
-- [ ] Entries are returned newest first by `occurredAt`, with a stable secondary
+- [ ] `S2` The feed returns activity for every asset the caller can currently access:
+      entries for assets the caller **owns**, plus entries for assets **currently
+      shared with the caller's team** ([teams-foundation.md](./teams-foundation.md)).
+      An entry is returned if and only if the caller can access its asset at request
+      time — an asset later unshared no longer contributes entries
+- [ ] `S1` The response never exposes another user's entries for assets the caller cannot
+      access, nor raw `ownerId` or auth-provider identifiers
+- [ ] `S1` Entries are returned newest first by `occurredAt`, with a stable secondary
       tiebreak (e.g. entry id) so equal timestamps have a deterministic order
-- [ ] Each entry includes: a stable `id`, an entry `type` (one of `asset_added`,
+- [ ] `S1` Each entry includes: a stable `id`, an entry `type` (one of `asset_added`,
       `maintenance_logged`, `task_completed`, `task_scheduled`, `task_deleted`),
       `occurredAt`, and an asset snapshot (`id`, `name`, `type`) sufficient to render
       the row without an additional lookup
-- [ ] Maintenance-related entries (`maintenance_logged`, `task_completed`,
+- [ ] `S2` Each entry additionally carries an **actor** attribution (a stable acting-user
+      id and a display name) identifying who performed the action
+- [ ] `S2` The actor attribution lets the client mark an entry as the caller's own versus
+      a teammate's (e.g. render "you" when the actor is the caller, otherwise the
+      actor's display name); it exposes a display name and a stable id only — never
+      the actor's email or auth-provider identifiers
+- [ ] `S1` Maintenance-related entries (`maintenance_logged`, `task_completed`,
       `task_scheduled`, `task_deleted`) include the relevant title snapshot, and
       `maintenance_logged` / `task_completed` include the `performedAt` date
-- [ ] Completing a scheduled task by logging work produces exactly one
+- [ ] `S1` Completing a scheduled task by logging work produces exactly one
       `task_completed` entry; it never also produces a separate `maintenance_logged`
       entry for the same record
-- [ ] Logging maintenance that is not linked to a task produces one
+- [ ] `S1` Logging maintenance that is not linked to a task produces one
       `maintenance_logged` entry
-- [ ] Entries for deleted tasks and archived assets are still returned and fully
+- [ ] `S1` Entries for deleted tasks and archived assets are still returned and fully
       renderable from their snapshot
+- [ ] `S2` For a shared asset, the caller sees its **entire** activity history — including
+      entries recorded before the asset was shared or before the caller joined the team
+      — matching how a shared asset's maintenance records follow the asset. Sharing
+      grants access to the asset's history; it does not slice the history by date
 
 ### Filtering (server-side)
 
-- [ ] The feed can be filtered by action `type` and by `assetId` via query
+- [ ] `S1` The feed can be filtered by action `type` and by `assetId` via query
       parameters; the two combine (logical AND)
-- [ ] Filtering is performed server-side against the durable log — unlike the asset
+- [ ] `S1` Filtering is performed server-side against the durable log — unlike the asset
       library and dashboard, the client does not filter a pre-loaded set, because the
       feed is unbounded and paginated
-- [ ] The first page response includes `availableFilters`: the set of action types
+- [ ] `S1` The first page response includes `availableFilters`: the set of action types
       present in the caller's history with a count for each, and the set of assets
-      present in the caller's history (`id`, `name`, `type`) with a count for each
-- [ ] Filter facet counts are computed over the caller's **complete** history, not
+      present in that history (`id`, `name`, `type`) with a count for each
+- [ ] `S1` Filter facet counts are computed over the caller's **complete** history, not
       the currently filtered view, so the user can pivot between filters (the same
       principle as the library's category counts in [asset-library.md](./asset-library.md))
-- [ ] Assets that appear in history but are now archived are still listed in the
+- [ ] `S2` The `availableFilters` facets and their counts span the caller's **accessible**
+      history, the same visibility rule as the feed: assets currently shared with the
+      caller's team appear in the asset facet alongside owned assets, and an unshared
+      asset's contribution drops out of the facets on the next request
+- [ ] `S1` Assets that appear in history but are now archived are still listed in the
       asset filter facet, because they still have history
-- [ ] A filter for an `assetId` the caller does not own, or that has no entries,
-      returns an empty entry list (not an error and not a leak of existence)
-- [ ] v1 supports a single value per filter dimension (one type and/or one asset);
+- [ ] `S1` A filter for an `assetId` the caller **cannot access** (neither owns nor has
+      shared to them), or that has no entries, returns an empty entry list (not an
+      error and not a leak of existence)
+- [ ] `S1` v1 supports a single value per filter dimension (one type and/or one asset);
       multi-select and date ranges are out of scope
-- [ ] The web UI may narrow the already-loaded entries by title or asset name for
+- [ ] `S1` The web UI may narrow the already-loaded entries by title or asset name for
       quick scanning, but this is not an API filter and does not search unloaded pages
 
 ### Pagination
 
-- [ ] The endpoint is cursor-paginated; the response returns a `nextCursor` when more
+- [ ] `S1` The endpoint is cursor-paginated; the response returns a `nextCursor` when more
       entries exist and a null/absent cursor when the caller has reached the end
-- [ ] The client requests the next page by passing the returned cursor; the cursor is
+- [ ] `S1` The client requests the next page by passing the returned cursor; the cursor is
       opaque to the client
-- [ ] Cursor-page responses may return empty `availableFilters`; the client preserves
+- [ ] `S1` Cursor-page responses may return empty `availableFilters`; the client preserves
       the first page's facets while loading older entries
-- [ ] A bounded page size applies (default and maximum defined at the Zod edge; the
+- [ ] `S1` A bounded page size applies (default and maximum defined at the Zod edge; the
       maximum keeps a single response within Analytics Engine / Worker limits and a
       reasonable payload size)
-- [ ] Active filters are preserved across pages (the cursor is valid only within the
+- [ ] `S1` Active filters are preserved across pages (the cursor is valid only within the
       same filter set, or the filter params are re-sent alongside the cursor)
 
 ## Validation & Ownership
@@ -203,10 +255,16 @@ These are behavioral guarantees, not storage prescriptions:
 session returns 401 through the shared authentication middleware; the web client
 redirects to `/login` at the API-client layer.
 
-**Permissions:** Activity is scoped entirely by the resolved `User.id`. Queries
-filter by owner. The response must never expose another user's entries, `ownerId`,
-or auth identifiers. There are no mutation endpoints — History is read-only — so
-there is no write-side ownership or 403-on-modify path.
+**Permissions:** Activity is scoped by what the resolved `User.id` can **access**, not
+by ownership alone. An entry is visible to the caller when the caller can access its
+asset at request time — they own the asset, or it is currently shared with their team
+([teams-foundation.md](./teams-foundation.md), [permissions.md](../cross-cutting/permissions.md)).
+Visibility is evaluated against **current** sharing state, so unsharing an asset (or a
+member otherwise losing access) removes its entries from that member's feed on the next
+request. The response exposes the acting user's display name and a stable id for
+attribution, but never another accessor's email, raw `ownerId`, or auth-provider
+identifiers. There are no mutation endpoints — History is read-only — so there is no
+write-side ownership or 403-on-modify path.
 
 **Validation (Zod HTTP edge, per ADR-0007):** Query parameters are validated at the
 HTTP edge and drive the generated OpenAPI contract:
@@ -232,7 +290,11 @@ only and does not order the feed.
 | No valid session                                              | API returns 401; client redirects to `/login` via the shared API client                                                       |
 | Caller has no activity yet                                    | API returns an empty entry list and empty filter facets; client shows an empty state                                          |
 | Filter combination matches no entries                         | API returns an empty entry list; filter facets still reflect full history; client shows a filtered-empty state (not an error) |
-| Filter `assetId` is not owned by the caller or has no entries | Empty entry list; no error and no existence leak                                                                              |
+| Filter `assetId` the caller cannot access or has no entries   | Empty entry list; no error and no existence leak                                                                              |
+| Teammate shares an asset with the caller's team               | The shared asset's entries appear in the caller's feed and asset filter facet — including entries predating the share         |
+| A teammate performs an action on a shared asset               | One entry, attributed to that teammate as the actor, visible to every member who can access the asset                         |
+| The caller's shared-asset access is revoked (unshare / leave) | On the next request the asset's entries no longer appear in the caller's feed or facets — evaluated against current sharing   |
+| Actor of an entry later changes their display name            | Past entries keep the attributed name as it was when the action occurred (entries are immutable snapshots)                    |
 | `type` is not a valid enum value                              | 422 validation error                                                                                                          |
 | `assetId` is not a valid UUID                                 | 422 validation error                                                                                                          |
 | `limit` is out of range                                       | 422 validation error                                                                                                          |
@@ -275,6 +337,15 @@ usage and feed engagement are not instrumented.
 
 ## Flags
 
+**REVIEW NEEDED — `S1` boxes not yet reconciled with shipped code:** The base History
+feature (`S1`) is implemented on `main` — `GET /api/activity`, the durable log + queue
+consumer, and the `/app/history` page, with a test suite (`D1ActivityLogRepository.test.ts`,
+`ActivityQueueConsumer.test.ts`, `AppActivityHistory.test.tsx`). Its acceptance boxes were
+authored before box-discipline and are still `[ ]`. A brownfield pass (`/spec-author`) should
+tick each `S1` box a test on `main` actually covers and unpick any that aren't yet true. The
+spec is marked `in-progress` — `S1` shipped in code, `S2` (#73) pending — on that basis, rather
+than left at `review`. Owner: engineering.
+
 **DECISION — Completion is one entry (confirm):** Completing a scheduled task fires
 both `MaintenanceTaskAdvanced` and `MaintenanceRecordCreated`. This spec collapses
 them into a single `task_completed` entry so one user action is one row. If product
@@ -313,6 +384,11 @@ event** — no read-back to D1:
   appear in History, or `null` when a paired `MaintenanceTaskAdvanced` already represents
   the user action as `task_completed`. The durable projection never infers that from
   `taskId`.
+- Each tracked event carries the **actor's display name** alongside `actorId`, so the
+  projection can attribute a teammate's action ("logged by Sam") without reading the
+  `user` table back. Like the asset name, the display name is cross-aggregate and is
+  supplied by the use case when the event is published, never read inside an aggregate
+  (ADR-0003). It is snapshotted on the entry, so it reflects who acted at the time.
 
 This holds ADR-0009's line: events carry domain state and conclusions, never presentation
 copy — the client still formats relative dates and labels.
@@ -322,11 +398,17 @@ their Analytics Engine writes, so the telemetry data-point contracts and their `
 in [telemetry.md](../cross-cutting/telemetry.md) are unchanged and no PII enters Analytics
 Engine.
 
-**RESERVED — Actor vs. owner:** Entries record an `actorId` (who acted) distinct from
-`ownerId` (whose fleet). Today they are always equal (the same constraint noted in
-[telemetry.md](../cross-cutting/telemetry.md) Known Issues). The field is reserved so
-that, when team membership/delegation lands, History can attribute "who did this"
-without a schema change. v1 does not display a separate actor.
+**DECISION — Actor attribution is exposed (teams):** Entries record an `actorId` (who
+acted) distinct from `ownerId` (whose fleet). With sharing ([teams-foundation.md](./teams-foundation.md))
+these diverge whenever a teammate acts on a shared asset, so the read model now returns
+the actor as a display name plus a stable id — the client renders "you" for the caller's
+own actions and the teammate's name otherwise. To keep History a pure projection with no
+read-back (ADR-0010), the tracked events carry the actor's **display name** alongside
+`actorId`; the projection snapshots it, so the attributed name reflects who acted at the
+time (an actor's later rename does not rewrite past entries). Telemetry handlers stay thin
+and must **not** write the actor display name (PII) to Analytics Engine — only the
+non-PII `actorId` / `ownerId` ids and counts, consistent with the Smart Events decision
+below. This resolves the previously reserved actor-vs-owner field.
 
 **FOLLOW-UP — Reference docs at implementation time:** Adding the durable store
 introduces a new table and a new branded id (an activity-entry id). Update
@@ -350,7 +432,13 @@ document from the new Zod route spec.
 - Exporting history (CSV, PDF, etc.)
 - Undo/restore actions from History
 - Activity digests or notifications
-- Cross-user or team-wide activity visibility (single-owner scope in v1)
+- Activity for assets **not** shared with the caller — team visibility is limited to
+  assets the caller can currently access (owned or shared to their team); there is no
+  org-wide or all-members feed
+- A dedicated per-teammate activity view or filtering the feed **by actor** — attribution
+  is displayed per entry, but actor is not a filter dimension in this version
+- A separate per-asset activity tab — the global page (optionally filtered by `assetId`)
+  remains the only surface
 
 ## Open Questions
 
