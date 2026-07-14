@@ -1,13 +1,17 @@
-# PLAN: Teams remaining slices (stacked PRs)
+# PLAN: Teams remaining slices
 
 > **Audience:** agents and humans implementing the teams epic  
 > **Scope:** teams epic only (#62) — not `/verify-email`, #52, API chores #65–70, or #18  
-> **Stacking:** GitHub Stacked PRs via [`gh stack`](https://github.github.com/gh-stack/)  
+> **Workflow:** one PR per layer, **merged sequentially off `main`** (default). Stacking with `gh stack` is optional — see [Workflow](#workflow).  
 > **Last updated:** 2026-07-13 (reconciled after `main` merge of PR #75 / #53)
 
 Check a box **only when that item is done on the branch/PR that lands it** (code + tests + any required OpenAPI/spec AC updates). Do not check from intent alone.
 
+> **Two checkbox systems — know which is authoritative.** The **spec AC checkboxes** (in `docs/specs/**`) are the real, mergeable deliverable: they live on `main`, ride along in each feature PR, and are what CI and reviewers see. **The checkboxes in _this_ file are an informational tracker only** — PLAN.md is not on `main`, so a feature PR branched off `main` cannot carry edits to it. Never block or gate a PR on updating PLAN.md; update the **spec AC boxes** in the PR, and (optionally) tick PLAN.md separately on whatever branch carries it. If the two ever disagree, the spec wins.
+
 **Before implementing any layer:** open the **Spec** path(s) for that layer, implement only the AC tagged with that layer’s **slice id** (`S3` / `S4` / `S5` / etc.), and check those boxes in the same PR.
+
+> **Issue titles vs. slice ids:** GitHub issue titles use ①–④ numbering that does **not** line up with the `S1`…`S5` slice ids — e.g. both #59 and #73 are titled "teams-foundation ③". Trust the **slice ids** in the Delivery Plans, never the ① numbering in issue titles.
 
 ---
 
@@ -124,22 +128,32 @@ main (after C) ──── Stack D: team-management.md (author → implement; #
 
 ## Prerequisites
 
-- [ ] Confirm GitHub Stacked PRs (private preview) is enabled for this repo
-- [ ] Install CLI: `gh extension install github/gh-stack`
-- [ ] Optional alias: `gh stack alias` (`gs`)
-- [ ] Start work from a clean, up-to-date `main`
-- [ ] Prefer a **worktree per active stack** if working A and B in parallel
+- [ ] **Sync `main` first:** `git fetch origin && git checkout main && git pull`, and branch every layer off the freshly-fetched `origin/main`. A stale local `main` is missing PR #75's Delivery Plans and slice tags; branching from it silently breaks the "find slice → implement tagged AC" flow.
+- [ ] Start each layer from a clean, up-to-date `main`
+- [ ] Prefer a **worktree per active layer** if working A and B in parallel
+- [ ] _(optional, only if you choose to stack)_ `gh extension install github/gh-stack` + `gh stack alias` (`gs`) — see [Workflow](#workflow)
 
 ---
 
-## Stacking workflow (`gh stack`)
+## Workflow
+
+**Default: one PR per layer, merged sequentially off `main`.** This is the recommended path — especially for an agent working unattended, where stacked-branch rebasing is a needless failure mode. The dependency graph is already a clean linear chain. ("Stack A/B/C/D" below names a **logical group of layers**, not a `gh stack` requirement.)
+
+```bash
+git checkout main && git pull                 # always branch off fresh origin/main
+git checkout -b feat/<issue>-<slug>
+# implement → commit (conventional commits + Co-Authored-By) → push → open PR
+# wait for CI green → merge → then start the next dependent layer from main
+```
+
+A layer that **depends on** another (A2 needs A1; A1 and B1 need only `S2`, already on `main`) starts **after its dependency has merged to `main`** — branch the dependent layer off `main`, not off the open PR.
+
+**Optional: `gh stack`** — only if you are a human keeping several layers in flight at once and want them reviewable in parallel before their base merges. Not required, and not recommended for autonomous agents. If it misbehaves, fall back to the sequential default — never hand-edit PR bases to work around it.
 
 ```bash
 gs init feat/<issue>-<slug>     # bottom layer, off main
-# implement → commit (conventional commits + Co-Authored-By)
-gs add feat/<issue>-<slug>     # next layer, base = previous branch
-# implement → commit
-gs push && gs submit           # push all branches, open PRs with correct bases
+gs add feat/<issue>-<slug>      # next layer, base = previous branch
+gs push && gs submit            # push all branches, open PRs with correct bases
 ```
 
 ### Repo conventions (every layer)
@@ -186,14 +200,18 @@ gs push && gs submit           # push all branches, open PRs with correct bases
 
 #### Implementation
 
+> **Not a pure copy — this changes constructor signatures.** The `sharing` descriptor is computed by the shared `toSharingDescriptor` helper in `apps/api/src/application/usecases/assetSharing.ts`, and `ownerDisplayName` is resolved by batch-loading owners via `UserRepository.findByIds` — see `ListAssets.ts` as the model to copy. **`GetDashboard` and `SearchAssets` do not currently inject `UserRepository`**, so this slice must add that dependency to both use cases, wire it at the composition root (`worker.ts`), and update every existing test that constructs them. Budget for that ripple — it is the bulk of the work, not the descriptor itself.
+
 - [ ] Read all AC tagged dashboard `S3`, app-search `S3`, teams-foundation `S4`
-- [ ] `GetDashboard` attaches `sharing` where assets surface (fleet/queue)
-- [ ] `SearchAssets` adds `sharing` on hits (reverses intentional omission)
-- [ ] Zod / OpenAPI schemas updated
+- [ ] Inject `UserRepository` into `GetDashboard` + `SearchAssets`; wire in `worker.ts`; update their existing tests for the new constructor arg
+- [ ] `GetDashboard` attaches `sharing` (via `toSharingDescriptor`) where assets surface (fleet/queue)
+- [ ] `SearchAssets` adds `sharing` on hits (reverses the intentional omission documented in `SearchAssets.ts`)
+- [ ] Reuse `toSharingDescriptor` / `AssetSharingDescriptor` — do not reinvent the shape
+- [ ] Zod / OpenAPI schemas updated (dashboard + search responses reference the shared sharing shape)
 - [ ] OpenAPI regenerated and committed
-- [ ] Use-case tests: owned vs shared-with-me vs personal
+- [ ] Use-case tests: owned vs shared-with-me (with `ownerDisplayName`) vs personal
 - [ ] `pnpm lint && pnpm type-check && pnpm -r test` green
-- [ ] PR opened (stack bottom, base `main`) with `Closes #74` + slice ids in Spec section
+- [ ] PR opened off `main` with `Closes #74` + slice ids in Spec section
 - [ ] PR merged
 
 #### Spec updates (same PR)
@@ -205,7 +223,7 @@ gs push && gs submit           # push all branches, open PRs with correct bases
 
 ---
 
-### A2 — `feat/59-sharing-badges` · Closes #59 · teams-foundation **`S5`** · base = A1
+### A2 — `feat/59-sharing-badges` · Closes #59 · teams-foundation **`S5`** · after A1 merges
 
 | | |
 | --- | --- |
@@ -227,9 +245,10 @@ gs push && gs submit           # push all branches, open PRs with correct bases
 - [ ] Dashboard queue rows consume A1 `sharing`
 - [ ] Search results consume A1 `sharing`
 - [ ] UI tests for badge copy/states
+- [ ] Behaviorally verify badge copy/states in the running app (preview tooling / `/verify` skill) — not unit tests alone
 - [ ] `docs/web/FEATURES.md` updated
 - [ ] `pnpm lint && pnpm type-check && pnpm -r test` green
-- [ ] PR opened (stacked on A1) with `Closes #59` + slice ids
+- [ ] PR opened off `main` (after A1 merged) with `Closes #59` + slice ids
 - [ ] PR merged (after A1)
 
 #### Spec updates (same PR)
@@ -265,22 +284,26 @@ If too large, split (same slice tags; use `Refs #73` until final):
 
 #### Backend
 
+> **Decide the historical backfill up front.** Activity history is a **durable projection** fed by a queue consumer. Adding actor attribution means *new* events carry the actor display name, but **rows already projected before this slice will not**. The "full history including pre-share" AC forces the question: backfill existing projection rows (migration/replay), or tolerate a null/"Unknown" actor on pre-existing entries? Pick one explicitly and record it in the PR — do not discover it mid-write. If backfill is chosen, it is its own migration step (candidate for split **B1a**).
+
 - [ ] Read every activity-history AC tagged `` `S2` `` + teams-foundation `` `S3` ``
+- [ ] **Backfill decision recorded:** replay/migrate historical projection rows for actor attribution, **or** accept null actor on pre-existing entries (with rationale)
 - [ ] Feed = own activity **OR** activity on assets **currently** shared with caller’s team
 - [ ] Current sharing evaluation; unshare drops entries next request
 - [ ] Shared asset shows **full** history (including pre-share)
 - [ ] Actor on read model: stable id + display name snapshot (no email)
 - [ ] Smart events: actor display name on durable events; projection snapshot
-- [ ] Migration if needed for actor display name
+- [ ] Migration if needed for actor display name (and for the backfill, if chosen)
 - [ ] `availableFilters` over accessible set
 - [ ] Telemetry: no actor display name in AE
 - [ ] OpenAPI if response shape changes
-- [ ] Tests: access, filters, actor, unshare, PII-free telemetry
+- [ ] Tests: access, filters, actor, unshare, PII-free telemetry, **pre-slice historical entries**
 
 #### Web
 
 - [ ] `AppActivityHistory.tsx` shared entries + “you” vs teammate name
 - [ ] UI tests
+- [ ] Behaviorally verify "you" vs teammate attribution in the running app (preview tooling / `/verify` skill)
 - [ ] FEATURES.md if History behavior changes
 
 #### Spec / PR
@@ -313,6 +336,13 @@ If too large, split (same slice tags; use `Refs #73` until final):
 ---
 
 ## Stack C — Invite teammate (#60)
+
+> **⛔ Decision gate — resolve before starting C/D.** Stacks C and D are **not turn-key tasks**: each begins by *authoring a spec*, and that spec cannot be finished by an agent alone because it encodes two open **product decisions**:
+>
+> - **#55** — reminder recipient policy for team-shared assets (owner-only vs. all members). Shapes invite/notification behavior.
+> - **#56** — shared-asset lifecycle when an owner leaves the team (auto-unshare / reassign / block). Shapes team-management (D).
+>
+> An agent can *draft* these specs and lay out the options, but a **human must make the #55 and #56 calls** before the specs can reach `status: review` and implementation can begin. Surface both decisions early — do not leave them buried in D1. **Stacks A and B are fully autonomous; C and D are gated on these two calls.**
 
 **Spec-first.** Do not fold team rename/remove/leave (#61).
 
@@ -447,14 +477,15 @@ Depends on multi-member from #60.
 
 ## Execution order
 
-- [ ] 1. Confirm `gh stack` on this repo
-- [ ] 2. **Stack A** from `main`: A1 (#74 / `S4`) → A2 (#59 / `S5`)
-- [ ] 3. **Stack B** parallel: B1 (#73 / `S3` = activity-history `S2`)
+- [ ] 1. **Sync `main`** (`git fetch && git checkout main && git pull`) — do not branch off a stale local `main`
+- [ ] 2. **Stack A** from `main`: A1 (#74 / `S4`), then A2 (#59 / `S5`) after A1 merges
+- [ ] 3. **Stack B** in parallel from `main`: B1 (#73 / `S3` = activity-history `S2`)
 - [ ] 4. Land A and B; CI green per layer
 - [ ] 5. Foundation complete (teams-foundation `S3`–`S5` done → `active` if no open boxes)
-- [ ] 6. **Stack C** invite-teammate (spec → impl)
-- [ ] 7. **Stack D** team-management (spec + #56 → impl)
-- [ ] 8. Epic #62 foundation + invite + management closed
+- [ ] 6. **Decision gate:** get human calls on **#55** (reminder recipient) and **#56** (owner-leaves lifecycle) — C and D cannot finish without them
+- [ ] 7. **Stack C** invite-teammate (spec → impl)
+- [ ] 8. **Stack D** team-management (spec + #56 → impl)
+- [ ] 9. Epic #62 foundation + invite + management closed
 
 ---
 
@@ -473,19 +504,24 @@ Depends on multi-member from #60.
 
 | Risk | Mitigation |
 | ---- | ---------- |
-| `gh stack` preview off | Manual base-branch PRs with same layering |
+| Stacking brittleness for agents | **Sequential PRs off `main` are the default;** `gh stack` optional (see [Workflow](#workflow)) |
+| Stale local `main` | Always `git fetch && pull` before branching — else missing PR #75 Delivery Plans / slice tags |
+| A1 under-scoped as a "copy" | It adds `UserRepository` to `GetDashboard`/`SearchAssets` + worker wiring + test updates (see A1 note) |
+| #73 actor backfill | Decide replay-vs-null for pre-slice projection rows up front (see B1 note); candidate split B1a |
 | #73 size | Split B1a/b/c; same slice tags |
 | Checking wrong AC | Only tags for this slice; ignore `S1` reconciliation Flags |
+| PLAN.md vs spec boxes diverge | Spec AC boxes are authoritative (on `main`); PLAN.md is an informational tracker |
 | Spec status stuck `in-progress` | Shipped base slices may still have unchecked boxes (Flags) — don’t block foundation on unrelated reconciliation |
+| C/D blocked on product calls | Get #55 + #56 decided at the gate before C/D (see Stack C callout) |
 | Invite without #55 | Owner-only reminders until decision |
 
 ---
 
 ## First action
 
-1. Verify `gh stack`  
+1. **Sync `main`** (`git fetch origin && git checkout main && git pull`)  
 2. Open **A1 slice AC**: teams-foundation `S4`, dashboard `S3`, app-search `S3`  
-3. Implement **Stack A Layer 1 (#74)** from `main`  
-4. Check off boxes here as work lands  
+3. Implement **Stack A Layer 1 (#74)** from `main` — mind the `UserRepository` wiring note in A1  
+4. Update the **spec AC boxes** as work lands (PLAN.md boxes are an optional tracker; see the checkbox note up top)  
 
 After each feature PR merges: run `docs/specs/prompts/pr-sync.md` if behavior changed.
