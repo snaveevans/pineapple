@@ -7,7 +7,7 @@ metadata:
 
 # Teams Foundation
 
-**Status:** in-progress
+**Status:** active
 **Owner:** [unknown — assign on review]
 **Last Updated:** 2026-07-13
 **Related Specs:** [ADR-0015](../../decisions/0015-teams-as-opt-in-sharing-scope.md), [authentication.md](../cross-cutting/authentication.md), [permissions.md](../cross-cutting/permissions.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [dashboard.md](./dashboard.md), [app-search.md](./app-search.md)
