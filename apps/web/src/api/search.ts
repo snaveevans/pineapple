@@ -1,11 +1,12 @@
 import { apiRequest } from "./client";
-import type { AssetType } from "./assets";
+import type { AssetSharing, AssetType } from "./assets";
 
 export type SearchResult = {
   id: string;
   name: string;
   type: AssetType;
   summary: string;
+  sharing: AssetSharing;
 };
 
 export type SearchAssetsResponse = {

@@ -58,6 +58,15 @@ function HFDetailBody({
                 <span className="hf-dot-sep" />
                 <span>last service {item.last}</span>
               </div>
+              {item.sharingBadge ? (
+                <span
+                  className={`hf-share-badge ${item.sharingBadge.kind === "shared-with-team" ? "is-owner" : "is-member"}`}
+                  title={item.sharingBadge.text}
+                >
+                  <Icon name="users" size={11} stroke={2} />
+                  <span>{item.sharingBadge.text}</span>
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="hf-divider" />
@@ -453,6 +462,15 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                         <div className="hf-row-text">
                           <div className="hf-row-name">{item.name}</div>
                           <div className="hf-row-sub">{item.service}</div>
+                          {item.sharingBadge ? (
+                            <div
+                              className={`hf-share-badge ${item.sharingBadge.kind === "shared-with-team" ? "is-owner" : "is-member"}`}
+                              title={item.sharingBadge.text}
+                            >
+                              <Icon name="users" size={11} stroke={2} />
+                              <span>{item.sharingBadge.text}</span>
+                            </div>
+                          ) : null}
                         </div>
                         <div className="hf-row-right">
                           <div className="hf-row-due">{item.due}</div>

@@ -29,6 +29,34 @@ describe("toAssetPresentation", () => {
       cat: "vehicle",
       icon: "truck",
       summary: "2016 Ram 2500",
+      sharingBadge: null,
+    });
+  });
+
+  it("surfaces shared-with-team and shared-by badges from the API sharing field", () => {
+    const ownedShared: AssetResponse = {
+      ...BASE_ASSET,
+      name: "Shared truck",
+      type: "vehicle",
+      metadata: { kind: "vehicle", make: "Ford", model: "F-150", year: 2020 },
+      sharing: { scope: "team", isOwner: true },
+    };
+    const fromTeammate: AssetResponse = {
+      ...BASE_ASSET,
+      id: "337f2d25-f1ab-4544-af2e-8196aa9d5a11",
+      name: "Teammate truck",
+      type: "vehicle",
+      metadata: { kind: "vehicle", make: "Ram", model: "2500", year: 2021 },
+      sharing: { scope: "team", isOwner: false, ownerDisplayName: "Pat" },
+    };
+
+    expect(toAssetPresentation(ownedShared).sharingBadge).toEqual({
+      kind: "shared-with-team",
+      text: "Shared with team",
+    });
+    expect(toAssetPresentation(fromTeammate).sharingBadge).toEqual({
+      kind: "shared-by",
+      text: "Shared by Pat",
     });
   });
 

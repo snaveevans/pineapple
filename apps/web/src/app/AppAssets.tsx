@@ -18,9 +18,23 @@ import {
   type AssetFilter,
   type AssetView,
 } from "./assetLibraryPresentation";
+import type { SharingBadge } from "./sharingPresentation";
 
 import "../design/styles/hifi.css";
 import "../design/styles/hifi-assets.css";
+
+function HFSharingBadge({ badge }: { badge: SharingBadge }) {
+  if (badge === null) return null;
+  return (
+    <span
+      className={`hf-share-badge ${badge.kind === "shared-with-team" ? "is-owner" : "is-member"}`}
+      title={badge.text}
+    >
+      <Icon name="users" size={11} stroke={2} />
+      <span>{badge.text}</span>
+    </span>
+  );
+}
 
 const HF_CAT_LABELS: Record<AssetCategory, string> = {
   vehicle: "Vehicle",
@@ -65,6 +79,7 @@ function HFAssetGridCard({ asset }: { asset: AssetPresentation }) {
             {asset.displayId}
           </span>
         </div>
+        <HFSharingBadge badge={asset.sharingBadge} />
       </div>
       <div className="hf-asset-footer">
         <div className="hf-asset-footer-text">
@@ -89,6 +104,7 @@ function HFAssetRowCard({ asset }: { asset: AssetPresentation }) {
             <span className="hf-dot-sep" />
             <span>{HF_CAT_LABELS[asset.cat]}</span>
           </div>
+          <HFSharingBadge badge={asset.sharingBadge} />
         </div>
         <div className="hf-asset-row-bot">
           <div className="hf-asset-summary hf-asset-summary-row">{asset.summary}</div>

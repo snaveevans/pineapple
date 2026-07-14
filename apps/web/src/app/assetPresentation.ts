@@ -1,6 +1,7 @@
 import type { AssetResponse, AssetType } from "../api/assets";
 import type { IconName } from "../design/Icon";
 import type { AssetCategory } from "../design/hf";
+import { sharingBadge, type SharingBadge } from "./sharingPresentation";
 
 export function categoryLabel(category: AssetCategory): string {
   if (category === "lawn") return "Grounds";
@@ -14,6 +15,7 @@ export type AssetPresentation = {
   cat: AssetCategory;
   icon: IconName;
   summary: string;
+  sharingBadge: SharingBadge;
 };
 
 export function shortenAssetId(id: string): string {
@@ -36,6 +38,7 @@ export function toAssetPresentation(asset: AssetResponse): AssetPresentation {
     id: asset.id,
     displayId: shortenAssetId(asset.id),
     name: asset.name,
+    sharingBadge: sharingBadge(asset.sharing),
   };
 
   switch (asset.metadata.kind) {
