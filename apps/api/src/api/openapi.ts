@@ -206,7 +206,7 @@ export const searchAssetsRoute = createRoute({
   tags: ["Assets"],
   summary: "Search my assets",
   description:
-    "Returns up to 20 active assets visible to the caller (owned or shared with their team) that match the free-text query.",
+    "Returns up to 20 active assets visible to the caller (owned or shared with their team) that match the free-text query. Each result includes a computed `sharing` descriptor.",
   security: [cookieAuth],
   request: { query: SearchAssetsQuerySchema },
   responses: {

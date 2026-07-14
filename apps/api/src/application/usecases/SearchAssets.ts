@@ -10,6 +10,8 @@ import type { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetMetadata } from "../../domain/asset/AssetMetadata.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { AssetType } from "../../domain/asset/AssetType.ts";
+import type { UserRepository } from "../../domain/identity/UserRepository.ts";
+import { toSharingDescriptor, type AssetSharingDescriptor } from "./assetSharing.ts";
 
 const MAX_SEARCH_RESULTS = 20;
 
@@ -19,32 +21,51 @@ export type SearchAssetsQuery = {
 };
 
 /**
- * Compact search hit. Intentionally omits the full asset `sharing` descriptor —
- * list/get carry that; search stays a lightweight name/type/summary match list
- * over the same visible set (owned + team-shared).
+ * Compact search hit over the visible set (owned + team-shared), including the
+ * same computed `sharing` descriptor as list/get/dashboard (ADR-0009).
  */
 export type SearchAssetResult = {
   id: string;
   name: string;
   type: AssetType;
   summary: string;
+  sharing: AssetSharingDescriptor;
 };
 
 export class SearchAssets {
-  constructor(private readonly assets: AssetRepository) {}
+  constructor(
+    private readonly assets: AssetRepository,
+    private readonly users: UserRepository,
+  ) {}
 
   async execute(query: SearchAssetsQuery): Promise<Result<SearchAssetResult[], DomainError>> {
     try {
       const terms = searchTerms(query.q);
       if (terms.length === 0) return ok([]);
 
-      const assets = await this.assets.findVisibleTo(query.requesterId);
-      const results = assets
+      const matched = (await this.assets.findVisibleTo(query.requesterId))
         .filter((asset) => asset.archivedAt === null)
         .filter((asset) => matchesAllTerms(asset, terms))
         .sort((left, right) => compareSearchMatches(left, right, terms))
-        .slice(0, MAX_SEARCH_RESULTS)
-        .map(toSearchResult);
+        .slice(0, MAX_SEARCH_RESULTS);
+
+      const otherOwnerIds = [
+        ...new Set(
+          matched
+            .filter((asset) => asset.ownerId !== query.requesterId)
+            .map((asset) => asset.ownerId),
+        ),
+      ];
+      const owners = otherOwnerIds.length > 0 ? await this.users.findByIds(otherOwnerIds) : [];
+      const ownerNames = new Map(owners.map((user) => [user.id, user.name ?? "Unknown"]));
+
+      const results = matched.map((asset) =>
+        toSearchResult(
+          asset,
+          query.requesterId,
+          asset.ownerId === query.requesterId ? null : (ownerNames.get(asset.ownerId) ?? "Unknown"),
+        ),
+      );
 
       return ok(results);
     } catch (error) {
@@ -119,12 +140,17 @@ function nameMatchesAnyTerm(asset: Asset, terms: string[]): boolean {
   return terms.some((term) => name.includes(term));
 }
 
-function toSearchResult(asset: Asset): SearchAssetResult {
+function toSearchResult(
+  asset: Asset,
+  requesterId: UserId,
+  ownerDisplayName: string | null,
+): SearchAssetResult {
   return {
     id: asset.id,
     name: asset.name,
     type: asset.type,
     summary: summaryFor(asset.metadata),
+    sharing: toSharingDescriptor(asset, requesterId, ownerDisplayName),
   };
 }
 

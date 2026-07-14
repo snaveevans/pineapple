@@ -83,7 +83,7 @@ _Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery P
 
 - [x] `S2` Every list of "the user's assets" — the asset library (`GET /api/assets`), the dashboard, and search — returns both the requester's own assets (personal and shared-by-them) **and** the assets shared to the requester's team by others
 - [x] `S2` Each asset in the **`GET /api/assets`** read model carries a computed **`sharing`** descriptor (computed server-side per ADR-0009, not derived by the client): its scope (`personal` or `team`) and whether the requester is its owner; for an asset shared **with** the requester by someone else, it also identifies the owner (e.g. owner display name) so the member can see whose asset it is
-- [ ] `S4` The **dashboard and search** read models also carry the computed `sharing` descriptor per asset, the same shape as the library — so shared items can be marked and attributed on those surfaces (see [dashboard.md](./dashboard.md), [app-search.md](./app-search.md))
+- [x] `S4` The **dashboard and search** read models also carry the computed `sharing` descriptor per asset, the same shape as the library — so shared items can be marked and attributed on those surfaces (see [dashboard.md](./dashboard.md), [app-search.md](./app-search.md))
 - [x] `S2` Per-category counts and any other aggregate read-model figures are computed over the full visible set (owned + shared-with-me), so counts and lists stay consistent
 
 **Permissions extension**
