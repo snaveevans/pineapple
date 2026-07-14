@@ -43,7 +43,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [user-profile.md](./features/user-profile.md)                 | Identity      | active      |
 | [email-verification.md](./features/email-verification.md)     | Identity      | active      |
 | [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft       |
-| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | in-progress |
+| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | active      |
 
 ## Backlog (parked specs)
 
