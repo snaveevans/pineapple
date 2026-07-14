@@ -34,6 +34,13 @@ type ActivityEventCommon<
   assetId: string;
   ownerId: string;
   actorId: string;
+  /**
+   * Display-name snapshot for the acting user (ADR-0010). Optional on the wire so
+   * in-flight queue payloads from before this field remain valid; the outbox insert
+   * enriches it from `users` before enqueue, and the projection falls back to
+   * "Unknown" when absent.
+   */
+  actorDisplayName?: string;
   assetName: string;
   assetType: AssetType;
   activityEntryType: EntryType;
@@ -218,6 +225,7 @@ function hasCommonFields(value: Record<string, unknown>): boolean {
     isString(value.assetId) &&
     isString(value.ownerId) &&
     isString(value.actorId) &&
+    (value.actorDisplayName === undefined || isString(value.actorDisplayName)) &&
     isString(value.assetName) &&
     isAssetType(value.assetType) &&
     isActivityEntryTypeOrNull(value.activityEntryType)

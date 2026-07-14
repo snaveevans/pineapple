@@ -21,13 +21,26 @@ export function prepareActivityOutboxInsert(
   if (message === null) return null;
 
   const now = new Date().toISOString();
+  // Enrich actorDisplayName from users at outbox write so the durable queue
+  // payload (and projection) carry a name snapshot without a projection re-read.
   return db
     .prepare(
       `INSERT OR IGNORE INTO activity_event_outbox
          (id, consumer, event_type, payload, status, attempts, created_at, updated_at)
-       VALUES (?, ?, ?, ?, 'pending', 0, ?, ?)`,
+       SELECT ?, ?, ?,
+              json_set(?, '$.actorDisplayName',
+                       COALESCE((SELECT name FROM users WHERE id = ?), 'Unknown')),
+              'pending', 0, ?, ?`,
     )
-    .bind(message.id, ACTIVITY_HISTORY_CONSUMER, message.type, JSON.stringify(message), now, now);
+    .bind(
+      message.id,
+      ACTIVITY_HISTORY_CONSUMER,
+      message.type,
+      JSON.stringify(message),
+      message.actorId,
+      now,
+      now,
+    );
 }
 
 export class D1ActivityOutboxRepository {

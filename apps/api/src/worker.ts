@@ -286,6 +286,10 @@ function serializeActivityEntry(entry: ActivityEntry): z.infer<typeof ActivityEn
     type: entry.type,
     occurredAt: entry.occurredAt.toISOString(),
     asset: entry.asset,
+    actor: {
+      id: entry.actor.id,
+      displayName: entry.actor.displayName,
+    },
     ...(entry.title !== undefined ? { title: entry.title } : {}),
     ...(entry.performedAt !== undefined ? { performedAt: entry.performedAt } : {}),
   };
@@ -474,6 +478,7 @@ app.openapi(getActivityRoute, async (c) => {
   if (!result.ok) throw result.error;
   return c.json(
     {
+      viewerUserId: result.value.viewerUserId,
       entries: result.value.entries.map(serializeActivityEntry),
       availableFilters: result.value.availableFilters,
       nextCursor: result.value.nextCursor,

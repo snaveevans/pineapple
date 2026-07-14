@@ -174,7 +174,7 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
 - [ ] `S1` The initial response returns the caller's activity in a single read model
       containing: the page of entries, the available filters with counts, and a
       pagination cursor
-- [ ] `S2` The feed returns activity for every asset the caller can currently access:
+- [x] `S2` The feed returns activity for every asset the caller can currently access:
       entries for assets the caller **owns**, plus entries for assets **currently
       shared with the caller's team** ([teams-foundation.md](./teams-foundation.md)).
       An entry is returned if and only if the caller can access its asset at request
@@ -187,9 +187,9 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       `maintenance_logged`, `task_completed`, `task_scheduled`, `task_deleted`),
       `occurredAt`, and an asset snapshot (`id`, `name`, `type`) sufficient to render
       the row without an additional lookup
-- [ ] `S2` Each entry additionally carries an **actor** attribution (a stable acting-user
+- [x] `S2` Each entry additionally carries an **actor** attribution (a stable acting-user
       id and a display name) identifying who performed the action
-- [ ] `S2` The actor attribution lets the client mark an entry as the caller's own versus
+- [x] `S2` The actor attribution lets the client mark an entry as the caller's own versus
       a teammate's (e.g. render "you" when the actor is the caller, otherwise the
       actor's display name); it exposes a display name and a stable id only — never
       the actor's email or auth-provider identifiers
@@ -203,7 +203,7 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       `maintenance_logged` entry
 - [ ] `S1` Entries for deleted tasks and archived assets are still returned and fully
       renderable from their snapshot
-- [ ] `S2` For a shared asset, the caller sees its **entire** activity history — including
+- [x] `S2` For a shared asset, the caller sees its **entire** activity history — including
       entries recorded before the asset was shared or before the caller joined the team
       — matching how a shared asset's maintenance records follow the asset. Sharing
       grants access to the asset's history; it does not slice the history by date
@@ -221,7 +221,7 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
 - [ ] `S1` Filter facet counts are computed over the caller's **complete** history, not
       the currently filtered view, so the user can pivot between filters (the same
       principle as the library's category counts in [asset-library.md](./asset-library.md))
-- [ ] `S2` The `availableFilters` facets and their counts span the caller's **accessible**
+- [x] `S2` The `availableFilters` facets and their counts span the caller's **accessible**
       history, the same visibility rule as the feed: assets currently shared with the
       caller's team appear in the asset facet alongside owned assets, and an unshared
       asset's contribution drops out of the facets on the next request

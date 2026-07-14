@@ -21,6 +21,8 @@ type ActivityEntryRow = {
   asset_id: string;
   asset_name: string;
   asset_type: string;
+  actor_id: string;
+  actor_display_name: string | null;
   title: string | null;
   performed_at: string | null;
 };
@@ -49,7 +51,23 @@ type CursorPayload = DecodedCursor & {
 };
 
 const SELECT_COLUMNS =
-  "id, type, occurred_at, asset_id, asset_name, asset_type, title, performed_at";
+  "id, type, occurred_at, asset_id, asset_name, asset_type, actor_id, actor_display_name, title, performed_at";
+
+/**
+ * Visibility: caller's own assets (owner_id) OR assets currently shared with a
+ * team the caller belongs to. Evaluated against current sharing state so unshare
+ * drops entries on the next request.
+ */
+const ACCESSIBLE_ENTRY_SQL = `(
+  owner_id = ?
+  OR asset_id IN (
+    SELECT a.id
+    FROM assets a
+    INNER JOIN team_members tm ON tm.team_id = a.shared_team_id
+    WHERE tm.user_id = ?
+      AND a.shared_team_id IS NOT NULL
+  )
+)`;
 
 export class D1ActivityLogRepository implements ActivityLogRepository {
   constructor(private readonly db: D1Database) {}
@@ -65,6 +83,7 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
     const last = visibleEntries.at(-1);
 
     return {
+      viewerUserId: query.ownerId,
       entries: visibleEntries,
       availableFilters,
       nextCursor: hasMore && last ? encodeCursor(last, query) : null,
@@ -82,12 +101,17 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
     const entry = entryFromEvent(event);
     if (entry === null) return null;
 
+    const actorDisplayName =
+      event.actorDisplayName?.trim() && event.actorDisplayName.trim().length > 0
+        ? event.actorDisplayName.trim()
+        : "Unknown";
+
     return this.db
       .prepare(
         `INSERT INTO activity_entries
-           (id, source_event_id, owner_id, actor_id, type, occurred_at,
+           (id, source_event_id, owner_id, actor_id, actor_display_name, type, occurred_at,
             asset_id, asset_name, asset_type, title, performed_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(source_event_id) DO NOTHING`,
       )
       .bind(
@@ -95,6 +119,7 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
         event.id,
         event.ownerId,
         event.actorId,
+        actorDisplayName,
         entry.type,
         entry.occurredAt,
         entry.assetId,
@@ -110,8 +135,8 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
     query: ActivityLogQuery,
     cursor: DecodedCursor | null,
   ): Promise<ActivityEntryRow[]> {
-    const conditions = ["owner_id = ?"];
-    const values: (string | number)[] = [query.ownerId];
+    const conditions = [ACCESSIBLE_ENTRY_SQL];
+    const values: (string | number)[] = [query.ownerId, query.ownerId];
 
     if (query.type !== undefined) {
       conditions.push("type = ?");
@@ -155,10 +180,10 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
       .prepare(
         `SELECT type, COUNT(*) AS count
          FROM activity_entries
-         WHERE owner_id = ?
+         WHERE ${ACCESSIBLE_ENTRY_SQL}
          GROUP BY type`,
       )
-      .bind(ownerId)
+      .bind(ownerId, ownerId)
       .all<ActivityTypeFacetRow>();
 
     const byType = new Map(result.results.map((row) => [row.type, row.count]));
@@ -179,12 +204,12 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
                   COUNT(*) OVER (PARTITION BY asset_id) AS count,
                   ROW_NUMBER() OVER (PARTITION BY asset_id ORDER BY occurred_at DESC, id DESC) AS rn
            FROM activity_entries
-           WHERE owner_id = ?
+           WHERE ${ACCESSIBLE_ENTRY_SQL}
          )
          WHERE rn = 1
          ORDER BY asset_name COLLATE NOCASE ASC, asset_id ASC`,
       )
-      .bind(ownerId)
+      .bind(ownerId, ownerId)
       .all<ActivityAssetFacetRow>();
 
     return result.results.map((row) => ({
@@ -243,6 +268,7 @@ function entryFromEvent(event: ActivityEventMessage): {
 }
 
 function rowToEntry(row: ActivityEntryRow): ActivityEntry {
+  const displayName = row.actor_display_name?.trim();
   return {
     id: ActivityEntryId.from(row.id),
     type: row.type as ActivityEntryType,
@@ -251,6 +277,10 @@ function rowToEntry(row: ActivityEntryRow): ActivityEntry {
       id: AssetId.from(row.asset_id),
       name: row.asset_name,
       type: row.asset_type as AssetType,
+    },
+    actor: {
+      id: UserId.from(row.actor_id),
+      displayName: displayName && displayName.length > 0 ? displayName : "Unknown",
     },
     ...(row.title !== null ? { title: row.title } : {}),
     ...(row.performed_at !== null ? { performedAt: row.performed_at } : {}),

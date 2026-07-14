@@ -225,13 +225,13 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 ## Activity History
 
 **Route:** `/app/history`
-**Goal:** Let the user review a durable, cross-asset timeline of actions they have taken across their fleet.
+**Goal:** Let the user review a durable, cross-asset timeline of actions they have taken across their fleet (owned assets and assets currently shared with their team).
 
 **Key states:**
 
 - Loading: fetches `GET /api/activity` before rendering the feed
 - Empty account history: explains that future asset, maintenance, and task actions will appear
-- Populated: reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, relative time, and absolute time
+- Populated: reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, actor attribution ("by you" / teammate name), relative time, and absolute time
 - Filtered: type chips and a single asset selector refetch the server-side filtered feed
 - Search: inline search narrows the currently loaded history entries by title or asset name only; it does not query the API or search unloaded pages
 - Filtered empty: active filters/search remain visible and can be cleared
@@ -241,9 +241,11 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Non-obvious behavior:**
 
 - The first API page returns the activity page, available filters, counts, and cursor in one read model; cursor pages preserve those first-page filters while loading older entries
+- The feed spans owned assets and assets currently shared with the caller's team; unshare drops those entries on the next fetch
+- Actor attribution uses `viewerUserId` plus each entry's `actor` snapshot — "by you" when the actor is the viewer, otherwise the teammate's display name (never email)
 - The client does not filter a preloaded history locally for type or asset filters
 - The History search field is intentionally labeled as loaded-history search and only narrows fetched pages client-side
-- Filter counts come from the caller's complete history, not the current filtered view
+- Filter counts come from the caller's accessible history, not the current filtered view
 - Deleted tasks and archived/renamed assets still render from the event snapshot
 - Completing a scheduled task by logging work appears as one `task_completed` row, not as both completed and logged rows
 - 401 response redirects to `/login`

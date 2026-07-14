@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { AssetCreated } from "../../domain/asset/events/AssetCreated.ts";
+import { AssetId, UserId } from "@snaveevans/pineapple-shared";
 import type { ActivityEventMessage } from "./ActivityEventMessage.ts";
-import { D1ActivityOutboxRepository } from "./D1ActivityOutboxRepository.ts";
+import {
+  D1ActivityOutboxRepository,
+  prepareActivityOutboxInsert,
+} from "./D1ActivityOutboxRepository.ts";
 
 const activityMessage: ActivityEventMessage = {
   id: "e2d3cf94-3779-43ea-b595-dac35dcba45a",
@@ -31,6 +36,26 @@ function createDatabaseHarness(
   const db = { prepare, batch } as unknown as D1Database & { batch: typeof batch };
   return { db, batch, statements };
 }
+
+describe("prepareActivityOutboxInsert", () => {
+  it("enriches actorDisplayName from users when writing the outbox payload", () => {
+    const { db, statements } = createDatabaseHarness();
+    const event = AssetCreated({
+      assetId: AssetId.from("195d0ef0-47f5-439f-abfd-29f892c9a040"),
+      ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+      actorId: UserId.from("71afbc20-f2e0-4fc8-a989-278437cf792c"),
+      assetName: "Truck",
+      assetType: "vehicle",
+    });
+
+    const statement = prepareActivityOutboxInsert(db, event);
+    expect(statement).not.toBeNull();
+    expect(statements[0]?.query).toContain("json_set");
+    expect(statements[0]?.query).toContain("actorDisplayName");
+    expect(statements[0]?.query).toContain("FROM users");
+    expect(statements[0]?.values).toContain(event.actorId);
+  });
+});
 
 describe("D1ActivityOutboxRepository", () => {
   it("atomically claims pending rows before sending them", async () => {

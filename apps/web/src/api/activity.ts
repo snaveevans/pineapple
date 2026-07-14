@@ -14,11 +14,17 @@ export type ActivityAssetSnapshot = {
   type: AssetType;
 };
 
+export type ActivityActorSnapshot = {
+  id: string;
+  displayName: string;
+};
+
 export type ActivityEntry = {
   id: string;
   type: ActivityEntryType;
   occurredAt: string;
   asset: ActivityAssetSnapshot;
+  actor: ActivityActorSnapshot;
   title?: string;
   performedAt?: string;
 };
@@ -39,6 +45,7 @@ export type ActivityAvailableFilters = {
 };
 
 export type ActivityResponse = {
+  viewerUserId: string;
   entries: ActivityEntry[];
   availableFilters: ActivityAvailableFilters;
   nextCursor: string | null;
