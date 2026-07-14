@@ -21,7 +21,9 @@ Use the output to pick the target and the mode:
 - A **new, untracked** spec file (or a spec with no implementing code yet) → **New** (full build across all layers).
 - An **existing** spec with uncommitted edits or recent commits that changed it → **Diff** (implement only the delta).
 
-Propose the spec file(s) and the mode you inferred in one line and confirm with the user. If nothing relevant shows up, or several candidates are equally likely, ask the user which feature to implement. A full-stack feature may have a spec in each package — implement the API spec's layers and the web spec's layers together.
+Then pick the **target slice**: open the spec's **Delivery Plan** and choose the next slice (`Sn`) whose tagged criteria are still `[ ]`, respecting the plan's `Depends on` order. You implement **one slice per PR** — its scope is exactly the criteria tagged `Sn`. A single-slice spec has one slice (`S1`) = the whole thing.
+
+Propose the spec file(s), the target slice, and the mode you inferred in one line and confirm with the user. If nothing relevant shows up, or several candidates are equally likely, ask the user which feature to implement. A full-stack feature may have a spec in each package — implement the API spec's layers and the web spec's layers together.
 
 ---
 
@@ -30,10 +32,11 @@ Propose the spec file(s) and the mode you inferred in one line and confirm with 
 Specs live in `docs/specs/features/` (see `docs/specs/SPECS.md`). Read the spec for
 the feature before proceeding. Then verify:
 
-1. **Status is not `wip`** — WIP specs are not ready to implement. Stop and tell the user to run `/spec-author` first to complete the spec.
+1. **Status is `review` or `in-progress`, not `wip`/`draft`** — a `wip`/`draft` spec is not ready to implement. `review` (no slice shipped yet) and `in-progress` (mid-delivery) are both implementable. If it's `wip`/`draft`, stop and tell the user to run `/spec-author` first.
 2. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
 3. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
 4. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
+5. **The target slice's criteria are clear** — the criteria tagged with the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a multi-criterion spec has no Delivery Plan or untagged criteria, stop and ask the user to run `/spec-author` to add the plan and tags.
 
 If pre-flight passes, summarize what will be built and confirm with the user before proceeding.
 
@@ -41,9 +44,9 @@ If pre-flight passes, summarize what will be built and confirm with the user bef
 
 ## New
 
-Implement the full spec across every layer it touches. Follow the dependency order — each layer may only import inward per the architecture in `CLAUDE.md`.
+Implement the **target slice** across every layer it touches (for a single-slice spec, that is the whole spec). Follow the dependency order — each layer may only import inward per the architecture in `CLAUDE.md`.
 
-Work through [layer-checklist.md](layer-checklist.md) for each layer the spec requires. Not every feature touches every layer — skip layers that are not needed and state why.
+Work through [layer-checklist.md](layer-checklist.md) for each layer the slice requires. Not every slice touches every layer — skip layers that are not needed and state why.
 
 **Order:**
 
@@ -98,12 +101,13 @@ Present the interpreted impact list to the user and confirm before writing any c
 
 ## Slicing a large spec
 
-A spec too large to implement and review in one PR is delivered in **vertical slices**, each its own PR, tracked as GitHub issues (see `docs/specs/SPECS.md`).
+A spec too large for one PR declares its **Delivery Plan** — the slices `S1`…, each normally a GitHub issue (see `docs/specs/SPECS.md`). Implement **one slice per PR**:
 
 - The spec file stays whole — do not split it.
-- Each slice PR implements one coherent group of acceptance criteria and **checks off only those boxes** in the spec (`- [ ]` → `- [x]`), in the same PR.
-- Criteria are grouped by concern, so slices usually own disjoint groups and their checkmarks rarely conflict; if two in-flight slices touch the same group, resolve the checkmark in the later merge.
-- The spec reaches `status: active` only when the final slice checks the last box.
+- Implement the criteria **tagged with the target slice** (`Sn`) and **check off only those boxes** (`- [ ]` → `- [x]`) in the same PR.
+- Respect the plan's `Depends on` order — don't start a slice whose dependency's boxes aren't `[x]` yet.
+- Slice tags make ownership explicit, so checkmarks rarely conflict; if two in-flight slices touch the same box, resolve it in the later merge.
+- **Status:** the first shipped slice moves the spec `review` → `in-progress`; the final slice (last box checked) moves it to `active`.
 
 ---
 
@@ -111,8 +115,8 @@ A spec too large to implement and review in one PR is delivered in **vertical sl
 
 When a PR's implementation is done:
 
-- Walk through the acceptance criteria this PR set out to satisfy, one by one, and **check off each satisfied box in the spec** (`- [ ]` → `- [x]`), committing that edit in the same PR. Check a box only when its behavior is implemented **and covered by a test** — not merely written.
-- If this PR implements the **whole** spec, confirm every box is checked and advance the spec's `status` to `active`. If it implements only a slice (see above), check off just this slice's criteria and leave `status` unchanged — the spec becomes `active` when the final slice checks the last box.
+- Check off the boxes **tagged with the slice this PR delivered** (`Sn`), one by one (`- [ ]` → `- [x]`), committing that edit in the same PR. Check a box only when its behavior is implemented **and covered by a test** — not merely written.
+- Set `status`: if no `[ ]` remain across the whole spec, advance to `active`; if this was the **first** shipped slice, move `review` → `in-progress`; otherwise leave `in-progress` unchanged.
 - Note any criteria that could not be met and why (flag candidates for the spec)
 - Remind the user to run `/spec-author` (document existing code) if behavior diverged from the spec during implementation
 

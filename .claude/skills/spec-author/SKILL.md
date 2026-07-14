@@ -54,7 +54,9 @@ and proceed. If not, ask which of the three they want and what the feature is. T
 
 **6. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md). Ask the user about unknowns rather than guessing.
 
-**7. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`, fill it in, and write the spec to `docs/specs/features/[name].md`. Add an entry to `docs/specs/SPECS.md`. If the feature has a web UI, note in the spec summary that UX intent belongs in `docs/web/FEATURES.md`.
+**7. Delivery plan & sizing** — Partition the feature into **slices**: independently-reviewable increments, each shippable in one PR within the repo's scope budget (CLAUDE.md — ~40 files / ~800 net lines is the signal to split, not a target). A slice is usually one coherent group of criteria (e.g. backend mechanism → read-path → web surface); large features legitimately have several (teams-foundation has five). Split into a **separate feature spec** only when the parts don't share domain/schema/invariants. Fill the template's **Delivery Plan** table (`Slice | Scope | Issue | Depends on`) and **tag every acceptance criterion with exactly one slice** (`` `S1` ``…); a criterion that resists a single tag is too coarse — split it. A single-PR feature still tags every box `S1` and uses the one-line plan.
+
+**8. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`, fill it in, and write the spec to `docs/specs/features/[name].md`. Add an entry to `docs/specs/SPECS.md`. Set `status: review` for an unbuilt spec (it becomes `in-progress` when the first slice ships, `active` when the last box is checked). If the feature has a web UI, note in the spec summary that UX intent belongs in `docs/web/FEATURES.md`.
 
 ---
 
@@ -109,7 +111,9 @@ Work through decisions conversationally. Do not resolve a flag by guessing — i
 - Replace resolved flags with acceptance criteria or edge case table rows
 - Remove flags that are explicitly out of scope (add to Out of Scope section instead)
 - Keep unresolved flags but sharpen their language to a clear question with an owner
-- Update the spec status field if it has advanced (e.g. `draft` → `review`)
+- Any acceptance criterion you add or resolve carries **exactly one slice tag** (`` `S1` ``…) tying it to the Delivery Plan; put it in an existing slice or add a new slice row
+- If the spec predates slicing (no Delivery Plan), add the Delivery Plan table and tag the existing criteria as part of the revision
+- Update the spec status field if it has advanced (`draft`→`review`; `review`→`in-progress` once a slice has shipped; `active` only when no `[ ]` remain)
 
 ---
 
@@ -120,7 +124,9 @@ Before writing the file, verify:
 - The spec lives in `docs/specs/features/`
 - Every user story maps to at least one acceptance criterion
 - Each acceptance criterion is **atomic and independently testable** — it becomes a checkbox on the spec's live implementation checklist, checked off (and backed by a test) one at a time as the feature is built (see `docs/specs/SPECS.md`)
+- The **Delivery Plan** lists the slices, and **every acceptance criterion carries exactly one slice tag** (`` `S1` ``…) — no orphans (see `docs/specs/SPECS.md`)
 - Every cross-cutting concern has been addressed or explicitly flagged
 - The Telemetry section names the operation(s) and states whether domain events apply
 - If the feature has a web UI, confirm the relevant entry in `docs/web/FEATURES.md` is up to date
+- `status` is set correctly: `review` if unbuilt, `in-progress` once ≥1 slice has shipped, `active` only when **no `[ ]` remain**
 - Anything unresolved is a named flag, not a missing section

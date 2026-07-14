@@ -7,7 +7,7 @@ date: YYYY-MM-DD
 
 # [Feature Name]
 
-**Status:** `draft` | `wip` | `review` | `active` | `deprecated`
+**Status:** `draft` | `wip` | `review` | `in-progress` | `active` | `deprecated`
 **Owner:** [PM or team name]
 **Related Specs:** [cross-cutting specs this feature references]
 
@@ -24,11 +24,27 @@ One paragraph. What this feature does and the user problem it solves. No impleme
 ## Acceptance Criteria
 
 <!-- These boxes are the live implementation checklist: check a box (`- [x]`) only when the
-behavior is implemented AND covered by a test on `main`. Large specs ship in slices (tracked as
-GitHub issues); each PR checks off only the criteria it lands. See docs/specs/SPECS.md. -->
+behavior is implemented AND covered by a test on `main`. Every criterion carries exactly one
+slice tag (`S1`…) from the Delivery Plan below — so each box has a home and "slice done = its
+tagged boxes are all `[x]`." A criterion that resists a single tag is too coarse — split it.
+Each slice PR checks off only its own boxes. See docs/specs/SPECS.md. -->
 
-- [ ] [Specific, testable behavior]
-- [ ] [Another testable criterion]
+- [ ] `S1` [Specific, testable behavior]
+- [ ] `S1` [Another testable criterion]
+
+## Delivery Plan
+
+<!-- The slices this feature ships in — independently-reviewable increments, each normally a
+GitHub issue/PR (see Backlog in SPECS.md). Required. For a single-slice feature, replace the
+table with one line: "Single slice — the whole feature (`S1`)." A slice is done when its tagged
+criteria are all `[x]` with tests; the feature reaches `active` only when no `[ ]` remain. The
+Issue column may be blank/`—` until an issue exists. Web-only slices whose criteria live in a
+sibling spec (or docs/web/FEATURES.md) may carry no tags here — note that in Scope. -->
+
+| Slice | Scope                      | Issue | Depends on |
+| ----- | -------------------------- | ----- | ---------- |
+| `S1`  | [what this slice delivers] | #—    | —          |
+| `S2`  | [next increment]           | #—    | `S1`       |
 
 ## Edge Cases & Error States
 
