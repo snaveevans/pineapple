@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { ASSET_TYPES } from "../../domain/asset/AssetType.ts";
+import { AssetSharingSchema } from "./assetSchemas.ts";
 
 export const SearchAssetsQuerySchema = z
   .object({
@@ -21,6 +22,7 @@ export const SearchResultSchema = z
     name: z.string().openapi({ example: "My Truck" }),
     type: z.enum(ASSET_TYPES).openapi({ example: "vehicle" }),
     summary: z.string().openapi({ example: "2016 Ram 2500" }),
+    sharing: AssetSharingSchema,
   })
   .openapi("SearchResult");
 

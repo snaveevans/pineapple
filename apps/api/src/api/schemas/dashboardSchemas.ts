@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { AssetSharingSchema } from "./assetSchemas.ts";
 import { DateOnlySchema, TaskUrgencyStatusSchema } from "./shared.ts";
 
 const AssetTypeSchema = z
@@ -51,6 +52,7 @@ export const DashboardQueueItemSchema = z
     assetId: z.string().uuid().openapi({ example: "195d0ef0-47f5-439f-abfd-29f892c9a040" }),
     assetName: z.string().openapi({ example: "Ford F-150 · Truck #4" }),
     assetType: AssetTypeSchema,
+    sharing: AssetSharingSchema,
   })
   .openapi("DashboardQueueItem");
 

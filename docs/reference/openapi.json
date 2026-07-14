@@ -409,13 +409,17 @@
           "summary": {
             "type": "string",
             "example": "2016 Ram 2500"
+          },
+          "sharing": {
+            "$ref": "#/components/schemas/AssetSharing"
           }
         },
         "required": [
           "id",
           "name",
           "type",
-          "summary"
+          "summary",
+          "sharing"
         ]
       },
       "SearchAssetsResponse": {
@@ -825,6 +829,9 @@
               "equipment"
             ],
             "example": "vehicle"
+          },
+          "sharing": {
+            "$ref": "#/components/schemas/AssetSharing"
           }
         },
         "required": [
@@ -839,7 +846,8 @@
           "createdAt",
           "assetId",
           "assetName",
-          "assetType"
+          "assetType",
+          "sharing"
         ]
       },
       "DashboardResponse": {
@@ -1573,7 +1581,7 @@
           "Assets"
         ],
         "summary": "Search my assets",
-        "description": "Returns up to 20 active assets visible to the caller (owned or shared with their team) that match the free-text query.",
+        "description": "Returns up to 20 active assets visible to the caller (owned or shared with their team) that match the free-text query. Each result includes a computed `sharing` descriptor.",
         "security": [
           {
             "cookieAuth": []

@@ -452,6 +452,7 @@ app.openapi(getDashboardRoute, async (c) => {
     new D1AssetRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
     new SystemUtcDateProvider(),
+    new D1UserRepository(c.env.DB),
   ).execute({
     ownerId: user.id,
     viewerDisplayName: user.name,
@@ -657,7 +658,10 @@ app.openapi(getAssetRoute, async (c) => {
 app.openapi(searchAssetsRoute, async (c) => {
   const user = c.get("user");
   const { q } = c.req.valid("query");
-  const result = await new SearchAssets(new D1AssetRepository(c.env.DB)).execute({
+  const result = await new SearchAssets(
+    new D1AssetRepository(c.env.DB),
+    new D1UserRepository(c.env.DB),
+  ).execute({
     requesterId: user.id,
     q,
   });

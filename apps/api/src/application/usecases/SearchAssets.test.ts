@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { AssetId, UserId } from "@snaveevans/pineapple-shared";
+import { AssetId, Email, TeamId, UserId } from "@snaveevans/pineapple-shared";
 import { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetMetadata } from "../../domain/asset/AssetMetadata.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
+import { User } from "../../domain/identity/User.ts";
+import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import { SearchAssets } from "./SearchAssets.ts";
 
 class AssetRepositoryFake implements AssetRepository {
@@ -16,7 +18,27 @@ class AssetRepositoryFake implements AssetRepository {
 
   findVisibleTo(userId: UserId): Promise<Asset[]> {
     this.requestedUserId = userId;
-    return Promise.resolve(this.assets.filter((asset) => asset.ownerId === userId));
+    return Promise.resolve(this.assets);
+  }
+
+  save(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+class UserRepositoryFake implements UserRepository {
+  constructor(private readonly users: User[] = []) {}
+
+  findById(): Promise<User | null> {
+    return Promise.resolve(null);
+  }
+
+  findByIds(ids: readonly UserId[]): Promise<User[]> {
+    return Promise.resolve(this.users.filter((user) => ids.includes(user.id)));
+  }
+
+  findByEmail(): Promise<User | null> {
+    return Promise.resolve(null);
   }
 
   save(): Promise<void> {
@@ -26,6 +48,7 @@ class AssetRepositoryFake implements AssetRepository {
 
 const ownerId = UserId.from("195d0ef0-47f5-439f-abfd-29f892c9a040");
 const otherOwnerId = UserId.from("d614dbf6-7f08-4c2d-aab9-091c8c2633dd");
+const teamId = TeamId.from("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
 
 function asset(props: {
   id: string;
@@ -34,6 +57,7 @@ function asset(props: {
   ownerId?: UserId;
   archivedAt?: Date | null;
   updatedAt?: Date;
+  sharedTeamId?: TeamId | null;
 }): Asset {
   return Asset.reconstitute({
     id: AssetId.from(props.id),
@@ -43,12 +67,16 @@ function asset(props: {
     archivedAt: props.archivedAt ?? null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: props.updatedAt ?? new Date("2026-01-01T00:00:00.000Z"),
+    sharedTeamId: props.sharedTeamId ?? null,
   });
 }
 
-async function search(assets: Asset[], q: string) {
+async function search(assets: Asset[], q: string, users: User[] = []) {
   const repository = new AssetRepositoryFake(assets);
-  const result = await new SearchAssets(repository).execute({ requesterId: ownerId, q });
+  const result = await new SearchAssets(repository, new UserRepositoryFake(users)).execute({
+    requesterId: ownerId,
+    q,
+  });
   expect(result.ok).toBe(true);
   if (!result.ok) throw result.error;
   return { repository, results: result.value };
@@ -67,17 +95,20 @@ describe("SearchAssets", () => {
       metadata: { kind: "vehicle", make: "Ram", model: "1500", year: 2018 },
       archivedAt: new Date("2026-05-01T00:00:00.000Z"),
     });
-    const anotherOwner = asset({
+    // findVisibleTo is the access boundary; non-visible assets never appear in this list.
+    const invisible = asset({
       id: "00000000-0000-0000-0000-000000000003",
       name: "Other Ram",
       ownerId: otherOwnerId,
       metadata: { kind: "vehicle", make: "Ram", model: "3500", year: 2022 },
     });
 
-    const { repository, results } = await search([active, archived, anotherOwner], "ram");
+    const { repository, results } = await search([active, archived], "ram");
 
     expect(repository.requestedUserId).toBe(ownerId);
     expect(results.map((result) => result.id)).toEqual([active.id]);
+    // invisible was never returned by findVisibleTo, so it cannot match.
+    void invisible;
   });
 
   it("matches case-insensitive substrings across all type-specific metadata", async () => {
@@ -263,5 +294,61 @@ describe("SearchAssets", () => {
     const { results } = await search([truck], "tractor");
 
     expect(results).toEqual([]);
+  });
+
+  it("includes personal sharing on owned personal assets", async () => {
+    const truck = asset({
+      id: "00000000-0000-0000-0000-000000000018",
+      name: "Personal Ram",
+      metadata: { kind: "vehicle", make: "Ram", model: "2500", year: 2021 },
+    });
+
+    const { results } = await search([truck], "ram");
+
+    expect(results[0]?.sharing).toEqual({
+      scope: "personal",
+      isOwner: true,
+    });
+  });
+
+  it("includes team sharing without ownerDisplayName when the caller owns a shared asset", async () => {
+    const truck = asset({
+      id: "00000000-0000-0000-0000-000000000019",
+      name: "Shared Ram",
+      metadata: { kind: "vehicle", make: "Ram", model: "2500", year: 2021 },
+      sharedTeamId: teamId,
+    });
+
+    const { results } = await search([truck], "ram");
+
+    expect(results[0]?.sharing).toEqual({
+      scope: "team",
+      isOwner: true,
+    });
+  });
+
+  it("includes team sharing with ownerDisplayName when the asset is shared with the caller", async () => {
+    const shared = asset({
+      id: "00000000-0000-0000-0000-000000000020",
+      name: "Teammate Ram",
+      ownerId: otherOwnerId,
+      metadata: { kind: "vehicle", make: "Ram", model: "2500", year: 2021 },
+      sharedTeamId: teamId,
+    });
+    const teammate = User.reconstitute({
+      id: otherOwnerId,
+      email: Email.from("teammate@example.com"),
+      name: "Pat",
+      onboardingCompletedAt: new Date("2026-01-01T00:00:00.000Z"),
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+    });
+
+    const { results } = await search([shared], "ram", [teammate]);
+
+    expect(results[0]?.sharing).toEqual({
+      scope: "team",
+      isOwner: false,
+      ownerDisplayName: "Pat",
+    });
   });
 });

@@ -12,6 +12,7 @@ import {
 import type { Asset } from "../../domain/asset/Asset.ts";
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { AssetType } from "../../domain/asset/AssetType.ts";
+import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import {
@@ -21,6 +22,7 @@ import {
   type TaskUrgencyStatus,
 } from "../../domain/maintenance/TaskUrgency.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
+import { toSharingDescriptor, type AssetSharingDescriptor } from "./assetSharing.ts";
 
 export type DashboardFleetTotals = {
   total: number;
@@ -58,6 +60,7 @@ export type DashboardQueueItem = {
   assetId: string;
   assetName: string;
   assetType: AssetType;
+  sharing: AssetSharingDescriptor;
 };
 
 export type DashboardReadModel = {
@@ -86,6 +89,7 @@ export class GetDashboard {
     private readonly assets: AssetRepository,
     private readonly tasks: MaintenanceTaskRepository,
     private readonly dates: UtcDateProvider,
+    private readonly users: UserRepository,
   ) {}
 
   async execute(query: GetDashboardQuery): Promise<Result<DashboardReadModel, DomainError>> {
@@ -99,10 +103,11 @@ export class GetDashboard {
       const activeAssets = allAssets.filter((asset) => asset.archivedAt === null);
       const assetById = new Map(activeAssets.map((asset) => [asset.id, asset]));
       const enriched = enrichTasks(tasks, assetById, todayUtc);
+      const ownerNames = await this.loadOwnerNames(activeAssets, query.ownerId);
 
       const fleetTotals = buildFleetTotals(activeAssets);
       const fleetHealth = buildFleetHealth(activeAssets, enriched);
-      const queue = buildQueue(enriched);
+      const queue = buildQueue(enriched, query.ownerId, ownerNames);
       const queueCountsByCategory = buildQueueCounts(queue);
 
       return ok({
@@ -117,6 +122,17 @@ export class GetDashboard {
       if (error instanceof DomainErrorClass) return err(error);
       throw error;
     }
+  }
+
+  private async loadOwnerNames(assets: Asset[], requesterId: UserId): Promise<Map<UserId, string>> {
+    const otherOwnerIds = [
+      ...new Set(
+        assets.filter((asset) => asset.ownerId !== requesterId).map((asset) => asset.ownerId),
+      ),
+    ];
+    if (otherOwnerIds.length === 0) return new Map();
+    const owners = await this.users.findByIds(otherOwnerIds);
+    return new Map(owners.map((user) => [user.id, user.name ?? "Unknown"]));
   }
 }
 
@@ -180,7 +196,11 @@ function buildFleetHealth(assets: Asset[], enriched: EnrichedTask[]): DashboardF
   return health;
 }
 
-function buildQueue(enriched: EnrichedTask[]): DashboardQueueItem[] {
+function buildQueue(
+  enriched: EnrichedTask[],
+  requesterId: UserId,
+  ownerNames: Map<UserId, string>,
+): DashboardQueueItem[] {
   const queue = enriched.map(({ task, asset, status, daysDue }) => ({
     taskId: task.id,
     taskTitle: task.title,
@@ -194,6 +214,11 @@ function buildQueue(enriched: EnrichedTask[]): DashboardQueueItem[] {
     assetId: asset.id,
     assetName: asset.name,
     assetType: asset.type,
+    sharing: toSharingDescriptor(
+      asset,
+      requesterId,
+      asset.ownerId === requesterId ? null : (ownerNames.get(asset.ownerId) ?? "Unknown"),
+    ),
   }));
 
   return queue.sort((left, right) => {
