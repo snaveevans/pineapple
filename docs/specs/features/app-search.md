@@ -7,7 +7,7 @@ date: 2026-06-21
 
 # App Search
 
-**Status:** review
+**Status:** in-progress
 **Owner:** engineering
 **Last Updated:** 2026-07-13
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [permissions.md](../cross-cutting/permissions.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md), [teams-foundation.md](./teams-foundation.md)
@@ -40,26 +40,29 @@ detailed web interaction behavior is documented in [`docs/web/FEATURES.md`](../.
 
 ## Acceptance Criteria
 
-- [ ] `GET /api/search?q=<query>` returns only assets the authenticated requester can access — those they **own** and those **currently shared with their team** ([teams-foundation.md](./teams-foundation.md), [permissions.md](../cross-cutting/permissions.md)); an asset neither owned by nor shared with the requester is never returned
-- [ ] Only **non-archived** assets are eligible for results
-- [ ] `q` is **required** and trimmed; missing, empty, or whitespace-only `q` returns **422 `ValidationError`**
-- [ ] `q` longer than **100 characters** returns **422 `ValidationError`**
-- [ ] Matching is **case-insensitive substring** ("contains"), not prefix-only and not fuzzy
-- [ ] Matching covers: asset `name`, and per-type metadata — vehicle `make` / `model` / `year` / `vin`; property `nickname` / `address.street` / `city` / `state` / `postalCode` / `country`; equipment `manufacturer` / `modelNumber` / `serialNumber`
-- [ ] Multiple whitespace-separated terms are combined with **AND** — every term must match somewhere in the asset's searchable text; each term may match any searchable field (e.g. `ram 2500` matches make "Ram" + model "2500")
-- [ ] Each result includes `id`, `name`, `type`, a computed `summary` subtitle using the same formatting rules as Asset Library cards (see below), and the computed **`sharing`** descriptor (`scope`, `isOwner`, and `ownerDisplayName` when the asset is shared with the requester) per ADR-0009, so a shared result can be marked and its owner attributed
-- [ ] A result for an asset shared with the requester by a teammate shows a "shared by {ownerDisplayName}" marker; a result the requester owns and has shared shows a "shared with team" marker; a personal asset shows none
-- [ ] Results are ranked **name matches first**, then **most-recently-updated** (`updatedAt` descending) as the tiebreak; ordering is deterministic
-- [ ] Results are capped at **20**; there is no pagination
-- [ ] No matches (or the user has no assets at all) returns **200** with an empty results array — never 404
-- [ ] A successful response is wrapped in a `{ results: [...] }` envelope (mirrors `{ assets: [...] }`)
-- [ ] The authenticated app shell exposes a top-bar search entry point and a `cmd+k` / `ctrl+k` shortcut
-- [ ] Desktop search renders a keyboard-navigable command palette; mobile search renders a full-screen sheet
-- [ ] The UI debounces non-empty input, presents loading, empty, error, and ranked-result states, and opens a selected asset's maintenance page
-- [ ] A 401 response closes search and replaces the current route with `/login`; other request failures expose a retryable error state
-- [ ] Validation happens at the **Zod HTTP edge** (ADR-0007); the request/response schemas live in `apps/api/src/api/schemas/` and are the source for `openapi.json`
-- [ ] `GET /api/search` maps to the **`SearchAssets`** operation in `technicalTelemetry.ts` (it falls through to `Unknown` until added)
-- [ ] The **raw query string is never written to telemetry** (PII anti-pattern — see [telemetry.md](../cross-cutting/telemetry.md))
+_Each criterion carries exactly one slice tag (`S1`…`S4`) from the [Delivery Plan](#delivery-plan)._
+
+- [ ] `S2` `GET /api/search?q=<query>` returns only assets the authenticated requester can access — those they **own** and those **currently shared with their team** ([teams-foundation.md](./teams-foundation.md), [permissions.md](../cross-cutting/permissions.md)); an asset neither owned by nor shared with the requester is never returned
+- [ ] `S1` Only **non-archived** assets are eligible for results
+- [ ] `S1` `q` is **required** and trimmed; missing, empty, or whitespace-only `q` returns **422 `ValidationError`**
+- [ ] `S1` `q` longer than **100 characters** returns **422 `ValidationError`**
+- [ ] `S1` Matching is **case-insensitive substring** ("contains"), not prefix-only and not fuzzy
+- [ ] `S1` Matching covers: asset `name`, and per-type metadata — vehicle `make` / `model` / `year` / `vin`; property `nickname` / `address.street` / `city` / `state` / `postalCode` / `country`; equipment `manufacturer` / `modelNumber` / `serialNumber`
+- [ ] `S1` Multiple whitespace-separated terms are combined with **AND** — every term must match somewhere in the asset's searchable text; each term may match any searchable field (e.g. `ram 2500` matches make "Ram" + model "2500")
+- [ ] `S1` Each result includes `id`, `name`, `type`, and a computed `summary` subtitle using the same formatting rules as Asset Library cards (see below)
+- [ ] `S3` Each result additionally includes the computed **`sharing`** descriptor (`scope`, `isOwner`, and `ownerDisplayName` when the asset is shared with the requester) per ADR-0009, so a shared result can be marked and its owner attributed
+- [ ] `S4` A result for an asset shared with the requester by a teammate shows a "shared by {ownerDisplayName}" marker; a result the requester owns and has shared shows a "shared with team" marker; a personal asset shows none
+- [ ] `S1` Results are ranked **name matches first**, then **most-recently-updated** (`updatedAt` descending) as the tiebreak; ordering is deterministic
+- [ ] `S1` Results are capped at **20**; there is no pagination
+- [ ] `S1` No matches (or the user has no assets at all) returns **200** with an empty results array — never 404
+- [ ] `S1` A successful response is wrapped in a `{ results: [...] }` envelope (mirrors `{ assets: [...] }`)
+- [ ] `S1` The authenticated app shell exposes a top-bar search entry point and a `cmd+k` / `ctrl+k` shortcut
+- [ ] `S1` Desktop search renders a keyboard-navigable command palette; mobile search renders a full-screen sheet
+- [ ] `S1` The UI debounces non-empty input, presents loading, empty, error, and ranked-result states, and opens a selected asset's maintenance page
+- [ ] `S1` A 401 response closes search and replaces the current route with `/login`; other request failures expose a retryable error state
+- [ ] `S1` Validation happens at the **Zod HTTP edge** (ADR-0007); the request/response schemas live in `apps/api/src/api/schemas/` and are the source for `openapi.json`
+- [ ] `S1` `GET /api/search` maps to the **`SearchAssets`** operation in `technicalTelemetry.ts` (it falls through to `Unknown` until added)
+- [ ] `S1` The **raw query string is never written to telemetry** (PII anti-pattern — see [telemetry.md](../cross-cutting/telemetry.md))
 
 ### Computed `summary` (matches Asset Library card formatting)
 
@@ -70,6 +73,15 @@ detailed web interaction behavior is documented in [`docs/web/FEATURES.md`](../.
 > Per ADR-0009, the `summary` is computed in the application layer and returned by the
 > API. Clients render it; they do not re-derive it from raw metadata. The deep-link
 > target (`/app/assets/:id/maintenance`) is derived from `id` on the client.
+
+## Delivery Plan
+
+| Slice | Scope                                                                                                                                         | Issue                                                    | Depends on |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
+| `S1`  | Base search — `GET /api/search`, matching, ranking, command palette / mobile sheet. Shipped on `main` (see Flags: box reconciliation).        | —                                                        | —          |
+| `S2`  | Visible-set scoping — the searchable set spans owned + team-shared assets, delivered by teams-foundation `S2`. Shipped on `main` (see Flags). | [#58](https://github.com/snaveevans/pineapple/issues/58) | `S1`       |
+| `S3`  | `sharing` descriptor on search results — search's share of teams-foundation `S4`.                                                             | [#74](https://github.com/snaveevans/pineapple/issues/74) | `S2`       |
+| `S4`  | Web shared markers on results — search's share of teams-foundation `S5`.                                                                      | [#59](https://github.com/snaveevans/pineapple/issues/59) | `S3`       |
 
 ## API Shape (design target)
 
@@ -109,6 +121,19 @@ invisible. See [telemetry.md](../cross-cutting/telemetry.md) for the full data p
 telemetry per [telemetry.md](../cross-cutting/telemetry.md).
 
 ## Flags
+
+**REVIEW NEEDED — `S1`/`S2` boxes not yet reconciled with shipped code:** Base search (`S1`)
+and visible-set scoping (`S2`, landed via teams-foundation `S2` /
+[#58](https://github.com/snaveevans/pineapple/issues/58)) are implemented on `main` —
+`GET /api/search` backed by `SearchAssets` (with `SearchAssets.test.ts`) and the app-shell
+search UI (`AppSearch.tsx`, `AppSearch.test.tsx`). Their acceptance boxes were authored before
+box-discipline and are still `[ ]`. A brownfield pass (`/spec-author`) should tick each
+`S1`/`S2` box a test on `main` actually covers and unpick any that aren't yet true. The spec is
+marked `in-progress` — `S1`/`S2` shipped, `S3` ([#74](https://github.com/snaveevans/pineapple/issues/74))
+and `S4` ([#59](https://github.com/snaveevans/pineapple/issues/59)) pending — on that basis,
+rather than left at `review`. Note: `SearchAssets.ts` currently carries a comment saying the
+result intentionally omits the `sharing` descriptor; `S3` reverses that decision — remove the
+comment when it lands. Owner: engineering.
 
 **REVIEW NEEDED — Result-count and query-length measurement:** Result count per query and
 query length are valuable product signals (and would close the "fleet size / result counts

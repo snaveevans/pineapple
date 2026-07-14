@@ -7,7 +7,7 @@ metadata:
 
 # Dashboard
 
-**Status:** review
+**Status:** in-progress
 **Owner:** [unknown — assign on review]
 **Last Updated:** 2026-07-13
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [maintenance-task.md](./maintenance-task.md), [maintenance-record.md](./maintenance-record.md), [teams-foundation.md](./teams-foundation.md)
@@ -38,42 +38,53 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 
 ## API Requirements
 
+_Each criterion carries exactly one slice tag (`S1`…`S4`) from the [Delivery Plan](#delivery-plan)._
+
 ### Dashboard read model
 
-- [ ] Add `GET /api/dashboard` as a protected application API endpoint
-- [ ] The endpoint returns the caller's dashboard state in a single response; the web app must not need to call `GET /api/assets` and then fan out to per-asset task endpoints for initial dashboard render
-- [ ] The endpoint uses the resolved authenticated `User.id` as the identity input; no `ownerId` is accepted from the request
-- [ ] Every active, non-archived asset the caller can **access** — owned **and** currently shared with the caller's team ([teams-foundation.md](./teams-foundation.md)) — is included in fleet totals, category counts, health counts, and queue items; assets neither owned by nor shared with the caller are never included
-- [ ] Each asset represented on the dashboard (in fleet data and in every queue item) carries the computed **`sharing`** descriptor (`scope`, `isOwner`, and `ownerDisplayName` when shared with the caller) per ADR-0009, so the client can mark shared items and attribute the owner without a second lookup
-- [ ] A queue item for an asset shared with the caller by a teammate is rendered with a shared indicator and the owner's display name; an item for an asset the caller owns and has shared shows a "shared with team" indicator; personal assets show none
-- [ ] Tasks belonging to archived assets are excluded from the dashboard queue, even though asset-scoped task history may remain readable elsewhere
-- [ ] The response includes a viewer display name suitable for the greeting, derived from the authenticated session profile when available
-- [ ] The response includes `todayUtc`, the server-side calendar date used to calculate task urgency; date-only calculations must follow the maintenance date rules in [maintenance-task.md](./maintenance-task.md)
-- [ ] Fleet totals include the total active asset count and counts for the supported asset types: vehicle, equipment, and property
-- [ ] Fleet health counts are computed per asset by that asset's most urgent scheduled task: overdue wins over due soon, due soon wins over on track
-- [ ] Assets with no scheduled maintenance tasks are counted separately from on-track assets so the dashboard can avoid presenting "no schedule" as healthy service status
-- [ ] The maintenance queue contains scheduled maintenance tasks across all active assets, not one synthesized row per asset
-- [ ] Each queue item includes enough task and asset summary data to render the queue row and selected-detail panel without an additional asset lookup
-- [ ] Queue items are sorted by urgency first, then by `nextDue` ascending, then by task creation time for stable ordering
-- [ ] The dashboard does not include `Grounds` / `lawn` category data unless a future asset-type spec and API contract add that type
-- [ ] The dashboard does not include meter readings, mileage/hour intervals, estimated time, location, assignee, or free-form task notes until those fields are added to the maintenance-task contract
+- [ ] `S1` Add `GET /api/dashboard` as a protected application API endpoint
+- [ ] `S1` The endpoint returns the caller's dashboard state in a single response; the web app must not need to call `GET /api/assets` and then fan out to per-asset task endpoints for initial dashboard render
+- [ ] `S1` The endpoint uses the resolved authenticated `User.id` as the identity input; no `ownerId` is accepted from the request
+- [ ] `S2` Every active, non-archived asset the caller can **access** — owned **and** currently shared with the caller's team ([teams-foundation.md](./teams-foundation.md)) — is included in fleet totals, category counts, health counts, and queue items; assets neither owned by nor shared with the caller are never included
+- [ ] `S3` Each asset represented on the dashboard (in fleet data and in every queue item) carries the computed **`sharing`** descriptor (`scope`, `isOwner`, and `ownerDisplayName` when shared with the caller) per ADR-0009, so the client can mark shared items and attribute the owner without a second lookup
+- [ ] `S4` A queue item for an asset shared with the caller by a teammate is rendered with a shared indicator and the owner's display name; an item for an asset the caller owns and has shared shows a "shared with team" indicator; personal assets show none
+- [ ] `S1` Tasks belonging to archived assets are excluded from the dashboard queue, even though asset-scoped task history may remain readable elsewhere
+- [ ] `S1` The response includes a viewer display name suitable for the greeting, derived from the authenticated session profile when available
+- [ ] `S1` The response includes `todayUtc`, the server-side calendar date used to calculate task urgency; date-only calculations must follow the maintenance date rules in [maintenance-task.md](./maintenance-task.md)
+- [ ] `S1` Fleet totals include the total active asset count and counts for the supported asset types: vehicle, equipment, and property
+- [ ] `S1` Fleet health counts are computed per asset by that asset's most urgent scheduled task: overdue wins over due soon, due soon wins over on track
+- [ ] `S1` Assets with no scheduled maintenance tasks are counted separately from on-track assets so the dashboard can avoid presenting "no schedule" as healthy service status
+- [ ] `S1` The maintenance queue contains scheduled maintenance tasks across all active assets, not one synthesized row per asset
+- [ ] `S1` Each queue item includes enough task and asset summary data to render the queue row and selected-detail panel without an additional asset lookup
+- [ ] `S1` Queue items are sorted by urgency first, then by `nextDue` ascending, then by task creation time for stable ordering
+- [ ] `S1` The dashboard does not include `Grounds` / `lawn` category data unless a future asset-type spec and API contract add that type
+- [ ] `S1` The dashboard does not include meter readings, mileage/hour intervals, estimated time, location, assignee, or free-form task notes until those fields are added to the maintenance-task contract
 
 ### Status calculation
 
-- [ ] A task is `overdue` when `nextDue` is before `todayUtc`
-- [ ] A task is `soon` when `nextDue` is today or within the next 7 calendar days
-- [ ] A task is `ok` when `nextDue` is more than 7 calendar days after `todayUtc`
-- [ ] The relative due-day value is calculated with date-only calendar arithmetic, not timestamp subtraction through user-local time zones
-- [ ] Due labels such as "Overdue · 3 days", "Today", "Tomorrow", or "In 5 days" may be formatted by the frontend from the API's date/status data; the API should not be required to return presentation copy
+- [ ] `S1` A task is `overdue` when `nextDue` is before `todayUtc`
+- [ ] `S1` A task is `soon` when `nextDue` is today or within the next 7 calendar days
+- [ ] `S1` A task is `ok` when `nextDue` is more than 7 calendar days after `todayUtc`
+- [ ] `S1` The relative due-day value is calculated with date-only calendar arithmetic, not timestamp subtraction through user-local time zones
+- [ ] `S1` Due labels such as "Overdue · 3 days", "Today", "Tomorrow", or "In 5 days" may be formatted by the frontend from the API's date/status data; the API should not be required to return presentation copy
 
 ### Dashboard actions
 
-- [ ] Selecting a queue item is frontend state; the API does not persist or return a selected item
-- [ ] The default selected item is the first queue item after urgency sorting
-- [ ] Category filtering is frontend state for the first API-backed version; the dashboard response must contain category and count data needed to filter the returned queue without a new request
-- [ ] `Mark complete` for a time-based task uses `POST /api/assets/{assetId}/maintenance-records` with the selected `taskId`, as defined in [maintenance-record.md](./maintenance-record.md) and [maintenance-task.md](./maintenance-task.md)
-- [ ] After successful completion, the frontend invalidates the dashboard read model and the affected asset's maintenance records/tasks
-- [ ] `Reschedule`, `Snooze`, dashboard-level `Add service`, and richer task-detail editing remain placeholders until the maintenance-task API is extended
+- [ ] `S1` Selecting a queue item is frontend state; the API does not persist or return a selected item
+- [ ] `S1` The default selected item is the first queue item after urgency sorting
+- [ ] `S1` Category filtering is frontend state for the first API-backed version; the dashboard response must contain category and count data needed to filter the returned queue without a new request
+- [ ] `S1` `Mark complete` for a time-based task uses `POST /api/assets/{assetId}/maintenance-records` with the selected `taskId`, as defined in [maintenance-record.md](./maintenance-record.md) and [maintenance-task.md](./maintenance-task.md)
+- [ ] `S1` After successful completion, the frontend invalidates the dashboard read model and the affected asset's maintenance records/tasks
+- [ ] `S1` `Reschedule`, `Snooze`, dashboard-level `Add service`, and richer task-detail editing remain placeholders until the maintenance-task API is extended
+
+## Delivery Plan
+
+| Slice | Scope                                                                                                                                                 | Issue                                                    | Depends on |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
+| `S1`  | Base dashboard — `GET /api/dashboard` read model, status calculation, queue, actions, `/app` page. Shipped on `main` (see Flags: box reconciliation). | —                                                        | —          |
+| `S2`  | Visible-set scoping — totals/health/queue span owned + team-shared assets, delivered by teams-foundation `S2`. Shipped on `main` (see Flags).         | [#58](https://github.com/snaveevans/pineapple/issues/58) | `S1`       |
+| `S3`  | `sharing` descriptor on the dashboard read model — the dashboard's share of teams-foundation `S4`.                                                    | [#74](https://github.com/snaveevans/pineapple/issues/74) | `S2`       |
+| `S4`  | Web shared indicators on queue rows — the dashboard's share of teams-foundation `S5`.                                                                 | [#59](https://github.com/snaveevans/pineapple/issues/59) | `S3`       |
 
 ## Validation & Ownership
 
@@ -112,6 +123,18 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 **Domain events:** None for the dashboard read model. Reads do not publish domain events. Completing a task from the dashboard uses the existing `CreateMaintenanceRecord` operation and may publish the existing `MaintenanceRecordCreated` and `MaintenanceTaskAdvanced` domain events.
 
 ## Flags
+
+**REVIEW NEEDED — `S1`/`S2` boxes not yet reconciled with shipped code:** The base dashboard
+(`S1`) and visible-set scoping (`S2`, landed via teams-foundation `S2` /
+[#58](https://github.com/snaveevans/pineapple/issues/58)) are implemented on `main` —
+`GET /api/dashboard` backed by `GetDashboard` (with `GetDashboard.test.ts`), and `AppHome.tsx`
+renders it from live data, which also makes the Implementation Notes above (describing a
+hardcoded prototype) stale. A brownfield pass (`/spec-author`) should tick each `S1`/`S2` box a
+test on `main` actually covers, unpick any that aren't yet true, and refresh the Implementation
+Notes. The spec is marked `in-progress` — `S1`/`S2` shipped, `S3`
+([#74](https://github.com/snaveevans/pineapple/issues/74)) and `S4`
+([#59](https://github.com/snaveevans/pineapple/issues/59)) pending — on that basis, rather than
+left at `review`. Owner: engineering.
 
 **FOLLOW-UP NEEDED — Maintenance task detail fields:** The prototype shows estimated time, location/where, assignee/vendor, and notes. These fields do not exist in the maintenance-task API or D1 schema. Add them through [maintenance-task.md](./maintenance-task.md) before rendering them from live data.
 

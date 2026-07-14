@@ -7,9 +7,9 @@ metadata:
 
 # Asset Library
 
-**Status:** review
+**Status:** in-progress
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-07-12
+**Last Updated:** 2026-07-13
 **Related Specs:** [app-search.md](./app-search.md), [authentication.md](../cross-cutting/authentication.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [teams-foundation.md](./teams-foundation.md)
 
 ---
@@ -39,51 +39,61 @@ Beyond listing, the library lets the user **narrow the list by asset category** 
 
 ## Acceptance Criteria
 
+_Each criterion carries exactly one slice tag (`S1`…`S3`) from the [Delivery Plan](#delivery-plan)._
+
 **Fetch & presentation**
 
-- [ ] Assets are fetched from the asset list API when the page loads
-- [ ] The API returns every non-archived asset the requester can access — those they **own** and those **currently shared with their team** ([teams-foundation.md](./teams-foundation.md), [permissions.md](../cross-cutting/permissions.md)); it never returns an asset that is neither owned by nor shared with the requester
-- [ ] When assets exist, each asset displays: name, displayId (first 8 chars of the asset ID, uppercased), type-specific summary, and a thumbnail
-- [ ] Vehicle summary format: `"${year} ${make} ${model}"`
-- [ ] Property summary format: `"${street}, ${city}, ${state}"`
-- [ ] Equipment summary format: `"${manufacturer} ${modelNumber}"` if either present; otherwise `serialNumber`; otherwise `"Equipment details not added"`
-- [ ] Each asset card is a link to that asset's maintenance page (`/app/assets/:id/maintenance`)
-- [ ] The header shows the total asset count with correct grammar: **"1 thing you take care of"** (singular) and **"N things you take care of"** (plural, including N = 0), plus an "Add asset" button
+- [ ] `S1` Assets are fetched from the asset list API when the page loads
+- [ ] `S2` The API returns every non-archived asset the requester can access — those they **own** and those **currently shared with their team** ([teams-foundation.md](./teams-foundation.md), [permissions.md](../cross-cutting/permissions.md)); it never returns an asset that is neither owned by nor shared with the requester
+- [ ] `S1` When assets exist, each asset displays: name, displayId (first 8 chars of the asset ID, uppercased), type-specific summary, and a thumbnail
+- [ ] `S1` Vehicle summary format: `"${year} ${make} ${model}"`
+- [ ] `S1` Property summary format: `"${street}, ${city}, ${state}"`
+- [ ] `S1` Equipment summary format: `"${manufacturer} ${modelNumber}"` if either present; otherwise `serialNumber`; otherwise `"Equipment details not added"`
+- [ ] `S1` Each asset card is a link to that asset's maintenance page (`/app/assets/:id/maintenance`)
+- [ ] `S1` The header shows the total asset count with correct grammar: **"1 thing you take care of"** (singular) and **"N things you take care of"** (plural, including N = 0), plus an "Add asset" button
 
 **Sharing indicator**
 
-- [ ] Each asset in the list API response carries the computed **`sharing`** descriptor (`scope`: `personal` | `team`; `isOwner`: boolean; and `ownerDisplayName` when the asset is shared **with** the requester by someone else), computed server-side per ADR-0009 — the client renders it and does not derive sharing from raw data
-- [ ] A card for an asset the requester **owns and has shared** (`scope: team`, `isOwner: true`) shows a "shared with team" indicator
-- [ ] A card for an asset **shared with the requester by a teammate** (`scope: team`, `isOwner: false`) shows a "shared by {ownerDisplayName}" indicator attributing the owner
-- [ ] A card for a **personal** asset (`scope: personal`) shows no sharing indicator
-- [ ] The sharing indicator is display-only on this screen; sharing and unsharing are performed from the asset's maintenance page (owner only), not the library ([teams-foundation.md](./teams-foundation.md))
+- [ ] `S2` Each asset in the list API response carries the computed **`sharing`** descriptor (`scope`: `personal` | `team`; `isOwner`: boolean; and `ownerDisplayName` when the asset is shared **with** the requester by someone else), computed server-side per ADR-0009 — the client renders it and does not derive sharing from raw data
+- [ ] `S3` A card for an asset the requester **owns and has shared** (`scope: team`, `isOwner: true`) shows a "shared with team" indicator
+- [ ] `S3` A card for an asset **shared with the requester by a teammate** (`scope: team`, `isOwner: false`) shows a "shared by {ownerDisplayName}" indicator attributing the owner
+- [ ] `S3` A card for a **personal** asset (`scope: personal`) shows no sharing indicator
+- [ ] `S3` The sharing indicator is display-only on this screen; sharing and unsharing are performed from the asset's maintenance page (owner only), not the library ([teams-foundation.md](./teams-foundation.md))
 
 **Category filter chips**
 
-- [ ] The asset list API returns **per-category counts** in its response (`counts: { all, vehicle, equipment, property }`), computed server-side over the same **visible** (owned + team-shared), non-archived set that is returned, so the client renders the counts rather than recomputing them from raw data (ADR-0009). `counts.all` equals the length of the returned `assets` array
-- [ ] The toolbar renders a fixed set of category chips — **All / Vehicles / Equipment / Properties** — each showing its count from the API response (the client does not recompute counts from raw data)
-- [ ] A chip whose count is `0` still renders and is still selectable
-- [ ] Selecting a chip filters the **already-loaded** list **client-side** with no new API request; the selected category is ephemeral client UI state and is never sent to the API
-- [ ] "All" is selected by default and shows every loaded asset
-- [ ] The active chip is visually indicated
-- [ ] When the selected category has no matching assets (but the library is non-empty), a **filtered-empty state** is shown that names the category and offers a way forward (clear the filter or add an asset)
+- [ ] `S1` The asset list API returns **per-category counts** in its response (`counts: { all, vehicle, equipment, property }`), computed server-side over the **same non-archived set that is returned** (whatever the requester's visible set is — see Fetch & presentation), so the client renders the counts rather than recomputing them from raw data (ADR-0009). `counts.all` equals the length of the returned `assets` array
+- [ ] `S1` The toolbar renders a fixed set of category chips — **All / Vehicles / Equipment / Properties** — each showing its count from the API response (the client does not recompute counts from raw data)
+- [ ] `S1` A chip whose count is `0` still renders and is still selectable
+- [ ] `S1` Selecting a chip filters the **already-loaded** list **client-side** with no new API request; the selected category is ephemeral client UI state and is never sent to the API
+- [ ] `S1` "All" is selected by default and shows every loaded asset
+- [ ] `S1` The active chip is visually indicated
+- [ ] `S1` When the selected category has no matching assets (but the library is non-empty), a **filtered-empty state** is shown that names the category and offers a way forward (clear the filter or add an asset)
 
 **Grid / list view**
 
-- [ ] The toolbar renders a grid/list view toggle on viewports where both layouts are available (wider/desktop viewports)
-- [ ] On those viewports, **grid is the default**; selecting "list" switches to the row layout, and the choice **persists across visits in the same browser**
-- [ ] On mobile, assets always render as a row list and the view toggle is **not shown** (the stored preference does not apply)
-- [ ] The active view is visually indicated
-- [ ] The selected category filter applies to whichever layout is active; the "Add an asset" shortcut appends to the end of the (filtered) list when at least one asset matches
+- [ ] `S1` The toolbar renders a grid/list view toggle on viewports where both layouts are available (wider/desktop viewports)
+- [ ] `S1` On those viewports, **grid is the default**; selecting "list" switches to the row layout, and the choice **persists across visits in the same browser**
+- [ ] `S1` On mobile, assets always render as a row list and the view toggle is **not shown** (the stored preference does not apply)
+- [ ] `S1` The active view is visually indicated
+- [ ] `S1` The selected category filter applies to whichever layout is active; the "Add an asset" shortcut appends to the end of the (filtered) list when at least one asset matches
 
 **Toolbar visibility & states**
 
-- [ ] The filter chips and view toggle are shown **only when the asset list has loaded with at least one asset** — they are not rendered during loading, error, or the zero-asset empty state
-- [ ] There are **no disabled or non-functional controls** on the screen: every rendered control performs its action
-- [ ] While loading, a "Loading assets" message is shown
-- [ ] On error (non-401), an "Assets could not be loaded" message is shown with a "Try again" button; transient non-401 errors may retry briefly before the error state is shown
-- [ ] On 401, the user is redirected to `/login` (replace); no retry is attempted
-- [ ] The empty state (zero assets owned) shows "No assets yet" with a description and an "Add asset" link
+- [ ] `S1` The filter chips and view toggle are shown **only when the asset list has loaded with at least one asset** — they are not rendered during loading, error, or the zero-asset empty state
+- [ ] `S1` There are **no disabled or non-functional controls** on the screen: every rendered control performs its action
+- [ ] `S1` While loading, a "Loading assets" message is shown
+- [ ] `S1` On error (non-401), an "Assets could not be loaded" message is shown with a "Try again" button; transient non-401 errors may retry briefly before the error state is shown
+- [ ] `S1` On 401, the user is redirected to `/login` (replace); no retry is attempted
+- [ ] `S1` The empty state (zero assets owned) shows "No assets yet" with a description and an "Add asset" link
+
+## Delivery Plan
+
+| Slice | Scope                                                                                                                                               | Issue                                                    | Depends on |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
+| `S1`  | Base library — fetch, cards, counts, category chips, grid/list view, loading/error/empty states. Shipped on `main` (see Flags: box reconciliation). | —                                                        | —          |
+| `S2`  | Visible set + `sharing` descriptor on `GET /api/assets` — delivered by teams-foundation `S2`. Shipped on `main` (see Flags: box reconciliation).    | [#58](https://github.com/snaveevans/pineapple/issues/58) | `S1`       |
+| `S3`  | Web sharing indicators on library cards — the library's share of teams-foundation `S5`.                                                             | [#59](https://github.com/snaveevans/pineapple/issues/59) | `S2`       |
 
 ## Edge Cases & Error States
 
@@ -137,6 +147,16 @@ The implemented contract is authoritative in `openapi.json` once built; this des
 **Domain events:** None. Read operations are excepted from domain event telemetry per [telemetry.md](../cross-cutting/telemetry.md).
 
 ## Flags
+
+**REVIEW NEEDED — `S1`/`S2` boxes not yet reconciled with shipped code:** The base library
+(`S1`) and the visible-set + `sharing` descriptor on the list API (`S2`, landed via
+teams-foundation `S2` / [#58](https://github.com/snaveevans/pineapple/issues/58)) are
+implemented on `main` with tests (`ListAssets.test.ts`, `AppAssets.test.tsx`). Their
+acceptance boxes were authored before box-discipline and are still `[ ]`. A brownfield pass
+(`/spec-author`) should tick each `S1`/`S2` box a test on `main` actually covers and unpick
+any that aren't yet true. The spec is marked `in-progress` — `S1`/`S2` shipped, `S3`
+([#59](https://github.com/snaveevans/pineapple/issues/59)) pending — on that basis, rather
+than left at `review`. Owner: engineering.
 
 **REVIEW NEEDED — `ListAssets` result/fleet-size count not captured in telemetry:** Request telemetry confirms `GET /api/assets` was called and succeeded but does not record how many assets were returned, nor the per-category breakdown. Fleet size per user is a core product metric. The API now computes `counts` internally, so the value exists server-side; surfacing it in telemetry still requires the same operation-specific measurement hook flagged in [app-search.md](./app-search.md) (the fixed request-telemetry data point cannot express per-operation measures). **Numeric only** — no PII. Owner: engineering. Decide whether to land with this change or defer with the app-search measurement work.
 

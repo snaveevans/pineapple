@@ -216,13 +216,15 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       library and dashboard, the client does not filter a pre-loaded set, because the
       feed is unbounded and paginated
 - [ ] `S1` The first page response includes `availableFilters`: the set of action types
-      present in the caller's **accessible** history with a count for each, and the
-      set of assets present in that history (`id`, `name`, `type`) with a count for
-      each — including assets currently shared with the caller's team
-- [ ] `S1` Filter facet counts are computed over the caller's **complete accessible**
-      history (owned + currently-shared), not the currently filtered view, so the user
-      can pivot between filters (the same principle as the library's category counts in
-      [asset-library.md](./asset-library.md))
+      present in the caller's history with a count for each, and the set of assets
+      present in that history (`id`, `name`, `type`) with a count for each
+- [ ] `S1` Filter facet counts are computed over the caller's **complete** history, not
+      the currently filtered view, so the user can pivot between filters (the same
+      principle as the library's category counts in [asset-library.md](./asset-library.md))
+- [ ] `S2` The `availableFilters` facets and their counts span the caller's **accessible**
+      history, the same visibility rule as the feed: assets currently shared with the
+      caller's team appear in the asset facet alongside owned assets, and an unshared
+      asset's contribution drops out of the facets on the next request
 - [ ] `S1` Assets that appear in history but are now archived are still listed in the
       asset filter facet, because they still have history
 - [ ] `S1` A filter for an `assetId` the caller **cannot access** (neither owns nor has
