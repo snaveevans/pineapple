@@ -50,6 +50,7 @@ function successfulAssetsQuery() {
           archivedAt: null,
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
+          sharing: { scope: "team", isOwner: true },
         },
         {
           id: "337f2d25-f1ab-4544-af2e-8196aa9d5a11",
@@ -59,9 +60,29 @@ function successfulAssetsQuery() {
           archivedAt: null,
           createdAt: "2026-01-01T00:00:00.000Z",
           updatedAt: "2026-01-01T00:00:00.000Z",
+          sharing: { scope: "team", isOwner: false, ownerDisplayName: "Pat" },
+        },
+        {
+          id: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+          name: "Cabin",
+          type: "property",
+          metadata: {
+            kind: "property",
+            address: {
+              street: "1 Lake Rd",
+              city: "Frisco",
+              state: "CO",
+              postalCode: "80443",
+              country: "US",
+            },
+          },
+          archivedAt: null,
+          createdAt: "2026-01-01T00:00:00.000Z",
+          updatedAt: "2026-01-01T00:00:00.000Z",
+          sharing: { scope: "personal", isOwner: true },
         },
       ],
-      counts: { all: 2, vehicle: 1, equipment: 1, property: 0 },
+      counts: { all: 3, vehicle: 1, equipment: 1, property: 1 },
     },
     isPending: false,
     isError: false,
@@ -118,6 +139,15 @@ async function clickButton(label: string) {
 
 describe("AppAssets", () => {
   it("renders API counts and allows a zero-count category to enter the filtered-empty state", async () => {
+    // Drop the property asset so Properties has count 0 while the library is non-empty.
+    const base = successfulAssetsQuery();
+    assetsQueryResult = {
+      ...base,
+      data: {
+        assets: base.data.assets.filter((asset) => asset.type !== "property"),
+        counts: { all: 2, vehicle: 1, equipment: 1, property: 0 },
+      },
+    };
     await renderAssets();
 
     expect(document.body.textContent).toContain("Properties0");
@@ -126,6 +156,19 @@ describe("AppAssets", () => {
 
     expect(document.body.textContent).toContain("No properties yet");
     expect(document.body.textContent).toContain("Clear filter");
+  });
+
+  it("renders sharing badges from the API sharing field on library cards", async () => {
+    await renderAssets();
+
+    expect(document.body.textContent).toContain("Shared with team");
+    expect(document.body.textContent).toContain("Shared by Pat");
+    // Personal asset "Cabin" has no sharing badge copy
+    const badges = Array.from(document.querySelectorAll(".hf-share-badge")).map(
+      (el) => el.textContent?.trim(),
+    );
+    expect(badges).toEqual(expect.arrayContaining(["Shared with team", "Shared by Pat"]));
+    expect(badges).toHaveLength(2);
   });
 
   it("switches to list view and persists the choice", async () => {
@@ -146,7 +189,7 @@ describe("AppAssets", () => {
 
   it("shows the specific request error and clears a filter before retrying", async () => {
     await renderAssets();
-    await clickButton("Properties0");
+    await clickButton("Properties1");
 
     assetsQueryResult = {
       data: undefined,
@@ -164,7 +207,7 @@ describe("AppAssets", () => {
     await rerenderAssets();
 
     expect(document.body.textContent).toContain("Truck");
-    expect(document.body.textContent).not.toContain("No properties yet");
+    expect(document.body.textContent).toContain("Cabin");
   });
 
   it("renders a redirect status instead of blank content for 401 responses", async () => {

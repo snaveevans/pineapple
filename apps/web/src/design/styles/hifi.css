@@ -636,6 +636,40 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Sharing indicator (library / dashboard / search) — display-only from API `sharing` */
+.hf-share-badge {
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  font-family: var(--hf-sans);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.hf-share-badge span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hf-share-badge.is-owner {
+  background: var(--hf-brand-bg);
+  color: var(--hf-brand-2);
+  border-color: oklch(88% 0.04 150);
+}
+.hf-share-badge.is-member {
+  background: var(--hf-surface-2);
+  color: var(--hf-ink-soft);
+  border-color: var(--hf-line);
+}
 .hf-row-right {
   display: flex;
   flex-direction: column;

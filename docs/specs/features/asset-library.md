@@ -55,10 +55,10 @@ _Each criterion carries exactly one slice tag (`S1`…`S3`) from the [Delivery P
 **Sharing indicator**
 
 - [ ] `S2` Each asset in the list API response carries the computed **`sharing`** descriptor (`scope`: `personal` | `team`; `isOwner`: boolean; and `ownerDisplayName` when the asset is shared **with** the requester by someone else), computed server-side per ADR-0009 — the client renders it and does not derive sharing from raw data
-- [ ] `S3` A card for an asset the requester **owns and has shared** (`scope: team`, `isOwner: true`) shows a "shared with team" indicator
-- [ ] `S3` A card for an asset **shared with the requester by a teammate** (`scope: team`, `isOwner: false`) shows a "shared by {ownerDisplayName}" indicator attributing the owner
-- [ ] `S3` A card for a **personal** asset (`scope: personal`) shows no sharing indicator
-- [ ] `S3` The sharing indicator is display-only on this screen; sharing and unsharing are performed from the asset's maintenance page (owner only), not the library ([teams-foundation.md](./teams-foundation.md))
+- [x] `S3` A card for an asset the requester **owns and has shared** (`scope: team`, `isOwner: true`) shows a "shared with team" indicator
+- [x] `S3` A card for an asset **shared with the requester by a teammate** (`scope: team`, `isOwner: false`) shows a "shared by {ownerDisplayName}" indicator attributing the owner
+- [x] `S3` A card for a **personal** asset (`scope: personal`) shows no sharing indicator
+- [x] `S3` The sharing indicator is display-only on this screen; sharing and unsharing are performed from the asset's maintenance page (owner only), not the library ([teams-foundation.md](./teams-foundation.md))
 
 **Category filter chips**
 

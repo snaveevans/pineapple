@@ -119,4 +119,40 @@ describe("AppSearch", () => {
 
     expect(searchAssetsMock).toHaveBeenCalledTimes(2);
   });
+
+  it("renders sharing markers on results from the API sharing field", async () => {
+    searchAssetsMock.mockResolvedValueOnce({
+      results: [
+        {
+          id: "00000000-0000-0000-0000-000000000001",
+          name: "Work Truck",
+          type: "vehicle",
+          summary: "2020 Ford F-150",
+          sharing: { scope: "team", isOwner: true },
+        },
+        {
+          id: "00000000-0000-0000-0000-000000000002",
+          name: "Teammate Ram",
+          type: "vehicle",
+          summary: "2021 Ram 2500",
+          sharing: { scope: "team", isOwner: false, ownerDisplayName: "Pat" },
+        },
+        {
+          id: "00000000-0000-0000-0000-000000000003",
+          name: "Personal Van",
+          type: "vehicle",
+          summary: "2019 Ford Transit",
+          sharing: { scope: "personal", isOwner: true },
+        },
+      ],
+    });
+    await renderSearch();
+
+    await enterSearchQuery("ford");
+    await runDebouncedSearch();
+
+    expect(document.body.textContent).toContain("Shared with team");
+    expect(document.body.textContent).toContain("Shared by Pat");
+    expect(document.querySelectorAll(".hf-share-badge")).toHaveLength(2);
+  });
 });

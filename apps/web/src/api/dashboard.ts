@@ -1,7 +1,9 @@
 import { apiRequest } from "./client.ts";
+import type { AssetSharing } from "./assets.ts";
 
 export type TaskUrgencyStatus = "overdue" | "soon" | "ok";
 export type AssetType = "vehicle" | "property" | "equipment";
+export type { AssetSharing };
 
 export type DashboardFleetTotals = {
   total: number;
@@ -37,6 +39,7 @@ export type DashboardQueueItem = {
   assetId: string;
   assetName: string;
   assetType: AssetType;
+  sharing: AssetSharing;
 };
 
 export type DashboardResponse = {

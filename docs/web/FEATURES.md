@@ -137,6 +137,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Assets without scheduled tasks: fleet totals render; queue empty state points to the asset library
 - Populated: urgency-sorted maintenance queue with overdue/soon/on-track status from the API
 - Detail card (desktop) or inline expand (mobile) for the selected queue item
+- Sharing indicators on queue rows and the selected detail: "Shared with team" when the caller owns a team-shared asset; "Shared by {owner}" when a teammate shared it; none for personal assets
 - Filtered empty: category filter active but no matching queue rows
 - Error: dashboard-level error with retry
 - Mark complete: creates a linked maintenance record for the selected task and refetches dashboard + asset maintenance data
@@ -146,6 +147,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 - Initial render uses one dashboard read model — no fan-out across assets and per-asset task endpoints
 - Status buckets and fleet health counts come from the API; the client formats due-date copy only
+- Sharing badge copy is driven by each queue item's API `sharing` descriptor; the client does not re-derive ownership
 - Category filter chips filter the returned queue client-side without a new request
 - Add service fetches the asset list on demand when opened; task creation reuses the same validation and API contract as the asset maintenance task form
 - Reschedule and Snooze remain disabled placeholders until future specs land
@@ -166,6 +168,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - Loading: loading state while fetching; toolbar controls hidden
 - Empty (no assets owned): prompt to add first asset with a direct link to the add form; no toolbar shown
 - Populated: grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`
+- Sharing indicators on cards: "Shared with team" for assets the user owns and shared; "Shared by {owner}" for assets a teammate shared with them; none for personal assets
 - Filtered: a category chip is active; the loaded list is narrowed to that asset type
 - Filtered empty: the selected category has no matching assets (library is otherwise non-empty); message names the category with a way to clear the filter or add an asset
 - Error: inline error message with a "Try again" retry button
@@ -174,6 +177,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 - There is **no inline search box** on this screen — finding a specific asset is handled by global [App Search](#app-search) (`cmd/ctrl+K` or the top-bar button)
 - Category filter chips show **per-category counts that come from the API**; selecting a chip filters the **already-loaded** list **client-side** with no refetch — the same pattern as the Dashboard queue filter. The selected category is ephemeral client state and is never sent to the API
+- Sharing badges are display-only on this screen; share/unshare lives on the asset maintenance page
 - A category chip with a count of `0` still renders and is selectable (leads to the filtered-empty state)
 - Grid/list view toggle appears only on wider/desktop viewports, defaults to grid, and the choice **persists across visits in the same browser**; mobile always uses the row list and hides the toggle
 - The header count copy is grammatically correct: "1 thing you take care of" vs. "N things you take care of"
@@ -199,7 +203,8 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 - Closed/idle: not shown
 - Typing: debounced; loading indicator while the request is in flight
-- Results: ranked list from `GET /api/search?q=…` — each row shows name, type, and a summary line; selecting a result navigates to that asset's maintenance page (`/app/assets/:id/maintenance`)
+- Results: ranked list from `GET /api/search?q=…` — each row shows name, type, a summary line, and a sharing marker when applicable; selecting a result navigates to that asset's maintenance page (`/app/assets/:id/maintenance`)
+- Sharing markers: "Shared with team" / "Shared by {owner}" from each hit's API `sharing` field; personal assets show none
 - No matches: clear "no matches" empty state (a 200 with an empty array, not an error)
 - Error: retryable error state
 - Unauthenticated (401): redirect to `/login`
@@ -208,6 +213,7 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 
 - The client debounces input and **suppresses the API call until there is ≥1 non-space character** — the API's 422 on an empty query is a safety net, not the normal path
 - Results arrive **pre-ranked and pre-summarized** from the API; the client renders them and does not recompute ordering or the summary line (ADR-0009)
+- Sharing markers are rendered from the search hit `sharing` descriptor — same copy rules as the library and dashboard
 - `cmd+k` is intercepted globally and must not collide with the browser's own shortcuts
 - Desktop presentation is a command palette overlay; mobile presentation is a full-screen sheet
 - App Search is the **only** asset-search affordance — the Asset Library has no inline search box; its toolbar is for category filtering and grid/list view only

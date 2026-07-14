@@ -51,7 +51,7 @@ _Each criterion carries exactly one slice tag (`S1`…`S4`) from the [Delivery P
 - [ ] `S1` Multiple whitespace-separated terms are combined with **AND** — every term must match somewhere in the asset's searchable text; each term may match any searchable field (e.g. `ram 2500` matches make "Ram" + model "2500")
 - [ ] `S1` Each result includes `id`, `name`, `type`, and a computed `summary` subtitle using the same formatting rules as Asset Library cards (see below)
 - [x] `S3` Each result additionally includes the computed **`sharing`** descriptor (`scope`, `isOwner`, and `ownerDisplayName` when the asset is shared with the requester) per ADR-0009, so a shared result can be marked and its owner attributed
-- [ ] `S4` A result for an asset shared with the requester by a teammate shows a "shared by {ownerDisplayName}" marker; a result the requester owns and has shared shows a "shared with team" marker; a personal asset shows none
+- [x] `S4` A result for an asset shared with the requester by a teammate shows a "shared by {ownerDisplayName}" marker; a result the requester owns and has shared shows a "shared with team" marker; a personal asset shows none
 - [ ] `S1` Results are ranked **name matches first**, then **most-recently-updated** (`updatedAt` descending) as the tiebreak; ordering is deterministic
 - [ ] `S1` Results are capped at **20**; there is no pagination
 - [ ] `S1` No matches (or the user has no assets at all) returns **200** with an empty results array — never 404

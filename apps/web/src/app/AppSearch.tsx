@@ -6,8 +6,10 @@ import { searchAssets, type SearchResult } from "../api/search";
 import { Icon, type IconName } from "../design/Icon";
 import { paths } from "../routes";
 import { assetTypeLabel } from "./assetPresentation";
+import { sharingBadge } from "./sharingPresentation";
 
 import "./styles/app-search.css";
+import "../design/styles/hifi.css";
 
 type SearchStatus = "idle" | "loading" | "ready" | "empty" | "error";
 
@@ -442,6 +444,7 @@ function SearchResultRow({
   onHover: () => void;
   refCallback: (element: HTMLButtonElement | null) => void;
 }) {
+  const badge = sharingBadge(result.sharing);
   return (
     <button
       type="button"
@@ -456,6 +459,15 @@ function SearchResultRow({
       <span className="hfs-result-main">
         <span className="hfs-result-name">{highlight(result.name, query)}</span>
         <span className="hfs-result-sub">{highlight(result.summary, query)}</span>
+        {badge ? (
+          <span
+            className={`hf-share-badge ${badge.kind === "shared-with-team" ? "is-owner" : "is-member"}`}
+            title={badge.text}
+          >
+            <Icon name="users" size={11} stroke={2} />
+            <span>{badge.text}</span>
+          </span>
+        ) : null}
       </span>
       {mobile ? (
         <span className="hfs-chevron">

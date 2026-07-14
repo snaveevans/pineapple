@@ -15,6 +15,7 @@ const assets: AssetPresentation[] = [
     cat: "vehicle",
     icon: "truck",
     summary: "2020 Ford F-150",
+    sharingBadge: null,
   },
   {
     id: "equipment-id",
@@ -23,14 +24,13 @@ const assets: AssetPresentation[] = [
     cat: "equipment",
     icon: "wrench",
     summary: "Generac 7043",
+    sharingBadge: null,
   },
 ];
 
 describe("asset library presentation", () => {
   it("uses the API category counts without recomputing them from displayed assets", () => {
-    expect(
-      assetFilterOptions({ all: 4, vehicle: 2, equipment: 1, property: 1 }),
-    ).toEqual([
+    expect(assetFilterOptions({ all: 4, vehicle: 2, equipment: 1, property: 1 })).toEqual([
       { id: "all", label: "All", count: 4 },
       { id: "vehicle", label: "Vehicles", count: 2 },
       { id: "equipment", label: "Equipment", count: 1 },

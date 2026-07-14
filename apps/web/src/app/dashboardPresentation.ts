@@ -3,6 +3,7 @@ import type { IconName } from "../design/Icon.tsx";
 import type { AssetCategory, AssetStatus } from "../design/hf.tsx";
 import { shortenAssetId } from "./assetPresentation.ts";
 import { ymdParts } from "./dateFormat.ts";
+import { sharingBadge, type SharingBadge } from "./sharingPresentation.ts";
 
 const MONTHS_LONG = [
   "January",
@@ -43,6 +44,7 @@ export type DashboardQueuePresentation = {
   status: AssetStatus;
   last: string;
   recurs: string;
+  sharingBadge: SharingBadge;
 };
 
 export function formatDashboardDate(todayUtc: string): string {
@@ -114,6 +116,7 @@ export function toQueuePresentation(item: DashboardQueueItem): DashboardQueuePre
     status: item.status,
     last: formatLastService(item.lastCompletedDate),
     recurs: formatRecurrence(item.intervalValue, item.intervalUnit),
+    sharingBadge: sharingBadge(item.sharing),
   };
 }
 
