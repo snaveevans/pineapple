@@ -276,6 +276,15 @@
   font-weight: 600;
 }
 
+.hh-actor {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--hf-ink-soft);
+  letter-spacing: -0.005em;
+}
+
 .hh-time {
   flex-shrink: 0;
   text-align: right;

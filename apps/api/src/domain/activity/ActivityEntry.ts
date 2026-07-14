@@ -1,4 +1,4 @@
-import type { ActivityEntryId, AssetId } from "@snaveevans/pineapple-shared";
+import type { ActivityEntryId, AssetId, UserId } from "@snaveevans/pineapple-shared";
 import type { AssetType } from "../asset/AssetType.ts";
 
 export const ACTIVITY_ENTRY_TYPES = [
@@ -17,11 +17,18 @@ export type ActivityAssetSnapshot = {
   type: AssetType;
 };
 
+/** Stable actor attribution; display name is a projection snapshot (never email). */
+export type ActivityActorSnapshot = {
+  id: UserId;
+  displayName: string;
+};
+
 export type ActivityEntry = {
   id: ActivityEntryId;
   type: ActivityEntryType;
   occurredAt: Date;
   asset: ActivityAssetSnapshot;
+  actor: ActivityActorSnapshot;
   title?: string;
   performedAt?: string;
 };
@@ -42,6 +49,8 @@ export type ActivityAvailableFilters = {
 };
 
 export type ActivityReadModel = {
+  /** Caller's domain user id — lets the client mark "you" vs teammate without a second lookup. */
+  viewerUserId: UserId;
   entries: ActivityEntry[];
   availableFilters: ActivityAvailableFilters;
   nextCursor: string | null;

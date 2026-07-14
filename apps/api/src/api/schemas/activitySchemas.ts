@@ -54,12 +54,26 @@ export const ActivityAssetSnapshotSchema = z
   })
   .openapi("ActivityAssetSnapshot");
 
+export const ActivityActorSnapshotSchema = z
+  .object({
+    id: z.string().uuid().openapi({
+      example: "71afbc20-f2e0-4fc8-a989-278437cf792c",
+      description: "Stable acting-user id (never an email or auth-provider identifier)",
+    }),
+    displayName: z.string().openapi({
+      example: "Pat Rivera",
+      description: "Display-name snapshot of the actor at the time of the action",
+    }),
+  })
+  .openapi("ActivityActorSnapshot");
+
 export const ActivityEntrySchema = z
   .object({
     id: z.string().uuid().openapi({ example: "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0" }),
     type: ActivityEntryTypeSchema,
     occurredAt: z.string().datetime().openapi({ example: "2026-06-09T18:25:24.887Z" }),
     asset: ActivityAssetSnapshotSchema,
+    actor: ActivityActorSnapshotSchema,
     title: z.string().optional().openapi({ example: "Changed oil" }),
     performedAt: DateOnlySchema.optional().openapi({ example: "2026-06-09" }),
   })
@@ -88,6 +102,10 @@ export const ActivityAvailableFiltersSchema = z
 
 export const ActivityResponseSchema = z
   .object({
+    viewerUserId: z.string().uuid().openapi({
+      example: "7d914909-c903-41a4-a13a-82cbd0f61851",
+      description: "Caller's domain user id for attributing 'you' vs teammate in the client",
+    }),
     entries: z.array(ActivityEntrySchema),
     availableFilters: ActivityAvailableFiltersSchema,
     nextCursor: z.string().nullable().openapi({ example: null }),

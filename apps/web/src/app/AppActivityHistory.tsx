@@ -15,6 +15,7 @@ import { Icon, type IconName } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { paths } from "../routes.ts";
 import { HFBottomNav, HFTopBar } from "./AppChrome.tsx";
+import { activityActorLabel } from "./activityPresentation.ts";
 import { assetTypeLabel } from "./assetPresentation.ts";
 import { dateKey, formatMonthDay, formatShortDate, ymdToUTC } from "./dateFormat.ts";
 
@@ -373,10 +374,19 @@ function PerformedFact({ entry, color }: { entry: ActivityEntry; color: string }
   );
 }
 
-function ActivityEventCard({ entry, now }: { entry: ActivityEntry; now: Date }) {
+function ActivityEventCard({
+  entry,
+  now,
+  viewerUserId,
+}: {
+  entry: ActivityEntry;
+  now: Date;
+  viewerUserId: string;
+}) {
   const config = TYPE_CONFIG[entry.type];
   const occurredAt = new Date(entry.occurredAt);
   const title = entry.title ?? "Untitled activity";
+  const actorLabel = activityActorLabel(entry.actor, viewerUserId);
 
   let headline: ReactNode;
   let detail: ReactNode = null;
@@ -450,6 +460,9 @@ function ActivityEventCard({ entry, now }: { entry: ActivityEntry; now: Date }) 
               {config.verb}
             </span>
             {headline}
+            <span className="hh-actor" title={actorLabel === "You" ? "You" : actorLabel}>
+              {actorLabel === "You" ? "by you" : `by ${actorLabel}`}
+            </span>
           </div>
           <div className="hh-time">
             <span className="hh-time-rel">{relativeLabel(entry.occurredAt, now)}</span>
@@ -463,7 +476,15 @@ function ActivityEventCard({ entry, now }: { entry: ActivityEntry; now: Date }) 
   );
 }
 
-function ActivityTimeline({ groups, now }: { groups: ActivityGroup[]; now: Date }) {
+function ActivityTimeline({
+  groups,
+  now,
+  viewerUserId,
+}: {
+  groups: ActivityGroup[];
+  now: Date;
+  viewerUserId: string;
+}) {
   return (
     <div className="hh-timeline">
       {groups.map((group) => (
@@ -479,7 +500,12 @@ function ActivityTimeline({ groups, now }: { groups: ActivityGroup[]; now: Date 
             </span>
           </div>
           {group.entries.map((entry) => (
-            <ActivityEventCard key={entry.id} entry={entry} now={now} />
+            <ActivityEventCard
+              key={entry.id}
+              entry={entry}
+              now={now}
+              viewerUserId={viewerUserId}
+            />
           ))}
         </section>
       ))}
@@ -671,10 +697,11 @@ export function AppActivityHistory() {
       />
     );
   } else {
+    const viewerUserId = firstPage?.viewerUserId ?? "";
     body = (
       <div className="hh-grid">
         <div>
-          <ActivityTimeline groups={groups} now={now} />
+          <ActivityTimeline groups={groups} now={now} viewerUserId={viewerUserId} />
           <div className="hh-loadmore">
             {activityQuery.hasNextPage ? (
               <button

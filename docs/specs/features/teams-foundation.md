@@ -76,7 +76,7 @@ _Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery P
 - [x] `S2` A team member can read an asset shared with their team and its **maintenance tasks and records** (the activity feed is `S3`, below)
 - [x] `S2` A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
 - [x] `S2` Access to a shared asset's dependent records **follows the asset**: authorization for maintenance task and record operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
-- [ ] `S3` Access to the **activity feed** for shared assets follows the asset the same way — specified in [activity-history.md](./activity-history.md) (team visibility of shared-asset activity, with actor attribution)
+- [x] `S3` Access to the **activity feed** for shared assets follows the asset the same way — specified in [activity-history.md](./activity-history.md) (team visibility of shared-asset activity, with actor attribution)
 - [x] `S2` When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
 
 **Read-path integration**

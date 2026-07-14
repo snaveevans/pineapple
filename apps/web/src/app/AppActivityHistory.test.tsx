@@ -45,6 +45,9 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let activityQueryResult: unknown;
 
+const viewerUserId = "7d914909-c903-41a4-a13a-82cbd0f61851";
+const teammateUserId = "71afbc20-f2e0-4fc8-a989-278437cf792c";
+
 const entries: ActivityEntry[] = [
   {
     id: "f60feab8-48df-4947-ae58-6ef7257531da",
@@ -55,6 +58,7 @@ const entries: ActivityEntry[] = [
       name: "Sprinter Van",
       type: "vehicle",
     },
+    actor: { id: viewerUserId, displayName: "Dale" },
     title: "Cabin filter",
   },
   {
@@ -66,6 +70,7 @@ const entries: ActivityEntry[] = [
       name: "Generac Generator",
       type: "equipment",
     },
+    actor: { id: teammateUserId, displayName: "Pat Rivera" },
     title: "Oil change",
     performedAt: "2026-06-30",
   },
@@ -73,6 +78,7 @@ const entries: ActivityEntry[] = [
 
 function activityPage(): ActivityResponse {
   return {
+    viewerUserId,
     entries,
     availableFilters: {
       types: [
@@ -168,5 +174,12 @@ describe("AppActivityHistory", () => {
 
     expect(document.querySelector('[data-asset-icon="vehicle:van"]')).not.toBeNull();
     expect(document.querySelector('[data-asset-icon="equipment:bolt"]')).not.toBeNull();
+  });
+
+  it("attributes entries as you vs teammate display name", async () => {
+    await renderHistory();
+
+    expect(document.body.textContent).toContain("by you");
+    expect(document.body.textContent).toContain("by Pat Rivera");
   });
 });

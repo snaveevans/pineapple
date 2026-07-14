@@ -919,6 +919,26 @@
           "type"
         ]
       },
+      "ActivityActorSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable acting-user id (never an email or auth-provider identifier)",
+            "example": "71afbc20-f2e0-4fc8-a989-278437cf792c"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Display-name snapshot of the actor at the time of the action",
+            "example": "Pat Rivera"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
+        ]
+      },
       "ActivityEntry": {
         "type": "object",
         "properties": {
@@ -946,6 +966,9 @@
           "asset": {
             "$ref": "#/components/schemas/ActivityAssetSnapshot"
           },
+          "actor": {
+            "$ref": "#/components/schemas/ActivityActorSnapshot"
+          },
           "title": {
             "type": "string",
             "example": "Changed oil"
@@ -961,7 +984,8 @@
           "id",
           "type",
           "occurredAt",
-          "asset"
+          "asset",
+          "actor"
         ]
       },
       "ActivityTypeFilter": {
@@ -1030,6 +1054,12 @@
       "ActivityResponse": {
         "type": "object",
         "properties": {
+          "viewerUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Caller's domain user id for attributing 'you' vs teammate in the client",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
+          },
           "entries": {
             "type": "array",
             "items": {
@@ -1046,6 +1076,7 @@
           }
         },
         "required": [
+          "viewerUserId",
           "entries",
           "availableFilters",
           "nextCursor"

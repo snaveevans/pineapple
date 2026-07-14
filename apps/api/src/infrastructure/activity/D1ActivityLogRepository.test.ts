@@ -35,6 +35,7 @@ function baseEvent(overrides: Partial<ActivityEventMessage> = {}): ActivityEvent
     assetId: AssetId.from("195d0ef0-47f5-439f-abfd-29f892c9a040"),
     ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
     actorId: UserId.from("71afbc20-f2e0-4fc8-a989-278437cf792c"),
+    actorDisplayName: "Pat Rivera",
     assetName: "Truck",
     assetType: "vehicle",
     activityEntryType: "task_completed",
@@ -66,6 +67,7 @@ describe("D1ActivityLogRepository", () => {
       event.id,
       event.ownerId,
       event.actorId,
+      "Pat Rivera",
       "task_completed",
       event.occurredAt,
       event.assetId,
@@ -75,6 +77,17 @@ describe("D1ActivityLogRepository", () => {
       event.performedAt,
       expect.any(String),
     ]);
+  });
+
+  it("snapshots Unknown when actorDisplayName is missing on a pre-slice event", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const withName = baseEvent();
+    const { actorDisplayName: _omit, ...withoutName } = withName;
+    void _omit;
+
+    await new D1ActivityLogRepository(db).recordEvent(withoutName);
+
+    expect(statements[0]?.values[4]).toBe("Unknown");
   });
 
   it("does not create a maintenance_logged entry for a record collapsed into a task completion", async () => {
@@ -112,6 +125,7 @@ describe("D1ActivityLogRepository", () => {
       event.id,
       event.ownerId,
       event.actorId,
+      "Pat Rivera",
       "maintenance_logged",
       event.occurredAt,
       event.assetId,
@@ -136,8 +150,9 @@ describe("D1ActivityLogRepository", () => {
 
   it("skips aggregate filter scans on cursor pages", async () => {
     const { db, prepare } = createDatabaseHarness();
+    const ownerId = UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851");
     const result = await new D1ActivityLogRepository(db).list({
-      ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+      ownerId,
       limit: 25,
       cursor: encodeCursor({
         v: 1,
@@ -147,6 +162,19 @@ describe("D1ActivityLogRepository", () => {
     });
 
     expect(prepare).toHaveBeenCalledTimes(1);
+    expect(result.viewerUserId).toBe(ownerId);
     expect(result.availableFilters).toEqual({ types: [], assets: [] });
+  });
+
+  it("lists with a current-sharing visibility predicate (owned or team-shared assets)", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const ownerId = UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851");
+
+    await new D1ActivityLogRepository(db).list({ ownerId, limit: 25 });
+
+    const listQuery = statements.find((s) => s.query.includes("FROM activity_entries"));
+    expect(listQuery?.query).toContain("team_members");
+    expect(listQuery?.query).toContain("shared_team_id");
+    expect(listQuery?.values.slice(0, 2)).toEqual([ownerId, ownerId]);
   });
 });
