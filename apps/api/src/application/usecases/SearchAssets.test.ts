@@ -95,20 +95,14 @@ describe("SearchAssets", () => {
       metadata: { kind: "vehicle", make: "Ram", model: "1500", year: 2018 },
       archivedAt: new Date("2026-05-01T00:00:00.000Z"),
     });
-    // findVisibleTo is the access boundary; non-visible assets never appear in this list.
-    const invisible = asset({
-      id: "00000000-0000-0000-0000-000000000003",
-      name: "Other Ram",
-      ownerId: otherOwnerId,
-      metadata: { kind: "vehicle", make: "Ram", model: "3500", year: 2022 },
-    });
 
+    // The fake returns the visible set as-is; the owner/team access boundary is
+    // enforced by findVisibleTo (see D1AssetRepository tests). Here we assert the
+    // requester identity is passed through and archived assets are excluded.
     const { repository, results } = await search([active, archived], "ram");
 
     expect(repository.requestedUserId).toBe(ownerId);
     expect(results.map((result) => result.id)).toEqual([active.id]);
-    // invisible was never returned by findVisibleTo, so it cannot match.
-    void invisible;
   });
 
   it("matches case-insensitive substrings across all type-specific metadata", async () => {
