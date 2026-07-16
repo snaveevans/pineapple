@@ -129,7 +129,7 @@ jobs:
         run: pnpm wrangler d1 migrations apply pineapple --remote
 
       # wrangler deploy binds to queues but never creates them, and it hard-fails
-      # if a queue named in wrangler.toml is missing. Reconcile first: create any
+      # if a queue named in wrangler.jsonc is missing. Reconcile first: create any
       # queue the Worker references that doesn't exist yet. Idempotent — existing
       # queues are left untouched, so this is safe to run on every deploy.
       #

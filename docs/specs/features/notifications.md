@@ -380,7 +380,7 @@ email covered — this is the deliverability signal ADR-0012 requires.
   notification consumer, and one outbound queue for aggregated email delivery. The split provides
   per-role isolation per [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md):
   a stuck email send cannot block event ingestion.
-- Add both queue bindings/consumers to `apps/api/wrangler.toml` and the matching idempotent queue
+- Add both queue bindings/consumers to `apps/api/wrangler.jsonc` and the matching idempotent queue
   creation entries to `.github/workflows/deploy.yml`. DLQs are durably drained into records; they
   are not just holding pens.
 - Add the email-sending application port, the Cloudflare Email Sending infrastructure adapter, the

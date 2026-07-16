@@ -6,7 +6,7 @@
 BETTER_AUTH_SECRET=""
 
 # Base URL Better Auth builds OAuth redirect_uris from. Required locally because
-# `wrangler dev` serves the worker under the production route host (wrangler.toml
+# `wrangler dev` serves the worker under the production route host (wrangler.jsonc
 # `routes`), so the request URL is not localhost. Leave unset in production
 # (falls back to the real request origin).
 BETTER_AUTH_URL="http://localhost:8787"

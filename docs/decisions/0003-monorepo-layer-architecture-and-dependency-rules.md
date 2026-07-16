@@ -79,7 +79,7 @@ apps/
       application/     # Use cases, EventBus interface, AuthenticatedUserResolver interface
       infrastructure/  # D1 repositories, CF Access resolver, InMemoryEventBus
       api/             # Hono routes, middleware, request validation, error mapping
-    wrangler.toml
+    wrangler.jsonc
     package.json
 ```
 

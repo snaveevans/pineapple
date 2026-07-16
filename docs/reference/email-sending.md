@@ -9,9 +9,9 @@ behind the application `TransactionalEmailSender` port; the Cloudflare adapter i
 
 ## Worker binding & config
 
-`apps/api/wrangler.toml` declares:
+`apps/api/wrangler.jsonc` declares:
 
-- `[[send_email]] name = "EMAIL"` — the Worker binding used to send.
+- `"send_email": [{ "name": "EMAIL" }]` — the Worker binding used to send.
 - `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` vars — the sender identity. The
   address's domain must be onboarded (below).
 
