@@ -208,7 +208,7 @@ workflows.
 2. Update `AssetCreated` to include asset telemetry dimensions and publish it
    from `CreateAsset` after `D1AssetRepository.save`.
 3. Add `ASSET_DOMAIN_TELEMETRY` and `API_REQUEST_TELEMETRY` bindings in
-   `apps/api/wrangler.toml`.
+   `apps/api/wrangler.jsonc`.
 4. Add Analytics Engine sink wrappers and the `AssetCreatedTelemetryHandler`.
 5. Add technical telemetry middleware and wire it in `worker.ts`.
 6. Add tests for event publication, telemetry mapping, handler failure

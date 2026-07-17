@@ -13,7 +13,7 @@ export type AuthEnv = {
   GOOGLE_CLIENT_SECRET: string;
   /**
    * Explicit Better Auth base URL. REQUIRED in local dev: `wrangler dev` serves
-   * the worker under the production `routes` hostname from wrangler.toml, so the
+   * the worker under the production `routes` hostname from wrangler.jsonc, so the
    * request URL is NOT localhost. Set this to the Vite origin
    * (`http://localhost:5173`) so OAuth callbacks return through Vite's `/api`
    * development proxy. In production leave it unset; the worker falls back to
