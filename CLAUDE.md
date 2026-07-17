@@ -18,6 +18,10 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
   `child_process`, etc. in `apps/api/src/**`. Use WinterCG/Web APIs. (ADR-0006)
 - **No `process.env`** in `apps/api/src/**` — also lint-blocked. Read config
   from the Worker `env` binding (`c.env.*`), typed in `worker.ts`.
+- **No floating promises** in `apps/api/src/**` — Workers silently drops
+  un-awaited promises (dropped work, swallowed errors).
+  `@typescript-eslint/no-floating-promises` is an explicit lint error: `await`,
+  `.catch`, or mark intentionally-detached work with `void`.
 - **D1 (SQLite)** via the `DB` binding. Migrations in `/migrations`, applied
   with `wrangler d1 migrations apply pineapple --local|--remote`.
 - **Cloudflare Queues** are declared in `apps/api/wrangler.jsonc` but `wrangler

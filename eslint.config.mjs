@@ -134,6 +134,18 @@ export default tseslint.config(
     },
   },
 
+  // ── CF Workers: no floating promises ─────────────────────────────────────
+  // Workers silently drops un-awaited promises: work is dropped and errors
+  // are swallowed. recommendedTypeChecked already enables this rule
+  // repo-wide; pin it explicitly for the API so the guarantee survives
+  // future config changes. Intentionally-detached work must use `void`.
+  {
+    files: ["apps/api/src/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": "error",
+    },
+  },
+
   // ── Non-type-aware linting for JS/CJS config files ───────────────────────
   {
     files: ["**/*.{js,mjs,cjs}"],
