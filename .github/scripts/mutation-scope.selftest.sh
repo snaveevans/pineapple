@@ -59,12 +59,13 @@ assert_in "selftest script" ".github/scripts/mutation-scope.selftest.sh"
 assert_in "future gate script" ".github/scripts/mutation-ratchet.sh"
 assert_in "mixed list" "apps/web/src/app/App.tsx" "apps/api/src/domain/team/Team.ts"
 
-# Static guard: grep -q early-exit + pipefail is the fail-open hazard.
-if grep -nE 'grep[[:space:]]+-q' "$SCOPE" >/dev/null; then
-  echo "FAIL mutation-scope.sh must not use grep -q (SIGPIPE fail-open under pipefail)" >&2
+# Static guard: quiet early-exit + pipefail is the fail-open hazard.
+# Inspect code lines only (comments may discuss the hazard by name).
+if grep -nE '^[^#]*grep[[:space:]]+-q' "$SCOPE" >/dev/null; then
+  echo "FAIL mutation-scope.sh must not use quiet grep (SIGPIPE fail-open under pipefail)" >&2
   fail=1
 else
-  echo "ok  no grep -q in mutation-scope.sh"
+  echo "ok  no quiet-grep early-exit in mutation-scope.sh"
 fi
 
 # Large in-scope list through a real pipe under pipefail (Linux runner pipe is

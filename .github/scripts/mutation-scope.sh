@@ -12,7 +12,8 @@ set -euo pipefail
 # packages/shared is included: domain/application import branded IDs, Result, and
 # DomainError from it, so shared changes can move the mutation score.
 # vitest/tsconfig: Stryker discovers the runner config and transform settings from these.
-# Do not use grep -q: early exit causes SIGPIPE when stdin is large (pipefail → false skip).
+# Drain stdin fully (no quiet early-exit): a short-circuiting match under pipefail
+# SIGPIPEs the writer and fail-opens large in-scope PRs to run=false.
 SCOPE_RE='^(apps/api/src/(domain|application)/|packages/shared/|apps/api/stryker\.conf\.json|apps/api/package\.json|apps/api/vitest\.config\.ts|apps/api/tsconfig\.json|pnpm-lock\.yaml|\.github/workflows/mutation\.yml|\.github/scripts/mutation-[a-z0-9.-]*\.sh)'
 
 grep -E "$SCOPE_RE" > /dev/null
