@@ -2,6 +2,7 @@ import {
   ConflictError,
   Email,
   InvariantError,
+  NotFoundError,
   TooManyRequestsError,
   UserId,
 } from "@snaveevans/pineapple-shared";
@@ -22,6 +23,12 @@ import type {
   VerificationTokenRepository,
 } from "../ports/VerificationTokenRepository.ts";
 import type { VerificationTokenService } from "../ports/VerificationTokenService.ts";
+import {
+  VERIFICATION_COOLDOWN_MS,
+  VERIFICATION_PER_ADDRESS_CAP,
+  VERIFICATION_PER_USER_CAP,
+  VERIFICATION_TOKEN_TTL_MS,
+} from "../verification/verificationLimits.ts";
 import { RequestEmailVerification } from "./RequestEmailVerification.ts";
 
 const authEmail = Email.from("dale@example.com");
@@ -154,101 +161,225 @@ function build(opts: {
 }
 
 function lastRequestEvent(events: EventBusFake) {
-  const event = events.events.find((e) => e.type === "EmailVerificationRequested");
-  return event as { result: string; throttleReason: string; source: string } | undefined;
+  return events.events.find((e) => e.type === "EmailVerificationRequested");
+}
+
+function expectRequestEvent(
+  events: EventBusFake,
+  expected: {
+    userId: UserId;
+    source: "resend" | "profile_update";
+    result: "sent" | "throttled" | "noop_already_verified" | "no_address" | "send_failed";
+    throttleReason: "cooldown" | "per_address_cap" | "per_user_cap" | "none";
+  },
+) {
+  const event = lastRequestEvent(events);
+  expect(event).toMatchObject({
+    type: "EmailVerificationRequested",
+    userId: expected.userId,
+    purpose: "notification_email",
+    source: expected.source,
+    result: expected.result,
+    throttleReason: expected.throttleReason,
+  });
 }
 
 describe("RequestEmailVerification", () => {
   it("issues a hashed token, records the send, and emails a link on the happy path", async () => {
-    const { useCase, tokens, sendLog, emailSender, events } = build({
-      user: userWith("unverified"),
-    });
+    const user = userWith("unverified");
+    const { useCase, tokens, sendLog, emailSender, events } = build({ user });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     expect(result.ok).toBe(true);
     // supersede happens before the new token is saved
     expect(tokens.invalidated).toHaveLength(1);
     expect(tokens.saved).toHaveLength(1);
     expect(tokens.saved[0]?.tokenHash).toBe("hashed-token");
-    expect(tokens.saved[0]?.expiresAt.getTime()).toBe(now.getTime() + 24 * 60 * 60 * 1000);
-    expect(sendLog.recorded).toHaveLength(1);
+    expect(tokens.saved[0]?.userId).toBe(user.id);
+    expect(tokens.saved[0]?.email).toBe(contactEmail);
+    expect(tokens.saved[0]?.purpose).toBe("notification_email");
+    expect(tokens.saved[0]?.expiresAt.getTime()).toBe(now.getTime() + VERIFICATION_TOKEN_TTL_MS);
+    expect(sendLog.recorded).toEqual([
+      { userId: user.id, email: contactEmail, purpose: "notification_email", createdAt: now },
+    ]);
     expect(emailSender.sent[0]?.to.address).toBe(contactEmail);
     expect(emailSender.sent[0]?.text).toContain("verify-email?token=raw-token");
-    const event = lastRequestEvent(events);
-    expect(event).toMatchObject({ result: "sent", throttleReason: "none", source: "resend" });
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "sent",
+      throttleReason: "none",
+    });
   });
 
   it("uses profile_update source via the request() port method", async () => {
+    const user = userWith("unverified");
     const events = new EventBusFake();
-    const { useCase } = build({ user: userWith("unverified"), events });
+    const { useCase } = build({ user, events });
 
-    await useCase.request({ userId: UserId.generate(), email: contactEmail });
+    const result = await useCase.request({ userId: user.id, email: contactEmail });
 
-    expect(lastRequestEvent(events)?.source).toBe("profile_update");
+    expect(result.ok).toBe(true);
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "profile_update",
+      result: "sent",
+      throttleReason: "none",
+    });
+  });
+
+  it("returns NotFound when the user does not exist", async () => {
+    const userId = UserId.generate();
+    const { useCase, tokens, emailSender, events } = build({ user: null });
+
+    const result = await useCase.execute({ userId, source: "resend" });
+
+    expect(result.ok === false && result.error).toBeInstanceOf(NotFoundError);
+    expect(tokens.saved).toHaveLength(0);
+    expect(emailSender.sent).toHaveLength(0);
+    expect(events.events).toHaveLength(0);
   });
 
   it("returns 409 and records no_address when no contact email is set", async () => {
-    const { useCase, tokens, emailSender, events } = build({ user: userWith("none") });
+    const user = userWith("none");
+    const { useCase, tokens, emailSender, events } = build({ user });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     expect(result.ok === false && result.error).toBeInstanceOf(ConflictError);
     expect(tokens.saved).toHaveLength(0);
     expect(emailSender.sent).toHaveLength(0);
-    expect(lastRequestEvent(events)?.result).toBe("no_address");
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "no_address",
+      throttleReason: "none",
+    });
   });
 
   it("is an idempotent no-op when the contact email is already verified", async () => {
-    const { useCase, tokens, emailSender, events } = build({ user: userWith("verified") });
+    const user = userWith("verified");
+    const { useCase, tokens, emailSender, events } = build({ user });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     expect(result.ok).toBe(true);
     expect(tokens.saved).toHaveLength(0);
     expect(emailSender.sent).toHaveLength(0);
-    expect(lastRequestEvent(events)?.result).toBe("noop_already_verified");
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "noop_already_verified",
+      throttleReason: "none",
+    });
   });
 
   it("throttles on the cooldown window", async () => {
+    const user = userWith("unverified");
     const sendLog = new SendLogFake(new Date(now.getTime() - 30 * 1000));
-    const { useCase, tokens, emailSender, events } = build({
-      user: userWith("unverified"),
-      sendLog,
-    });
+    const { useCase, tokens, emailSender, events } = build({ user, sendLog });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     expect(result.ok === false && result.error).toBeInstanceOf(TooManyRequestsError);
     expect(tokens.saved).toHaveLength(0);
     expect(emailSender.sent).toHaveLength(0);
-    expect(lastRequestEvent(events)).toMatchObject({
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
       result: "throttled",
       throttleReason: "cooldown",
     });
   });
 
-  it("throttles on the per-address daily cap", async () => {
-    const sendLog = new SendLogFake(null, 5, 0);
-    const { useCase, events } = build({ user: userWith("unverified"), sendLog });
+  it("allows a send once the cooldown window has fully elapsed", async () => {
+    const user = userWith("unverified");
+    // Exactly at the cooldown boundary: now - latest === COOLDOWN is not throttled (< not <=).
+    const sendLog = new SendLogFake(new Date(now.getTime() - VERIFICATION_COOLDOWN_MS));
+    const { useCase, events } = build({ user, sendLog });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
+
+    expect(result.ok).toBe(true);
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "sent",
+      throttleReason: "none",
+    });
+  });
+
+  it("throttles on the per-address daily cap", async () => {
+    const user = userWith("unverified");
+    const sendLog = new SendLogFake(null, VERIFICATION_PER_ADDRESS_CAP, 0);
+    const { useCase, tokens, emailSender, events } = build({ user, sendLog });
+
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     expect(result.ok === false && result.error).toBeInstanceOf(TooManyRequestsError);
-    expect(lastRequestEvent(events)?.throttleReason).toBe("per_address_cap");
+    expect(tokens.saved).toHaveLength(0);
+    expect(emailSender.sent).toHaveLength(0);
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "throttled",
+      throttleReason: "per_address_cap",
+    });
+  });
+
+  it("allows a send when the per-address count is just under the cap", async () => {
+    const user = userWith("unverified");
+    const sendLog = new SendLogFake(null, VERIFICATION_PER_ADDRESS_CAP - 1, 0);
+    const { useCase, events } = build({ user, sendLog });
+
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
+
+    expect(result.ok).toBe(true);
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "sent",
+      throttleReason: "none",
+    });
   });
 
   it("throttles on the per-user daily cap", async () => {
-    const sendLog = new SendLogFake(null, 0, 10);
-    const { useCase, events } = build({ user: userWith("unverified"), sendLog });
+    const user = userWith("unverified");
+    const sendLog = new SendLogFake(null, 0, VERIFICATION_PER_USER_CAP);
+    const { useCase, tokens, emailSender, events } = build({ user, sendLog });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     expect(result.ok === false && result.error).toBeInstanceOf(TooManyRequestsError);
-    expect(lastRequestEvent(events)?.throttleReason).toBe("per_user_cap");
+    expect(tokens.saved).toHaveLength(0);
+    expect(emailSender.sent).toHaveLength(0);
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "throttled",
+      throttleReason: "per_user_cap",
+    });
+  });
+
+  it("allows a send when the per-user count is just under the cap", async () => {
+    const user = userWith("unverified");
+    const sendLog = new SendLogFake(null, 0, VERIFICATION_PER_USER_CAP - 1);
+    const { useCase, events } = build({ user, sendLog });
+
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
+
+    expect(result.ok).toBe(true);
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "sent",
+      throttleReason: "none",
+    });
   });
 
   it("returns 500 and records send_failed without counting the send when the provider fails", async () => {
+    const user = userWith("unverified");
     const sendLog = new SendLogFake();
     const emailSender = new EmailSenderFake({
       status: "failed",
@@ -256,12 +387,12 @@ describe("RequestEmailVerification", () => {
       reason: "provider down",
     });
     const { useCase, tokens, events } = build({
-      user: userWith("unverified"),
+      user,
       sendLog,
       emailSender,
     });
 
-    const result = await useCase.execute({ userId: UserId.generate(), source: "resend" });
+    const result = await useCase.execute({ userId: user.id, source: "resend" });
 
     // A failed send is not an expected outcome: the request fails with 500.
     expect(result.ok === false && result.error).toBeInstanceOf(InvariantError);
@@ -271,6 +402,11 @@ describe("RequestEmailVerification", () => {
     // ...but a failed send is NOT counted against the cooldown / daily caps.
     expect(sendLog.recorded).toHaveLength(0);
     // ...and it is observable as send_failed rather than mislabeled sent.
-    expect(lastRequestEvent(events)?.result).toBe("send_failed");
+    expectRequestEvent(events, {
+      userId: user.id,
+      source: "resend",
+      result: "send_failed",
+      throttleReason: "none",
+    });
   });
 });
