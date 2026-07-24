@@ -72,16 +72,17 @@ function dbHarness(opts: { sendRetryable?: boolean; batchMissing?: boolean } = {
 }
 
 describe("processReminderEmailMessage", () => {
-  it("dispatches a reminder email message through the application use case", async () => {
+  it("dispatches a reminder email message and returns an ack disposition", async () => {
     const { batchId, db, statements, sender } = dbHarness();
 
-    await processReminderEmailMessage(message(batchId), {
+    const disposition = await processReminderEmailMessage(message(batchId), {
       db,
       emailSender: sender,
       eventBus,
       clock,
     });
 
+    expect(disposition).toEqual({ action: "ack" });
     expect(sender.sent?.to.address).toBe("contact@example.com");
     expect(sender.sent?.text).toContain("Truck: Oil change, due 2026-07-09");
     expect(statements.some((s) => s.query.includes("UPDATE email_batches SET status = ?"))).toBe(
@@ -89,20 +90,30 @@ describe("processReminderEmailMessage", () => {
     );
   });
 
-  it("throws on retryable send failures so queue delivery can redeliver", async () => {
+  it("returns a retry disposition on retryable send failures", async () => {
     const { batchId, db, sender } = dbHarness({ sendRetryable: true });
 
-    await expect(
-      processReminderEmailMessage(message(batchId), { db, emailSender: sender, eventBus, clock }),
-    ).rejects.toThrow("failed with retryable error");
+    const disposition = await processReminderEmailMessage(message(batchId), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(disposition).toEqual({ action: "retry" });
   });
 
-  it("throws on domain failures so the message is not silently acked", async () => {
+  it("returns a dead-letter disposition with the domain reason on terminal failures", async () => {
     const { batchId, db, sender } = dbHarness({ batchMissing: true });
 
-    await expect(
-      processReminderEmailMessage(message(batchId), { db, emailSender: sender, eventBus, clock }),
-    ).rejects.toThrow("could not be dispatched");
+    const disposition = await processReminderEmailMessage(message(batchId), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(disposition).toEqual({ action: "dead_letter", reason: "Email batch not found" });
   });
 });
 
@@ -139,7 +150,7 @@ describe("handleReminderEmailQueueBatch", () => {
     expect(msg.retry).toHaveBeenCalledOnce();
   });
 
-  it("retries without marking delivered or acking when the use case fails", async () => {
+  it("dead-letters terminal use-case failures with the domain reason instead of retrying", async () => {
     const { batchId, db, statements, sender } = dbHarness({ batchMissing: true });
     const msg = queueMessage(message(batchId));
 
@@ -150,9 +161,13 @@ describe("handleReminderEmailQueueBatch", () => {
       clock,
     });
 
+    expect(statements.some((s) => s.query.includes("INSERT INTO notification_dead_letters"))).toBe(
+      true,
+    );
+    expect(statements.some((s) => s.values.includes("Email batch not found"))).toBe(true);
     expect(statements.some((s) => s.query.includes("delivered_at = COALESCE"))).toBe(false);
-    expect(msg.ack).not.toHaveBeenCalled();
-    expect(msg.retry).toHaveBeenCalledOnce();
+    expect(msg.ack).toHaveBeenCalledOnce();
+    expect(msg.retry).not.toHaveBeenCalled();
   });
 
   it("persists malformed outbound jobs as notification dead letters", async () => {

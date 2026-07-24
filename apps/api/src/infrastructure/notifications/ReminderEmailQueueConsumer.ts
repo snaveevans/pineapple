@@ -50,10 +50,20 @@ export async function handleReminderEmailQueueBatch(
     }
 
     try {
-      await processReminderEmailMessage(message.body, deps);
-      await outbox.prepareMarkDelivered(message.body.id).run();
-      message.ack();
+      const disposition = await processReminderEmailMessage(message.body, deps);
+      if (disposition.action === "dead_letter") {
+        // Terminal failure: record it durably now instead of burning retries on a
+        // message that can never succeed (error-handling spec, durable-consumer flow).
+        await persistDeadLetter(message, batch.queue, deadLetters, disposition.reason);
+      } else if (disposition.action === "retry") {
+        message.retry();
+      } else {
+        await outbox.prepareMarkDelivered(message.body.id).run();
+        message.ack();
+      }
     } catch (error) {
+      // Fail-safe: an unexpected throw (e.g. a leaked infra error) is transient —
+      // retry rather than silently ack or dead-letter on a guess.
       console.error(
         { error, messageId: message.id, queue: batch.queue },
         "Reminder email message failed",
@@ -63,10 +73,19 @@ export async function handleReminderEmailQueueBatch(
   }
 }
 
+/**
+ * Maps a dispatch attempt to the queue action the caller must take. Retryability is
+ * decided by the use case in its result — never inferred from an error subclass.
+ */
+export type ReminderEmailDisposition =
+  | { action: "ack" }
+  | { action: "retry" }
+  | { action: "dead_letter"; reason: string };
+
 export async function processReminderEmailMessage(
   message: ReminderEmailMessage,
   deps: ReminderEmailConsumerDependencies,
-): Promise<void> {
+): Promise<ReminderEmailDisposition> {
   const result = await new DispatchReminderEmail(
     new D1EmailBatchRepository(deps.db),
     new D1NotificationRepository(deps.db),
@@ -77,18 +96,26 @@ export async function processReminderEmailMessage(
   ).execute({ emailBatchId: EmailBatchId.from(message.batchId) });
 
   if (!result.ok) {
-    // A domain failure (e.g. batch/user not yet visible) must not be acked as
-    // success — that would mark the outbox delivered and drop the message with no
-    // retry and no dead-letter. Throw so the caller retries; the queue's max_retries
-    // + DLQ durably record it on exhaustion. Matches NotificationEventQueueConsumer.
-    throw new Error(
-      `Reminder email batch ${message.batchId} could not be dispatched: ${result.error.message}`,
+    // The use case surfaced an unexpected domain error instead of a classified
+    // outcome. Treat it as transient and retry so it fails safe.
+    console.error(
+      { emailBatchId: message.batchId, error: result.error.message },
+      "Reminder email dispatch returned an unexpected domain error",
     );
+    return { action: "retry" };
   }
 
-  if (result.value.retryable) {
-    throw new Error(`Reminder email batch ${message.batchId} failed with retryable error`);
+  const outcome = result.value;
+  if (outcome.status === "terminal_failure") {
+    return {
+      action: "dead_letter",
+      reason: outcome.terminalReason ?? "Reminder email dispatch failed permanently",
+    };
   }
+  if (outcome.retryable) {
+    return { action: "retry" };
+  }
+  return { action: "ack" };
 }
 
 async function persistDeadLetter(
