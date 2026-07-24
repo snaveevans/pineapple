@@ -43,6 +43,11 @@ jobs:
       - name: Test
         run: pnpm -r test
 
+      # Gate-logic selftest for the mutation path filter (ADR-0016). Cheap; runs
+      # on every PR so a regex typo cannot silently widen/narrow the trust boundary.
+      - name: Mutation scope selftest
+        run: .github/scripts/mutation-scope.selftest.sh
+
       # The committed OpenAPI spec must match what the code generates, so the
       # static file (read by codebase tools) never drifts from the live API.
       - name: Check OpenAPI spec is up to date

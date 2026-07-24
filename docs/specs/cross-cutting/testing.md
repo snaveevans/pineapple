@@ -88,21 +88,26 @@ Config lives at `apps/api/stryker.conf.json`.
 - **Always reports a status on every PR** so it can be a required check without deadlocking
   unrelated work. The expensive Stryker run is path-scoped; when scope is untouched the job
   exits green without installing or mutating.
-- **Run scope (fail closed):** the full suite runs when the PR touches any of:
+- **Run scope (fail closed):** logic lives in `.github/scripts/mutation-{scope,decide}.sh`
+  (self-tested by `.github/scripts/mutation-scope.selftest.sh` on every `verify` run). The full
+  suite runs when the PR touches any of:
   - `apps/api/src/domain/**`
   - `apps/api/src/application/**`
+  - `packages/shared/**` (domain/application import branded IDs, `Result`, `DomainError`)
   - `apps/api/stryker.conf.json`
   - `apps/api/package.json`
   - `pnpm-lock.yaml`
   - `.github/workflows/mutation.yml`
+  - `.github/scripts/mutation-*.sh`
 
   Dependency and config changes are in scope because they can move the score. If the diff
   cannot be computed, the suite runs rather than silently skipping.
 
 - **A scheduled full run against `main`** (daily) backstops what the PR path filter misses.
   Scheduled (and `workflow_dispatch`) failures open or comment on a single sticky GitHub issue
-  marked `<!-- mutation-gate-nightly -->`; a subsequent green run closes it. PR-path failures
-  already block merge and do not open issues.
+  with the `mutation-gate` label (label list is strongly consistent; body-search is not). A
+  subsequent green run closes it. PR-path failures already block merge and do not open issues.
+  Concurrent schedule/dispatch runs on `main` queue rather than cancel each other.
 - The HTML/JSON reports are build artifacts. They are generated into `apps/api/reports/mutation/`
   and are **not committed** (gitignored, along with `.stryker-tmp/`).
 - **Local command:** `pnpm --filter @snaveevans/pineapple-api test:mutation`.

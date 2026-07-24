@@ -12,8 +12,9 @@ on:
   workflow_dispatch:
 
 concurrency:
+  # Cancel superseded PR runs; never cancel schedule/dispatch on main against each other.
   group: mutation-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -33,31 +34,16 @@ jobs:
         run: |
           set -euo pipefail
           if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "Reason: ${{ github.event_name }} always runs full mutation suite"
-            exit 0
-          fi
-          base="${{ github.event.pull_request.base.sha }}"
-          head="${{ github.event.pull_request.head.sha }}"
-          # Fail closed: if we cannot compute the diff, run the gate rather than
-          # silently skip (a required check that skips on error is worse than none).
-          if ! files="$(git diff --name-only "$base"..."$head")"; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "Reason: git diff failed — fail closed, running mutation suite"
-            exit 0
-          fi
-          scope_re='^(apps/api/src/(domain|application)/|apps/api/stryker\.conf\.json|apps/api/package\.json|pnpm-lock\.yaml|\.github/workflows/mutation\.yml)'
-          if printf '%s\n' "$files" | grep -qE "$scope_re"; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "Reason: PR touches mutation scope"
+            .github/scripts/mutation-decide.sh always >> "$GITHUB_OUTPUT"
           else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Reason: PR does not touch mutation scope — skipping"
+            .github/scripts/mutation-decide.sh pr \
+              "${{ github.event.pull_request.base.sha }}" \
+              "${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install pnpm
         if: steps.scope.outputs.run == 'true'
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v5 # version comes from package.json "packageManager"
 
       - name: Setup Node
         if: steps.scope.outputs.run == 'true'
@@ -84,7 +70,8 @@ jobs:
           retention-days: 30
 
       # Scheduled/manual runs on main are not merge-blocking. Surface failure via a
-      # single sticky issue; green runs close it. Marker in body enables dedupe.
+      # single sticky issue labeled mutation-gate (label list is strongly consistent;
+      # body-search is not). Green runs close it.
       - name: Open or update failure issue
         if: >-
           failure() &&
@@ -95,24 +82,24 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          marker="<!-- mutation-gate-nightly -->"
           title="Mutation gate failed on main"
           body="$(cat <<EOF
-          ${marker}
+          <!-- mutation-gate-nightly -->
           The scheduled mutation gate on \`main\` failed.
 
           - **Run:** ${RUN_URL}
           - **Report artifact:** \`mutation-report\` on that run (HTML/JSON under \`apps/api/reports/mutation/\`)
 
-          This issue is opened by \`.github/workflows/mutation.yml\`. A green scheduled run closes it; further failures comment here instead of opening duplicates.
+          This issue is opened by \`.github/workflows/mutation.yml\` with the \`mutation-gate\` label.
+          A green scheduled run closes it; further failures comment here instead of opening duplicates.
           EOF
           )"
-          existing="$(gh issue list --state open --search "mutation-gate-nightly in:body" --json number --jq '.[0].number // empty')"
+          existing="$(gh issue list --label mutation-gate --state open --json number --jq '.[0].number // empty')"
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "Still failing: ${RUN_URL}"
             echo "Commented on existing issue #$existing"
           else
-            url="$(gh issue create --title "$title" --body "$body")"
+            url="$(gh issue create --title "$title" --body "$body" --label mutation-gate)"
             echo "Opened $url"
           fi
 
@@ -126,7 +113,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          existing="$(gh issue list --state open --search "mutation-gate-nightly in:body" --json number --jq '.[0].number // empty')"
+          existing="$(gh issue list --label mutation-gate --state open --json number --jq '.[0].number // empty')"
           if [ -z "$existing" ]; then
             echo "No open mutation-gate failure issue"
             exit 0
