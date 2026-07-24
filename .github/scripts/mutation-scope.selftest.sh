@@ -71,10 +71,12 @@ large_list="$(mktemp)"
     i=$((i + 1))
   done
 } >"$large_list"
-if "$SCOPE" <"$large_list"; then
-  echo "ok  in-scope: large list (no SIGPIPE skip)"
+# Must be a pipe (matches production: printf | scope). File redirect cannot
+# SIGPIPE, so it would not catch a grep -q regression.
+if cat "$large_list" | "$SCOPE"; then
+  echo "ok  in-scope: large list via pipe (no SIGPIPE skip)"
 else
-  echo "FAIL in-scope: large list (SIGPIPE or miss)" >&2
+  echo "FAIL in-scope: large list via pipe (SIGPIPE or miss)" >&2
   fail=1
 fi
 rm -f "$large_list"

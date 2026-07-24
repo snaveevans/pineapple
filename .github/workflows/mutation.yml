@@ -72,7 +72,8 @@ jobs:
 
       # Sticky issue only on main. Key off mutate/scope step outcomes — not job-level
       # failure() — so an upload-only failure after a green suite does not page, and
-      # infra failure before mutate still does.
+      # infra failure before mutate (including checkout, which leaves scope skipped)
+      # still does.
       - name: Notify sticky mutation-gate issue
         if: >-
           always() &&
@@ -83,8 +84,7 @@ jobs:
             steps.mutate.outcome == 'failure' ||
             steps.mutate.outcome == 'cancelled' ||
             (steps.scope.outputs.run == 'true' && steps.mutate.outcome == 'skipped') ||
-            steps.scope.outcome == 'failure' ||
-            steps.scope.outcome == 'cancelled'
+            steps.scope.outcome != 'success'
           )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
