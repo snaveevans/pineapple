@@ -75,14 +75,45 @@ describe("MaintenanceTask.create", () => {
 
   it("throws ValidationError for empty title", () => {
     expect(() => makeTask({ title: "   " })).toThrow(ValidationError);
+    try {
+      makeTask({ title: "   " });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).field).toBe("title");
+    }
   });
 
-  it("throws ValidationError for title over 100 chars", () => {
+  it("accepts a title of exactly 100 characters", () => {
+    const title = "a".repeat(100);
+    const task = makeTask({ title });
+    expect(task.title).toBe(title);
+    expect(task.title).toHaveLength(100);
+  });
+
+  it("throws ValidationError for title of 101 characters", () => {
     expect(() => makeTask({ title: "a".repeat(101) })).toThrow(ValidationError);
+    try {
+      makeTask({ title: "a".repeat(101) });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).field).toBe("title");
+    }
+  });
+
+  it("accepts intervalValue of 1", () => {
+    const task = makeTask({ intervalValue: 1, intervalUnit: "day" });
+    expect(task.intervalValue).toBe(1);
+    expect(task.nextDue).toBe("2026-06-12");
   });
 
   it("throws ValidationError for intervalValue of 0", () => {
     expect(() => makeTask({ intervalValue: 0 })).toThrow(ValidationError);
+    try {
+      makeTask({ intervalValue: 0 });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).field).toBe("intervalValue");
+    }
   });
 
   it("throws ValidationError for negative intervalValue", () => {
@@ -93,12 +124,38 @@ describe("MaintenanceTask.create", () => {
     expect(() => makeTask({ intervalValue: 1.5 })).toThrow(ValidationError);
   });
 
+  it("throws ValidationError for invalid intervalUnit", () => {
+    expect(() => makeTask({ intervalUnit: "fortnight" as "day" })).toThrow(ValidationError);
+    try {
+      makeTask({ intervalUnit: "fortnight" as "day" });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).field).toBe("intervalUnit");
+    }
+  });
+
+  it("accepts lastCompletedDate equal to today", () => {
+    const task = makeTask({ lastCompletedDate: today });
+    expect(task.lastCompletedDate).toBe(today);
+    expect(task.nextDue).toBe("2026-08-11");
+  });
+
   it("throws ValidationError for future lastCompletedDate", () => {
     expect(() => makeTask({ lastCompletedDate: "2026-12-31" })).toThrow(ValidationError);
+    try {
+      makeTask({ lastCompletedDate: "2026-12-31" });
+    } catch (error) {
+      expect(error).toBeInstanceOf(ValidationError);
+      expect((error as ValidationError).field).toBe("lastCompletedDate");
+    }
   });
 
   it("throws ValidationError for malformed lastCompletedDate", () => {
     expect(() => makeTask({ lastCompletedDate: "not-a-date" })).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError for invalid calendar lastCompletedDate", () => {
+    expect(() => makeTask({ lastCompletedDate: "2026-02-30" })).toThrow(ValidationError);
   });
 });
 
