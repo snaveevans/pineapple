@@ -6,6 +6,8 @@ node_modules
 .DS_Store
 .wrangler
 coverage
+**/reports/mutation
+.stryker-tmp
 dist
 tmp
 *.log

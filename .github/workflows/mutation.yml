@@ -1,0 +1,138 @@
+name: Mutation
+
+# Blocking mutation gate for domain + application (ADR-0016 / testing.md).
+# Separate from the hot `verify` path. Always reports a status on PRs so it can
+# be a required check; the expensive run is skipped when scope is untouched.
+# Scheduled failures on main open/update a sticky GitHub issue so red main is not silent.
+on:
+  pull_request:
+  schedule:
+    # Full run on main backstops what the PR path filter misses.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  # Cancel superseded PR runs; never cancel schedule/dispatch on main against each other.
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to run
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            .github/scripts/mutation-decide.sh always >> "$GITHUB_OUTPUT"
+          else
+            .github/scripts/mutation-decide.sh pr \
+              "${{ github.event.pull_request.base.sha }}" \
+              "${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install pnpm
+        if: steps.scope.outputs.run == 'true'
+        uses: pnpm/action-setup@v5 # version comes from package.json "packageManager"
+
+      - name: Setup Node
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Mutation test (domain + application)
+        id: mutate
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm --filter @snaveevans/pineapple-api test:mutation
+
+      - name: Upload mutation report
+        if: always() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: apps/api/reports/mutation/
+          if-no-files-found: warn
+          retention-days: 30
+
+      # Sticky issue only on main. Key off mutate/scope step outcomes — not job-level
+      # failure() — so an upload-only failure after a green suite does not page, and
+      # infra failure before mutate (including checkout, which leaves scope skipped)
+      # still does.
+      - name: Notify sticky mutation-gate issue
+        if: >-
+          always() &&
+          github.ref == 'refs/heads/main' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+          (
+            steps.mutate.outcome == 'success' ||
+            steps.mutate.outcome == 'failure' ||
+            steps.mutate.outcome == 'cancelled' ||
+            (steps.scope.outputs.run == 'true' && steps.mutate.outcome == 'skipped') ||
+            steps.scope.outcome != 'success'
+          )
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          MUTATE_OUTCOME: ${{ steps.mutate.outcome }}
+          SCOPE_OUTCOME: ${{ steps.scope.outcome }}
+          SCOPE_RUN: ${{ steps.scope.outputs.run }}
+        run: |
+          set -euo pipefail
+
+          # Ensure label exists (IaC; forks / renames / deletions must not silence paging).
+          gh label create mutation-gate \
+            --color B60205 \
+            --description "Sticky mutation-gate failure on main (opened by Mutation workflow)" \
+            --force >/dev/null
+
+          existing="$(gh issue list --label mutation-gate --state open --json number --jq '.[0].number // empty')"
+
+          if [ "${MUTATE_OUTCOME}" = "success" ]; then
+            if [ -z "$existing" ]; then
+              echo "No open mutation-gate failure issue"
+              exit 0
+            fi
+            gh issue comment "$existing" --body "Recovered: mutation gate green again. ${RUN_URL}"
+            gh issue close "$existing" --reason completed
+            echo "Closed issue #$existing"
+            exit 0
+          fi
+
+          title="Mutation gate failed on main"
+          body="$(cat <<EOF
+          <!-- mutation-gate-nightly -->
+          The mutation gate on \`main\` failed.
+
+          - **Run:** ${RUN_URL}
+          - **scope outcome:** ${SCOPE_OUTCOME} (run=${SCOPE_RUN})
+          - **mutate outcome:** ${MUTATE_OUTCOME}
+          - **Report artifact:** \`mutation-report\` on that run when Stryker produced one
+
+          This issue is opened by \`.github/workflows/mutation.yml\` with the \`mutation-gate\` label.
+          A green run on \`main\` closes it; further failures comment here instead of opening duplicates.
+          EOF
+          )"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still failing: ${RUN_URL} (mutate=${MUTATE_OUTCOME}, scope=${SCOPE_OUTCOME})"
+            echo "Commented on existing issue #$existing"
+          else
+            url="$(gh issue create --title "$title" --body "$body" --label mutation-gate)"
+            echo "Opened $url"
+          fi

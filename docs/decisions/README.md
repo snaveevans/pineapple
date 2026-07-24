@@ -67,3 +67,4 @@ Use [`0000-template.md`](0000-template.md) as your starting point.
 | [0013](0013-reminder-scheduler-via-cron-sweeps.md)               | Reminder scheduler via Cron sweeps               | accepted                                                    |
 | [0014](0014-layered-error-handling-policy.md)                    | Layered error handling policy                    | accepted                                                    |
 | [0015](0015-teams-as-opt-in-sharing-scope.md)                    | Teams as an opt-in sharing scope                 | proposed                                                    |
+| [0016](0016-mutation-testing-as-the-ci-trust-boundary.md)        | Mutation testing as the CI trust boundary        | accepted                                                    |

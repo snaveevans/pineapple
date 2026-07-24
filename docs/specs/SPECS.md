@@ -17,14 +17,15 @@ generate or sync specs from code and PRs.
 Concerns that apply to every feature. When writing a feature spec, reference the
 relevant cross-cutting specs rather than re-describing the behavior.
 
-| Spec                                                   | Concern                         | Status |
-| ------------------------------------------------------ | ------------------------------- | ------ |
-| [authentication.md](./cross-cutting/authentication.md) | Auth, sessions, identity        | active |
-| [error-handling.md](./cross-cutting/error-handling.md) | Error states and user messaging | active |
-| [permissions.md](./cross-cutting/permissions.md)       | Role-based access control       | active |
-| [validation.md](./cross-cutting/validation.md)         | Input validation patterns       | active |
-| [loading-states.md](./cross-cutting/loading-states.md) | Async UI states                 | active |
-| [telemetry.md](./cross-cutting/telemetry.md)           | Telemetry and observability     | active |
+| Spec                                                   | Concern                          | Status |
+| ------------------------------------------------------ | -------------------------------- | ------ |
+| [authentication.md](./cross-cutting/authentication.md) | Auth, sessions, identity         | active |
+| [error-handling.md](./cross-cutting/error-handling.md) | Error states and user messaging  | active |
+| [permissions.md](./cross-cutting/permissions.md)       | Role-based access control        | active |
+| [validation.md](./cross-cutting/validation.md)         | Input validation patterns        | active |
+| [loading-states.md](./cross-cutting/loading-states.md) | Async UI states                  | active |
+| [telemetry.md](./cross-cutting/telemetry.md)           | Telemetry and observability      | active |
+| [testing.md](./cross-cutting/testing.md)               | Test verification, mutation gate | active |
 
 ## Feature Specs
 
@@ -78,6 +79,7 @@ docs/specs/
     loading-states.md
     permissions.md
     telemetry.md
+    testing.md
     validation.md
   features/
     [feature-name].md
