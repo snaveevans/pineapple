@@ -12,10 +12,15 @@ rules are tuned to what this repo's CI already enforces.
 
 ## Pick the target
 
-- A PR number or URL in the request → review that PR (`gh pr diff`, `gh pr view`).
+- A PR number or URL in the request → read that PR's diff and metadata using
+  whatever GitHub access this environment provides: the `gh` CLI (`gh pr diff`,
+  `gh pr view`), the GitHub MCP tools (e.g. a `pull_request_read` tool), or the
+  API. Do not assume `gh` exists — a cloud-agent session typically has GitHub MCP
+  tools instead. If none is available, fall back to the branch diff and say so.
 - Otherwise → review the current branch against `main` (`git diff main...HEAD`).
 
-State which one you picked in a single line before starting.
+State which target you picked, and which access path, in a single line before
+starting.
 
 ## 1. Eligibility (PR targets only)
 
@@ -54,7 +59,7 @@ verbatim:
 - **25** — Somewhat confident. Might be real; could not verify. Stylistic issues the
   relevant `CLAUDE.md` does not explicitly call out land here.
 - **50** — Moderately confident. Verified real, but a nitpick or rare in practice.
-- **75** — Highly confident. Double-checked, very likely hit in practice, and the PR's
+- **80** — Highly confident. Double-checked, very likely hit in practice, and the PR's
   approach is insufficient. Or it is named directly in the relevant `CLAUDE.md`.
 - **100** — Certain. Confirmed, frequent in practice, evidence directly supports it.
 
@@ -70,9 +75,11 @@ each with file and line, why it matters, and a fix direction — not a patch.
 
 **Do not comment on GitHub unless the request that invoked this skill explicitly asked
 you to.** Posting is public and outward-facing. When it is asked for, confirm the text
-first, keep it brief, skip emojis, and cite code with full-SHA permalinks
-(`https://github.com/snaveevans/pineapple/blob/<full-sha>/path#L4-L7`) — a `git rev-parse`
-subshell will not render in Markdown.
+first, then post it with whatever GitHub access this environment provides (`gh pr comment`,
+a GitHub MCP comment/review tool, or the API). Keep it brief, skip emojis, and cite code
+with full-SHA permalinks (`https://github.com/snaveevans/pineapple/blob/<full-sha>/path#L4-L7`)
+— resolve the SHA to a literal value first, since a `git rev-parse` subshell will not
+render in Markdown.
 
 ## What CI already covers — do not flag
 
