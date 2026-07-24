@@ -9,5 +9,8 @@
   "htmlReporter": { "fileName": "reports/mutation/index.html" },
   "clearTextReporter": { "maxTestsToLog": 0, "reportTests": false },
   "concurrency": 4,
-  "timeoutMS": 20000
+  "timeoutMS": 20000,
+  "thresholds": {
+    "break": 68
+  }
 }

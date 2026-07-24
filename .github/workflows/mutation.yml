@@ -1,0 +1,75 @@
+name: Mutation
+
+# Blocking mutation gate for domain + application (ADR-0016 / testing.md).
+# Separate from the hot `verify` path. Always reports a status on PRs so it can
+# be a required check; the expensive run is skipped when scope is untouched.
+on:
+  pull_request:
+  schedule:
+    # Full run on main backstops what the PR path filter misses.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: mutation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to run
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Reason: ${{ github.event_name }} always runs full mutation suite"
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.sha }}"
+          head="${{ github.event.pull_request.head.sha }}"
+          if git diff --name-only "$base"..."$head" | grep -qE \
+            '^(apps/api/src/(domain|application)/|apps/api/stryker\.conf\.json|apps/api/package\.json|pnpm-lock\.yaml|\.github/workflows/mutation\.yml)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Reason: PR touches mutation scope"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Reason: PR does not touch domain/application mutation scope — skipping"
+          fi
+
+      - name: Install pnpm
+        if: steps.scope.outputs.run == 'true'
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node
+        if: steps.scope.outputs.run == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Mutation test (domain + application)
+        if: steps.scope.outputs.run == 'true'
+        run: pnpm --filter @snaveevans/pineapple-api test:mutation
+
+      - name: Upload mutation report
+        if: always() && steps.scope.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-report
+          path: apps/api/reports/mutation/
+          if-no-files-found: ignore
+          retention-days: 30

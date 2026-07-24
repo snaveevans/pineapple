@@ -7,13 +7,12 @@ date: 2026-07-23
 
 # Testing & Verification — Cross-Cutting Spec
 
-**Status:** `review`
+**Status:** `active`
 **Owner:** engineering
 **Applies To:** All features with logic in `apps/api/src/domain/**` or `apps/api/src/application/**`
 
-> The mutation gate described here is **agreed but not yet wired into CI**. Implementation is
-> tracked by [#86](https://github.com/snaveevans/pineapple/issues/86); this spec flips to
-> `active` when the blocking job is live. The decision behind it is
+> The mutation gate is live as the `Mutation` workflow (`.github/workflows/mutation.yml`),
+> tracked by [#86](https://github.com/snaveevans/pineapple/issues/86). The decision behind it is
 > [ADR-0016](../../decisions/0016-mutation-testing-as-the-ci-trust-boundary.md).
 
 ---

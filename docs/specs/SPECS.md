@@ -25,7 +25,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [validation.md](./cross-cutting/validation.md)         | Input validation patterns        | active |
 | [loading-states.md](./cross-cutting/loading-states.md) | Async UI states                  | active |
 | [telemetry.md](./cross-cutting/telemetry.md)           | Telemetry and observability      | active |
-| [testing.md](./cross-cutting/testing.md)               | Test verification, mutation gate | review |
+| [testing.md](./cross-cutting/testing.md)               | Test verification, mutation gate | active |
 
 ## Feature Specs
 
