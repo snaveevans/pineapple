@@ -40,7 +40,12 @@ export async function handleReminderEmailQueueBatch(
 
   for (const message of batch.messages) {
     if (!isReminderEmailMessage(message.body)) {
-      await persistDeadLetter(message, batch.queue, deadLetters, "Malformed reminder email message");
+      await persistDeadLetter(
+        message,
+        batch.queue,
+        deadLetters,
+        "Malformed reminder email message",
+      );
       continue;
     }
 
@@ -72,11 +77,13 @@ export async function processReminderEmailMessage(
   ).execute({ emailBatchId: EmailBatchId.from(message.batchId) });
 
   if (!result.ok) {
-    console.error(
-      { emailBatchId: message.batchId, error: result.error.message },
-      "Reminder email batch could not be dispatched",
+    // A domain failure (e.g. batch/user not yet visible) must not be acked as
+    // success — that would mark the outbox delivered and drop the message with no
+    // retry and no dead-letter. Throw so the caller retries; the queue's max_retries
+    // + DLQ durably record it on exhaustion. Matches NotificationEventQueueConsumer.
+    throw new Error(
+      `Reminder email batch ${message.batchId} could not be dispatched: ${result.error.message}`,
     );
-    return;
   }
 
   if (result.value.retryable) {

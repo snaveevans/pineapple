@@ -43,7 +43,7 @@ function message(batchId = EmailBatchId.generate()): ReminderEmailMessage {
   };
 }
 
-function dbHarness(opts: { sendRetryable?: boolean } = {}) {
+function dbHarness(opts: { sendRetryable?: boolean; batchMissing?: boolean } = {}) {
   const batchId = EmailBatchId.generate();
   const ownerId = UserId.generate();
   const statements: { query: string; values: unknown[] }[] = [];
@@ -51,7 +51,9 @@ function dbHarness(opts: { sendRetryable?: boolean } = {}) {
     bind: (...values: unknown[]) => {
       statements.push({ query, values });
       return {
-        first: vi.fn().mockResolvedValue(firstRow(query, batchId, ownerId)),
+        first: vi
+          .fn()
+          .mockResolvedValue(opts.batchMissing ? null : firstRow(query, batchId, ownerId)),
         all: vi.fn().mockResolvedValue({ results: allRows(query, ownerId) }),
         run: vi.fn().mockResolvedValue({ meta: { changes: 1 } }),
       };
@@ -73,7 +75,12 @@ describe("processReminderEmailMessage", () => {
   it("dispatches a reminder email message through the application use case", async () => {
     const { batchId, db, statements, sender } = dbHarness();
 
-    await processReminderEmailMessage(message(batchId), { db, emailSender: sender, eventBus, clock });
+    await processReminderEmailMessage(message(batchId), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
 
     expect(sender.sent?.to.address).toBe("contact@example.com");
     expect(sender.sent?.text).toContain("Truck: Oil change, due 2026-07-09");
@@ -88,6 +95,14 @@ describe("processReminderEmailMessage", () => {
     await expect(
       processReminderEmailMessage(message(batchId), { db, emailSender: sender, eventBus, clock }),
     ).rejects.toThrow("failed with retryable error");
+  });
+
+  it("throws on domain failures so the message is not silently acked", async () => {
+    const { batchId, db, sender } = dbHarness({ batchMissing: true });
+
+    await expect(
+      processReminderEmailMessage(message(batchId), { db, emailSender: sender, eventBus, clock }),
+    ).rejects.toThrow("could not be dispatched");
   });
 });
 
@@ -124,6 +139,22 @@ describe("handleReminderEmailQueueBatch", () => {
     expect(msg.retry).toHaveBeenCalledOnce();
   });
 
+  it("retries without marking delivered or acking when the use case fails", async () => {
+    const { batchId, db, statements, sender } = dbHarness({ batchMissing: true });
+    const msg = queueMessage(message(batchId));
+
+    await handleReminderEmailQueueBatch(batch(REMINDER_EMAIL_QUEUE_NAME, [msg]), {
+      db,
+      emailSender: sender,
+      eventBus,
+      clock,
+    });
+
+    expect(statements.some((s) => s.query.includes("delivered_at = COALESCE"))).toBe(false);
+    expect(msg.ack).not.toHaveBeenCalled();
+    expect(msg.retry).toHaveBeenCalledOnce();
+  });
+
   it("persists malformed outbound jobs as notification dead letters", async () => {
     const { db, statements, sender } = dbHarness();
     const msg = queueMessage({ nope: true });
@@ -138,7 +169,9 @@ describe("handleReminderEmailQueueBatch", () => {
     expect(statements.some((s) => s.query.includes("INSERT INTO notification_dead_letters"))).toBe(
       true,
     );
-    expect(statements.some((s) => s.values.includes("Malformed reminder email message"))).toBe(true);
+    expect(statements.some((s) => s.values.includes("Malformed reminder email message"))).toBe(
+      true,
+    );
     expect(msg.ack).toHaveBeenCalledOnce();
     expect(msg.retry).not.toHaveBeenCalled();
   });
@@ -216,7 +249,10 @@ function queueMessage(body: unknown, attempts = 1) {
     attempts,
     ack: vi.fn(),
     retry: vi.fn(),
-  } as unknown as Message<unknown> & { ack: ReturnType<typeof vi.fn>; retry: ReturnType<typeof vi.fn> };
+  } as unknown as Message<unknown> & {
+    ack: ReturnType<typeof vi.fn>;
+    retry: ReturnType<typeof vi.fn>;
+  };
 }
 
 function batch(queue: string, messages: Message<unknown>[]) {
