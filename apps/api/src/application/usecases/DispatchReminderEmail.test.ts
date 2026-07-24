@@ -3,6 +3,7 @@ import {
   Email,
   EmailBatchId,
   MaintenanceTaskId,
+  NotFoundError,
   NotificationId,
   UserId,
 } from "@snaveevans/pineapple-shared";
@@ -235,6 +236,8 @@ describe("DispatchReminderEmail", () => {
     const result = await useCase.execute({ emailBatchId: b.id });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({ status: "sent", retryable: false });
     expect(sender.sent).toMatchObject({
       to: { address: Email.from("owner@example.com"), name: "Owner" },
       subject: "Upcoming maintenance reminders",
@@ -270,6 +273,8 @@ describe("DispatchReminderEmail", () => {
     const result = await useCase.execute({ emailBatchId: b.id });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({ status: "suppressed", retryable: false });
     expect(sender.sent).toBeNull();
     expect(batches.outcome).toEqual({
       id: b.id,
@@ -296,6 +301,8 @@ describe("DispatchReminderEmail", () => {
     const result = await useCase.execute({ emailBatchId: b.id });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({ status: "suppressed", retryable: false });
     expect(sender.sent).toBeNull();
     expect(batches.outcome).toEqual({
       id: b.id,
@@ -323,6 +330,8 @@ describe("DispatchReminderEmail", () => {
     const result = await useCase.execute({ emailBatchId: b.id });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({ status: "failed", retryable: false });
     expect(batches.outcome).toEqual({
       id: b.id,
       status: "failed",
@@ -369,6 +378,41 @@ describe("DispatchReminderEmail", () => {
     const result = await useCase.execute({ emailBatchId: b.id });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({ status: "already_processed", retryable: false });
+    expect(sender.sent).toBeNull();
+    expect(batches.outcome).toBeNull();
+    expect(events.events).toEqual([]);
+  });
+
+  it("returns NotFoundError when the email batch does not exist", async () => {
+    const { useCase, batches, sender, events } = makeUseCase({
+      batch: null,
+      user: null,
+    });
+
+    const result = await useCase.execute({ emailBatchId: EmailBatchId.generate() });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected err");
+    expect(result.error).toBeInstanceOf(NotFoundError);
+    expect(sender.sent).toBeNull();
+    expect(batches.outcome).toBeNull();
+    expect(events.events).toEqual([]);
+  });
+
+  it("returns NotFoundError when the batch owner does not exist", async () => {
+    const b = batch();
+    const { useCase, batches, sender, events } = makeUseCase({
+      batch: b,
+      user: null,
+    });
+
+    const result = await useCase.execute({ emailBatchId: b.id });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected err");
+    expect(result.error).toBeInstanceOf(NotFoundError);
     expect(sender.sent).toBeNull();
     expect(batches.outcome).toBeNull();
     expect(events.events).toEqual([]);
