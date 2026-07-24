@@ -248,6 +248,76 @@ describe("CreateMaintenanceRecord", () => {
     }
   });
 
+  it("returns validation error for an invalid calendar performed date", async () => {
+    const asset = assetFor();
+    const result = await new CreateMaintenanceRecord(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
+      new MaintenanceRecordWriterFake(),
+      new MaintenanceTaskRepositoryFake(),
+      new EventBusFake(),
+      dates,
+    ).execute({
+      assetId: asset.id,
+      requesterId: ownerId,
+      title: "Changed oil",
+      performedAt: "2026-02-30",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect((result.error as ValidationError).field).toBe("performedAt");
+    }
+  });
+
+  it("returns validation error for a title of 101 characters", async () => {
+    const asset = assetFor();
+    const result = await new CreateMaintenanceRecord(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
+      new MaintenanceRecordWriterFake(),
+      new MaintenanceTaskRepositoryFake(),
+      new EventBusFake(),
+      dates,
+    ).execute({
+      assetId: asset.id,
+      requesterId: ownerId,
+      title: "a".repeat(101),
+      performedAt: "2026-06-09",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toBeInstanceOf(ValidationError);
+      expect((result.error as ValidationError).field).toBe("title");
+    }
+  });
+
+  it("accepts a title of exactly 100 characters", async () => {
+    const asset = assetFor();
+    const title = "a".repeat(100);
+    const result = await new CreateMaintenanceRecord(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
+      new MaintenanceRecordWriterFake(),
+      new MaintenanceTaskRepositoryFake(),
+      new EventBusFake(),
+      dates,
+    ).execute({
+      assetId: asset.id,
+      requesterId: ownerId,
+      title,
+      performedAt: "2026-06-09",
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.title).toBe(title);
+      expect(result.value.title).toHaveLength(100);
+    }
+  });
+
   it("normalizes blank notes to null before persistence and response", async () => {
     const asset = assetFor();
     const records = new MaintenanceRecordWriterFake();
