@@ -88,10 +88,13 @@ class EventBusFake implements EventBus {
 
 const clock: Clock = { now: () => now };
 
-function record(overrides: Partial<VerificationTokenRecord> = {}): VerificationTokenRecord {
+function record(
+  user: User,
+  overrides: Partial<VerificationTokenRecord> = {},
+): VerificationTokenRecord {
   return {
     id: VerificationTokenId.generate(),
-    userId: UserId.generate(),
+    userId: user.id,
     email: contactEmail,
     purpose: "notification_email",
     tokenHash: "hash:valid",
@@ -113,64 +116,105 @@ function build(user: User | null, rec: VerificationTokenRecord | null) {
 describe("ConfirmEmailVerification", () => {
   it("verifies the address, consumes the token, and emits NotificationEmailVerified", async () => {
     const user = unverifiedUser();
-    const { useCase, users, tokens, events } = build(user, record());
+    const tokenRecord = record(user);
+    const { useCase, users, tokens, events } = build(user, tokenRecord);
 
     const result = await useCase.execute({ token: "valid" });
 
     expect(result.ok && result.value.status).toBe("verified");
-    expect(tokens.consumed).toHaveLength(1);
-    expect(users.saved?.notificationEmailVerifiedAt).not.toBeNull();
-    expect(events.events.map((e) => e.type)).toEqual(["NotificationEmailVerified"]);
+    expect(tokens.consumed).toEqual([tokenRecord.id]);
+    expect(users.saved?.notificationEmailVerifiedAt).toBe(now);
+    expect(users.saved?.notificationEmail).toBe(contactEmail);
+    expect(events.events).toHaveLength(1);
+    expect(events.events[0]).toMatchObject({
+      type: "NotificationEmailVerified",
+      userId: user.id,
+    });
   });
 
   it("returns invalid for an unknown token", async () => {
-    const { useCase, events } = build(unverifiedUser(), null);
+    const { useCase, events, tokens } = build(unverifiedUser(), null);
     const result = await useCase.execute({ token: "nope" });
     expect(result.ok && result.value.status).toBe("invalid");
+    expect(tokens.consumed).toHaveLength(0);
     expect(events.events).toHaveLength(0);
   });
 
   it("returns invalid for an expired token", async () => {
-    const { useCase, tokens } = build(
-      unverifiedUser(),
-      record({ expiresAt: new Date(now.getTime() - 1) }),
-    );
-    const result = await useCase.execute({ token: "valid" });
-    expect(result.ok && result.value.status).toBe("invalid");
-    expect(tokens.consumed).toHaveLength(0);
-  });
-
-  it("returns invalid for a consumed/superseded token", async () => {
-    const { useCase } = build(unverifiedUser(), record({ consumedAt: new Date(now.getTime()) }));
-    const result = await useCase.execute({ token: "valid" });
-    expect(result.ok && result.value.status).toBe("invalid");
-  });
-
-  it("returns invalid when the address no longer matches the token", async () => {
-    const { useCase, users } = build(
-      unverifiedUser(),
-      record({ email: Email.from("old@example.com") }),
-    );
-    const result = await useCase.execute({ token: "valid" });
-    expect(result.ok && result.value.status).toBe("invalid");
-    expect(users.saved).toBeNull();
-  });
-
-  it("is an idempotent success when the current address is already verified", async () => {
+    const user = unverifiedUser();
     const { useCase, tokens, events } = build(
-      verifiedUser(),
-      record({ consumedAt: new Date(now.getTime() - 30 * 1000) }),
+      user,
+      record(user, { expiresAt: new Date(now.getTime() - 1) }),
     );
     const result = await useCase.execute({ token: "valid" });
-    expect(result.ok && result.value.status).toBe("verified");
-    // no re-consumption, no new event
+    expect(result.ok && result.value.status).toBe("invalid");
     expect(tokens.consumed).toHaveLength(0);
     expect(events.events).toHaveLength(0);
   });
 
-  it("returns invalid when the token's user no longer exists", async () => {
-    const { useCase } = build(null, record());
+  it("returns invalid when the token expires at exactly now", async () => {
+    const user = unverifiedUser();
+    const { useCase, tokens, events } = build(user, record(user, { expiresAt: now }));
     const result = await useCase.execute({ token: "valid" });
     expect(result.ok && result.value.status).toBe("invalid");
+    expect(tokens.consumed).toHaveLength(0);
+    expect(events.events).toHaveLength(0);
+  });
+
+  it("returns invalid for a consumed/superseded token", async () => {
+    const user = unverifiedUser();
+    const { useCase, tokens, events } = build(
+      user,
+      record(user, { consumedAt: new Date(now.getTime()) }),
+    );
+    const result = await useCase.execute({ token: "valid" });
+    expect(result.ok && result.value.status).toBe("invalid");
+    expect(tokens.consumed).toHaveLength(0);
+    expect(events.events).toHaveLength(0);
+  });
+
+  it("returns invalid when the address no longer matches the token", async () => {
+    const user = unverifiedUser();
+    const { useCase, users, tokens, events } = build(
+      user,
+      record(user, { email: Email.from("old@example.com") }),
+    );
+    const result = await useCase.execute({ token: "valid" });
+    expect(result.ok && result.value.status).toBe("invalid");
+    expect(users.saved).toBeNull();
+    expect(tokens.consumed).toHaveLength(0);
+    expect(events.events).toHaveLength(0);
+  });
+
+  it("is an idempotent success when the current address is already verified", async () => {
+    const user = verifiedUser();
+    const { useCase, tokens, events, users } = build(
+      user,
+      record(user, { consumedAt: new Date(now.getTime() - 30 * 1000) }),
+    );
+    const result = await useCase.execute({ token: "valid" });
+    expect(result.ok && result.value.status).toBe("verified");
+    // no re-consumption, no new event, no re-save
+    expect(tokens.consumed).toHaveLength(0);
+    expect(events.events).toHaveLength(0);
+    expect(users.saved).toBeNull();
+  });
+
+  it("returns invalid when the token's user no longer exists", async () => {
+    const orphanId = UserId.generate();
+    const { useCase, tokens, events } = build(null, {
+      id: VerificationTokenId.generate(),
+      userId: orphanId,
+      email: contactEmail,
+      purpose: "notification_email",
+      tokenHash: "hash:valid",
+      createdAt: new Date(now.getTime() - 60 * 1000),
+      expiresAt: new Date(now.getTime() + 60 * 60 * 1000),
+      consumedAt: null,
+    });
+    const result = await useCase.execute({ token: "valid" });
+    expect(result.ok && result.value.status).toBe("invalid");
+    expect(tokens.consumed).toHaveLength(0);
+    expect(events.events).toHaveLength(0);
   });
 });

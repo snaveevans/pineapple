@@ -36,7 +36,10 @@ describe("User", () => {
       expect(user.onboardingCompletedAt).not.toBeNull();
       const events = user.pullEvents();
       expect(events).toHaveLength(1);
-      expect(events[0]?.type).toBe("UserOnboardingCompleted");
+      expect(events[0]).toMatchObject({
+        type: "UserOnboardingCompleted",
+        userId: user.id,
+      });
     });
 
     it("completes onboarding with a new name on first update", () => {
@@ -47,7 +50,10 @@ describe("User", () => {
       expect(user.onboardingCompletedAt).not.toBeNull();
       const events = user.pullEvents();
       expect(events).toHaveLength(1);
-      expect(events[0]?.type).toBe("UserOnboardingCompleted");
+      expect(events[0]).toMatchObject({
+        type: "UserOnboardingCompleted",
+        userId: user.id,
+      });
     });
 
     it("emits UserNameUpdated when a completed user changes their name", () => {
@@ -59,7 +65,10 @@ describe("User", () => {
       expect(user.name).toBe("New Dale");
       const events = user.pullEvents();
       expect(events).toHaveLength(1);
-      expect(events[0]?.type).toBe("UserNameUpdated");
+      expect(events[0]).toMatchObject({
+        type: "UserNameUpdated",
+        userId: user.id,
+      });
     });
 
     it("is idempotent when a completed user submits the same name", () => {
@@ -110,7 +119,10 @@ describe("User", () => {
       expect(user.notificationEmailVerifiedAt).toBeNull();
       const events = user.pullEvents();
       expect(events).toHaveLength(1);
-      expect(events[0]?.type).toBe("NotificationEmailUpdated");
+      expect(events[0]).toMatchObject({
+        type: "NotificationEmailUpdated",
+        userId: user.id,
+      });
     });
 
     it("clears prior verified state when a new unverified address is stored", () => {
@@ -130,10 +142,15 @@ describe("User", () => {
       expect(user.notificationEmail).toBe(email);
       expect(user.notificationEmailVerifiedAt).not.toBeNull();
       const events = user.pullEvents();
-      expect(events.map((e) => e.type)).toEqual([
-        "NotificationEmailUpdated",
-        "NotificationEmailVerified",
-      ]);
+      expect(events).toHaveLength(2);
+      expect(events[0]).toMatchObject({
+        type: "NotificationEmailUpdated",
+        userId: user.id,
+      });
+      expect(events[1]).toMatchObject({
+        type: "NotificationEmailVerified",
+        userId: user.id,
+      });
     });
 
     it("marks the current contact email verified and emits NotificationEmailVerified", () => {
@@ -145,7 +162,10 @@ describe("User", () => {
       expect(user.notificationEmailVerifiedAt).not.toBeNull();
       const events = user.pullEvents();
       expect(events).toHaveLength(1);
-      expect(events[0]?.type).toBe("NotificationEmailVerified");
+      expect(events[0]).toMatchObject({
+        type: "NotificationEmailVerified",
+        userId: user.id,
+      });
     });
 
     it("stamps the verified timestamp from the caller's clock, not the wall clock", () => {
@@ -196,7 +216,10 @@ describe("User", () => {
       expect(user.notificationEmailVerifiedAt).toBeNull();
       const events = user.pullEvents();
       expect(events).toHaveLength(1);
-      expect(events[0]?.type).toBe("NotificationEmailRemoved");
+      expect(events[0]).toMatchObject({
+        type: "NotificationEmailRemoved",
+        userId: user.id,
+      });
     });
 
     it("is an idempotent no-op when removing with no contact email set", () => {
