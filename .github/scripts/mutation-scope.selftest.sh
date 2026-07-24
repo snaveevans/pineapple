@@ -59,24 +59,33 @@ assert_in "selftest script" ".github/scripts/mutation-scope.selftest.sh"
 assert_in "future gate script" ".github/scripts/mutation-ratchet.sh"
 assert_in "mixed list" "apps/web/src/app/App.tsx" "apps/api/src/domain/team/Team.ts"
 
-# Large in-scope list: first path matches; grep must drain stdin (no SIGPIPE skip).
+# Static guard: grep -q early-exit + pipefail is the fail-open hazard.
+if grep -nE 'grep[[:space:]]+-q' "$SCOPE" >/dev/null; then
+  echo "FAIL mutation-scope.sh must not use grep -q (SIGPIPE fail-open under pipefail)" >&2
+  fail=1
+else
+  echo "ok  no grep -q in mutation-scope.sh"
+fi
+
+# Large in-scope list through a real pipe under pipefail (Linux runner pipe is
+# ~64KB; pad past that so a -q regression cannot hide). File redirect cannot SIGPIPE.
 large_list="$(mktemp)"
 {
   echo "apps/api/src/domain/asset/Asset.ts"
-  # ~2500 out-of-scope paths after the match — exceeds typical 64KB pipe buffer when
-  # combined with path length, so a -q early-exit would SIGPIPE the writer.
   i=0
-  while [ "$i" -lt 2500 ]; do
-    printf 'apps/web/src/generated/file-%05d.ts\n' "$i"
+  while [ "$i" -lt 8000 ]; do
+    printf 'apps/web/src/generated/file-%05d-padding-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.ts\n' "$i"
     i=$((i + 1))
   done
 } >"$large_list"
-# Must be a pipe (matches production: printf | scope). File redirect cannot
-# SIGPIPE, so it would not catch a grep -q regression.
-if cat "$large_list" | "$SCOPE"; then
-  echo "ok  in-scope: large list via pipe (no SIGPIPE skip)"
+set +e
+cat "$large_list" | "$SCOPE"
+pipe_status=$?
+set -e
+if [ "$pipe_status" -eq 0 ]; then
+  echo "ok  in-scope: large list via pipe (status=$pipe_status)"
 else
-  echo "FAIL in-scope: large list via pipe (SIGPIPE or miss)" >&2
+  echo "FAIL in-scope: large list via pipe (status=$pipe_status — SIGPIPE or miss)" >&2
   fail=1
 fi
 rm -f "$large_list"

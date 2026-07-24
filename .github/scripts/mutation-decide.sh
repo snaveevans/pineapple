@@ -39,7 +39,13 @@ case "$mode" in
       echo "Reason: git diff failed — fail closed, running mutation suite" >&2
       exit 0
     fi
-    if printf '%s\n' "$files" | "$SCOPE_SCRIPT"; then
+    # Feed scope via a file, not a pipe. A pipe + grep -q early-exit causes
+    # SIGPIPE under pipefail and fail-opens to run=false on large in-scope diffs.
+    files_tmp="$(mktemp)"
+    # shellcheck disable=SC2064
+    trap 'rm -f "$files_tmp"' RETURN
+    printf '%s\n' "$files" >"$files_tmp"
+    if "$SCOPE_SCRIPT" <"$files_tmp"; then
       echo "run=true"
       echo "Reason: PR touches mutation scope" >&2
     else
