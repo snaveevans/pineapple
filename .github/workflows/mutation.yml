@@ -37,13 +37,20 @@ jobs:
           fi
           base="${{ github.event.pull_request.base.sha }}"
           head="${{ github.event.pull_request.head.sha }}"
-          if git diff --name-only "$base"..."$head" | grep -qE \
-            '^(apps/api/src/(domain|application)/|apps/api/stryker\.conf\.json|apps/api/package\.json|pnpm-lock\.yaml|\.github/workflows/mutation\.yml)'; then
+          # Fail closed: if we cannot compute the diff, run the gate rather than
+          # silently skip (a required check that skips on error is worse than none).
+          if ! files="$(git diff --name-only "$base"..."$head")"; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Reason: git diff failed — fail closed, running mutation suite"
+            exit 0
+          fi
+          scope_re='^(apps/api/src/(domain|application)/|apps/api/stryker\.conf\.json|apps/api/package\.json|pnpm-lock\.yaml|\.github/workflows/mutation\.yml)'
+          if printf '%s\n' "$files" | grep -qE "$scope_re"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "Reason: PR touches mutation scope"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Reason: PR does not touch domain/application mutation scope — skipping"
+            echo "Reason: PR does not touch mutation scope — skipping"
           fi
 
       - name: Install pnpm

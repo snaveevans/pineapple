@@ -7,12 +7,13 @@ date: 2026-07-23
 
 # Testing & Verification — Cross-Cutting Spec
 
-**Status:** `active`
+**Status:** `in-progress`
 **Owner:** engineering
 **Applies To:** All features with logic in `apps/api/src/domain/**` or `apps/api/src/application/**`
 
-> The mutation gate is live as the `Mutation` workflow (`.github/workflows/mutation.yml`),
-> tracked by [#86](https://github.com/snaveevans/pineapple/issues/86). The decision behind it is
+> The mutation gate is implemented as the `Mutation` workflow (`.github/workflows/mutation.yml`),
+> tracked by [#86](https://github.com/snaveevans/pineapple/issues/86). Status flips to `active`
+> once this lands on `main` with `mutation` as a required status check. The decision behind it is
 > [ADR-0016](../../decisions/0016-mutation-testing-as-the-ci-trust-boundary.md).
 
 ---
@@ -81,12 +82,27 @@ Config lives at `apps/api/stryker.conf.json`.
 
 ### CI wiring
 
-- Runs as a **separate job from the hot `verify` path**, which must stay fast.
-- **Blocking on pull requests** that touch `apps/api/src/domain/**` or
-  `apps/api/src/application/**`, path-filtered so unrelated PRs are unaffected.
-- **A scheduled full run against `main`** backstops what the path filter misses.
+- Runs as a **separate workflow** (`.github/workflows/mutation.yml`) from the hot `verify`
+  path, which must stay fast. The job name is `mutation` — that is the required status-check
+  context on `main`.
+- **Always reports a status on every PR** so it can be a required check without deadlocking
+  unrelated work. The expensive Stryker run is path-scoped; when scope is untouched the job
+  exits green without installing or mutating.
+- **Run scope (fail closed):** the full suite runs when the PR touches any of:
+  - `apps/api/src/domain/**`
+  - `apps/api/src/application/**`
+  - `apps/api/stryker.conf.json`
+  - `apps/api/package.json`
+  - `pnpm-lock.yaml`
+  - `.github/workflows/mutation.yml`
+
+  Dependency and config changes are in scope because they can move the score. If the diff
+  cannot be computed, the suite runs rather than silently skipping.
+
+- **A scheduled full run against `main`** (daily) backstops what the PR path filter misses.
 - The HTML/JSON reports are build artifacts. They are generated into `apps/api/reports/mutation/`
   and are **not committed** (gitignored, along with `.stryker-tmp/`).
+- **Local command:** `pnpm --filter @snaveevans/pineapple-api test:mutation`.
 
 ## Feature Integration Contract
 
