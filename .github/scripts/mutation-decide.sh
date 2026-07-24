@@ -42,8 +42,7 @@ case "$mode" in
     # Feed scope via a file, not a pipe. A pipe + grep -q early-exit causes
     # SIGPIPE under pipefail and fail-opens to run=false on large in-scope diffs.
     files_tmp="$(mktemp)"
-    # shellcheck disable=SC2064
-    trap 'rm -f "$files_tmp"' RETURN
+    trap 'rm -f "$files_tmp"' EXIT
     printf '%s\n' "$files" >"$files_tmp"
     if "$SCOPE_SCRIPT" <"$files_tmp"; then
       echo "run=true"

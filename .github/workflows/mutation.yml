@@ -88,6 +88,7 @@ jobs:
           )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           MUTATE_OUTCOME: ${{ steps.mutate.outcome }}
           SCOPE_OUTCOME: ${{ steps.scope.outcome }}
