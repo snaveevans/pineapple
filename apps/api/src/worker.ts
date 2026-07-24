@@ -189,7 +189,9 @@ const app = new OpenAPIHono<AppEnv>({
 // else → 500. Handlers and middleware just `throw` and this maps it.
 app.onError((err, c) => {
   if (err instanceof DomainError) return toHttpError(c as Context, err);
-  console.error(err);
+  // Structured fields so Workers Observability can search/filter unhandled
+  // errors by request. Matches the codebase logging shape: `{ fields }, message`.
+  console.error({ error: err, method: c.req.method, path: c.req.path }, "Unhandled request error");
   return c.json({ error: "Internal Server Error" }, 500);
 });
 
