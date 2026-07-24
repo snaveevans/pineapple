@@ -7,13 +7,13 @@ date: 2026-07-23
 
 # Testing & Verification — Cross-Cutting Spec
 
-**Status:** `in-progress`
+**Status:** `active`
 **Owner:** engineering
 **Applies To:** All features with logic in `apps/api/src/domain/**` or `apps/api/src/application/**`
 
-> The mutation gate is implemented as the `Mutation` workflow (`.github/workflows/mutation.yml`),
-> tracked by [#86](https://github.com/snaveevans/pineapple/issues/86). Status flips to `active`
-> once this lands on `main` with `mutation` as a required status check. The decision behind it is
+> The mutation gate is the `Mutation` workflow (`.github/workflows/mutation.yml`), with `mutation`
+> a required status check on `main`. Tracked by [#86](https://github.com/snaveevans/pineapple/issues/86).
+> The decision behind it is
 > [ADR-0016](../../decisions/0016-mutation-testing-as-the-ci-trust-boundary.md).
 
 ---
@@ -100,6 +100,9 @@ Config lives at `apps/api/stryker.conf.json`.
   cannot be computed, the suite runs rather than silently skipping.
 
 - **A scheduled full run against `main`** (daily) backstops what the PR path filter misses.
+  Scheduled (and `workflow_dispatch`) failures open or comment on a single sticky GitHub issue
+  marked `<!-- mutation-gate-nightly -->`; a subsequent green run closes it. PR-path failures
+  already block merge and do not open issues.
 - The HTML/JSON reports are build artifacts. They are generated into `apps/api/reports/mutation/`
   and are **not committed** (gitignored, along with `.stryker-tmp/`).
 - **Local command:** `pnpm --filter @snaveevans/pineapple-api test:mutation`.

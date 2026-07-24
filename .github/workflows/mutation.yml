@@ -3,6 +3,7 @@ name: Mutation
 # Blocking mutation gate for domain + application (ADR-0016 / testing.md).
 # Separate from the hot `verify` path. Always reports a status on PRs so it can
 # be a required check; the expensive run is skipped when scope is untouched.
+# Scheduled failures open/update a GitHub issue so a red main is not silent.
 on:
   pull_request:
   schedule:
@@ -16,6 +17,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   mutation:
@@ -80,3 +82,55 @@ jobs:
           path: apps/api/reports/mutation/
           if-no-files-found: ignore
           retention-days: 30
+
+      # Scheduled/manual runs on main are not merge-blocking. Surface failure via a
+      # single sticky issue; green runs close it. Marker in body enables dedupe.
+      - name: Open or update failure issue
+        if: >-
+          failure() &&
+          steps.scope.outputs.run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          marker="<!-- mutation-gate-nightly -->"
+          title="Mutation gate failed on main"
+          body="$(cat <<EOF
+          ${marker}
+          The scheduled mutation gate on \`main\` failed.
+
+          - **Run:** ${RUN_URL}
+          - **Report artifact:** \`mutation-report\` on that run (HTML/JSON under \`apps/api/reports/mutation/\`)
+
+          This issue is opened by \`.github/workflows/mutation.yml\`. A green scheduled run closes it; further failures comment here instead of opening duplicates.
+          EOF
+          )"
+          existing="$(gh issue list --state open --search "mutation-gate-nightly in:body" --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still failing: ${RUN_URL}"
+            echo "Commented on existing issue #$existing"
+          else
+            url="$(gh issue create --title "$title" --body "$body")"
+            echo "Opened $url"
+          fi
+
+      - name: Close recovered failure issue
+        if: >-
+          success() &&
+          steps.scope.outputs.run == 'true' &&
+          (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          existing="$(gh issue list --state open --search "mutation-gate-nightly in:body" --json number --jq '.[0].number // empty')"
+          if [ -z "$existing" ]; then
+            echo "No open mutation-gate failure issue"
+            exit 0
+          fi
+          gh issue comment "$existing" --body "Recovered: mutation gate green again. ${RUN_URL}"
+          gh issue close "$existing" --reason completed
+          echo "Closed issue #$existing"
