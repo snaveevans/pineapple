@@ -17,7 +17,12 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
   Node built-ins as unavailable: ESLint **blocks** `fs`, `path`, `http`, `os`,
   `child_process`, etc. in `apps/api/src/**`. Use WinterCG/Web APIs. (ADR-0006)
 - **No `process.env`** in `apps/api/src/**` — also lint-blocked. Read config
-  from the Worker `env` binding (`c.env.*`), typed in `worker.ts`.
+  from the Worker `env` binding (`c.env.*`). Binding types come from the
+  generated `Cloudflare.Env` (`apps/api/worker-configuration.d.ts`, produced by
+  `wrangler types` — see the `cf-typegen` command below); `worker.ts` composes
+  that with the auth secrets, queue message generics, and a couple of undeclared
+  values into `Bindings`. Regenerate after any `wrangler.jsonc` binding change;
+  CI drift-checks the committed file.
 - **No floating promises** in `apps/api/src/**` — Workers silently drops
   un-awaited promises (dropped work, swallowed errors).
   `@typescript-eslint/no-floating-promises` is an explicit lint error: `await`,
@@ -123,6 +128,7 @@ pnpm lint                # eslint (includes layer-boundary + Workers constraints
 pnpm type-check          # tsc --noEmit across workspace
 pnpm -r test             # vitest (domain tests live in apps/api/src/**)
 pnpm --filter @snaveevans/pineapple-api openapi:generate   # regenerate the spec
+pnpm --filter @snaveevans/pineapple-api cf-typegen         # regenerate worker-configuration.d.ts from wrangler.jsonc
 pnpm --filter @snaveevans/pineapple-api wrangler d1 migrations apply pineapple --local
 ```
 

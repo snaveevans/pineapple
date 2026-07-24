@@ -140,29 +140,28 @@ import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
 import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
 
-type Bindings = AuthEnv & {
-  ENVIRONMENT: string;
-  ASSET_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
-  MAINTENANCE_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
-  MAINTENANCE_TASK_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
-  NOTIFICATION_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
-  USER_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
-  TEAM_DOMAIN_TELEMETRY: AnalyticsEngineDataset;
-  API_REQUEST_TELEMETRY: AnalyticsEngineDataset;
-  ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
-  NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
-  REMINDER_EMAIL_QUEUE: Queue<ReminderEmailMessage>;
-  /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
-  DEV_AUTH_EMAIL?: string;
-  /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
-  APP_BASE_URL?: string;
-  /** Cloudflare Email Sending binding. Absent locally → sends fall back to a no-op. */
-  EMAIL?: CloudflareSendEmailBinding;
-  /** Verified sender address for outbound email; required to actually send. */
-  EMAIL_FROM_ADDRESS?: string;
-  /** Optional sender display name. */
-  EMAIL_FROM_NAME?: string;
-};
+// Infra bindings (DB, EMAIL, telemetry datasets, queues, and the vars declared
+// in wrangler.jsonc) come from the generated `Cloudflare.Env` — regenerate with
+// `pnpm --filter @snaveevans/pineapple-api cf-typegen` after changing bindings.
+// We layer on what wrangler cannot express: the auth secrets (`AuthEnv`, not in
+// wrangler.jsonc), the queue message generics (wrangler emits untyped `Queue`),
+// the local structural view of the email binding as optional, and two values
+// that aren't declared as wrangler bindings.
+type Bindings = Omit<
+  Cloudflare.Env,
+  "EMAIL" | "ACTIVITY_HISTORY_QUEUE" | "NOTIFICATION_EVENTS_QUEUE" | "REMINDER_EMAIL_QUEUE"
+> &
+  AuthEnv & {
+    ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
+    NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
+    REMINDER_EMAIL_QUEUE: Queue<ReminderEmailMessage>;
+    /** Cloudflare Email Sending binding. Absent locally → sends fall back to a no-op. */
+    EMAIL?: CloudflareSendEmailBinding;
+    /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
+    DEV_AUTH_EMAIL?: string;
+    /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
+    APP_BASE_URL?: string;
+  };
 type Variables = {
   user: User;
   authCaller: AuthenticatedCaller;

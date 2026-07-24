@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:mutation": "stryker run",
-    "openapi:generate": "tsx scripts/generate-openapi.ts"
+    "openapi:generate": "tsx scripts/generate-openapi.ts",
+    "cf-typegen": "wrangler types --strict-vars=false"
   },
   "dependencies": {
     "@hono/zod-openapi": "^0.19.10",
@@ -22,7 +23,6 @@
     "zod": "^3.0.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.0.0",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "tsx": "^4.19.0",
