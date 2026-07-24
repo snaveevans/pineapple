@@ -38,9 +38,9 @@ moves up.
   mostly re-asserts what the database already guarantees.
 - **`thresholds.break` is `68`.** CI fails when the mutation score drops below it.
 - **Rationale for 68:** the measured baseline on 2026-07-23 was **70.82%** (1518 mutants: 1073
-  killed, 281 survived, 162 no-coverage). The floor sits ~3 points under the measurement to
-  absorb run-to-run variance and the 2 timeout-prone mutants observed, so the gate does not fail
-  spuriously. It is a floor against regression, not a target.
+  killed, 2 timeout, 281 survived, 162 no-coverage). Timeouts count toward the score as killed
+  (`(1073+2)/1518`). The floor sits ~3 points under the measurement to absorb run-to-run
+  variance, so the gate does not fail spuriously. It is a floor against regression, not a target.
 - The score enforced is Stryker's **overall mutation score**, which counts no-coverage mutants in
   the denominator. `thresholds.break` cannot key off the covered-code score (79.28% at baseline),
   so untested code drags the enforced number — deliberately.
@@ -96,6 +96,8 @@ Config lives at `apps/api/stryker.conf.json`.
   - `packages/shared/**` (domain/application import branded IDs, `Result`, `DomainError`)
   - `apps/api/stryker.conf.json`
   - `apps/api/package.json`
+  - `apps/api/vitest.config.ts` (Stryker runner discovery / which tests kill mutants)
+  - `apps/api/tsconfig.json` (esbuild transform settings for instrumentation)
   - `pnpm-lock.yaml`
   - `.github/workflows/mutation.yml`
   - `.github/scripts/mutation-*.sh`
@@ -104,10 +106,12 @@ Config lives at `apps/api/stryker.conf.json`.
   cannot be computed, the suite runs rather than silently skipping.
 
 - **A scheduled full run against `main`** (daily) backstops what the PR path filter misses.
-  Scheduled (and `workflow_dispatch`) failures open or comment on a single sticky GitHub issue
-  with the `mutation-gate` label (label list is strongly consistent; body-search is not). A
-  subsequent green run closes it. PR-path failures already block merge and do not open issues.
-  Concurrent schedule/dispatch runs on `main` queue rather than cancel each other.
+  On `refs/heads/main` only, schedule/dispatch failures (including infra failure before the
+  suite runs) open or comment on a single sticky GitHub issue with the `mutation-gate` label —
+  the label is created idempotently in the workflow. A subsequent green mutate step closes it.
+  Upload-only failures after a green suite do not page. Dispatch on a non-`main` ref does not
+  open issues. PR-path failures already block merge and do not open issues. Concurrent
+  schedule/dispatch runs on `main` queue rather than cancel each other.
 - The HTML/JSON reports are build artifacts. They are generated into `apps/api/reports/mutation/`
   and are **not committed** (gitignored, along with `.stryker-tmp/`).
 - **Local command:** `pnpm --filter @snaveevans/pineapple-api test:mutation`.

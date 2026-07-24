@@ -6,10 +6,18 @@
 #   mutation-decide.sh always
 #   mutation-decide.sh pr <base_sha> <head_sha>
 #
+# Env:
+#   MUTATION_REPO_DIR — git working tree for pr mode (default: repo root of this script)
+#
 # Fail closed: if the PR diff cannot be computed, prints run=true.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+if [ -n "${MUTATION_REPO_DIR:-}" ]; then
+  REPO_DIR="$MUTATION_REPO_DIR"
+else
+  REPO_DIR="$ROOT"
+fi
 SCOPE_SCRIPT="$ROOT/.github/scripts/mutation-scope.sh"
 
 mode="${1:-}"
@@ -26,7 +34,7 @@ case "$mode" in
       echo "Reason: missing base/head SHAs — fail closed, running mutation suite" >&2
       exit 0
     fi
-    if ! files="$(git -C "$ROOT" diff --name-only "$base"..."$head")"; then
+    if ! files="$(git -C "$REPO_DIR" diff --name-only "$base"..."$head")"; then
       echo "run=true"
       echo "Reason: git diff failed — fail closed, running mutation suite" >&2
       exit 0
