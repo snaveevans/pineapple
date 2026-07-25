@@ -3,7 +3,6 @@ import {
   DomainError as DomainErrorClass,
   type EmailBatchId,
   err,
-  NotFoundError,
   ok,
   type Result,
 } from "@snaveevans/pineapple-shared";
@@ -12,7 +11,10 @@ import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import type { Clock } from "../ports/Clock.ts";
 import type { EmailBatchRepository } from "../ports/EmailBatchRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
-import type { NotificationRecord, NotificationRepository } from "../ports/NotificationRepository.ts";
+import type {
+  NotificationRecord,
+  NotificationRepository,
+} from "../ports/NotificationRepository.ts";
 import type { TransactionalEmailSender } from "../ports/TransactionalEmailSender.ts";
 
 export type DispatchReminderEmailCommand = {
@@ -20,8 +22,20 @@ export type DispatchReminderEmailCommand = {
 };
 
 export type DispatchReminderEmailResult = {
-  status: "sent" | "suppressed" | "failed" | "already_processed" | "retryable_failure";
+  status:
+    | "sent"
+    | "suppressed"
+    | "failed"
+    | "already_processed"
+    | "retryable_failure"
+    | "terminal_failure";
   retryable: boolean;
+  /**
+   * Set only for `terminal_failure`: the reason the consumer records in the
+   * durable dead-letter record. Retryability is classified here, in the result,
+   * so the consumer never infers it from an error subclass (error-handling spec).
+   */
+  terminalReason?: string;
 };
 
 export class DispatchReminderEmail {
@@ -39,21 +53,48 @@ export class DispatchReminderEmail {
   ): Promise<Result<DispatchReminderEmailResult, DomainError>> {
     try {
       const batch = await this.batches.findById(cmd.emailBatchId);
-      if (!batch) return err(new NotFoundError("Email batch not found"));
+      // The outbox row is written in the same D1 batch as the email_batches row
+      // (D1ReminderSweepStore), so a missing batch here is a permanently-gone
+      // reference, not a read-after-write race — terminal, not retryable.
+      if (!batch) {
+        return ok({
+          status: "terminal_failure",
+          retryable: false,
+          terminalReason: "Email batch not found",
+        });
+      }
       if (batch.status !== "pending") {
         return ok({ status: "already_processed", retryable: false });
       }
 
       const user = await this.users.findById(batch.ownerId);
-      if (!user) return err(new NotFoundError("User not found"));
+      if (!user) {
+        return ok({
+          status: "terminal_failure",
+          retryable: false,
+          terminalReason: "User not found",
+        });
+      }
 
       if (user.notificationEmail === null) {
-        await this.recordOutcome(cmd.emailBatchId, batch.ownerId, "suppressed", "no_contact_email", batch.notificationCount);
+        await this.recordOutcome(
+          cmd.emailBatchId,
+          batch.ownerId,
+          "suppressed",
+          "no_contact_email",
+          batch.notificationCount,
+        );
         return ok({ status: "suppressed", retryable: false });
       }
 
       if (user.notificationEmailVerifiedAt === null) {
-        await this.recordOutcome(cmd.emailBatchId, batch.ownerId, "suppressed", "unverified", batch.notificationCount);
+        await this.recordOutcome(
+          cmd.emailBatchId,
+          batch.ownerId,
+          "suppressed",
+          "unverified",
+          batch.notificationCount,
+        );
         return ok({ status: "suppressed", retryable: false });
       }
 
@@ -68,7 +109,13 @@ export class DispatchReminderEmail {
       });
 
       if (sendResult.status === "sent") {
-        await this.recordOutcome(cmd.emailBatchId, batch.ownerId, "sent", "none", batch.notificationCount);
+        await this.recordOutcome(
+          cmd.emailBatchId,
+          batch.ownerId,
+          "sent",
+          "none",
+          batch.notificationCount,
+        );
         return ok({ status: "sent", retryable: false });
       }
 
@@ -80,7 +127,13 @@ export class DispatchReminderEmail {
         return ok({ status: "retryable_failure", retryable: true });
       }
 
-      await this.recordOutcome(cmd.emailBatchId, batch.ownerId, "failed", "none", batch.notificationCount);
+      await this.recordOutcome(
+        cmd.emailBatchId,
+        batch.ownerId,
+        "failed",
+        "none",
+        batch.notificationCount,
+      );
       return ok({ status: "failed", retryable: false });
     } catch (error) {
       if (error instanceof DomainErrorClass) return err(error);
