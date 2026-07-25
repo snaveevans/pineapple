@@ -11,7 +11,7 @@
     "test:watch": "vitest",
     "test:mutation": "stryker run",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
-    "cf-typegen": "wrangler types --strict-vars=false"
+    "cf-typegen": "wrangler types --strict-vars=false --env-file .env.typegen"
   },
   "dependencies": {
     "@hono/zod-openapi": "^0.19.10",

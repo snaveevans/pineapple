@@ -146,22 +146,65 @@ import type { z } from "@hono/zod-openapi";
 // We layer on what wrangler cannot express: the auth secrets (`AuthEnv`, not in
 // wrangler.jsonc), the queue message generics (wrangler emits untyped `Queue`),
 // the local structural view of the email binding as optional, and two values
-// that aren't declared as wrangler bindings.
-type Bindings = Omit<
-  Cloudflare.Env,
-  "EMAIL" | "ACTIVITY_HISTORY_QUEUE" | "NOTIFICATION_EVENTS_QUEUE" | "REMINDER_EMAIL_QUEUE"
-> &
-  AuthEnv & {
-    ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
-    NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
-    REMINDER_EMAIL_QUEUE: Queue<ReminderEmailMessage>;
-    /** Cloudflare Email Sending binding. Absent locally → sends fall back to a no-op. */
-    EMAIL?: CloudflareSendEmailBinding;
-    /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
-    DEV_AUTH_EMAIL?: string;
-    /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
-    APP_BASE_URL?: string;
-  };
+// that aren't declared as wrangler bindings. The two `AssertNever` checks below
+// keep those overrides honest — see each comment.
+
+/**
+ * Bindings that DO exist in `Cloudflare.Env` but need a sharper local type:
+ * queue message generics (wrangler emits untyped `Queue`) and the structural
+ * view of the email binding as optional.
+ */
+type BindingOverrides = {
+  ACTIVITY_HISTORY_QUEUE: Queue<ActivityEventMessage>;
+  NOTIFICATION_EVENTS_QUEUE: Queue<NotificationEventMessage>;
+  REMINDER_EMAIL_QUEUE: Queue<ReminderEmailMessage>;
+  /** Cloudflare Email Sending binding. Absent locally → sends fall back to a no-op. */
+  EMAIL?: CloudflareSendEmailBinding;
+};
+
+/** Values that aren't declared as wrangler bindings, so wrangler can't type them. */
+type UndeclaredBindings = {
+  /** Local dev only; honored only when ENVIRONMENT is exactly "development". */
+  DEV_AUTH_EMAIL?: string;
+  /** Public origin of the web app, used to build verification links. Falls back to the request origin. */
+  APP_BASE_URL?: string;
+};
+
+/** Compile-time assertion: passing anything but `never` is the type error. */
+type AssertNever<T extends never> = T;
+
+/**
+ * Overridden keys that `Cloudflare.Env` no longer declares. `Omit` silently
+ * tolerates keys its source doesn't have and the intersection then re-adds
+ * them, so without asserting this, renaming or deleting one of these bindings
+ * in wrangler.jsonc would keep type-checking against a resurrected name and
+ * fail only at runtime — the drift issue #65 is about.
+ */
+type DriftedOverrides = Exclude<keyof BindingOverrides, keyof Cloudflare.Env>;
+
+/** Queue bindings as wrangler generates them — bare, untyped `Queue`. */
+type GeneratedQueueBindings = {
+  [K in keyof Cloudflare.Env]-?: Cloudflare.Env[K] extends Queue ? K : never;
+}[keyof Cloudflare.Env];
+
+/**
+ * Queue bindings with no message type above. Such a binding arrives as bare
+ * `Queue`, so `.send()` would accept any payload and the message contract
+ * would be lost with nothing failing — assert none exist.
+ */
+type UntypedQueueBindings = Exclude<GeneratedQueueBindings, keyof BindingOverrides>;
+
+// The two guards. Both unions are empty while config and code agree; when one
+// isn't, `AssertNever` rejects its argument and `type-check` fails naming the
+// drifted binding. Exported only because a type alias must be used to count as
+// used — nothing imports them, and types erase at runtime.
+export type _AssertNoDriftedOverrides = AssertNever<DriftedOverrides>;
+export type _AssertEveryQueueIsTyped = AssertNever<UntypedQueueBindings>;
+
+type Bindings = Omit<Cloudflare.Env, keyof BindingOverrides> &
+  AuthEnv &
+  BindingOverrides &
+  UndeclaredBindings;
 type Variables = {
   user: User;
   authCaller: AuthenticatedCaller;

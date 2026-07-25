@@ -33,8 +33,12 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
 deploy` does NOT create them — it binds to existing queues and fails if one
   is missing. Provisioning is IaC: the "Ensure Queues exist" step in
   `.github/workflows/deploy.yml` idempotently creates every declared queue before
-  deploying. Adding a queue means editing both places (see the comment in
-  `wrangler.jsonc`).
+  deploying. Adding a **producer** queue is four edits (see the comment in
+  `wrangler.jsonc`): declare it in `wrangler.jsonc`, add its name to the
+  deploy-workflow creation loop, run `cf-typegen`, and give the binding its
+  message type in `BindingOverrides` in `worker.ts` — wrangler emits a bare
+  `Queue`, so an untyped binding would accept any `.send()` payload.
+  `type-check` fails until that last step is done.
 - **Source-first TypeScript**: no build step. Imports use explicit `.ts`
   extensions (e.g. `import { User } from "./User.ts"`). Keep that convention.
 - **pnpm workspaces**: `packages/*`, `apps/*`. Package manager pinned via
