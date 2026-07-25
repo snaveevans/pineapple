@@ -27,9 +27,21 @@
     "EMAIL_FROM_NAME": "Pineapple",
   },
 
+  // Workers Observability (logs + traces). Split into the nested logs/traces
+  // shape so each stream samples independently. Logs stay at 100% — this is a
+  // low-traffic two-person app, so full-fidelity logs cost little and pay off
+  // when debugging. Traces are sampled lower (Cloudflare's recommended default)
+  // since they're heavier per invocation; raise head_sampling_rate if trace
+  // coverage matters more than cost.
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1,
+    "logs": {
+      "head_sampling_rate": 1,
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01,
+    },
   },
 
   "triggers": {
