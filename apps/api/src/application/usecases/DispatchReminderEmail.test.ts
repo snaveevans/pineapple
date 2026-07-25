@@ -3,7 +3,6 @@ import {
   Email,
   EmailBatchId,
   MaintenanceTaskId,
-  NotFoundError,
   NotificationId,
   UserId,
 } from "@snaveevans/pineapple-shared";
@@ -385,7 +384,7 @@ describe("DispatchReminderEmail", () => {
     expect(events.events).toEqual([]);
   });
 
-  it("returns NotFoundError when the email batch does not exist", async () => {
+  it("classifies a missing email batch as a terminal failure", async () => {
     const { useCase, batches, sender, events } = makeUseCase({
       batch: null,
       user: null,
@@ -393,15 +392,19 @@ describe("DispatchReminderEmail", () => {
 
     const result = await useCase.execute({ emailBatchId: EmailBatchId.generate() });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected err");
-    expect(result.error).toBeInstanceOf(NotFoundError);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({
+      status: "terminal_failure",
+      retryable: false,
+      terminalReason: "Email batch not found",
+    });
     expect(sender.sent).toBeNull();
     expect(batches.outcome).toBeNull();
     expect(events.events).toEqual([]);
   });
 
-  it("returns NotFoundError when the batch owner does not exist", async () => {
+  it("classifies a missing batch owner as a terminal failure", async () => {
     const b = batch();
     const { useCase, batches, sender, events } = makeUseCase({
       batch: b,
@@ -410,9 +413,13 @@ describe("DispatchReminderEmail", () => {
 
     const result = await useCase.execute({ emailBatchId: b.id });
 
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("expected err");
-    expect(result.error).toBeInstanceOf(NotFoundError);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw result.error;
+    expect(result.value).toEqual({
+      status: "terminal_failure",
+      retryable: false,
+      terminalReason: "User not found",
+    });
     expect(sender.sent).toBeNull();
     expect(batches.outcome).toBeNull();
     expect(events.events).toEqual([]);

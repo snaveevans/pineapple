@@ -1,14 +1,26 @@
 ---
 name: pr-review
-description: Review a pull request or the current branch diff for bugs, CLAUDE.md adherence, and architectural fit. Fans out parallel reviewers, scores each finding for confidence, and reports only what survives. Use when asked to review a PR, review a branch before opening one, or check a change before merge.
+description: Review a pull request or the current branch diff for bugs, CLAUDE.md adherence, and architectural fit. Fans out parallel reviewers, scores each finding for confidence, reports only what survives, and posts an approved / changes-requested verdict comment on PR targets. Use when asked to review a PR, review a branch before opening one, or check a change before merge.
 ---
 
 # PR review
 
 Adapted from Anthropic's `code-review` plugin (`anthropics/claude-plugins-official`).
-Three changes from upstream: it reviews a **branch diff** as well as a PR, it **never
-posts to GitHub** unless the invoking request explicitly asks, and its false-positive
+Three changes from upstream: it reviews a **branch diff** as well as a PR, it **posts a
+verdict comment** on PR targets (approved / changes requested), and its false-positive
 rules are tuned to what this repo's CI already enforces.
+
+## Identify, don't fix
+
+This skill finds problems — code quality, bugs, architectural fit. It does not solve
+them. Do not edit files, write patches, suggest diffs, or describe how to fix a finding,
+even when the fix is obvious and even when asked to be helpful. State what is wrong and
+why it matters; where to go from there is the author's call.
+
+A finding is complete when a reader knows the defect and its consequence. Resist the
+pull to add "…, so extract it into a helper" — that sentence is out of scope, and it
+biases the author toward your solution before they have judged the problem. If a fix is
+genuinely wanted, that is a separate request on a separate turn.
 
 ## Pick the target
 
@@ -24,9 +36,14 @@ starting.
 
 ## 1. Eligibility (PR targets only)
 
-Check whether the PR is closed, a draft, automated, trivially safe, or already carries
-a review from you. If any of those hold, stop and say why. Skip this step for a branch
-diff — an unopened branch is always eligible.
+Check whether the PR is closed, a draft, automated, or trivially safe. If any of those
+hold, stop and say why — and do not post. Skip this step for a branch diff — an unopened
+branch is always eligible.
+
+A verdict comment already on the PR from a previous run is **not** a stop condition,
+whatever SHA it names. Eligibility governs whether the review *runs*; whether it *posts*
+is step 6's call. Someone re-running the skill on unchanged commits — with "don't post",
+or after these review criteria changed — still wants the findings.
 
 ## 2. Gather context
 
@@ -67,19 +84,100 @@ For anything flagged on `CLAUDE.md` grounds, the scorer must confirm `CLAUDE.md`
 actually says that. **Drop everything under 80.** If nothing survives, say so — a quiet
 review is a valid result, not a failure.
 
-## 5. Report
+## 5. Report in-session
 
-Report in-session by default. If the `ReportFindings` tool is available, use it, ranked
-most-severe first, and do not also print the findings as prose. Otherwise print them:
-each with file and line, why it matters, and a fix direction — not a patch.
+If the `ReportFindings` tool is available, use it, ranked most-severe first, and do not
+also print the findings as prose. Otherwise print them: each with file and line, the
+defect, and why it matters. No fix, no patch.
 
-**Do not comment on GitHub unless the request that invoked this skill explicitly asked
-you to.** Posting is public and outward-facing. When it is asked for, confirm the text
-first, then post it with whatever GitHub access this environment provides (`gh pr comment`,
-a GitHub MCP comment/review tool, or the API). Keep it brief, skip emojis, and cite code
-with full-SHA permalinks (`https://github.com/snaveevans/pineapple/blob/<full-sha>/path#L4-L7`)
-— resolve the SHA to a literal value first, since a `git rev-parse` subshell will not
-render in Markdown.
+## 6. Post the verdict (PR targets only)
+
+The verdict follows mechanically from step 4 — there is no separate judgment call:
+
+- **Changes requested** — one or more findings scored 80+.
+- **Approved** — nothing survived scoring.
+
+Post it as a **plain PR comment**, not a formal GitHub review. A formal
+`REQUEST_CHANGES` blocks merge until a human dismisses it, and GitHub rejects an
+approval from the PR's own author — so on a self-authored PR the formal path fails
+silently while a comment always lands.
+
+Skip posting when: the target is a branch diff (nothing to post to), the request that
+invoked this skill asked you not to post, step 1 stopped the review, or the checks below
+find the current head SHA already has a published verdict.
+
+### Comment format
+
+Lead with the verdict, keep it short, skip emojis. Cite code with full-SHA permalinks
+(`https://github.com/snaveevans/pineapple/blob/<full-sha>/path#L4-L7`) — resolve the SHA
+to a literal value first, since a `git rev-parse` subshell will not render in Markdown.
+
+```markdown
+<!-- pineapple-pr-review -->
+
+## Code review: changes requested
+
+Reviewed `<full head SHA>` against `main`.
+
+1. **`apps/api/src/application/Foo.ts:42`** — what is wrong, and the consequence it
+   carries. Stop there; no suggested fix.
+2. ...
+
+<sub>Covered: bugs, CLAUDE.md adherence, architectural fit. Not covered: lint, type-check,
+and tests (CI enforces those), test coverage, and general security posture.</sub>
+
+---
+
+_Generated by [Claude Code](https://claude.ai/code)_
+```
+
+On approval, use `## Code review: approved`, drop the findings list, and say in one line
+what you looked at and found clean.
+
+Three things that comment must carry, every time:
+
+- **The head SHA it reviewed.** A verdict outlives the commits it judged; naming the SHA
+  makes a stale "approved" visibly stale instead of quietly wrong.
+- **The `<!-- pineapple-pr-review -->` marker.** It is how the next run finds prior verdicts.
+- **The scope caveat.** "Approved" must not read as broader assurance than a diff review.
+
+### Find the previous verdict
+
+List the PR's comments and take the **most recent** one carrying the marker. Do not
+assume there is only one — without an edit path (below) earlier rounds leave a trail, and
+only the latest describes current state.
+
+If that comment names the current head SHA, these commits already have a published
+verdict: **post nothing** and say so in-session. The review still ran and still reports.
+
+### Edit by ID — never blind-edit
+
+When the environment can edit a comment by its ID, edit that comment in place:
+`PATCH /repos/snaveevans/pineapple/issues/comments/{id}`, `gh api --method PATCH` against
+the same endpoint, or a GitHub MCP comment-update tool. One live verdict beats a thread of
+contradicting ones.
+
+**Do not use `gh pr comment --edit-last`.** It targets the authoring account's most recent
+comment on the PR, marker or no marker. Agent comments and this repo's PRs go out under
+the same account, so a maintainer reply posted after the verdict would be silently
+overwritten with no record it existed — and on a PR where that account has never
+commented it errors rather than falling through to posting.
+
+### When there is no edit path
+
+Cloud-agent sessions — the ones this skill was vendored for (#113) — typically have no
+`gh`, no direct API access, and a GitHub MCP server that creates comments but cannot
+update them. Check before assuming an edit path exists. Where none does:
+
+- Post a new comment **only when the verdict or its findings differ** from the latest
+  marker comment. An unchanged verdict adds nothing; post nothing and say so in-session.
+- Open it with `Supersedes the verdict on <old head SHA>.` and link that comment.
+- Accept one verdict per round of substantive change. That is the cost of no edit path,
+  and it is why the SHA line is mandatory and why this section reads the *most recent*
+  marker comment rather than assuming a unique one.
+
+Report in-session what you posted and where — including when you deliberately posted
+nothing.
 
 ## What CI already covers — do not flag
 
