@@ -177,11 +177,13 @@ Route normalization:
 | `/api/auth/*`         | `Auth`        | `/api/auth/*`      |
 | unknown               | `Unknown`     | `Unknown`          |
 
-Workers Logs are enabled with `[observability] enabled = true` for invocation
-logs, uncaught exceptions, CPU time, wall time, and debugging. Analytics Engine
-is for custom aggregate queries; Workers Logs, Logpush, R2, or an external
-observability stack should be used for troubleshooting and longer forensic
-workflows.
+Workers Observability is enabled in `wrangler.jsonc` with the nested
+`observability.logs` / `observability.traces` shape. Logs run at full sampling
+(`head_sampling_rate = 1`) for invocation logs, uncaught exceptions, CPU time,
+wall time, and debugging; traces are enabled at a lower sampling rate to bound
+cost. Analytics Engine is for custom aggregate queries; Workers Logs, Logpush,
+R2, or an external observability stack should be used for troubleshooting and
+longer forensic workflows.
 
 ## 6. Anti-Patterns To Avoid
 
