@@ -10,6 +10,18 @@ Three changes from upstream: it reviews a **branch diff** as well as a PR, it **
 verdict comment** on PR targets (approved / changes requested), and its false-positive
 rules are tuned to what this repo's CI already enforces.
 
+## Identify, don't fix
+
+This skill finds problems — code quality, bugs, architectural fit. It does not solve
+them. Do not edit files, write patches, suggest diffs, or describe how to fix a finding,
+even when the fix is obvious and even when asked to be helpful. State what is wrong and
+why it matters; where to go from there is the author's call.
+
+A finding is complete when a reader knows the defect and its consequence. Resist the
+pull to add "…, so extract it into a helper" — that sentence is out of scope, and it
+biases the author toward your solution before they have judged the problem. If a fix is
+genuinely wanted, that is a separate request on a separate turn.
+
 ## Pick the target
 
 - A PR number or URL in the request → read that PR's diff and metadata using
@@ -74,8 +86,8 @@ review is a valid result, not a failure.
 ## 5. Report in-session
 
 If the `ReportFindings` tool is available, use it, ranked most-severe first, and do not
-also print the findings as prose. Otherwise print them: each with file and line, why it
-matters, and a fix direction — not a patch.
+also print the findings as prose. Otherwise print them: each with file and line, the
+defect, and why it matters. No fix, no patch.
 
 ## 6. Post the verdict (PR targets only)
 
@@ -105,8 +117,8 @@ to a literal value first, since a `git rev-parse` subshell will not render in Ma
 
 Reviewed `<full head SHA>` against `main`.
 
-1. **`apps/api/src/application/Foo.ts:42`** — what is wrong and why it matters, then the
-   fix direction in a clause. No patch.
+1. **`apps/api/src/application/Foo.ts:42`** — what is wrong, and the consequence it
+   carries. Stop there; no suggested fix.
 2. ...
 
 <sub>Covered: bugs, CLAUDE.md adherence, architectural fit. Not covered: lint, type-check,
