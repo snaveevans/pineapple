@@ -40,9 +40,10 @@ Check whether the PR is closed, a draft, automated, or trivially safe. If any of
 hold, stop and say why — and do not post. Skip this step for a branch diff — an unopened
 branch is always eligible.
 
-A verdict comment already on the PR from a previous run is **not** a stop condition: it
-is the comment step 6 updates. Stop only if that comment names the current head SHA —
-the same commits have already been reviewed, so re-posting would say nothing new.
+A verdict comment already on the PR from a previous run is **not** a stop condition,
+whatever SHA it names. Eligibility governs whether the review *runs*; whether it *posts*
+is step 6's call. Someone re-running the skill on unchanged commits — with "don't post",
+or after these review criteria changed — still wants the findings.
 
 ## 2. Gather context
 
@@ -102,7 +103,8 @@ approval from the PR's own author — so on a self-authored PR the formal path f
 silently while a comment always lands.
 
 Skip posting when: the target is a branch diff (nothing to post to), the request that
-invoked this skill asked you not to post, or step 1 stopped the review.
+invoked this skill asked you not to post, step 1 stopped the review, or the checks below
+find the current head SHA already has a published verdict.
 
 ### Comment format
 
@@ -136,19 +138,46 @@ Three things that comment must carry, every time:
 
 - **The head SHA it reviewed.** A verdict outlives the commits it judged; naming the SHA
   makes a stale "approved" visibly stale instead of quietly wrong.
-- **The `<!-- pineapple-pr-review -->` marker.** It is how the next run finds this comment.
+- **The `<!-- pineapple-pr-review -->` marker.** It is how the next run finds prior verdicts.
 - **The scope caveat.** "Approved" must not read as broader assurance than a diff review.
 
-### Update in place, don't stack
+### Find the previous verdict
 
-Before posting, list the PR's comments and look for one of yours carrying the marker.
-If it exists, **edit it** rather than adding another — `gh pr comment --edit-last`, a
-GitHub MCP comment-update tool, or `PATCH /repos/snaveevans/pineapple/issues/comments/{id}`.
-A PR should end with exactly one live verdict, not a thread of contradicting ones. If the
-environment offers no edit path, post a new comment whose first line notes that it
-supersedes the earlier verdict.
+List the PR's comments and take the **most recent** one carrying the marker. Do not
+assume there is only one — without an edit path (below) earlier rounds leave a trail, and
+only the latest describes current state.
 
-Report in-session what you posted and where.
+If that comment names the current head SHA, these commits already have a published
+verdict: **post nothing** and say so in-session. The review still ran and still reports.
+
+### Edit by ID — never blind-edit
+
+When the environment can edit a comment by its ID, edit that comment in place:
+`PATCH /repos/snaveevans/pineapple/issues/comments/{id}`, `gh api --method PATCH` against
+the same endpoint, or a GitHub MCP comment-update tool. One live verdict beats a thread of
+contradicting ones.
+
+**Do not use `gh pr comment --edit-last`.** It targets the authoring account's most recent
+comment on the PR, marker or no marker. Agent comments and this repo's PRs go out under
+the same account, so a maintainer reply posted after the verdict would be silently
+overwritten with no record it existed — and on a PR where that account has never
+commented it errors rather than falling through to posting.
+
+### When there is no edit path
+
+Cloud-agent sessions — the ones this skill was vendored for (#113) — typically have no
+`gh`, no direct API access, and a GitHub MCP server that creates comments but cannot
+update them. Check before assuming an edit path exists. Where none does:
+
+- Post a new comment **only when the verdict or its findings differ** from the latest
+  marker comment. An unchanged verdict adds nothing; post nothing and say so in-session.
+- Open it with `Supersedes the verdict on <old head SHA>.` and link that comment.
+- Accept one verdict per round of substantive change. That is the cost of no edit path,
+  and it is why the SHA line is mandatory and why this section reads the *most recent*
+  marker comment rather than assuming a unique one.
+
+Report in-session what you posted and where — including when you deliberately posted
+nothing.
 
 ## What CI already covers — do not flag
 
