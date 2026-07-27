@@ -91,7 +91,14 @@ pnpm -r test
 
 # If you changed API schemas/routes, regenerate the committed spec:
 pnpm --filter @snaveevans/pineapple-api openapi:generate
+
+# If you changed a binding in apps/api/wrangler.jsonc, regenerate the Env types:
+pnpm --filter @snaveevans/pineapple-api cf-typegen
 ```
+
+Both generated files are drift-checked on PRs and again before deploy, so a
+stale one fails CI. `cf-typegen` ignores your `.dev.vars`, so it produces the
+same file everywhere — regenerating on a clean checkout leaves no diff.
 
 ## 7. Deployment
 

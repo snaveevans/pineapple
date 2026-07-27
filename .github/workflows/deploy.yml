@@ -44,6 +44,14 @@ jobs:
           pnpm --filter @snaveevans/pineapple-api openapi:generate
           git diff --exit-code docs/reference/openapi.json
 
+      # Same gate as CI: a binding changed in wrangler.jsonc without
+      # regenerating still type-checks against the stale committed `Env`, so
+      # without this a direct push to main could deploy mismatched types.
+      - name: Check generated Worker types are up to date
+        run: |
+          pnpm --filter @snaveevans/pineapple-api cf-typegen
+          git diff --exit-code apps/api/worker-configuration.d.ts
+
   # Detect which app(s) changed so we only redeploy what moved. Shared changes
   # (root config, the lockfile, packages/shared, this workflow) fan out to both.
   changes:
