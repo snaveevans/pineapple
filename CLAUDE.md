@@ -202,14 +202,26 @@ trailer.
 {type}/{slug}           # without
 ```
 
-- **type:** `feat` | `fix` | `docs` | `refactor` | `chore` | `ci` | `test` | `perf`
+- **type:** `feat` | `fix` | `docs` | `refactor` | `chore` | `ci` | `test` |
+  `perf` | `security`
 - **issue:** bare digits only (no `#`) — first segment after `type/` when numeric
 - **slug:** lowercase kebab-case, short
 
 Examples: `feat/42-team-invite`, `fix/87-null-session`, `docs/adr-0016`,
-`chore/upgrade-wrangler`.
+`chore/upgrade-wrangler`, `security/130-react-router-upgrade`.
 
-Regex: `^(feat|fix|docs|refactor|chore|ci|test|perf)/(?:[0-9]+-)?[a-z0-9]+(?:-[a-z0-9]+)*$`
+Regex: `^(feat|fix|docs|refactor|chore|ci|test|perf|security)/(?:[0-9]+-)?[a-z0-9]+(?:-[a-z0-9]+)*$`
+
+**This is a guideline, not a gate.** Nothing enforces it — no workflow, branch
+protection rule, or git hook reads the branch name, and CI runs on every pull
+request regardless of what the branch is called. A nonconforming name is a nit,
+not a review finding. Traceability lives in the PR body's issue link (below),
+which GitHub actually acts on; the branch name is human signal only.
+
+**Agent-assigned branches are exempt.** Cloud agent sessions get their branch
+name from the platform, not from the author — `claude/*`, `codex/*`,
+`opencode/*` and similar prefixes are outside this convention and should be left
+as assigned. The PR body still carries the issue link.
 
 ### Issue linking
 
