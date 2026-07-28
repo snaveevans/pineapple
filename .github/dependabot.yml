@@ -1,0 +1,74 @@
+# Automated dependency updates (issue #125).
+#
+# The npm block covers the whole pnpm workspace from the root: dependabot-core's
+# npm file fetcher reads `pnpm-workspace.yaml` and pulls in the `apps/*` and
+# `packages/*` manifests alongside the single root `pnpm-lock.yaml`. Do not add
+# per-package blocks — they would contend over that one lockfile.
+#
+# NOTE: this file configures *version* updates only. Dependabot **security**
+# updates run on a separate job path driven by the GitHub Advisory Database and
+# ignore this config entirely — including the cooldowns below, so a security
+# patch is never held back. They are switched on in Settings > Code security,
+# not here; that toggle is what makes advisories like #84 and #85 surface as
+# PRs instead of being found by the periodic audit.
+version: 2
+
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+
+    # `pnpm-lock.yaml` is in the mutation gate's scope
+    # (`.github/scripts/mutation-scope.sh`), so *every* PR from this block
+    # triggers a full Stryker run against a 30-minute timeout. This limit is a
+    # cost control, not a formality.
+    open-pull-requests-limit: 5
+
+    # Let a release sit in public long enough for the wider ecosystem to find a
+    # bad one before it reaches us — broken publishes and compromised packages
+    # are typically yanked within hours to days. This is the risk filter that
+    # makes merging a green dependency PR a glance rather than an audit.
+    cooldown:
+      default-days: 5
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+    groups:
+      # One weekly PR for low-risk dev churn (eslint, prettier, vitest, wrangler,
+      # stryker, @types/*). Majors are deliberately excluded so a breaking
+      # toolchain bump lands in its own reviewable PR.
+      dev-non-major:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+
+    # Production dependencies (hono, better-auth, zod, @hono/zod-openapi, react,
+    # react-router, ...) are intentionally left ungrouped: each gets its own PR,
+    # so a red CI run points at exactly one package.
+
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+
+  # Action pins in .github/workflows/*. These never touch `pnpm-lock.yaml`, so
+  # they cost no mutation run — group them all into a single PR.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "dependencies"
