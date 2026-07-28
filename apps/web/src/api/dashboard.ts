@@ -1,58 +1,18 @@
-import { apiRequest } from "./client.ts";
-import type { AssetSharing } from "./assets.ts";
+import { apiGet } from "./client.ts";
+import type { components } from "./schema.ts";
+import type { AssetSharing, AssetType } from "./assets.ts";
 
-export type TaskUrgencyStatus = "overdue" | "soon" | "ok";
-export type AssetType = "vehicle" | "property" | "equipment";
-export type { AssetSharing };
+export type { AssetSharing, AssetType };
 
-export type DashboardFleetTotals = {
-  total: number;
-  vehicle: number;
-  equipment: number;
-  property: number;
-};
-
-export type DashboardFleetHealth = {
-  overdue: number;
-  soon: number;
-  onTrack: number;
-  unscheduled: number;
-};
-
-export type DashboardQueueCounts = {
-  all: number;
-  vehicle: number;
-  equipment: number;
-  property: number;
-};
-
-export type DashboardQueueItem = {
-  taskId: string;
-  taskTitle: string;
-  nextDue: string;
-  status: TaskUrgencyStatus;
-  daysDue: number;
-  intervalValue: number;
-  intervalUnit: "day" | "week" | "month" | "year";
-  lastCompletedDate: string | null;
-  createdAt: string;
-  assetId: string;
-  assetName: string;
-  assetType: AssetType;
-  sharing: AssetSharing;
-};
-
-export type DashboardResponse = {
-  viewerDisplayName: string | null;
-  todayUtc: string;
-  fleetTotals: DashboardFleetTotals;
-  fleetHealth: DashboardFleetHealth;
-  queueCountsByCategory: DashboardQueueCounts;
-  queue: DashboardQueueItem[];
-};
+export type TaskUrgencyStatus = components["schemas"]["MaintenanceTask"]["status"];
+export type DashboardFleetTotals = components["schemas"]["DashboardFleetTotals"];
+export type DashboardFleetHealth = components["schemas"]["DashboardFleetHealth"];
+export type DashboardQueueCounts = components["schemas"]["DashboardQueueCounts"];
+export type DashboardQueueItem = components["schemas"]["DashboardQueueItem"];
+export type DashboardResponse = components["schemas"]["DashboardResponse"];
 
 export const dashboardQueryKey = ["dashboard"] as const;
 
 export function getDashboard(): Promise<DashboardResponse> {
-  return apiRequest<DashboardResponse>("/api/dashboard");
+  return apiGet("/api/dashboard");
 }

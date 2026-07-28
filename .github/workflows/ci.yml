@@ -61,3 +61,11 @@ jobs:
         run: |
           pnpm --filter @snaveevans/pineapple-api cf-typegen
           git diff --exit-code apps/api/worker-configuration.d.ts
+
+      # The web client's types are generated from the committed spec, so an API
+      # contract change breaks `type-check` in apps/web instead of the browser
+      # (issue #117). Stale generated types would reopen that gap.
+      - name: Check generated web API types are up to date
+        run: |
+          pnpm --filter @snaveevans/pineapple-web api:types
+          git diff --exit-code apps/web/src/api/schema.ts

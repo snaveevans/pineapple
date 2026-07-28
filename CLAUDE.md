@@ -123,6 +123,23 @@ value objects, domain events, and storage/table mapping. If you find yourself
 writing a field table that mirrors a spec schema, stop — link to the spec
 instead.
 
+**The web client is bound to the spec.** `apps/web/src/api/schema.ts` is
+generated from `openapi.json` and committed; CI drift-checks it. The request
+functions in `apps/web/src/api/*.ts` alias those generated types and call the
+path-keyed helpers in `client.ts` (`apiGet("/api/assets/{id}", { path: { id } })`),
+so the path literal — not a hand-picked type parameter — determines the params,
+body, and response. A contract change therefore fails `pnpm type-check` in
+`apps/web` rather than breaking in the browser. After changing the contract,
+regenerate both artifacts:
+
+```bash
+pnpm --filter @snaveevans/pineapple-api openapi:generate
+pnpm --filter @snaveevans/pineapple-web api:types
+```
+
+Don't hand-declare a wire shape in `apps/web` that the spec already describes,
+and never edit `schema.ts` by hand.
+
 ## Commands
 
 ```bash
@@ -132,6 +149,7 @@ pnpm lint                # eslint (includes layer-boundary + Workers constraints
 pnpm type-check          # tsc --noEmit across workspace
 pnpm -r test             # vitest (domain tests live in apps/api/src/**)
 pnpm --filter @snaveevans/pineapple-api openapi:generate   # regenerate the spec
+pnpm --filter @snaveevans/pineapple-web api:types          # regenerate apps/web/src/api/schema.ts from openapi.json
 pnpm --filter @snaveevans/pineapple-api cf-typegen         # regenerate worker-configuration.d.ts from wrangler.jsonc
 pnpm --filter @snaveevans/pineapple-api wrangler d1 migrations apply pineapple --local
 ```

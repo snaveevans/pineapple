@@ -8,13 +8,10 @@ afterEach(() => {
 describe("notifications API", () => {
   it("calls the inbox endpoint with cursor pagination", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ notifications: [], unreadCount: 0, nextCursor: null }),
-        {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        },
-      ),
+      new Response(JSON.stringify({ notifications: [], unreadCount: 0, nextCursor: null }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -25,6 +22,7 @@ describe("notifications API", () => {
     });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/notifications?cursor=next-page&limit=20", {
+      method: "GET",
       credentials: "include",
     });
   });
