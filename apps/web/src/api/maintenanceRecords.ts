@@ -1,40 +1,20 @@
-import { apiRequest } from "./client.ts";
+import { apiGet, apiPost } from "./client.ts";
+import type { components } from "./schema.ts";
 
-export type MaintenanceRecord = {
-  id: string;
-  assetId: string;
-  title: string;
-  performedAt: string;
-  notes: string | null;
-  taskId: string | null;
-  createdAt: string;
-};
-
-export type MaintenanceRecordListResponse = {
-  maintenanceRecords: MaintenanceRecord[];
-};
-
-export type CreateMaintenanceRecordBody = {
-  title: string;
-  performedAt: string;
-  notes?: string;
-  taskId?: string;
-};
+export type MaintenanceRecord = components["schemas"]["MaintenanceRecord"];
+export type MaintenanceRecordListResponse = components["schemas"]["MaintenanceRecordListResponse"];
+export type CreateMaintenanceRecordBody = components["schemas"]["CreateMaintenanceRecordBody"];
 
 export const maintenanceRecordsQueryKey = (assetId: string) =>
   ["maintenanceRecords", assetId] as const;
 
 export function listMaintenanceRecords(assetId: string): Promise<MaintenanceRecordListResponse> {
-  return apiRequest<MaintenanceRecordListResponse>(`/api/assets/${assetId}/maintenance-records`);
+  return apiGet("/api/assets/{assetId}/maintenance-records", { path: { assetId } });
 }
 
 export function createMaintenanceRecord(
   assetId: string,
   body: CreateMaintenanceRecordBody,
 ): Promise<MaintenanceRecord> {
-  return apiRequest<MaintenanceRecord>(`/api/assets/${assetId}/maintenance-records`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return apiPost("/api/assets/{assetId}/maintenance-records", { path: { assetId }, body });
 }

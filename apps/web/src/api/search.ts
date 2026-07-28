@@ -1,25 +1,15 @@
-import { apiRequest } from "./client";
-import type { AssetSharing, AssetType } from "./assets";
+import { apiGet } from "./client.ts";
+import type { components } from "./schema.ts";
 
-export type SearchResult = {
-  id: string;
-  name: string;
-  type: AssetType;
-  summary: string;
-  sharing: AssetSharing;
-};
-
-export type SearchAssetsResponse = {
-  results: SearchResult[];
-};
+export type SearchResult = components["schemas"]["SearchResult"];
+export type SearchAssetsResponse = components["schemas"]["SearchAssetsResponse"];
 
 export function searchAssets(
   query: string,
   options?: { signal?: AbortSignal },
 ): Promise<SearchAssetsResponse> {
-  const params = new URLSearchParams({ q: query });
-  return apiRequest<SearchAssetsResponse>(
-    `/api/search?${params.toString()}`,
-    options?.signal ? { signal: options.signal } : undefined,
-  );
+  return apiGet("/api/search", {
+    query: { q: query },
+    ...(options?.signal ? { signal: options.signal } : {}),
+  });
 }

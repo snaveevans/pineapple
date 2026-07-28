@@ -1,51 +1,27 @@
-import { apiRequest } from "./client.ts";
+import { apiDelete, apiGet, apiPost } from "./client.ts";
+import type { components } from "./schema.ts";
 
-export type IntervalUnit = "day" | "week" | "month" | "year";
-export type TaskUrgencyStatus = "overdue" | "soon" | "ok";
-
-export type MaintenanceTask = {
-  id: string;
-  assetId: string;
-  title: string;
-  intervalValue: number;
-  intervalUnit: IntervalUnit;
-  lastCompletedDate: string | null;
-  nextDue: string;
-  status: TaskUrgencyStatus;
-  daysDue: number;
-  createdAt: string;
-};
-
-export type MaintenanceTaskListResponse = {
-  maintenanceTasks: MaintenanceTask[];
-};
-
-export type CreateMaintenanceTaskBody = {
-  title: string;
-  intervalValue: number;
-  intervalUnit: IntervalUnit;
-  lastCompletedDate?: string;
-};
+export type IntervalUnit = components["schemas"]["MaintenanceTask"]["intervalUnit"];
+export type TaskUrgencyStatus = components["schemas"]["MaintenanceTask"]["status"];
+export type MaintenanceTask = components["schemas"]["MaintenanceTask"];
+export type MaintenanceTaskListResponse = components["schemas"]["MaintenanceTaskListResponse"];
+export type CreateMaintenanceTaskBody = components["schemas"]["CreateMaintenanceTaskBody"];
 
 export const maintenanceTasksQueryKey = (assetId: string) => ["maintenanceTasks", assetId] as const;
 
 export function listMaintenanceTasks(assetId: string): Promise<MaintenanceTaskListResponse> {
-  return apiRequest<MaintenanceTaskListResponse>(`/api/assets/${assetId}/maintenance-tasks`);
+  return apiGet("/api/assets/{assetId}/maintenance-tasks", { path: { assetId } });
 }
 
 export function createMaintenanceTask(
   assetId: string,
   body: CreateMaintenanceTaskBody,
 ): Promise<MaintenanceTask> {
-  return apiRequest<MaintenanceTask>(`/api/assets/${assetId}/maintenance-tasks`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return apiPost("/api/assets/{assetId}/maintenance-tasks", { path: { assetId }, body });
 }
 
 export function deleteMaintenanceTask(assetId: string, taskId: string): Promise<void> {
-  return apiRequest<void>(`/api/assets/${assetId}/maintenance-tasks/${taskId}`, {
-    method: "DELETE",
+  return apiDelete("/api/assets/{assetId}/maintenance-tasks/{taskId}", {
+    path: { assetId, taskId },
   });
 }

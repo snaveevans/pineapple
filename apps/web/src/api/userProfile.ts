@@ -1,45 +1,30 @@
-import { apiRequest } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from "./client.ts";
+import type { components } from "./schema.ts";
 
-export type UserProfile = {
-  email: string;
-  name: string | null;
-  onboardingCompletedAt: string | null;
-  notificationEmail: string | null;
-  notificationEmailVerified: boolean;
-};
+export type UserProfile = components["schemas"]["UserProfile"];
 
 export const userProfileQueryKey = ["userProfile"] as const;
 
 export function getUserProfile(): Promise<UserProfile> {
-  return apiRequest<UserProfile>("/api/users/me");
+  return apiGet("/api/users/me");
 }
 
 export function updateUserProfile(name: string): Promise<UserProfile> {
-  return apiRequest<UserProfile>("/api/users/me", {
-    method: "PATCH",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name }),
-  });
+  return apiPatch("/api/users/me", { body: { name } });
 }
 
 export function setNotificationEmail(email: string): Promise<UserProfile> {
-  return apiRequest<UserProfile>("/api/users/me/notification-email", {
-    method: "PUT",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email }),
-  });
+  return apiPut("/api/users/me/notification-email", { body: { email } });
 }
 
 export function removeNotificationEmail(): Promise<UserProfile> {
-  return apiRequest<UserProfile>("/api/users/me/notification-email", {
-    method: "DELETE",
-  });
+  return apiDelete("/api/users/me/notification-email");
 }
 
-export function requestEmailVerification(): Promise<{ status: "accepted" }> {
-  return apiRequest<{ status: "accepted" }>("/api/users/me/notification-email/verification", {
-    method: "POST",
-  });
+export function requestEmailVerification(): Promise<
+  components["schemas"]["RequestEmailVerificationResponse"]
+> {
+  return apiPost("/api/users/me/notification-email/verification");
 }
 
 export function isOnboardingComplete(profile: UserProfile): boolean {
