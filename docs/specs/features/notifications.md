@@ -381,7 +381,9 @@ email covered — this is the deliverability signal ADR-0012 requires.
   per-role isolation per [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md):
   a stuck email send cannot block event ingestion.
 - Add both queue bindings/consumers to `apps/api/wrangler.jsonc` and the matching idempotent queue
-  creation entries to `.github/workflows/deploy.yml`. DLQs are durably drained into records; they
+  creation entries to `.github/workflows/deploy.yml`, then regenerate the Worker binding types
+  (`cf-typegen`) and give each producer binding its message type in `BindingOverrides` in
+  `worker.ts` — wrangler types a queue as bare `Queue`. DLQs are durably drained into records; they
   are not just holding pens.
 - Add the email-sending application port, the Cloudflare Email Sending infrastructure adapter, the
   Worker binding/`wrangler` config, and the sending domain's SPF/DKIM/DMARC in Cloudflare DNS.

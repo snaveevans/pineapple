@@ -85,7 +85,11 @@
   // to queues that already exist and hard-fails if one is missing. Provisioning is
   // handled as IaC by the "Ensure Queues exist" step in .github/workflows/deploy.yml,
   // which idempotently creates any queue named below before deploying. To add a
-  // queue: declare it here AND add its name to that step's loop.
+  // producer queue: declare it here, add its name to that step's loop, regenerate
+  // the binding types (`pnpm --filter @snaveevans/pineapple-api cf-typegen`), and
+  // give the binding its message type in `BindingOverrides` in src/worker.ts —
+  // wrangler types a queue as bare `Queue`, so an untyped binding would accept any
+  // `.send()` payload. type-check fails until that last step is done.
   "queues": {
     "producers": [
       { "binding": "ACTIVITY_HISTORY_QUEUE", "queue": "pineapple-activity-history" },
