@@ -18,6 +18,7 @@ describe("searchAssets", () => {
     await expect(searchAssets("ram 2500")).resolves.toEqual({ results: [] });
 
     expect(fetchMock).toHaveBeenCalledWith("/api/search?q=ram+2500", {
+      method: "GET",
       credentials: "include",
     });
   });

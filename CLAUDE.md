@@ -123,6 +123,23 @@ value objects, domain events, and storage/table mapping. If you find yourself
 writing a field table that mirrors a spec schema, stop — link to the spec
 instead.
 
+**The web client is bound to the spec.** `apps/web/src/api/schema.ts` is
+generated from `openapi.json` and committed; CI drift-checks it. The request
+functions in `apps/web/src/api/*.ts` alias those generated types and call the
+path-keyed helpers in `client.ts` (`apiGet("/api/assets/{id}", { path: { id } })`),
+so the path literal — not a hand-picked type parameter — determines the params,
+body, and response. A contract change therefore fails `pnpm type-check` in
+`apps/web` rather than breaking in the browser. After changing the contract,
+regenerate both artifacts:
+
+```bash
+pnpm --filter @snaveevans/pineapple-api openapi:generate
+pnpm --filter @snaveevans/pineapple-web api:types
+```
+
+Don't hand-declare a wire shape in `apps/web` that the spec already describes,
+and never edit `schema.ts` by hand.
+
 ## Commands
 
 ```bash
@@ -132,6 +149,7 @@ pnpm lint                # eslint (includes layer-boundary + Workers constraints
 pnpm type-check          # tsc --noEmit across workspace
 pnpm -r test             # vitest (domain tests live in apps/api/src/**)
 pnpm --filter @snaveevans/pineapple-api openapi:generate   # regenerate the spec
+pnpm --filter @snaveevans/pineapple-web api:types          # regenerate apps/web/src/api/schema.ts from openapi.json
 pnpm --filter @snaveevans/pineapple-api cf-typegen         # regenerate worker-configuration.d.ts from wrangler.jsonc
 pnpm --filter @snaveevans/pineapple-api wrangler d1 migrations apply pineapple --local
 ```
@@ -202,14 +220,26 @@ trailer.
 {type}/{slug}           # without
 ```
 
-- **type:** `feat` | `fix` | `docs` | `refactor` | `chore` | `ci` | `test` | `perf`
+- **type:** `feat` | `fix` | `docs` | `refactor` | `chore` | `ci` | `test` |
+  `perf` | `security`
 - **issue:** bare digits only (no `#`) — first segment after `type/` when numeric
 - **slug:** lowercase kebab-case, short
 
 Examples: `feat/42-team-invite`, `fix/87-null-session`, `docs/adr-0016`,
-`chore/upgrade-wrangler`.
+`chore/upgrade-wrangler`, `security/130-react-router-upgrade`.
 
-Regex: `^(feat|fix|docs|refactor|chore|ci|test|perf)/(?:[0-9]+-)?[a-z0-9]+(?:-[a-z0-9]+)*$`
+Regex: `^(feat|fix|docs|refactor|chore|ci|test|perf|security)/(?:[0-9]+-)?[a-z0-9]+(?:-[a-z0-9]+)*$`
+
+**This is a guideline, not a gate.** Nothing enforces it — no workflow, branch
+protection rule, or git hook reads the branch name, and CI runs on every pull
+request regardless of what the branch is called. A nonconforming name is a nit,
+not a review finding. Traceability lives in the PR body's issue link (below),
+which GitHub actually acts on; the branch name is human signal only.
+
+**Agent-assigned branches are exempt.** Cloud agent sessions get their branch
+name from the platform, not from the author — `claude/*`, `codex/*`,
+`opencode/*` and similar prefixes are outside this convention and should be left
+as assigned. The PR body still carries the issue link.
 
 ### Issue linking
 

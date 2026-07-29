@@ -57,6 +57,7 @@ src/design/             # shared design-system primitives + .hf CSS tokens
 src/marketing/          # Marketing Home page + .mk CSS
 src/auth/               # Auth Flow page (/login) + .au CSS
 src/app/                # Authenticated app pages, AppChrome shared nav, activity history
+src/api/                # API client; types generated from the OpenAPI spec (see below)
 worker/index.ts         # Worker entry; reserves /api/*, SPA-falls-back otherwise
 vite.config.ts          # react() + cloudflare() plugins
 wrangler.jsonc          # Worker + static-assets config (SPA not_found_handling)
@@ -69,7 +70,24 @@ pnpm --filter @snaveevans/pineapple-web dev         # vite dev server (http://lo
 pnpm --filter @snaveevans/pineapple-web build       # production build → dist/
 pnpm --filter @snaveevans/pineapple-web preview      # preview the built worker locally
 pnpm --filter @snaveevans/pineapple-web deploy       # build + wrangler deploy
+pnpm --filter @snaveevans/pineapple-web api:types    # regenerate src/api/schema.ts from the OpenAPI spec
 ```
+
+## API client
+
+`src/api/schema.ts` is generated from `docs/reference/openapi.json` and
+committed; CI fails if it is stale. The modules beside it alias those generated
+types and call the path-keyed helpers in `src/api/client.ts`:
+
+```ts
+apiGet("/api/assets/{id}", { path: { id } }); // response type comes from the spec
+apiPost("/api/assets", { body }); // body type comes from the spec
+```
+
+The path literal determines the params, body, and response — there is no type
+parameter to pick — so a contract change surfaces as a `type-check` failure
+here instead of a runtime break in the browser. Don't hand-declare a shape the
+spec already describes, and don't edit `schema.ts` by hand.
 
 During local development, Vite proxies same-origin `/api/*` browser requests
 to the API Worker at `http://localhost:8787`. Run the API separately with

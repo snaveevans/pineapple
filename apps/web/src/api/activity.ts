@@ -1,76 +1,23 @@
-import type { AssetType } from "./assets.ts";
-import { apiRequest } from "./client.ts";
+import { apiGet } from "./client.ts";
+import type { components, paths } from "./schema.ts";
 
-export type ActivityEntryType =
-  | "asset_added"
-  | "maintenance_logged"
-  | "task_completed"
-  | "task_scheduled"
-  | "task_deleted";
+export type ActivityEntryType = components["schemas"]["ActivityEntry"]["type"];
+export type ActivityAssetSnapshot = components["schemas"]["ActivityAssetSnapshot"];
+export type ActivityActorSnapshot = components["schemas"]["ActivityActorSnapshot"];
+export type ActivityEntry = components["schemas"]["ActivityEntry"];
+export type ActivityTypeFilter = components["schemas"]["ActivityTypeFilter"];
+export type ActivityAssetFilter = components["schemas"]["ActivityAssetFilter"];
+export type ActivityAvailableFilters = components["schemas"]["ActivityAvailableFilters"];
+export type ActivityResponse = components["schemas"]["ActivityResponse"];
 
-export type ActivityAssetSnapshot = {
-  id: string;
-  name: string;
-  type: AssetType;
-};
+type ActivityQuery = NonNullable<paths["/api/activity"]["get"]["parameters"]["query"]>;
 
-export type ActivityActorSnapshot = {
-  id: string;
-  displayName: string;
-};
-
-export type ActivityEntry = {
-  id: string;
-  type: ActivityEntryType;
-  occurredAt: string;
-  asset: ActivityAssetSnapshot;
-  actor: ActivityActorSnapshot;
-  title?: string;
-  performedAt?: string;
-};
-
-export type ActivityTypeFilter = {
-  type: ActivityEntryType;
-  count: number;
-};
-
-export type ActivityAssetFilter = {
-  asset: ActivityAssetSnapshot;
-  count: number;
-};
-
-export type ActivityAvailableFilters = {
-  types: ActivityTypeFilter[];
-  assets: ActivityAssetFilter[];
-};
-
-export type ActivityResponse = {
-  viewerUserId: string;
-  entries: ActivityEntry[];
-  availableFilters: ActivityAvailableFilters;
-  nextCursor: string | null;
-};
-
-export type ActivityFilters = {
-  type?: ActivityEntryType;
-  assetId?: string;
-};
-
-export type ListActivityParams = ActivityFilters & {
-  cursor?: string;
-  limit?: number;
-};
+export type ActivityFilters = Pick<ActivityQuery, "type" | "assetId">;
+export type ListActivityParams = ActivityQuery;
 
 export const activityQueryKey = (filters: ActivityFilters) =>
   ["activity", filters.type ?? "all", filters.assetId ?? "all"] as const;
 
 export function listActivity(params: ListActivityParams = {}): Promise<ActivityResponse> {
-  const query = new URLSearchParams();
-  if (params.type !== undefined) query.set("type", params.type);
-  if (params.assetId !== undefined) query.set("assetId", params.assetId);
-  if (params.cursor !== undefined) query.set("cursor", params.cursor);
-  if (params.limit !== undefined) query.set("limit", String(params.limit));
-
-  const suffix = query.size > 0 ? `?${query.toString()}` : "";
-  return apiRequest<ActivityResponse>(`/api/activity${suffix}`);
+  return apiGet("/api/activity", { query: params });
 }
