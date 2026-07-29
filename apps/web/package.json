@@ -17,7 +17,7 @@
     "@snaveevans/pineapple-shared": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "react-dom": "^19.2.8",
     "react-router": "^7.18.0"
   },
   "devDependencies": {
