@@ -1,0 +1,123 @@
+{
+  "screens": [
+    {
+      "id": "asset-library",
+      "name": "Asset Library",
+      "routes": {
+        "web": "/app/assets"
+      },
+      "goal": "Browse every asset, narrow the list by category, and open an asset's maintenance history.",
+      "states": [
+        {
+          "id": "loading",
+          "when": "The asset list request is in flight.",
+          "role": "status",
+          "inline": false,
+          "chrome": {
+            "toolbar": "hidden"
+          },
+          "copy": {
+            "title": "Loading assets"
+          },
+          "actions": []
+        },
+        {
+          "id": "error",
+          "when": "The asset list request failed with a non-401 error.",
+          "inline": false,
+          "chrome": {
+            "toolbar": "hidden"
+          },
+          "icon": "alert",
+          "tone": "bad",
+          "copy": {
+            "title": "Assets could not be loaded",
+            "body": {
+              "text": "Something went wrong on our end.",
+              "fallbackFor": "the error message returned by the API"
+            }
+          },
+          "actions": [
+            {
+              "id": "retry",
+              "label": "Try again",
+              "intent": "primary",
+              "icon": "repeat"
+            }
+          ]
+        },
+        {
+          "id": "redirecting",
+          "when": "The request returned 401 and the client is navigating to sign-in.",
+          "role": "status",
+          "inline": false,
+          "chrome": {
+            "toolbar": "hidden"
+          },
+          "copy": {
+            "title": "Redirecting to sign in"
+          },
+          "actions": []
+        },
+        {
+          "id": "empty",
+          "when": "The user owns no assets at all.",
+          "inline": false,
+          "chrome": {
+            "toolbar": "hidden"
+          },
+          "icon": "plus",
+          "copy": {
+            "title": "No assets yet",
+            "body": "Add your trucks, equipment, and properties to start tracking maintenance in one place."
+          },
+          "actions": [
+            {
+              "id": "add-asset",
+              "label": "Add asset",
+              "intent": "primary",
+              "icon": "plus",
+              "target": "add-asset"
+            }
+          ]
+        },
+        {
+          "id": "filtered-empty",
+          "when": "A category filter is active and no owned asset matches it.",
+          "inline": true,
+          "icon": "filter",
+          "copy": {
+            "title": "No {category} yet",
+            "body": "You don't have any assets in this category."
+          },
+          "params": {
+            "category": {
+              "type": "category-label",
+              "transform": "lowercase"
+            }
+          },
+          "actions": [
+            {
+              "id": "clear-filter",
+              "label": "Clear filter",
+              "intent": "ghost"
+            },
+            {
+              "id": "add-asset",
+              "label": "Add asset",
+              "intent": "primary",
+              "icon": "plus",
+              "target": "add-asset"
+            }
+          ]
+        }
+      ],
+      "implementations": {
+        "web": {
+          "source": "apps/web/src/app/AppAssets.tsx",
+          "tests": "apps/web/src/app/AppAssets.test.tsx"
+        }
+      }
+    }
+  ]
+}

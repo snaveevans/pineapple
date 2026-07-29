@@ -127,6 +127,19 @@ importers:
 
   packages/shared: {}
 
+  packages/ux-spec:
+    dependencies:
+      zod:
+        specifier: ^3.0.0
+        version: 3.25.76
+    devDependencies:
+      tsx:
+        specifier: ^4.19.0
+        version: 4.22.3
+      yaml:
+        specifier: ^2.8.1
+        version: 2.9.0
+
 packages:
 
   '@asteasolutions/zod-to-openapi@7.3.4':

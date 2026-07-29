@@ -1,0 +1,23 @@
+{
+  "name": "@snaveevans/pineapple-ux-spec",
+  "version": "0.0.0",
+  "private": true,
+  "description": "EXPERIMENT: structured UX spec source, generator, and conformance verifier",
+  "type": "module",
+  "exports": {
+    "./copy": "./generated/copy.ts",
+    "./schema": "./src/schema.ts"
+  },
+  "scripts": {
+    "ux:generate": "tsx src/generate.ts",
+    "ux:verify": "tsx src/verify.ts",
+    "test": "echo \"(no tests in ux-spec yet)\""
+  },
+  "dependencies": {
+    "zod": "^3.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "yaml": "^2.8.1"
+  }
+}
