@@ -37,6 +37,18 @@ updates:
       semver-patch-days: 3
 
     groups:
+      # react-dom asserts at runtime that its version exactly matches react's.
+      # Left ungrouped, a version-locked pair can split across two PRs that
+      # each pin the other stale in pnpm-lock.yaml (#153) — neither goes green
+      # alone. This group must stay ahead of dev-non-major: Dependabot assigns
+      # a dependency to the first matching group, so if these patterns are
+      # ever widened to catch dev-type packages (e.g. @types/*), declaring
+      # this group later would let dev-non-major claim them first.
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+
       # One weekly PR for low-risk dev churn (eslint, prettier, vitest, wrangler,
       # stryker, @types/*). Majors are deliberately excluded so a breaking
       # toolchain bump lands in its own reviewable PR.
@@ -46,9 +58,10 @@ updates:
           - "minor"
           - "patch"
 
-    # Production dependencies (hono, better-auth, zod, @hono/zod-openapi, react,
-    # react-router, ...) are intentionally left ungrouped: each gets its own PR,
-    # so a red CI run points at exactly one package.
+    # Production dependencies (hono, better-auth, zod, @hono/zod-openapi,
+    # react-router, ...) are intentionally left ungrouped: each gets its own
+    # PR, so a red CI run points at exactly one package. react/react-dom are
+    # the one version-locked exception, grouped above.
 
     commit-message:
       prefix: "chore"
