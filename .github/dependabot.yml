@@ -49,6 +49,18 @@ updates:
           - "react"
           - "react-dom"
 
+      # @hono/zod-openapi's peer dependency on zod moves in lockstep with its
+      # own major version (v0.x -> zod v3, v1.x -> zod v4). Left ungrouped, a
+      # bump on either side can land as two PRs that can't both go green
+      # (#158, #155) — bumping zod alone crashed openapi:generate and broke
+      # Worker boot; bumping @hono/zod-openapi alone failed tests against the
+      # v3 objects still in the tree. Must stay ahead of dev-non-major for the
+      # same first-match ordering reason as react above.
+      zod-openapi:
+        patterns:
+          - "zod"
+          - "@hono/zod-openapi"
+
       # One weekly PR for low-risk dev churn (eslint, prettier, vitest, wrangler,
       # stryker, @types/*). Majors are deliberately excluded so a breaking
       # toolchain bump lands in its own reviewable PR.
@@ -58,10 +70,10 @@ updates:
           - "minor"
           - "patch"
 
-    # Production dependencies (hono, better-auth, zod, @hono/zod-openapi,
-    # react-router, ...) are intentionally left ungrouped: each gets its own
-    # PR, so a red CI run points at exactly one package. react/react-dom are
-    # the one version-locked exception, grouped above.
+    # Production dependencies (hono, better-auth, react-router, ...) are
+    # intentionally left ungrouped: each gets its own PR, so a red CI run
+    # points at exactly one package. react/react-dom and zod/@hono/zod-openapi
+    # are the version-locked exceptions, grouped above.
 
     commit-message:
       prefix: "chore"
