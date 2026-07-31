@@ -1475,6 +1475,12 @@ export interface components {
             /** @example metadata.year */
             field?: string;
         };
+        CreateAssetBody: {
+            /** @example My Truck */
+            name: string;
+            metadata: components["schemas"]["AssetMetadata"];
+        };
+        AssetMetadata: components["schemas"]["VehicleMetadata"] | components["schemas"]["PropertyMetadata"] | components["schemas"]["EquipmentMetadata"];
         VehicleMetadata: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1490,13 +1496,6 @@ export interface components {
             /** @example 1C6RR7LT4GS123456 */
             vin?: string;
         };
-        Address: {
-            street: string;
-            city: string;
-            state: string;
-            postalCode: string;
-            country: string;
-        };
         PropertyMetadata: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1506,6 +1505,13 @@ export interface components {
             /** @example Lake cabin */
             nickname?: string;
             address: components["schemas"]["Address"];
+        };
+        Address: {
+            street: string;
+            city: string;
+            state: string;
+            postalCode: string;
+            country: string;
         };
         EquipmentMetadata: {
             /**
@@ -1520,22 +1526,9 @@ export interface components {
             /** @example EAMT-1234567 */
             serialNumber?: string;
         };
-        AssetMetadata: components["schemas"]["VehicleMetadata"] | components["schemas"]["PropertyMetadata"] | components["schemas"]["EquipmentMetadata"];
-        CreateAssetBody: {
-            /** @example My Truck */
-            name: string;
-            metadata: components["schemas"]["AssetMetadata"];
-        };
-        AssetSharing: {
-            /**
-             * @example personal
-             * @enum {string}
-             */
-            scope: "personal" | "team";
-            /** @example true */
-            isOwner: boolean;
-            /** @example Dale */
-            ownerDisplayName?: string;
+        AssetListResponse: {
+            assets: components["schemas"]["Asset"][];
+            counts: components["schemas"]["AssetCategoryCounts"];
         };
         Asset: {
             /** @example 195d0ef0-47f5-439f-abfd-29f892c9a040 */
@@ -1565,6 +1558,17 @@ export interface components {
             updatedAt: string;
             sharing: components["schemas"]["AssetSharing"];
         };
+        AssetSharing: {
+            /**
+             * @example personal
+             * @enum {string}
+             */
+            scope: "personal" | "team";
+            /** @example true */
+            isOwner: boolean;
+            /** @example Dale */
+            ownerDisplayName?: string;
+        };
         AssetCategoryCounts: {
             /** @example 6 */
             all: number;
@@ -1575,9 +1579,8 @@ export interface components {
             /** @example 1 */
             equipment: number;
         };
-        AssetListResponse: {
-            assets: components["schemas"]["Asset"][];
-            counts: components["schemas"]["AssetCategoryCounts"];
+        SearchAssetsResponse: {
+            results: components["schemas"]["SearchResult"][];
         };
         SearchResult: {
             /** @example 195d0ef0-47f5-439f-abfd-29f892c9a040 */
@@ -1592,9 +1595,6 @@ export interface components {
             /** @example 2016 Ram 2500 */
             summary: string;
             sharing: components["schemas"]["AssetSharing"];
-        };
-        SearchAssetsResponse: {
-            results: components["schemas"]["SearchResult"][];
         };
         MaintenanceRecord: {
             /**
@@ -1712,6 +1712,23 @@ export interface components {
         MaintenanceTaskListResponse: {
             maintenanceTasks: components["schemas"]["MaintenanceTask"][];
         };
+        DashboardResponse: {
+            /**
+             * @description Authenticated user's display name when available
+             * @example Dale
+             */
+            viewerDisplayName: string | null;
+            /**
+             * Format: date
+             * @description Server-side UTC calendar date used for urgency calculations
+             * @example 2026-06-16
+             */
+            todayUtc: string;
+            fleetTotals: components["schemas"]["DashboardFleetTotals"];
+            fleetHealth: components["schemas"]["DashboardFleetHealth"];
+            queueCountsByCategory: components["schemas"]["DashboardQueueCounts"];
+            queue: components["schemas"]["DashboardQueueItem"][];
+        };
         DashboardFleetTotals: {
             /** @example 6 */
             total: number;
@@ -1797,22 +1814,43 @@ export interface components {
             assetType: "vehicle" | "property" | "equipment";
             sharing: components["schemas"]["AssetSharing"];
         };
-        DashboardResponse: {
+        ActivityResponse: {
             /**
-             * @description Authenticated user's display name when available
-             * @example Dale
+             * Format: uuid
+             * @description Caller's domain user id for attributing 'you' vs teammate in the client
+             * @example 7d914909-c903-41a4-a13a-82cbd0f61851
              */
-            viewerDisplayName: string | null;
+            viewerUserId: string;
+            entries: components["schemas"]["ActivityEntry"][];
+            availableFilters: components["schemas"]["ActivityAvailableFilters"];
+            /** @example null */
+            nextCursor: string | null;
+        };
+        ActivityEntry: {
+            /**
+             * Format: uuid
+             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
+             */
+            id: string;
+            /**
+             * @example maintenance_logged
+             * @enum {string}
+             */
+            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
+            /**
+             * Format: date-time
+             * @example 2026-06-09T18:25:24.887Z
+             */
+            occurredAt: string;
+            asset: components["schemas"]["ActivityAssetSnapshot"];
+            actor: components["schemas"]["ActivityActorSnapshot"];
+            /** @example Changed oil */
+            title?: string;
             /**
              * Format: date
-             * @description Server-side UTC calendar date used for urgency calculations
-             * @example 2026-06-16
+             * @example 2026-06-09
              */
-            todayUtc: string;
-            fleetTotals: components["schemas"]["DashboardFleetTotals"];
-            fleetHealth: components["schemas"]["DashboardFleetHealth"];
-            queueCountsByCategory: components["schemas"]["DashboardQueueCounts"];
-            queue: components["schemas"]["DashboardQueueItem"][];
+            performedAt?: string;
         };
         ActivityAssetSnapshot: {
             /**
@@ -1841,31 +1879,9 @@ export interface components {
              */
             displayName: string;
         };
-        ActivityEntry: {
-            /**
-             * Format: uuid
-             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
-             */
-            id: string;
-            /**
-             * @example maintenance_logged
-             * @enum {string}
-             */
-            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
-            /**
-             * Format: date-time
-             * @example 2026-06-09T18:25:24.887Z
-             */
-            occurredAt: string;
-            asset: components["schemas"]["ActivityAssetSnapshot"];
-            actor: components["schemas"]["ActivityActorSnapshot"];
-            /** @example Changed oil */
-            title?: string;
-            /**
-             * Format: date
-             * @example 2026-06-09
-             */
-            performedAt?: string;
+        ActivityAvailableFilters: {
+            types: components["schemas"]["ActivityTypeFilter"][];
+            assets: components["schemas"]["ActivityAssetFilter"][];
         };
         ActivityTypeFilter: {
             /**
@@ -1880,22 +1896,6 @@ export interface components {
             asset: components["schemas"]["ActivityAssetSnapshot"];
             /** @example 6 */
             count: number;
-        };
-        ActivityAvailableFilters: {
-            types: components["schemas"]["ActivityTypeFilter"][];
-            assets: components["schemas"]["ActivityAssetFilter"][];
-        };
-        ActivityResponse: {
-            /**
-             * Format: uuid
-             * @description Caller's domain user id for attributing 'you' vs teammate in the client
-             * @example 7d914909-c903-41a4-a13a-82cbd0f61851
-             */
-            viewerUserId: string;
-            entries: components["schemas"]["ActivityEntry"][];
-            availableFilters: components["schemas"]["ActivityAvailableFilters"];
-            /** @example null */
-            nextCursor: string | null;
         };
         UserProfile: {
             /**
@@ -1952,6 +1952,37 @@ export interface components {
             /** @example kQ8s2f...opaque-token */
             token: string;
         };
+        NotificationListResponse: {
+            notifications: components["schemas"]["Notification"][];
+            /** @example 2 */
+            unreadCount: number;
+            /** @example null */
+            nextCursor: string | null;
+        };
+        Notification: {
+            /**
+             * Format: uuid
+             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
+             */
+            id: string;
+            /**
+             * @example maintenance_due_soon
+             * @enum {string}
+             */
+            type: "maintenance_due_soon";
+            /**
+             * Format: date-time
+             * @example 2026-07-13T00:00:00.000Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @example null
+             */
+            readAt: string | null;
+            asset: components["schemas"]["NotificationAssetSnapshot"];
+            task: components["schemas"]["NotificationTaskSnapshot"];
+        };
         NotificationAssetSnapshot: {
             /**
              * Format: uuid
@@ -1980,51 +2011,9 @@ export interface components {
              */
             nextDue: string;
         };
-        Notification: {
-            /**
-             * Format: uuid
-             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
-             */
-            id: string;
-            /**
-             * @example maintenance_due_soon
-             * @enum {string}
-             */
-            type: "maintenance_due_soon";
-            /**
-             * Format: date-time
-             * @example 2026-07-13T00:00:00.000Z
-             */
-            createdAt: string;
-            /**
-             * Format: date-time
-             * @example null
-             */
-            readAt: string | null;
-            asset: components["schemas"]["NotificationAssetSnapshot"];
-            task: components["schemas"]["NotificationTaskSnapshot"];
-        };
-        NotificationListResponse: {
-            notifications: components["schemas"]["Notification"][];
-            /** @example 2 */
-            unreadCount: number;
-            /** @example null */
-            nextCursor: string | null;
-        };
         MarkAllNotificationsReadResponse: {
             /** @example 0 */
             unreadCount: number;
-        };
-        TeamMember: {
-            /** @example 7d914909-c903-41a4-a13a-82cbd0f61851 */
-            userId: string;
-            /** @example Dale */
-            name: string;
-            /**
-             * @example owner
-             * @enum {string}
-             */
-            role: "owner" | "member";
         };
         Team: {
             /** @example aaa11100-0000-0000-0000-000000000001 */
@@ -2039,6 +2028,17 @@ export interface components {
              * @example 2026-07-10T12:00:00.000Z
              */
             createdAt: string;
+        };
+        TeamMember: {
+            /** @example 7d914909-c903-41a4-a13a-82cbd0f61851 */
+            userId: string;
+            /** @example Dale */
+            name: string;
+            /**
+             * @example owner
+             * @enum {string}
+             */
+            role: "owner" | "member";
         };
         CreateTeamBody: {
             /** @example Field Ops */
