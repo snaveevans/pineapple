@@ -21,7 +21,7 @@
     "react-router": "^8.1.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.46.0",
+    "@cloudflare/vite-plugin": "^1.47.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.4.0",
@@ -30,6 +30,6 @@
     "typescript": "^6.0.3",
     "vite": "^6.3.0",
     "vitest": "^3.2.4",
-    "wrangler": "^4.113.0"
+    "wrangler": "^4.114.0"
   }
 }
