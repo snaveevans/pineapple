@@ -4,6 +4,11 @@ name: CI
 # before a PR can be merged — so merging from your phone stays safe.
 on:
   pull_request:
+    # Default types omit `labeled`/`unlabeled` — without them, applying the
+    # breaking-api escape-hatch label to an already-red PR wouldn't retrigger
+    # this workflow, leaving the gate stuck red until a new commit or manual
+    # re-run (issue #118 review).
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -84,6 +89,11 @@ jobs:
       # available to apply, whether or not this run finds a breaking change.
       - name: Ensure breaking-api escape-hatch label exists
         if: github.event_name == 'pull_request'
+        # GITHUB_TOKEN is forced read-only on fork-originated PRs regardless
+        # of the job's requested permissions, so this write would 403 there.
+        # It's best-effort housekeeping, not the gate itself — don't fail the
+        # whole job over it (issue #118 review).
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
