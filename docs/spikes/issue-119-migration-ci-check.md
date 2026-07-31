@@ -135,3 +135,95 @@ whatever script/helper this check uses in a form both can call (e.g. a
 `.github/scripts/` script or small shared helper) rather than inlining the
 `wrangler` invocation only into the CI YAML, so the integration-test work
 doesn't have to reinvent it.
+
+## Build vs. buy on the destructive-DDL flag
+
+### Cost of a hand-rolled regex
+
+Cheap for a _narrow_ version, effectively unbounded for a _general_ one — the
+gap matters here because our input is narrow.
+
+A version scoped to exactly this repo's migrations is small: same shape as
+the existing `.github/scripts/mutation-scope.sh` (~15 lines) plus a
+`.selftest.sh` companion, maybe an hour including tests. It only needs two
+patterns: `DROP TABLE` / `DROP COLUMN` (rare keywords, near-zero
+false-positive risk), and `NOT NULL` **conditioned on the statement being
+`ALTER TABLE ... ADD COLUMN`**, not a blind file-wide grep for `NOT NULL` —
+every `CREATE TABLE` in this repo declares `NOT NULL` columns routinely (see
+`0001_initial.sql`), and those are always safe since the table has no rows
+yet. Confirmed all 8 existing `ADD COLUMN` statements in this repo are
+single-line, so a per-line regex conditioned on both `ALTER TABLE` and `ADD
+COLUMN` appearing together is sufficient _today_.
+
+That last clause is the catch: it's sufficient for our current style, not
+provably sufficient in general. A regex can't tell a `DROP TABLE` keyword
+from the string `'DROP TABLE'` inside a quoted default value, can't see
+across a statement someone reformats onto multiple lines, and has no concept
+of "this is inside a comment." None of those have happened in 15 migrations,
+but a regex-based check's reliability is really a bet on the team (or
+agents, per this repo's CLAUDE.md-driven workflow) continuing to write SQL
+in the same shape, not a structural guarantee. The honest framing: cheap and
+good enough for a small, self-authored migration set that's always reviewed;
+not "reliable" in the sense of parsing arbitrary SQL correctly.
+
+### Is this common?
+
+Yes, as a _pattern_ — Rails' `strong_migrations` gem, Stripe- and
+GitHub-engineering write-ups, and plenty of homegrown CI grep checks all
+exist because "flag dangerous migrations" is a well-known problem. But
+almost all of that tooling targets Postgres/MySQL through an ORM. For raw-SQL
+SQLite/D1 specifically, off-the-shelf tooling is thin — which is exactly why
+a hand-rolled check is a normal thing to reach for on this stack, not a sign
+we're missing an obvious library.
+
+### The one real alternative: Atlas (`ariga/atlas`)
+
+[Atlas](https://github.com/ariga/atlas) is a schema-migration tool with a
+`migrate lint` subcommand built specifically for this: it has dedicated
+destructive-change analyzers — `DS101` (drop schema), `DS102` (drop table),
+`DS103` (drop column) — plus others for unsafe `NOT NULL` additions, and it
+works by actually parsing the SQL and diffing schema state, not pattern
+matching. That means it structurally can't confuse a `CREATE TABLE (...  NOT
+NULL ...)` with a dangerous `ALTER TABLE ADD COLUMN ... NOT NULL` the way a
+naive regex could.
+
+Two things make it a closer fit than expected:
+
+- **SQLite is a first-class supported dialect** (alongside Postgres, MySQL,
+  SQL Server, ClickHouse), and its `--dev-url` scratch database can be an
+  in-memory SQLite instance — no Docker dependency, unlike the Postgres
+  examples in Atlas's own docs.
+- **Atlas's default migration-directory format is `{version}_{name}.sql`,
+  splitting on the first underscore** — which is exactly our
+  `0001_initial.sql`, `0002_better_auth.sql`, … naming. No renaming needed.
+- Atlas ships purpose-built GitHub Actions (`ariga/setup-atlas` +
+  `ariga/atlas-action/migrate/lint`) documented for exactly this workflow:
+  run on every PR touching the migrations directory, fail and comment if a
+  change is unsafe.
+
+The real costs of adopting it:
+
+- A new Go-binary CLI dependency in a CI pipeline that's otherwise entirely
+  pnpm/Node — one more toolchain to install and pin versions for.
+- Atlas's native directory format expects an `atlas.sum` checksum file
+  (content hash per migration file) to validate the directory hasn't been
+  tampered with. We don't have one; generating and committing it means
+  another generated-artifact-plus-drift-check pair — a shape this repo
+  already has for `openapi.json` / `schema.ts` / `worker-configuration.d.ts`,
+  so it's not a foreign pattern, just one more instance of it.
+- A learning curve on Atlas's own CLI/config conventions for what's currently
+  a two-criterion check.
+
+**Recommendation:** start with the narrow hand-rolled script for this issue
+— it's an hour of work, matches the existing `mutation-scope.sh` convention,
+and today's migration set is small and fully self-authored/reviewed, so the
+regex's blind spots are low-probability. Treat Atlas as the upgrade path if
+the migration set's SQL style diversifies enough that regex false-negatives
+become a real risk, or if the team wants the broader analyzer set Atlas
+offers beyond just DROP/NOT NULL. Worth a line in the policy doc either way,
+so the choice reads as deliberate rather than an oversight.
+
+Sources: [Atlas migration analyzers / destructive-change detection (DS101-DS103)](https://github.com/ariga/atlas/blob/master/sql/sqlcheck/destructive/destructive.go),
+[Atlas migration file/version format](https://github.com/ariga/atlas/blob/master/sql/migrate/dir.go),
+[`ariga/atlas-action` GitHub Actions](https://github.com/ariga/atlas-action),
+[Squawk — Postgres-only migration linter](https://squawkhq.com/docs/ban-drop-column/).
