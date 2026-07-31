@@ -30,7 +30,7 @@ function message(body: unknown) {
     attempts: 1,
     ack: vi.fn(),
     retry: vi.fn(),
-  } as unknown as Message<unknown> & {
+  } as unknown as {
     ack: ReturnType<typeof vi.fn>;
     retry: ReturnType<typeof vi.fn>;
   };
