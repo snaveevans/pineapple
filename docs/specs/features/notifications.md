@@ -394,13 +394,20 @@ email covered — this is the deliverability signal ADR-0012 requires.
   also get these by email" states to [`docs/web/FEATURES.md`](../../web/FEATURES.md), and
   regenerate the OpenAPI document from the new Zod route specs.
 - **Outbox relay timing.** `notification_email_outbox` rows are written only by the reminder sweep
-  (`D1ReminderSweepStore`) and are relayed to `REMINDER_EMAIL_QUEUE` only from the `scheduled()`
-  cron handler in `worker.ts` — there is no request-path relay for this outbox, unlike the activity
-  and notification-event outboxes, which the mutating-request middleware relays immediately after
-  a successful `POST`/`PATCH`/`DELETE`. That's fine today because no request-path use case writes
-  to `notification_email_outbox`. If one starts to, add a matching relay to the request-path
+  (`D1ReminderSweepStore`) and are relayed to `REMINDER_EMAIL_QUEUE` only by the independent
+  `D1NotificationEmailOutboxRepository` relay in the same `scheduled()` cron handler in
+  `worker.ts` — there is no request-path relay for this outbox, unlike the activity and
+  notification-event outboxes, which the mutating-request middleware relays immediately after a
+  successful `POST`/`PATCH`/`DELETE`. The sweep and that relay are two unordered `waitUntil` calls
+  with no sequencing between them, so a row the sweep writes on tick N is typically relayed on
+  tick N+1, not the same tick — sweep-written rows already carry up to one cron period of latency
+  today, consistent with [ADR-0013](../../decisions/0013-reminder-scheduler-via-cron-sweeps.md)'s
+  reliability-over-precision framing. No request-path use case writes to
+  `notification_email_outbox` today. If one starts to, add a matching relay to the request-path
   middleware (see the comment above `createMutatingRequestOutboxRelayMiddleware`'s call site in
-  `worker.ts`), or those rows will sit unsent for up to the ~15-minute cron cadence. See issue #70.
+  `worker.ts`) — otherwise those rows would silently wait a full cron period longer than the
+  sweep-written ones already do, with no request-path signal that anything is missing. See issue
+  #70.
 
 ## Out of Scope
 

@@ -371,18 +371,32 @@ app.use("/api/*", async (c, next) => {
 // The notification-email outbox (`notification_email_outbox`) is deliberately
 // NOT relayed here: today only the maintenance reminder sweep writes to it (see
 // `D1ReminderSweepStore`), and that sweep runs exclusively from the `scheduled()`
-// cron handler below, which already relays it via
-// `D1NotificationEmailOutboxRepository` after each sweep. If a future
-// request-path use case starts writing to `notification_email_outbox`, add its
-// relay here too, or those rows will silently sit for up to 15 minutes with no
-// immediate-relay path. Guarded by mutatingRequestOutboxRelay.test.ts and
-// tracked by issue #70.
+// cron handler below, which fires its own independent
+// `D1NotificationEmailOutboxRepository` relay every tick. The sweep and that
+// relay are two unordered `ctx.waitUntil` calls with no sequencing between
+// them — the sweep does several D1 round trips before it commits a row, while
+// the relay's claim query is a single round trip, so in practice a row the
+// sweep writes on tick N is relayed on tick N+1, not the same tick. If a
+// future request-path use case starts writing to `notification_email_outbox`,
+// add its relay here too — otherwise those rows wait a full cron period longer
+// than the sweep-written ones already do, with no request-path signal that
+// anything is missing. `REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES` below is
+// guarded by worker.test.ts; tracked by issue #70.
+export const REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES = [
+  D1ActivityOutboxRepository,
+  D1NotificationOutboxRepository,
+] as const;
+
 app.use(
   "/api/*",
-  createMutatingRequestOutboxRelayMiddleware<AppEnv>((c) => [
-    new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
-    new D1NotificationOutboxRepository(c.env.DB).relayPending(c.env.NOTIFICATION_EVENTS_QUEUE),
-  ]),
+  createMutatingRequestOutboxRelayMiddleware<AppEnv>((c) => {
+    const [ActivityOutboxRepository, NotificationOutboxRepository] =
+      REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES;
+    return [
+      new ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
+      new NotificationOutboxRepository(c.env.DB).relayPending(c.env.NOTIFICATION_EVENTS_QUEUE),
+    ];
+  }),
 );
 
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
@@ -893,9 +907,10 @@ const worker: ExportedHandler<Bindings, unknown> = {
     ctx.waitUntil(
       new D1NotificationOutboxRepository(env.DB).relayPending(env.NOTIFICATION_EVENTS_QUEUE),
     );
-    // Sole relay path for the notification-email outbox today — see the
-    // request-path middleware above for why it isn't also relayed there
-    // (issue #70).
+    // Sole relay path for the notification-email outbox today. Runs
+    // independently of the sweep above (no ordering between the two
+    // `waitUntil` calls) — see the request-path middleware for why it isn't
+    // also relayed there (issue #70).
     ctx.waitUntil(
       new D1NotificationEmailOutboxRepository(env.DB).relayPending(env.REMINDER_EMAIL_QUEUE),
     );
