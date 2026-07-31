@@ -5,7 +5,7 @@ import { AssetSharingSchema } from "./assetSchemas.ts";
 export const SearchAssetsQuerySchema = z
   .object({
     q: z
-      .string({ required_error: "Search query is required" })
+      .string({ error: "Search query is required" })
       .trim()
       .min(1, "Search query is required")
       .max(100, "Search query must be 100 characters or fewer")
