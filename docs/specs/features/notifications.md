@@ -393,6 +393,14 @@ email covered — this is the deliverability signal ADR-0012 requires.
   Update [data-model.md](../../reference/data-model.md), add the inbox and "verify an email to
   also get these by email" states to [`docs/web/FEATURES.md`](../../web/FEATURES.md), and
   regenerate the OpenAPI document from the new Zod route specs.
+- **Outbox relay timing.** `notification_email_outbox` rows are written only by the reminder sweep
+  (`D1ReminderSweepStore`) and are relayed to `REMINDER_EMAIL_QUEUE` only from the `scheduled()`
+  cron handler in `worker.ts` — there is no request-path relay for this outbox, unlike the activity
+  and notification-event outboxes, which the mutating-request middleware relays immediately after
+  a successful `POST`/`PATCH`/`DELETE`. That's fine today because no request-path use case writes
+  to `notification_email_outbox`. If one starts to, add a matching relay to the request-path
+  middleware (see the comment above `createMutatingRequestOutboxRelayMiddleware`'s call site in
+  `worker.ts`), or those rows will sit unsent for up to the ~15-minute cron cadence. See issue #70.
 
 ## Out of Scope
 

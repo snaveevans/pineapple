@@ -96,6 +96,7 @@ import type { EventBus } from "./application/ports/EventBus.ts";
 // API layer
 import { toHttpError } from "./api/errors.ts";
 import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTelemetry.ts";
+import { createMutatingRequestOutboxRelayMiddleware } from "./api/middleware/mutatingRequestOutboxRelay.ts";
 import {
   createAssetRoute,
   createMaintenanceRecordRoute,
@@ -364,17 +365,25 @@ app.use("/api/*", async (c, next) => {
   await next();
 });
 
-app.use("/api/*", async (c, next) => {
-  await next();
-  if (c.res.status >= 400 || !["POST", "PATCH", "DELETE"].includes(c.req.method)) return;
-
-  c.executionCtx.waitUntil(
+// Relays the activity and notification-event outboxes right after a successful
+// mutating request, instead of waiting for the next cron sweep (up to ~15 min).
+//
+// The notification-email outbox (`notification_email_outbox`) is deliberately
+// NOT relayed here: today only the maintenance reminder sweep writes to it (see
+// `D1ReminderSweepStore`), and that sweep runs exclusively from the `scheduled()`
+// cron handler below, which already relays it via
+// `D1NotificationEmailOutboxRepository` after each sweep. If a future
+// request-path use case starts writing to `notification_email_outbox`, add its
+// relay here too, or those rows will silently sit for up to 15 minutes with no
+// immediate-relay path. Guarded by mutatingRequestOutboxRelay.test.ts and
+// tracked by issue #70.
+app.use(
+  "/api/*",
+  createMutatingRequestOutboxRelayMiddleware<AppEnv>((c) => [
     new D1ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
-  );
-  c.executionCtx.waitUntil(
     new D1NotificationOutboxRepository(c.env.DB).relayPending(c.env.NOTIFICATION_EVENTS_QUEUE),
-  );
-});
+  ]),
+);
 
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
 app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
@@ -884,6 +893,9 @@ const worker: ExportedHandler<Bindings, unknown> = {
     ctx.waitUntil(
       new D1NotificationOutboxRepository(env.DB).relayPending(env.NOTIFICATION_EVENTS_QUEUE),
     );
+    // Sole relay path for the notification-email outbox today — see the
+    // request-path middleware above for why it isn't also relayed there
+    // (issue #70).
     ctx.waitUntil(
       new D1NotificationEmailOutboxRepository(env.DB).relayPending(env.REMINDER_EMAIL_QUEUE),
     );
