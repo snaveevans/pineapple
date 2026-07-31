@@ -264,12 +264,12 @@ function queueMessage(body: unknown, attempts = 1) {
     attempts,
     ack: vi.fn(),
     retry: vi.fn(),
-  } as unknown as Message<unknown> & {
+  } as unknown as {
     ack: ReturnType<typeof vi.fn>;
     retry: ReturnType<typeof vi.fn>;
   };
 }
 
-function batch(queue: string, messages: Message<unknown>[]) {
+function batch(queue: string, messages: ReturnType<typeof queueMessage>[]) {
   return { queue, messages } as unknown as MessageBatch<unknown>;
 }
