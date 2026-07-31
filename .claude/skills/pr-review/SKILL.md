@@ -42,19 +42,50 @@ branch is always eligible.
 
 A verdict comment already on the PR from a previous run is **not** a stop condition,
 whatever SHA it names. Eligibility governs whether the review *runs*; whether it *posts*
-is step 6's call. Someone re-running the skill on unchanged commits — with "don't post",
+is step 7's call. Someone re-running the skill on unchanged commits — with "don't post",
 or after these review criteria changed — still wants the findings.
 
-## 2. Gather context
+## 2. Check for prior review (PR targets only)
+
+List the PR's comments and find the **most recent** one carrying the
+`<!-- pineapple-pr-review -->` marker. Don't assume there's only one — without an edit
+path (step 7), earlier rounds leave a trail, and only the latest describes current state.
+Keep whatever this search finds (comment id, SHA it named) — step 7 needs it too, don't
+re-search.
+
+- **No marker comment** → first review of this PR. Continue to step 3 for a full review
+  against `main`.
+- **Marker comment found, naming SHA `S`** → diff `S..HEAD` (the commits since that
+  verdict, not the whole PR against `main`).
+  - Diff is empty, or touches only `pnpm-lock.yaml` or the generated
+    `docs/reference/openapi.json` / `apps/web/src/api/schema.ts` → nothing reviewable
+    changed. Skip straight to step 6: say so in-session, post nothing, stop. Do not
+    gather context or launch reviewers for a no-op push.
+  - Diff has other content → continue to step 3 for an **incremental review**: scoped to
+    `S..HEAD`, and carry forward any unresolved finding from the prior verdict so it
+    doesn't silently drop just because this round's diff didn't touch that line again.
+
+Skip this step for a branch diff — there's no prior comment to find — and go straight to
+step 3 for a full review.
+
+## 3. Gather context
 
 Collect the paths (not the contents) of the root `CLAUDE.md` and any `CLAUDE.md` in
 directories the change touches. Summarize the change in a few lines: what it does and
-which layers it crosses.
+which layers it crosses. On an incremental review, summarize only `S..HEAD`.
 
-## 3. Fan out reviewers
+## 4. Review the change
 
-Launch these in parallel. Each returns a list of issues, and for each issue the reason
-it was flagged.
+Before picking a mode, check whether this is a **dependency-bump PR**: author is
+`dependabot[bot]` (the `dependencies` label corroborates but the author is what
+matters) and the diff touches only manifest/lockfile files — `package.json`,
+`pnpm-lock.yaml`, or a workspace package's `package.json` under `apps/*` / `packages/*`.
+If so, skip straight to **Dependency-bump review** below, whether this is the PR's first
+review or a later one — a version bump doesn't earn five parallel agents just because
+nobody has looked at this PR yet.
+
+**First review (no prior verdict, not a dependency bump)** — fan out these five in
+parallel. Each returns a list of issues, and for each issue the reason it was flagged.
 
 1. **Conventions** — audit against `CLAUDE.md` and the repo-specific targets below.
    `CLAUDE.md` is guidance for writing code, so not every line applies to review.
@@ -67,7 +98,26 @@ it was flagged.
 5. **Comments and docs** — check the change against guidance in nearby code comments,
    the relevant spec in `docs/specs/features/`, and any ADR it depends on.
 
-## 4. Score every finding
+**Incremental review (prior verdict exists, not a dependency bump)** — do not repeat the
+fan-out. Run a single pass over the `S..HEAD` diff, checking it against the same five
+angles above. The range is small and the rest of the PR already has a verdict; five
+parallel agents re-reading the whole diff for a one-file fixup is cost with no matching
+benefit.
+
+**Dependency-bump review** — one pass, no fan-out, and none of the five angles above:
+they're conventions/architecture checks and a version bump has neither. Instead:
+
+1. Confirm the diff is actually confined to manifest/lockfile files. If dependabot's diff
+   touches anything else — a config file, a source file, a workaround for the new version
+   — that's no longer a mechanical bump. Fall through to the first-review or incremental
+   mode above for the whole PR; something touched by hand needs the real rubric.
+2. If it's confined as expected, there is nothing here for a diff review to add: `ci.yml`
+   (lint/type-check/test) and, since `pnpm-lock.yaml` sits in `mutation.yml`'s scope
+   regex, the full mutation suite already run against the bumped dependency. Note the
+   version jump (patch/minor/major) in-session for visibility, and approve — a major-
+   version bump is a judgment call for whoever merges it, not a diff-review finding.
+
+## 5. Score every finding
 
 For each issue, independently score confidence 0-100. Give the scorer this rubric
 verbatim:
@@ -84,17 +134,18 @@ For anything flagged on `CLAUDE.md` grounds, the scorer must confirm `CLAUDE.md`
 actually says that. **Drop everything under 80.** If nothing survives, say so — a quiet
 review is a valid result, not a failure.
 
-## 5. Report in-session
+## 6. Report in-session
 
 If the `ReportFindings` tool is available, use it, ranked most-severe first, and do not
 also print the findings as prose. Otherwise print them: each with file and line, the
 defect, and why it matters. No fix, no patch.
 
-## 6. Post the verdict (PR targets only)
+## 7. Post the verdict (PR targets only)
 
-The verdict follows mechanically from step 4 — there is no separate judgment call:
+The verdict follows mechanically from step 5 — there is no separate judgment call:
 
-- **Changes requested** — one or more findings scored 80+.
+- **Changes requested** — one or more findings scored 80+ (including any carried forward
+  from the prior verdict on an incremental review, still unresolved).
 - **Approved** — nothing survived scoring.
 
 Post it as a **plain PR comment**, not a formal GitHub review. A formal
@@ -103,8 +154,8 @@ approval from the PR's own author — so on a self-authored PR the formal path f
 silently while a comment always lands.
 
 Skip posting when: the target is a branch diff (nothing to post to), the request that
-invoked this skill asked you not to post, step 1 stopped the review, or the checks below
-find the current head SHA already has a published verdict.
+invoked this skill asked you not to post, step 1 stopped the review, or step 2 already
+found the current head SHA has a published verdict and nothing reviewable changed since.
 
 ### Comment format
 
@@ -126,6 +177,10 @@ Reviewed `<full head SHA>` against `main`.
 <sub>Covered: bugs, CLAUDE.md adherence, architectural fit. Not covered: lint, type-check,
 and tests (CI enforces those), test coverage, and general security posture.</sub>
 
+On a dependency-bump review, say so instead of claiming the full scope: `<sub>Dependency
+bump — confirmed the diff is confined to manifest/lockfile files; CI (lint, type-check,
+test, mutation) covers the rest.</sub>`
+
 ---
 
 _Generated by [Claude Code](https://claude.ai/code)_
@@ -141,18 +196,10 @@ Three things that comment must carry, every time:
 - **The `<!-- pineapple-pr-review -->` marker.** It is how the next run finds prior verdicts.
 - **The scope caveat.** "Approved" must not read as broader assurance than a diff review.
 
-### Find the previous verdict
-
-List the PR's comments and take the **most recent** one carrying the marker. Do not
-assume there is only one — without an edit path (below) earlier rounds leave a trail, and
-only the latest describes current state.
-
-If that comment names the current head SHA, these commits already have a published
-verdict: **post nothing** and say so in-session. The review still ran and still reports.
-
 ### Edit by ID — never blind-edit
 
-When the environment can edit a comment by its ID, edit that comment in place:
+Use the comment id found in step 2. When the environment can edit a comment by its ID,
+edit that comment in place:
 `PATCH /repos/snaveevans/pineapple/issues/comments/{id}`, `gh api --method PATCH` against
 the same endpoint, or a GitHub MCP comment-update tool. One live verdict beats a thread of
 contradicting ones.
