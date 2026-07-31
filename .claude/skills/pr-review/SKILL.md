@@ -76,8 +76,16 @@ which layers it crosses. On an incremental review, summarize only `S..HEAD`.
 
 ## 4. Review the change
 
-**First review (no prior verdict)** — fan out these five in parallel. Each returns a
-list of issues, and for each issue the reason it was flagged.
+Before picking a mode, check whether this is a **dependency-bump PR**: author is
+`dependabot[bot]` (the `dependencies` label corroborates but the author is what
+matters) and the diff touches only manifest/lockfile files — `package.json`,
+`pnpm-lock.yaml`, or a workspace package's `package.json` under `apps/*` / `packages/*`.
+If so, skip straight to **Dependency-bump review** below, whether this is the PR's first
+review or a later one — a version bump doesn't earn five parallel agents just because
+nobody has looked at this PR yet.
+
+**First review (no prior verdict, not a dependency bump)** — fan out these five in
+parallel. Each returns a list of issues, and for each issue the reason it was flagged.
 
 1. **Conventions** — audit against `CLAUDE.md` and the repo-specific targets below.
    `CLAUDE.md` is guidance for writing code, so not every line applies to review.
@@ -90,10 +98,24 @@ list of issues, and for each issue the reason it was flagged.
 5. **Comments and docs** — check the change against guidance in nearby code comments,
    the relevant spec in `docs/specs/features/`, and any ADR it depends on.
 
-**Incremental review (prior verdict exists)** — do not repeat the fan-out. Run a single
-pass over the `S..HEAD` diff, checking it against the same five angles above. The range
-is small and the rest of the PR already has a verdict; five parallel agents re-reading
-the whole diff for a one-file fixup is cost with no matching benefit.
+**Incremental review (prior verdict exists, not a dependency bump)** — do not repeat the
+fan-out. Run a single pass over the `S..HEAD` diff, checking it against the same five
+angles above. The range is small and the rest of the PR already has a verdict; five
+parallel agents re-reading the whole diff for a one-file fixup is cost with no matching
+benefit.
+
+**Dependency-bump review** — one pass, no fan-out, and none of the five angles above:
+they're conventions/architecture checks and a version bump has neither. Instead:
+
+1. Confirm the diff is actually confined to manifest/lockfile files. If dependabot's diff
+   touches anything else — a config file, a source file, a workaround for the new version
+   — that's no longer a mechanical bump. Fall through to the first-review or incremental
+   mode above for the whole PR; something touched by hand needs the real rubric.
+2. If it's confined as expected, there is nothing here for a diff review to add: `ci.yml`
+   (lint/type-check/test) and, since `pnpm-lock.yaml` sits in `mutation.yml`'s scope
+   regex, the full mutation suite already run against the bumped dependency. Note the
+   version jump (patch/minor/major) in-session for visibility, and approve — a major-
+   version bump is a judgment call for whoever merges it, not a diff-review finding.
 
 ## 5. Score every finding
 
@@ -154,6 +176,10 @@ Reviewed `<full head SHA>` against `main`.
 
 <sub>Covered: bugs, CLAUDE.md adherence, architectural fit. Not covered: lint, type-check,
 and tests (CI enforces those), test coverage, and general security posture.</sub>
+
+On a dependency-bump review, say so instead of claiming the full scope: `<sub>Dependency
+bump — confirmed the diff is confined to manifest/lockfile files; CI (lint, type-check,
+test, mutation) covers the rest.</sub>`
 
 ---
 
