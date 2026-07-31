@@ -4,6 +4,11 @@ name: CI
 # before a PR can be merged — so merging from your phone stays safe.
 on:
   pull_request:
+    # Default types omit `labeled`/`unlabeled` — without them, applying the
+    # breaking-api escape-hatch label to an already-red PR wouldn't retrigger
+    # this workflow, leaving the gate stuck red until a new commit or manual
+    # re-run (issue #118 review).
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -19,6 +24,12 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Overrides the workflow-level permissions above (job-level replaces,
+    # it does not add). `issues: write` is only needed to idempotently
+    # create the `breaking-api` escape-hatch label (issue #118).
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v7
 
@@ -69,3 +80,60 @@ jobs:
         run: |
           pnpm --filter @snaveevans/pineapple-web api:types
           git diff --exit-code apps/web/src/api/schema.ts
+
+      # Staleness (above) and backward-compatibility are different questions —
+      # with required_approving_review_count 0 and auto-merge, a removed
+      # response field, narrowed enum, or newly-required request field can
+      # merge and deploy unseen (issue #118). `breaking-api` is the escape
+      # hatch for a deliberate break; ensure it exists so it's always
+      # available to apply, whether or not this run finds a breaking change.
+      - name: Ensure breaking-api escape-hatch label exists
+        if: github.event_name == 'pull_request'
+        # GITHUB_TOKEN is forced read-only on fork-originated PRs regardless
+        # of the job's requested permissions, so this write would 403 there.
+        # It's best-effort housekeeping, not the gate itself — don't fail the
+        # whole job over it (issue #118 review).
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create breaking-api \
+            --color D93F0B \
+            --description "Deliberately allows a backward-incompatible OpenAPI change past the breaking-change gate" \
+            --force >/dev/null
+
+      # Skip the gate when the spec is untouched, so it stays off the hot
+      # path. Fails closed: if the base ref can't be fetched, run the gate
+      # rather than silently skip it.
+      - name: Check whether OpenAPI spec changed vs base branch
+        id: openapi-spec-diff
+        if: github.event_name == 'pull_request'
+        run: |
+          set -uo pipefail
+          if ! git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"; then
+            echo "::warning::Could not fetch base ref $GITHUB_BASE_REF — running breaking-change gate to fail closed"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet "origin/$GITHUB_BASE_REF" -- docs/reference/openapi.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: OpenAPI breaking-change gate
+        if: >-
+          github.event_name == 'pull_request' &&
+          steps.openapi-spec-diff.outputs.changed == 'true' &&
+          !contains(github.event.pull_request.labels.*.name, 'breaking-api')
+        uses: oasdiff/oasdiff-action/breaking@v0
+        with:
+          base: "origin/${{ github.base_ref }}:docs/reference/openapi.json"
+          revision: docs/reference/openapi.json
+          fail-on: ERR
+          # No spec leaves CI, and no PR-comment token/permission is needed:
+          # breaking changes still fail the job with inline ::error::
+          # annotations on the Files changed tab and in the job log.
+          review: false
+          github-token: ""
