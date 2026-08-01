@@ -380,8 +380,17 @@ app.use("/api/*", async (c, next) => {
 // future request-path use case starts writing to `notification_email_outbox`,
 // add its relay here too — otherwise those rows wait a full cron period longer
 // than the sweep-written ones already do, with no request-path signal that
-// anything is missing. `REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES` below is
-// guarded by worker.test.ts; tracked by issue #70.
+// anything is missing.
+//
+// `REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES` below is pinned by
+// worker.test.ts: any change to this exact list — including a correct fix
+// that adds a new repository here — fails that test until it's deliberately
+// updated. That is NOT a closed-world guard: it cannot detect a brand-new
+// write path to `notification_email_outbox` introduced elsewhere that never
+// touches this list. Closing that gap statically would need either a
+// source-scanning test (blocked by the Workers no-`fs` rule this app
+// follows) or a lint restriction on who may import `D1ReminderSweepStore`;
+// this PR adds neither. Tracked by issue #70.
 export const REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES = [
   D1ActivityOutboxRepository,
   D1NotificationOutboxRepository,
