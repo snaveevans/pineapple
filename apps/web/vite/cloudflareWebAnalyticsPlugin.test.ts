@@ -59,7 +59,8 @@ describe("cloudflareWebAnalyticsPlugin", () => {
       throw new Error("transformIndexHtml hook missing");
     }
 
-    const result = transform(htmlWithMarker, { path: "/index.html", filename: "index.html" });
+    const call = transform as (html: string, ctx: { path: string; filename: string }) => string;
+    const result = call(htmlWithMarker, { path: "/index.html", filename: "index.html" });
 
     expect(result).toContain("static.cloudflareinsights.com/beacon.min.js");
     expect(result).not.toContain(WEB_ANALYTICS_MARKER);
