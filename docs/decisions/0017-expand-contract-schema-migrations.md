@@ -33,10 +33,10 @@ The question this record answers is **what shape of schema change is permitted, 
 deploy ordering cannot make schema change reversible** — and how much authority a check enforcing
 that shape should have.
 
-This record fixes the rule and its enforcement authority. The exact DDL patterns matched, the
-script and workflow wiring, the acknowledgment-comment syntax, and the author checklist are
-mechanism and live in the
-[Schema Migrations cross-cutting spec](../specs/cross-cutting/schema-migrations.md).
+This record fixes the rule and its enforcement authority, and nothing below it. The DDL patterns, the
+script and workflow wiring, the override's syntax, and the author checklist are mechanism: they live
+in the [Schema Migrations cross-cutting spec](../specs/cross-cutting/schema-migrations.md) and, until
+they are built, in [#119](https://github.com/snaveevans/pineapple/issues/119).
 
 ## Decision Drivers
 
@@ -76,23 +76,24 @@ The load-bearing constraint is step 4's separation: **destructive DDL never ride
 as the code that stops using the column.** That is what keeps old code compatible with new schema
 across both failure windows, and it is the part a policy without enforcement reliably loses.
 
-**Two independent checks enforce it,** and neither subsumes the other:
+**The rule will be enforced in CI, and the gate will block.** Blocking follows ADR-0016's reasoning
+directly: with no human reviewer, an advisory warning is a notification arriving after the merge it
+should have stopped. Contraction is legitimate and expected, so the gate carries an override — but
+it is recorded as a durable, in-repo decision rather than a per-run dismissal, so the reason
+outlives the pull request that needed it.
 
-- **A fresh-database apply.** Every migration is applied in order to a clean local D1 on every PR.
-  This catches ordering bugs and invalid SQL — the failures that would otherwise surface for the
-  first time against production. It does **not** prove idempotency; `wrangler` already tracks
-  applied migrations in `d1_migrations` and skips them.
-- **A static scan of the migration SQL** for destructive DDL — drops, renames, and `NOT NULL`
-  added without a default.
+Enforcement takes **two checks, not one**, and that is the part most likely to be "simplified"
+later. Applying every migration to a clean database catches ordering bugs and invalid SQL. It
+cannot catch the statements whose danger is existing rows — `NOT NULL` without a default, or a
+unique index over data that is not yet unique — because a freshly built database has none. Those
+are reachable only by reading the SQL text. The two answer different questions; a future maintainer
+who concludes one is redundant has misread them.
 
-That the second check is necessary is not obvious, and the spike that preceded this decision
-([#119](https://github.com/snaveevans/pineapple/issues/119)) established it by measurement:
-**SQLite rejects `ALTER TABLE ... ADD COLUMN ... NOT NULL` without a default only when the table
-is populated.** CI's fresh database is empty by construction, so the apply check succeeds silently
-on exactly the statement that would fail against production. A check that can only pass is not a
-check. The dangerous case is reachable only by reading the SQL text, so the scan is a separate
-mechanism answering a separate question — recorded here because a future maintainer would
-otherwise reasonably assume one covers the other and delete the "redundant" one.
+**Neither check exists when this record is accepted.** The checks, the patterns they match, and the
+override's syntax are mechanism: they live in the
+[Schema Migrations spec](../specs/cross-cutting/schema-migrations.md) and
+[#119](https://github.com/snaveevans/pineapple/issues/119), and the rule holds on author discipline
+until they land.
 
 **The scan is a hand-rolled script, not a SQL parser.** [Atlas](https://github.com/ariga/atlas)'s
 `migrate lint` has purpose-built destructive-change analyzers, treats SQLite as a first-class
@@ -100,20 +101,14 @@ dialect, and — unlike a regex — parses the SQL, so it structurally cannot co
 `CREATE TABLE (... NOT NULL ...)` with a dangerous `ALTER TABLE ADD COLUMN ... NOT NULL`. It was
 weighed seriously and rejected on cost, not merit: it introduces a Go binary into an otherwise
 pnpm/Node-only pipeline and wants an `atlas.sum` checksum file, adding another
-generated-artifact-plus-drift-check pair. Against 15 small, self-authored, always-reviewed
-migrations, a ~15-line script matching the existing `mutation-scope.sh` convention buys most of
-the value for an hour of work. **This is a deliberate trade, not an oversight**, and Atlas is the
-named upgrade path — see the revisit trigger.
+generated-artifact-plus-drift-check pair. Against 15 migrations whose destructive-DDL surface is
+uniform — every `ALTER TABLE ... ADD COLUMN` in the repo is a single line — a small script in the
+shape of the existing `mutation-scope.sh` buys most of the value for about an hour of work.
+**This is a deliberate trade, not an oversight**, and Atlas is the named upgrade path.
 
-**The scan blocks, and its escape hatch is in-file.** Blocking follows ADR-0016's reasoning
-directly: with no human reviewer, an advisory warning is a notification arriving after the merge it
-should have stopped. Contraction is legitimate and expected, so the gate needs an override — but
-it is an in-file acknowledgment comment on the statement, not a PR label. The distinction is
-structural, not stylistic: the scan reads _every_ migration on _every_ run rather than diffing
-against a base ref, which is what keeps it simple and fail-closed. A label expires with the run
-that carried it, so the first acknowledged destructive migration to land would leave the scan
-permanently red. An in-file marker makes the approval durable and leaves the reason next to the SQL
-it excuses, where the next reader will find it.
+The bet is on that uniformity holding, and nothing structural guarantees it — which is what the
+revisit trigger below watches. It is explicitly _not_ a bet on review catching what the regex
+misses: this record's own premise is that no reviewer stands between a migration and production.
 
 ### Revisit Trigger
 
@@ -127,32 +122,32 @@ requirement is introduced, since that would mean CI is no longer the sole trust 
 
 - The unrecoverable case is designed out rather than guarded against: after a contraction lands,
   the column it dropped has already been unused in production for at least one deploy.
-- `/migrations` gains its first automated coverage of any kind, on the stage where mistakes are
-  least reversible.
+- It sets up `/migrations` to get its first automated coverage of any kind, on the stage where
+  mistakes are least reversible.
 - Rollback becomes an honest story, which is the prerequisite [#89](https://github.com/snaveevans/pineapple/issues/89)'s
   runbook needs to be worth writing.
-- Turning the scan on is a clean cutover: no current migration contains a drop, a rename, or a
-  `NOT NULL` addition, so no allowlist or grandfathered exception is required — and the gate is
-  therefore never introduced already-suppressed.
-- The fresh-apply fixture is the same setup the future `worker.ts` integration tests need, so it
-  is built once.
+- The gate can be introduced as a clean cutover: no current migration contains a drop, a rename, or
+  a `NOT NULL` addition, so it will not need an allowlist and will never start life
+  already-suppressed.
 
 ### Negative Consequences
 
 - **Schema change now takes at least two PRs and two deploys.** For a two-person team this is real
   friction on a change that used to be one file, and the second PR is the one everyone forgets —
   the tail of dropped-but-never-contracted columns is a cost this policy accepts.
-- **The scan is a regex, and a regex is not a parser.** It cannot distinguish a `DROP TABLE`
-  keyword from `'DROP TABLE'` inside a quoted default, cannot follow a statement reformatted across
-  lines, and reads only what the current SQL style makes visible. Its sufficiency is a bet on the
-  team and its agents continuing to write SQL in the present shape — not a structural guarantee.
-- **The acknowledgment comment can be applied thoughtlessly.** With no required reviewer, nothing
-  stops an author — or an agent — from silencing the gate rather than restructuring the change.
-  The comment makes that visible in the diff and permanent in the file; it does not prevent it.
-- Every PR pays the fresh-apply cost, including the large majority that touch no migration at all,
+- **Pattern matching is not parsing.** A regex cannot distinguish a `DROP TABLE` keyword from
+  `'DROP TABLE'` inside a quoted default, and cannot follow a statement reformatted across lines.
+  It reads only what the current SQL style makes visible.
+- **The override can be applied thoughtlessly.** With no required reviewer, nothing stops an author
+  — or an agent — from silencing the gate rather than restructuring the change. Recording the
+  reason in-repo makes that visible and permanent; it does not prevent it.
+- **The rule is unenforced in the interval.** It is accepted here and checked by nothing until
+  [#119](https://github.com/snaveevans/pineapple/issues/119) lands, so the gap this record exists to
+  close stays open in the meantime.
+- Every PR will pay the apply cost, including the large majority that touch no migration at all,
   and that cost grows with the migration count.
-- The gate says nothing about whether a migration is _correct_ — only that it applies cleanly and
-  destroys nothing. A well-formed migration encoding the wrong model still ships.
+- The gate will say nothing about whether a migration is _correct_ — only that it applies cleanly
+  and destroys nothing. A well-formed migration encoding the wrong model still ships.
 
 ---
 
