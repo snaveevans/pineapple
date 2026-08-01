@@ -35,8 +35,8 @@ that shape should have.
 
 This record fixes the rule and its enforcement authority, and nothing below it. The DDL patterns, the
 script and workflow wiring, the override's syntax, and the author checklist are mechanism: they live
-in the [Schema Migrations cross-cutting spec](../specs/cross-cutting/schema-migrations.md) and, until
-they are built, in [#119](https://github.com/snaveevans/pineapple/issues/119).
+in the [Schema Migrations cross-cutting spec](../specs/cross-cutting/schema-migrations.md), whose
+status says whether the gate is live.
 
 ## Decision Drivers
 
@@ -89,21 +89,15 @@ unique index over data that is not yet unique — because a freshly built databa
 are reachable only by reading the SQL text. The two answer different questions; a future maintainer
 who concludes one is redundant has misread them.
 
-**Neither check exists when this record is accepted.** The checks, the patterns they match, and the
-override's syntax are mechanism: they live in the
-[Schema Migrations spec](../specs/cross-cutting/schema-migrations.md) and
-[#119](https://github.com/snaveevans/pineapple/issues/119), and the rule holds on author discipline
-until they land.
-
 **The scan is a hand-rolled script, not a SQL parser.** [Atlas](https://github.com/ariga/atlas)'s
 `migrate lint` has purpose-built destructive-change analyzers, treats SQLite as a first-class
 dialect, and — unlike a regex — parses the SQL, so it structurally cannot confuse a safe
 `CREATE TABLE (... NOT NULL ...)` with a dangerous `ALTER TABLE ADD COLUMN ... NOT NULL`. It was
 weighed seriously and rejected on cost, not merit: it introduces a Go binary into an otherwise
 pnpm/Node-only pipeline and wants an `atlas.sum` checksum file, adding another
-generated-artifact-plus-drift-check pair. Against 15 migrations whose destructive-DDL surface is
-uniform — every `ALTER TABLE ... ADD COLUMN` in the repo is a single line — a small script in the
-shape of the existing `mutation-scope.sh` buys most of the value for about an hour of work.
+generated-artifact-plus-drift-check pair. Against a small migration set whose destructive-DDL
+surface is uniform — the statements that matter written one per line — a script in the shape of the
+existing `mutation-scope.sh` buys most of the value for a fraction of the effort.
 **This is a deliberate trade, not an oversight**, and Atlas is the named upgrade path.
 
 The bet is on that uniformity holding, and nothing structural guarantees it — which is what the
@@ -124,11 +118,10 @@ requirement is introduced, since that would mean CI is no longer the sole trust 
   the column it dropped has already been unused in production for at least one deploy.
 - It sets up `/migrations` to get its first automated coverage of any kind, on the stage where
   mistakes are least reversible.
-- Rollback becomes an honest story, which is the prerequisite [#89](https://github.com/snaveevans/pineapple/issues/89)'s
-  runbook needs to be worth writing.
-- The gate can be introduced as a clean cutover: no current migration contains a drop, a rename, or
-  a `NOT NULL` addition, so it will not need an allowlist and will never start life
-  already-suppressed.
+- Rollback becomes an honest story: a runbook can promise schema safety that, before this, it could
+  not deliver.
+- The gate can start with no allowlist, so it never begins life already-suppressed — the usual
+  failure mode when a new check is introduced to an existing codebase.
 
 ### Negative Consequences
 
@@ -141,13 +134,12 @@ requirement is introduced, since that would mean CI is no longer the sole trust 
 - **The override can be applied thoughtlessly.** With no required reviewer, nothing stops an author
   — or an agent — from silencing the gate rather than restructuring the change. Recording the
   reason in-repo makes that visible and permanent; it does not prevent it.
-- **The rule is unenforced in the interval.** It is accepted here and checked by nothing until
-  [#119](https://github.com/snaveevans/pineapple/issues/119) lands, so the gap this record exists to
-  close stays open in the meantime.
-- Every PR will pay the apply cost, including the large majority that touch no migration at all,
-  and that cost grows with the migration count.
-- The gate will say nothing about whether a migration is _correct_ — only that it applies cleanly
-  and destroys nothing. A well-formed migration encoding the wrong model still ships.
+- Every PR pays the apply cost, including the large majority that touch no migration at all, and
+  that cost grows with the migration count.
+- The gate says nothing about whether a migration is _correct_ — only that it applies cleanly and
+  destroys nothing. A well-formed migration encoding the wrong model still ships.
+- **A decision is not a gate.** Until the spec's status says the gate is live, this record is a rule
+  people follow rather than one anything checks.
 
 ---
 

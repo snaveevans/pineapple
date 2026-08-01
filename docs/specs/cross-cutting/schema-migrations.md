@@ -12,10 +12,9 @@ date: 2026-08-01
 **Applies To:** Every change that adds or edits a file in `/migrations`
 
 > The rule is expand/contract, decided in
-> [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md). **It is in force now and
-> enforced by author discipline — no automated check reads `/migrations` today.** CI enforcement is
-> tracked by [#119](https://github.com/snaveevans/pineapple/issues/119); this spec moves to
-> `active` when it lands.
+> [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md), which also decided it is
+> enforced by a blocking CI gate. **While this spec's status is `review`, that gate is not live and
+> the rule holds on author discipline.**
 
 ---
 
@@ -81,7 +80,7 @@ populated one, so a clean local run proves nothing about it.
 
 Two statements pass against a database built fresh from `/migrations` and can still fail against
 production. They share a cause: **the thing that makes them dangerous is existing rows, and a
-freshly built database has none.** Verified against SQLite 3.51.2:
+freshly built database has none.**
 
 ```sql
 -- 1. NOT NULL with no default.
@@ -96,9 +95,9 @@ CREATE UNIQUE INDEX idx ON t (a, b);
 ```
 
 `IF NOT EXISTS` does **not** rescue the second one — the index does not exist, so SQLite proceeds
-to build it and hits the duplicate. `0011_bootstrap_scheduled_reminders.sql` adds exactly this kind
-of index to `scheduled_reminders`, a table created back in `0009`; it is fine only because the data
-happened to be unique.
+to build it and hits the duplicate. `0011_bootstrap_scheduled_reminders.sql` is this exact shape: a
+unique index added to `scheduled_reminders`, a table created back in `0009`. Whether a statement
+like that applies cleanly depends on the rows in the database, not on anything the SQL says.
 
 The unique index carries a second hazard the `NOT NULL` case does not: **even when it succeeds it
 narrows the schema.** Old code still writing what used to be legal duplicates starts failing the
@@ -129,20 +128,20 @@ as any other `NOT NULL` addition.
 
 ## Enforcement
 
-**Nothing automated reads `/migrations` today.** No check applies these files, parses them, or
-inspects them before `deploy.yml` runs them against production. This rule currently holds because
-authors follow it.
+ADR-0017 decided this rule is **enforced in CI by a blocking gate**, with an override for the
+legitimate contraction case. While this spec's status is `review`, that gate is not live and the
+rule holds on author discipline alone — with `required_approving_review_count: 0` and auto-merge on
+`main`, nothing else stands behind it.
 
-That is a gap, not a design: with `required_approving_review_count: 0` and auto-merge on `main`,
-there is no reviewer standing behind it either. ADR-0017 decided the rule will be **enforced in CI,
-blocking**, with an override for the legitimate contraction case. The checks and their design are
-tracked by [#119](https://github.com/snaveevans/pineapple/issues/119) and documented here when they
-land.
+Enforcement takes two checks, and one bounds what the other can promise:
 
-One property of that future enforcement is worth stating now, because it shapes what authors can
-rely on: **applying migrations to a clean database cannot catch the empty-table trap above.** A
-check of that kind will exist, and it will not cover those two statements. Do not read a green
-migration check as clearance for either.
+- **Applying every migration in order to a clean database** proves the SQL is valid and correctly
+  ordered.
+- **Reading the SQL** is the only way to reach destructive DDL and the empty-table trap, because a
+  clean database has no rows for either to go wrong against.
+
+**A green migration check is therefore never clearance for the empty-table trap.** Whatever
+automation exists, those two statements stay the author's responsibility.
 
 ## Feature Integration Contract
 
@@ -163,9 +162,8 @@ Every feature that changes the database must:
 
 ## Exceptions
 
-| Feature | Deviation | Reason                                                                                                                                   |
-| ------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| —       | —         | No current migration contains a drop, a rename, or a `NOT NULL` addition. The rule starts from a clean slate with nothing grandfathered. |
+| Feature | Deviation | Reason |
+| ------- | --------- | ------ |
 
 ## Anti-Patterns
 
@@ -188,5 +186,6 @@ Every feature that changes the database must:
 - **Nothing enforces phase 4 ever happens.** Columns that went unused at phase 3 can linger
   indefinitely. Filing the contraction issue at expansion time is the only guard, and it is a human
   one.
-- **The rule is unenforced until [#119](https://github.com/snaveevans/pineapple/issues/119) lands.**
-  Between now and then, a destructive migration can reach production with nothing objecting.
+- **A unique index on an existing table cannot be judged from the SQL alone.** Whether it is safe
+  depends on the rows, so no static check can clear it. It stays an author obligation regardless of
+  what automation exists.
