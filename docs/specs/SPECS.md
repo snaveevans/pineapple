@@ -1,4 +1,4 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-07-03
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-08-01
 
 # Spec Index
 
@@ -17,15 +17,16 @@ generate or sync specs from code and PRs.
 Concerns that apply to every feature. When writing a feature spec, reference the
 relevant cross-cutting specs rather than re-describing the behavior.
 
-| Spec                                                   | Concern                          | Status |
-| ------------------------------------------------------ | -------------------------------- | ------ |
-| [authentication.md](./cross-cutting/authentication.md) | Auth, sessions, identity         | active |
-| [error-handling.md](./cross-cutting/error-handling.md) | Error states and user messaging  | active |
-| [permissions.md](./cross-cutting/permissions.md)       | Role-based access control        | active |
-| [validation.md](./cross-cutting/validation.md)         | Input validation patterns        | active |
-| [loading-states.md](./cross-cutting/loading-states.md) | Async UI states                  | active |
-| [telemetry.md](./cross-cutting/telemetry.md)           | Telemetry and observability      | active |
-| [testing.md](./cross-cutting/testing.md)               | Test verification, mutation gate | active |
+| Spec                                                         | Concern                          | Status |
+| ------------------------------------------------------------ | -------------------------------- | ------ |
+| [authentication.md](./cross-cutting/authentication.md)       | Auth, sessions, identity         | active |
+| [error-handling.md](./cross-cutting/error-handling.md)       | Error states and user messaging  | active |
+| [permissions.md](./cross-cutting/permissions.md)             | Role-based access control        | active |
+| [validation.md](./cross-cutting/validation.md)               | Input validation patterns        | active |
+| [loading-states.md](./cross-cutting/loading-states.md)       | Async UI states                  | active |
+| [telemetry.md](./cross-cutting/telemetry.md)                 | Telemetry and observability      | active |
+| [testing.md](./cross-cutting/testing.md)                     | Test verification, mutation gate | active |
+| [schema-migrations.md](./cross-cutting/schema-migrations.md) | D1 schema change and rollout     | active |
 
 ## Feature Specs
 
@@ -78,6 +79,7 @@ docs/specs/
     error-handling.md
     loading-states.md
     permissions.md
+    schema-migrations.md
     telemetry.md
     testing.md
     validation.md
