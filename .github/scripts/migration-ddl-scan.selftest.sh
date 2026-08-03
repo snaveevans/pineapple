@@ -106,6 +106,61 @@ assert_flag "destructive-ok with no reason does not acknowledge" \
 assert_pass "destructive-ok acknowledgment across a blank line" \
   $'-- destructive-ok: cleanup, see #123\n\nDROP TABLE t;'
 
+# --- regressions from PR #173 review: COLUMN is optional in SQLite's ALTER
+# TABLE grammar, and DEFAULT/the ack marker must be matched as whole words,
+# not raw substrings ---
+
+assert_flag "ADD without the optional COLUMN keyword, NOT NULL no default" \
+  'ALTER TABLE t ADD c TEXT NOT NULL;'
+
+assert_flag "DROP without the optional COLUMN keyword" \
+  'ALTER TABLE t DROP c;'
+
+assert_flag "RENAME without the optional COLUMN keyword" \
+  'ALTER TABLE t RENAME a TO b;'
+
+assert_flag "NOT NULL column named default_* is not suppressed by its own name" \
+  'ALTER TABLE assets ADD COLUMN default_location TEXT NOT NULL;'
+
+assert_flag "trailing comment mentioning DEFAULT does not suppress the finding" \
+  'ALTER TABLE assets ADD COLUMN status TEXT NOT NULL; -- TODO: add a DEFAULT'
+
+assert_pass "destructive-ok acknowledges a statement wrapped onto multiple lines" \
+  $'-- destructive-ok: superseded by 0042\nALTER TABLE t\n  DROP COLUMN c;'
+
+assert_pass "destructive-ok marker is matched case-insensitively" \
+  $'-- DESTRUCTIVE-OK: reason here\nDROP TABLE t;'
+
+# Fail closed: a missing or empty migrations dir must not scan zero files and
+# report success — that would leave the gate permanently green if the
+# directory were ever relocated without updating this script's default.
+missing_dir="$(mktemp -u)/does-not-exist"
+set +e
+out="$("$SCAN" "$missing_dir" 2>&1)"
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+  echo "ok  flag: nonexistent migrations dir fails closed"
+else
+  echo "FAIL flag: nonexistent migrations dir should fail closed, got status=$status" >&2
+  printf '%s\n' "$out" >&2
+  fail=1
+fi
+
+empty_dir="$(mktemp -d)"
+set +e
+out="$("$SCAN" "$empty_dir" 2>&1)"
+status=$?
+set -e
+rm -rf "$empty_dir"
+if [ "$status" -ne 0 ]; then
+  echo "ok  flag: empty migrations dir fails closed"
+else
+  echo "FAIL flag: empty migrations dir should fail closed, got status=$status" >&2
+  printf '%s\n' "$out" >&2
+  fail=1
+fi
+
 if [ "$fail" -ne 0 ]; then
   echo "migration-ddl-scan selftest FAILED" >&2
   exit 1

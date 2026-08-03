@@ -131,32 +131,24 @@ as any other `NOT NULL` addition.
 ## Enforcement
 
 ADR-0017 decided this rule is **enforced in CI by a blocking gate**, with an override for the
-legitimate contraction case. The gate is live, as three steps in the `verify` job of
-[`ci.yml`](../../../.github/workflows/ci.yml), after `Test`:
-
-- **`Apply migrations to a fresh D1`** runs
-  [`migrations-fresh-apply.sh`](../../../.github/scripts/migrations-fresh-apply.sh) — wipes local D1
-  state and applies every migration in order, the same command `deploy.yml` runs `--remote` against
-  production. Catches ordering bugs and invalid SQL.
-- **`Scan migrations for destructive DDL`** runs
-  [`migration-ddl-scan.sh`](../../../.github/scripts/migration-ddl-scan.sh) — a static, case-insensitive
-  scan of every migration file for `DROP TABLE`, `DROP COLUMN`, `RENAME COLUMN`/`RENAME TO`, and
-  `ADD COLUMN ... NOT NULL` without `DEFAULT`. A finding fails the job with a
-  `::error file=,line=::` annotation unless the immediately preceding non-blank line is
-  `-- destructive-ok: <reason>` — an in-file, permanent acknowledgment for the legitimate contraction
-  case, not a per-PR label.
-- **`Migration DDL scan selftest`** runs
-  [`migration-ddl-scan.selftest.sh`](../../../.github/scripts/migration-ddl-scan.selftest.sh) so a
-  regression in the scan's own patterns fails the PR that introduces it, not a later one.
+legitimate contraction case. The gate is live: three steps in the `verify` job of
+[`ci.yml`](../../../.github/workflows/ci.yml), after `Test`, run
+[`migrations-fresh-apply.sh`](../../../.github/scripts/migrations-fresh-apply.sh),
+[`migration-ddl-scan.sh`](../../../.github/scripts/migration-ddl-scan.sh), and that scan's own
+selftest. The exact patterns, the trailing-comment and multi-line handling, and the
+`-- destructive-ok: <reason>` override syntax live in `migration-ddl-scan.sh` itself and its
+selftest, not here, so there is exactly one place to keep them correct.
 
 Enforcement takes two checks rather than one; why that is not redundant, and must not be
 "simplified" later, is recorded in
 [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md).
 
-What matters to an author is the consequence: **a green migration check is never clearance for the
-empty-table trap.** No check that applies migrations to a clean database can reach those two
-statements, because a clean database has none of the rows that make them dangerous. They stay the
-author's responsibility regardless of what automation exists.
+What matters to an author is the consequence: **a green migration check is not clearance for the
+whole empty-table trap.** `migration-ddl-scan.sh` now reaches one of the two statements in the table
+above — `ADD COLUMN ... NOT NULL` with no default — by reading the SQL text. It does not, and by
+design cannot, reach a unique index over a pre-existing table: that statement's danger is in rows it
+never mentions, which no check that applies migrations to a clean database can see either. That case
+stays the author's responsibility regardless of what automation exists.
 
 ## Feature Integration Contract
 
