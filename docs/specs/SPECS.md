@@ -26,7 +26,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [loading-states.md](./cross-cutting/loading-states.md)       | Async UI states                  | active |
 | [telemetry.md](./cross-cutting/telemetry.md)                 | Telemetry and observability      | active |
 | [testing.md](./cross-cutting/testing.md)                     | Test verification, mutation gate | active |
-| [schema-migrations.md](./cross-cutting/schema-migrations.md) | D1 schema change and rollout     | review |
+| [schema-migrations.md](./cross-cutting/schema-migrations.md) | D1 schema change and rollout     | active |
 
 ## Feature Specs
 

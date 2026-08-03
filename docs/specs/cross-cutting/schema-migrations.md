@@ -7,14 +7,16 @@ date: 2026-08-01
 
 # Schema Migrations — Cross-Cutting Spec
 
-**Status:** `review`
+**Status:** `active`
 **Owner:** engineering
 **Applies To:** Every change that adds or edits a file in `/migrations`
 
 > The rule is expand/contract, decided in
 > [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md), which also decided it is
-> enforced by a blocking CI gate. **While this spec's status is `review`, that gate is not live and
-> the rule holds on author discipline.**
+> enforced by a blocking CI gate. That gate is live: the `verify` job in
+> [`ci.yml`](../../../.github/workflows/ci.yml) runs
+> [`migrations-fresh-apply.sh`](../../../.github/scripts/migrations-fresh-apply.sh) and
+> [`migration-ddl-scan.sh`](../../../.github/scripts/migration-ddl-scan.sh) on every PR.
 
 ---
 
@@ -129,9 +131,23 @@ as any other `NOT NULL` addition.
 ## Enforcement
 
 ADR-0017 decided this rule is **enforced in CI by a blocking gate**, with an override for the
-legitimate contraction case. While this spec's status is `review`, that gate is not live and the
-rule holds on author discipline alone — with `required_approving_review_count: 0` and auto-merge on
-`main`, nothing else stands behind it.
+legitimate contraction case. The gate is live, as three steps in the `verify` job of
+[`ci.yml`](../../../.github/workflows/ci.yml), after `Test`:
+
+- **`Apply migrations to a fresh D1`** runs
+  [`migrations-fresh-apply.sh`](../../../.github/scripts/migrations-fresh-apply.sh) — wipes local D1
+  state and applies every migration in order, the same command `deploy.yml` runs `--remote` against
+  production. Catches ordering bugs and invalid SQL.
+- **`Scan migrations for destructive DDL`** runs
+  [`migration-ddl-scan.sh`](../../../.github/scripts/migration-ddl-scan.sh) — a static, case-insensitive
+  scan of every migration file for `DROP TABLE`, `DROP COLUMN`, `RENAME COLUMN`/`RENAME TO`, and
+  `ADD COLUMN ... NOT NULL` without `DEFAULT`. A finding fails the job with a
+  `::error file=,line=::` annotation unless the immediately preceding non-blank line is
+  `-- destructive-ok: <reason>` — an in-file, permanent acknowledgment for the legitimate contraction
+  case, not a per-PR label.
+- **`Migration DDL scan selftest`** runs
+  [`migration-ddl-scan.selftest.sh`](../../../.github/scripts/migration-ddl-scan.selftest.sh) so a
+  regression in the scan's own patterns fails the PR that introduces it, not a later one.
 
 Enforcement takes two checks rather than one; why that is not redundant, and must not be
 "simplified" later, is recorded in
