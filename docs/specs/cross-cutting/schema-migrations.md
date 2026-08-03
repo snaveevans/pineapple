@@ -133,22 +133,21 @@ legitimate contraction case. While this spec's status is `review`, that gate is 
 rule holds on author discipline alone — with `required_approving_review_count: 0` and auto-merge on
 `main`, nothing else stands behind it.
 
-Enforcement takes two checks, and one bounds what the other can promise:
+Enforcement takes two checks rather than one; why that is not redundant, and must not be
+"simplified" later, is recorded in
+[ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md).
 
-- **Applying every migration in order to a clean database** proves the SQL is valid and correctly
-  ordered.
-- **Reading the SQL** is the only way to reach destructive DDL and the empty-table trap, because a
-  clean database has no rows for either to go wrong against.
-
-**A green migration check is therefore never clearance for the empty-table trap.** Whatever
-automation exists, those two statements stay the author's responsibility.
+What matters to an author is the consequence: **a green migration check is never clearance for the
+empty-table trap.** No check that applies migrations to a clean database can reach those two
+statements, because a clean database has none of the rows that make them dangerous. They stay the
+author's responsibility regardless of what automation exists.
 
 ## Feature Integration Contract
 
 Every feature that changes the database must:
 
-- **State which phase it is in.** A feature PR is expanding, backfilling, shipping, or contracting.
-  If it is doing more than one of expand and contract, it is doing too much.
+- **Never expand and contract in the same PR.** Phases 1-3 may ride together; phase 4 is always its
+  own. Say in the PR body which phases it covers.
 - **Keep the old shape readable** until the code that reads it is no longer deployed.
 - **Add columns nullable**, and enforce required-ness in the domain layer rather than with a
   `NOT NULL` constraint added to a populated table.

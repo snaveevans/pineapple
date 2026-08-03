@@ -29,10 +29,9 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
   `.catch`, or mark intentionally-detached work with `void`.
 - **D1 (SQLite)** via the `DB` binding. Migrations in `/migrations`, applied
   with `wrangler d1 migrations apply pineapple --local|--remote`. **Schema change
-  follows expand/contract** — add nullable, backfill, ship the code, and drop the
-  old shape in a _later_ PR. `deploy.yml` migrates before it deploys and nothing
-  reverts DDL, so a destructive statement in the same PR as the code that stops
-  reading the column is unrecoverable. Rules and the safe/unsafe DDL table:
+  follows expand/contract** — add nullable, backfill, ship the code, drop the old
+  shape in a _later_ PR; migrations run before the deploy and nothing reverts DDL.
+  Rules and the safe/unsafe DDL table:
   [`docs/specs/cross-cutting/schema-migrations.md`](docs/specs/cross-cutting/schema-migrations.md)
   (ADR-0017).
 - **Cloudflare Queues** are declared in `apps/api/wrangler.jsonc` but `wrangler
