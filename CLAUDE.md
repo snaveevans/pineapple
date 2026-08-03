@@ -28,7 +28,12 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
   `@typescript-eslint/no-floating-promises` is an explicit lint error: `await`,
   `.catch`, or mark intentionally-detached work with `void`.
 - **D1 (SQLite)** via the `DB` binding. Migrations in `/migrations`, applied
-  with `wrangler d1 migrations apply pineapple --local|--remote`.
+  with `wrangler d1 migrations apply pineapple --local|--remote`. **Schema change
+  follows expand/contract** — add nullable, backfill, ship the code, drop the old
+  shape in a _later_ PR; migrations run before the deploy and nothing reverts DDL.
+  Rules and the safe/unsafe DDL table:
+  [`docs/specs/cross-cutting/schema-migrations.md`](docs/specs/cross-cutting/schema-migrations.md)
+  (ADR-0017).
 - **Cloudflare Queues** are declared in `apps/api/wrangler.jsonc` but `wrangler
 deploy` does NOT create them — it binds to existing queues and fails if one
   is missing. Provisioning is IaC: the "Ensure Queues exist" step in
