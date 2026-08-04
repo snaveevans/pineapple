@@ -138,6 +138,18 @@ assert_flag "DROP COLUMN wrapped onto multiple lines, no acknowledgment" \
 assert_flag "ADD COLUMN NOT NULL wrapped onto multiple lines, no default" \
   $'ALTER TABLE assets\n  ADD COLUMN status TEXT NOT NULL;'
 
+# Paired with the two assert_flag cases above, in the other direction: a
+# *safe* statement wrapped across lines must still pass. Detection spans the
+# whole open statement now (alter_table_open), so the DEFAULT half of
+# pattern 4 must too, or a same-line-only DEFAULT check flags legitimate SQL
+# whose DEFAULT clause lands on its own continuation line (PR #173 3rd-pass
+# review).
+assert_pass "ADD COLUMN NOT NULL wrapped, DEFAULT on its own continuation line" \
+  $'ALTER TABLE assets\n  ADD COLUMN status TEXT NOT NULL\n  DEFAULT \'active\';'
+
+assert_pass "ADD COLUMN wrapped, DEFAULT before NOT NULL on separate lines" \
+  $'ALTER TABLE assets\n  ADD COLUMN status TEXT DEFAULT \'active\'\n  NOT NULL;'
+
 assert_flag "RENAME COLUMN wrapped onto multiple lines, no acknowledgment" \
   $'ALTER TABLE t\n  RENAME COLUMN a TO b;'
 

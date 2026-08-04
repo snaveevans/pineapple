@@ -18,15 +18,22 @@
 # fake an acknowledgment. A clause belongs to ALTER TABLE if the current
 # *statement* opened with it, not just the current physical line — so a
 # clause keyword on a continuation line (ALTER TABLE on the line above) is
-# still recognized. Case-insensitively flags a line whose SQL content (after
-# this stripping) is:
+# still recognized. Case-insensitively flags:
 #   1. `DROP TABLE`
 #   2. `ALTER TABLE ... DROP [COLUMN] <name>`      (COLUMN is optional in SQLite)
 #   3. `ALTER TABLE ... RENAME TO <name>`, or
 #      `ALTER TABLE ... RENAME [COLUMN] <a> TO <b>` (COLUMN is optional in SQLite)
-#   4. `ALTER TABLE ... ADD [COLUMN] ... NOT NULL`, without a `DEFAULT` clause
-#      of its own (COLUMN is optional; a `DEFAULT` inside an identifier or a
-#      trailing comment does not count)
+#   4. `ALTER TABLE ... ADD [COLUMN] ... NOT NULL`, with no `DEFAULT` anywhere
+#      in the statement (COLUMN is optional; a `DEFAULT` inside an identifier
+#      or a trailing comment does not count)
+#
+# Patterns 1-3 are decided per line: the trigger keyword alone proves danger
+# regardless of what the rest of the statement says. Pattern 4 is decided
+# only once the whole statement is seen — a safe `ADD COLUMN ... NOT NULL`
+# whose `DEFAULT` clause lands on its own continuation line must not be
+# flagged just because that DEFAULT isn't on the same physical line as
+# NOT NULL, so its "no DEFAULT" half is evaluated against every line of the
+# open statement, not just the one that tripped the trigger.
 #
 # A finding is acknowledged when the immediately preceding non-blank line —
 # or, if the finding is on a continuation line of a still-open statement, the
@@ -55,15 +62,14 @@ has_default() {
   [[ "$1" =~ (^|[^A-Z0-9_])DEFAULT([^A-Z0-9_]|$) ]]
 }
 
-is_destructive() {
+# Patterns 1-3: DROP TABLE, ALTER TABLE ... DROP/RENAME [COLUMN]. Decided
+# from a single line — no whole-statement context needed.
+is_destructive_immediate() {
   local upper="$1"
   local alter_table_open="$2"
 
   [[ "$upper" == *'DROP TABLE'* ]] && return 0
 
-  # Everything else is a clause of ALTER TABLE — either this line names it
-  # directly, or we're on a continuation line of a statement that opened
-  # with it (alter_table_open, tracked by the caller across physical lines).
   if [[ "$upper" != *'ALTER TABLE'* ]] && [ "$alter_table_open" != true ]; then
     return 1
   fi
@@ -76,17 +82,36 @@ is_destructive() {
   [[ "$upper" == *'RENAME TO'* ]] && return 0
   [[ "$upper" =~ RENAME[[:space:]]+(COLUMN[[:space:]]+)?[A-Z_][A-Z0-9_]*[[:space:]]+TO ]] && return 0
 
-  # ALTER TABLE ... ADD [COLUMN] ... NOT NULL, without its own DEFAULT
-  if [[ "$upper" =~ ADD[[:space:]]+(COLUMN[[:space:]]+)?[A-Z_][A-Z0-9_]* ]] \
-      && [[ "$upper" == *'NOT NULL'* ]] \
-      && ! has_default "$upper"; then
-    return 0
-  fi
-
   return 1
 }
 
+# Pattern 4's trigger half: ALTER TABLE ... ADD [COLUMN] ... NOT NULL. Says
+# nothing about DEFAULT — the caller accumulates that across the statement.
+has_add_not_null() {
+  local upper="$1"
+  local alter_table_open="$2"
+
+  if [[ "$upper" != *'ALTER TABLE'* ]] && [ "$alter_table_open" != true ]; then
+    return 1
+  fi
+
+  [[ "$upper" =~ ADD[[:space:]]+(COLUMN[[:space:]]+)?[A-Z_][A-Z0-9_]* ]] && [[ "$upper" == *'NOT NULL'* ]]
+}
+
 fail=0
+
+# Reads the current $rel/$ack_anchor/$fail at call time — safe to define once
+# and call once per file per finding.
+report() {
+  local finding_line="$1" text="$2"
+  local ack_anchor_upper
+  ack_anchor_upper="$(printf '%s' "$ack_anchor" | tr '[:lower:]' '[:upper:]')"
+  if [[ "$ack_anchor_upper" =~ $ACK_RE ]]; then
+    return
+  fi
+  echo "::error file=${rel},line=${finding_line}::Destructive DDL with no preceding '-- destructive-ok: <reason>' comment: ${text}"
+  fail=1
+}
 
 shopt -s nullglob
 files=("$DIR"/*.sql)
@@ -105,6 +130,9 @@ for file in "${files[@]}"; do
   ack_anchor=""
   in_statement=false
   alter_table_open=false
+  pending_addnotnull_line=""
+  pending_addnotnull_text=""
+  stmt_has_default=false
   line_no=0
   while IFS= read -r line || [ -n "$line" ]; do
     line_no=$((line_no + 1))
@@ -140,20 +168,30 @@ for file in "${files[@]}"; do
       else
         alter_table_open=false
       fi
+      pending_addnotnull_line=""
+      stmt_has_default=false
     fi
 
-    if is_destructive "$upper" "$alter_table_open"; then
-      ack_anchor_upper="$(printf '%s' "$ack_anchor" | tr '[:lower:]' '[:upper:]')"
-      if [[ "$ack_anchor_upper" =~ $ACK_RE ]]; then
-        : # acknowledged in-file — pass
-      else
-        echo "::error file=${rel},line=${line_no}::Destructive DDL with no preceding '-- destructive-ok: <reason>' comment: ${trimmed}"
-        fail=1
-      fi
+    if is_destructive_immediate "$upper" "$alter_table_open"; then
+      report "$line_no" "$trimmed"
+    fi
+
+    if has_default "$upper"; then
+      stmt_has_default=true
+    fi
+
+    if [ -z "$pending_addnotnull_line" ] && has_add_not_null "$upper" "$alter_table_open"; then
+      pending_addnotnull_line="$line_no"
+      pending_addnotnull_text="$trimmed"
     fi
 
     if [[ "$sql_part" =~ \;[[:space:]]*$ ]]; then
+      if [ -n "$pending_addnotnull_line" ] && [ "$stmt_has_default" != true ]; then
+        report "$pending_addnotnull_line" "$pending_addnotnull_text"
+      fi
       in_statement=false
+      pending_addnotnull_line=""
+      stmt_has_default=false
     else
       in_statement=true
     fi
