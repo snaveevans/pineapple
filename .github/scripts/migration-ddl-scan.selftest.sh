@@ -128,6 +128,19 @@ assert_flag "trailing comment mentioning DEFAULT does not suppress the finding" 
 assert_pass "destructive-ok acknowledges a statement wrapped onto multiple lines" \
   $'-- destructive-ok: superseded by 0042\nALTER TABLE t\n  DROP COLUMN c;'
 
+# Paired with the assert_pass above: the same fixture minus the
+# acknowledgment must still be *detected* and flagged. Without this, a
+# fixture that is never classified as destructive in the first place would
+# pass the ack test too, for the wrong reason (PR #173 2nd-pass review).
+assert_flag "DROP COLUMN wrapped onto multiple lines, no acknowledgment" \
+  $'ALTER TABLE t\n  DROP COLUMN c;'
+
+assert_flag "ADD COLUMN NOT NULL wrapped onto multiple lines, no default" \
+  $'ALTER TABLE assets\n  ADD COLUMN status TEXT NOT NULL;'
+
+assert_flag "RENAME COLUMN wrapped onto multiple lines, no acknowledgment" \
+  $'ALTER TABLE t\n  RENAME COLUMN a TO b;'
+
 assert_pass "destructive-ok marker is matched case-insensitively" \
   $'-- DESTRUCTIVE-OK: reason here\nDROP TABLE t;'
 

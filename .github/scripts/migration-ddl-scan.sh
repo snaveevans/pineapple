@@ -15,8 +15,11 @@
 # Scans every *.sql file in dir. Skips comment lines (first non-whitespace
 # character is `--`) entirely, and ignores a trailing `-- ...` comment on an
 # otherwise-SQL line so prose after a statement can't suppress a match or
-# fake an acknowledgment. Case-insensitively flags a line whose SQL content
-# (after this stripping) is:
+# fake an acknowledgment. A clause belongs to ALTER TABLE if the current
+# *statement* opened with it, not just the current physical line — so a
+# clause keyword on a continuation line (ALTER TABLE on the line above) is
+# still recognized. Case-insensitively flags a line whose SQL content (after
+# this stripping) is:
 #   1. `DROP TABLE`
 #   2. `ALTER TABLE ... DROP [COLUMN] <name>`      (COLUMN is optional in SQLite)
 #   3. `ALTER TABLE ... RENAME TO <name>`, or
@@ -54,11 +57,16 @@ has_default() {
 
 is_destructive() {
   local upper="$1"
+  local alter_table_open="$2"
 
   [[ "$upper" == *'DROP TABLE'* ]] && return 0
 
-  # Everything else is a clause of ALTER TABLE.
-  [[ "$upper" == *'ALTER TABLE'* ]] || return 1
+  # Everything else is a clause of ALTER TABLE — either this line names it
+  # directly, or we're on a continuation line of a statement that opened
+  # with it (alter_table_open, tracked by the caller across physical lines).
+  if [[ "$upper" != *'ALTER TABLE'* ]] && [ "$alter_table_open" != true ]; then
+    return 1
+  fi
 
   # ALTER TABLE ... DROP [COLUMN] <name>
   [[ "$upper" =~ DROP[[:space:]]+(COLUMN[[:space:]]+)?[A-Z_][A-Z0-9_]* ]] && return 0
@@ -96,6 +104,7 @@ for file in "${files[@]}"; do
   prev_nonblank=""
   ack_anchor=""
   in_statement=false
+  alter_table_open=false
   line_no=0
   while IFS= read -r line || [ -n "$line" ]; do
     line_no=$((line_no + 1))
@@ -120,12 +129,20 @@ for file in "${files[@]}"; do
     # The acknowledgment must precede the *statement*, not just this line —
     # a destructive statement wrapped onto multiple lines is still one
     # statement, and the comment above its first line is what an author
-    # actually wrote the acknowledgment against.
+    # actually wrote the acknowledgment against. Likewise, whether a clause
+    # belongs to ALTER TABLE is a property of the statement, decided once
+    # when it opens, not re-derived per physical line — a clause keyword can
+    # land on a continuation line with ALTER TABLE above it.
     if [ "$in_statement" = false ]; then
       ack_anchor="$prev_nonblank"
+      if [[ "$upper" == *'ALTER TABLE'* ]]; then
+        alter_table_open=true
+      else
+        alter_table_open=false
+      fi
     fi
 
-    if is_destructive "$upper"; then
+    if is_destructive "$upper" "$alter_table_open"; then
       ack_anchor_upper="$(printf '%s' "$ack_anchor" | tr '[:lower:]' '[:upper:]')"
       if [[ "$ack_anchor_upper" =~ $ACK_RE ]]; then
         : # acknowledged in-file — pass
