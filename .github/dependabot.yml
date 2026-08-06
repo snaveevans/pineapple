@@ -36,19 +36,6 @@ updates:
       semver-minor-days: 7
       semver-patch-days: 3
 
-    # Auto-merge every green PR from this block — dev and production alike.
-    # The full CI gate (lint, type-check, tests, mutation, OpenAPI drift,
-    # breaking-change gate) runs on every PR, so a green run is the signal
-    # that a bump is safe to merge. Holding green dependency PRs for manual
-    # review mostly produces staleness, not scrutiny (issue #125). Cooldowns
-    # above are the real risk filter; auto-merge is just the last mile so a
-    # green PR doesn't sit waiting for a button press.
-    # Prerequisites: repo-level "Allow auto-merge" is enabled (Settings >
-    # General > Pull Requests), and branch protection requires `verify` +
-    # `mutation` with 0 approving reviews — auto-merge fires only after all
-    # required checks pass.
-    auto-merge: true
-
     groups:
       # react-dom asserts at runtime that its version exactly matches react's.
       # Left ungrouped, a version-locked pair can split across two PRs that
@@ -101,10 +88,6 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    # Same reasoning as the npm block above: the CI gate is the safety net,
-    # and these PRs don't even trigger the mutation run (no pnpm-lock.yaml
-    # change), so holding them for manual review is pure staleness.
-    auto-merge: true
     groups:
       github-actions:
         patterns:

@@ -1,0 +1,34 @@
+name: Dependabot auto-merge
+
+# Enables GitHub's native auto-merge on Dependabot PRs when they open.
+# Dependabot has no `auto-merge` key in dependabot.yml (the schema rejects
+# unknown keys and would stop opening PRs entirely), so this workflow is the
+# mechanism: it calls `gh pr merge --auto` on each Dependabot PR, and GitHub
+# merges it automatically once all required checks (verify + mutation) pass.
+# The full CI gate is the safety net; this just removes the manual button press
+# so green dependency PRs don't sit waiting (issue #125).
+#
+# Prerequisites:
+#   - Repo-level "Allow auto-merge" enabled (Settings > General > Pull Requests)
+#   - Branch protection requires `verify` + `mutation` with 0 approving reviews
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable-automerge:
+    # Only Dependabot PRs — never human-authored PRs.
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enable auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
