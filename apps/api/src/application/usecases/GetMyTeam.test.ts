@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import { UserId, Email } from "@snaveevans/pineapple-shared";
 import { GetMyTeam } from "./GetMyTeam.ts";
 import { Team } from "../../domain/team/Team.ts";
@@ -52,8 +52,8 @@ describe("GetMyTeam", () => {
   const ownerId = UserId.generate();
 
   it("returns the team with member display names when the user has a team", async () => {
-    const team = Team.create({ ownerId, name: "Field Ops" });
-    const teams = new FakeTeamRepository(team);
+    const domainTeam = Team.create({ ownerId, name: "Field Ops" });
+    const teams = new FakeTeamRepository(domainTeam);
     const users = new FakeUserRepository([
       User.reconstitute({
         id: ownerId,
@@ -69,11 +69,12 @@ describe("GetMyTeam", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
-    expect(result.value.team).not.toBeNull();
+    const team = result.value.team;
+    assert(team, "team should be present");
     expect(result.value.viewerUserId).toBe(ownerId);
-    expect(result.value.team!.name).toBe("Field Ops");
-    expect(result.value.team!.members).toHaveLength(1);
-    expect(result.value.team!.members[0]).toMatchObject({
+    expect(team.name).toBe("Field Ops");
+    expect(team.members).toHaveLength(1);
+    expect(team.members[0]).toMatchObject({
       userId: ownerId,
       name: "Dale",
       role: "owner",
