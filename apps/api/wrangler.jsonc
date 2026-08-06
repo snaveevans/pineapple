@@ -48,6 +48,12 @@
     "crons": ["*/15 * * * *"],
   },
 
+  // Deployed-version metadata for GET /health — reports which Worker version
+  // is serving, so the smoke check can tell code and schema versions apart.
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA",
+  },
+
   // Auth config is provided as SECRETS (not committed here):
   //   wrangler secret put BETTER_AUTH_SECRET
   //   wrangler secret put GOOGLE_CLIENT_ID

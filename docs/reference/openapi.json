@@ -65,12 +65,36 @@
           "status": {
             "type": "string",
             "enum": [
-              "ok"
-            ]
+              "ok",
+              "error"
+            ],
+            "description": "`ok` when D1 answered; `error` (with a 503) when it did not"
+          },
+          "version": {
+            "type": "string",
+            "description": "Identifier of the deployed Worker version serving this request",
+            "example": "8c4c9a2e-1f3b-4d5e-9a6b-2c7d8e9f0a1b"
+          },
+          "latestMigration": {
+            "type": "string",
+            "nullable": true,
+            "description": "Filename of the latest applied D1 migration; null when no migration state is recorded (database never migrated) or when D1 is unreachable — `database` distinguishes the two",
+            "example": "0015_activity_actor_display_name.sql"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "reachable",
+              "unreachable"
+            ],
+            "description": "Result of a D1 round trip"
           }
         },
         "required": [
-          "status"
+          "status",
+          "version",
+          "latestMigration",
+          "database"
         ]
       },
       "CreatedAsset": {
@@ -1434,11 +1458,21 @@
         "tags": [
           "System"
         ],
-        "summary": "Liveness check",
-        "description": "Returns ok when the Worker is serving. No authentication.",
+        "summary": "Health check",
+        "description": "Reports the deployed Worker version, the latest applied D1 migration, and a D1 round-trip result. No authentication. Exposes no configuration values.",
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "Service is healthy and D1 is reachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "D1 is unreachable",
             "content": {
               "application/json": {
                 "schema": {

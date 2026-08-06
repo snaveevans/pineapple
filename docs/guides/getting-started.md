@@ -63,7 +63,7 @@ The browser should use `http://localhost:5173`. Vite proxies same-origin
 `/api/*` requests to the API Worker. Try it:
 
 ```bash
-curl http://localhost:8787/health                 # {"status":"ok"}
+curl http://localhost:8787/health                 # {"status":"ok","version":"…","latestMigration":"0015_…","database":"reachable"}
 open http://localhost:8787/reference              # interactive API docs
 curl http://localhost:8787/api/assets             # works via DEV_AUTH_EMAIL bypass
 open http://localhost:5173/app/assets             # web app through the Vite proxy

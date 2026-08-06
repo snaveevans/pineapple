@@ -9,8 +9,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Liveness check
-         * @description Returns ok when the Worker is serving. No authentication.
+         * Health check
+         * @description Reports the deployed Worker version, the latest applied D1 migration, and a D1 round-trip result. No authentication. Exposes no configuration values.
          */
         get: {
             parameters: {
@@ -21,8 +21,17 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Service is healthy */
+                /** @description Service is healthy and D1 is reachable */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Health"];
+                    };
+                };
+                /** @description D1 is unreachable */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1462,8 +1471,26 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Health: {
-            /** @enum {string} */
-            status: "ok";
+            /**
+             * @description `ok` when D1 answered; `error` (with a 503) when it did not
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /**
+             * @description Identifier of the deployed Worker version serving this request
+             * @example 8c4c9a2e-1f3b-4d5e-9a6b-2c7d8e9f0a1b
+             */
+            version: string;
+            /**
+             * @description Filename of the latest applied D1 migration; null when no migration state is recorded (database never migrated) or when D1 is unreachable — `database` distinguishes the two
+             * @example 0015_activity_actor_display_name.sql
+             */
+            latestMigration: string | null;
+            /**
+             * @description Result of a D1 round trip
+             * @enum {string}
+             */
+            database: "reachable" | "unreachable";
         };
         CreatedAsset: {
             /** @example 195d0ef0-47f5-439f-abfd-29f892c9a040 */
