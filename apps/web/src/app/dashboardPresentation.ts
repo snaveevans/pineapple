@@ -49,8 +49,9 @@ export type DashboardQueuePresentation = {
 
 export function formatDashboardDate(todayUtc: string): string {
   const [year, month, day] = ymdParts(todayUtc);
-  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]!;
-  return `${weekday} · ${MONTHS_LONG[month - 1]} ${day}, ${year}`;
+  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] ?? "";
+  const monthName = MONTHS_LONG[month - 1] ?? "";
+  return `${weekday} · ${monthName} ${day}, ${year}`;
 }
 
 export function formatFleetSubline(todayUtc: string, total: number): string {
@@ -71,7 +72,8 @@ export function formatDueLabel(daysDue: number): string {
 export function formatLastService(lastCompletedDate: string | null): string {
   if (!lastCompletedDate) return "—";
   const [, month, day] = ymdParts(lastCompletedDate);
-  return `${MONTHS_LONG[month - 1]!.slice(0, 3)} ${day}`;
+  const monthName = MONTHS_LONG[month - 1] ?? "";
+  return `${monthName.slice(0, 3)} ${day}`;
 }
 
 export function formatRecurrence(intervalValue: number, intervalUnit: string): string {

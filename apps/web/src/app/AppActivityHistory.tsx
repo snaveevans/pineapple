@@ -16,7 +16,6 @@ import { HFAssetIcon } from "../design/hf.tsx";
 import { paths } from "../routes.ts";
 import { HFBottomNav, HFTopBar } from "./AppChrome.tsx";
 import { activityActorLabel } from "./activityPresentation.ts";
-import { assetTypeLabel } from "./assetPresentation.ts";
 import { dateKey, formatMonthDay, formatShortDate, ymdToUTC } from "./dateFormat.ts";
 
 import "../design/styles/hifi.css";
@@ -185,7 +184,7 @@ function dayLabel(date: Date, now: Date): string {
   const dayDiff = daysBetween(todayKey, entryKey);
   if (dayDiff === 0) return "Today";
   if (dayDiff === 1) return "Yesterday";
-  if (dayDiff < 7) return WEEKDAYS[date.getUTCDay()]!;
+  if (dayDiff < 7) return WEEKDAYS[date.getUTCDay()] ?? "";
   return formatMonthDay(entryKey);
 }
 

@@ -12,5 +12,5 @@ export function formatDashboardGreeting(name: string | null | undefined): string
 export function profileAvatarInitial(name: string | null | undefined): string {
   const trimmed = name?.trim();
   if (!trimmed) return "?";
-  return trimmed[0]!.toLocaleUpperCase();
+  return trimmed.charAt(0).toLocaleUpperCase();
 }
