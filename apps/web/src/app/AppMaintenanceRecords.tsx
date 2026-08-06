@@ -25,6 +25,7 @@ import {
   deleteMaintenanceTask,
   maintenanceTasksQueryKey,
   type MaintenanceTask,
+  type MaintenanceTaskListResponse,
   type CreateMaintenanceTaskBody,
 } from "../api/maintenanceTasks.ts";
 import { Icon } from "../design/Icon.tsx";
@@ -1139,10 +1140,10 @@ export function AppMaintenanceRecords() {
   };
 
   const handleTaskCreated = (task: MaintenanceTask) => {
-    queryClient.setQueryData(
+    queryClient.setQueryData<MaintenanceTaskListResponse>(
       maintenanceTasksQueryKey(assetId),
-      (old: any) => {
-        const existing = (old?.maintenanceTasks ?? []) as MaintenanceTask[];
+      (old) => {
+        const existing = old?.maintenanceTasks ?? [];
         // ID-based dedup in case of double onSuccess (e.g. slow network + retry)
         const withoutDup = existing.filter((t) => t.id !== task.id);
         return { maintenanceTasks: [task, ...withoutDup] };
@@ -1155,9 +1156,9 @@ export function AppMaintenanceRecords() {
     setTaskDeleteError(null);
     try {
       await deleteMaintenanceTask(assetId, taskId);
-      queryClient.setQueryData(
+      queryClient.setQueryData<MaintenanceTaskListResponse>(
         maintenanceTasksQueryKey(assetId),
-        (old: any) => ({ maintenanceTasks: (old?.maintenanceTasks ?? []).filter((t: MaintenanceTask) => t.id !== taskId) }),
+        (old) => ({ maintenanceTasks: (old?.maintenanceTasks ?? []).filter((t) => t.id !== taskId) }),
       );
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed to delete task. Please try again.";

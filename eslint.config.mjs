@@ -154,12 +154,32 @@ export default tseslint.config(
   // ── Vitest: keep tests honest ─────────────────────────────────────────────
   // .only silently skips the rest of the suite; .skip / xit silently drop tests.
   // Both produce a green diff that hides a regression — fail CI on them.
+  // Covers .test.ts and .test.tsx (the React component suites).
   {
-    files: ["**/*.test.ts"],
+    files: ["**/*.test.{ts,tsx}"],
     plugins: { vitest },
     rules: {
       "vitest/no-focused-tests": "error",
       "vitest/no-disabled-tests": "error",
+    },
+  },
+
+  // ── TSX: non-type-checked linting ─────────────────────────────────────────
+  // .tsx files are outside the Workers tsconfig and were previously ignored by
+  // eslint entirely (no matching config). Full type-checked linting of the
+  // React app is a separate concern — extending recommendedTypeChecked here
+  // surfaces ~50 unrelated errors (floating-promises, require-await,
+  // unbound-method, …) across apps/web. Instead, extend the non-type-checked
+  // recommended set so the TS parser is engaged and conflicting core rules
+  // (no-undef, no-unused-vars, …) from js.configs.recommended are disabled,
+  // then layer on this PR's `!` ban. This closes the gap the review flagged —
+  // four `!`s in .tsx sat outside the ban — without ballooning into a full
+  // type-checked-lint-of-the-web-client branch.
+  {
+    files: ["**/*.tsx"],
+    extends: tseslint.configs.recommended,
+    rules: {
+      "@typescript-eslint/no-non-null-assertion": "error",
     },
   },
 

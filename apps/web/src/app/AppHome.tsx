@@ -277,7 +277,8 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
       return;
     }
     if (!selectedTaskId || !filteredQueue.some((item) => item.taskId === selectedTaskId)) {
-      setSelectedTaskId(filteredQueue[0]!.taskId);
+      const next = filteredQueue[0];
+      if (next) setSelectedTaskId(next.taskId);
     }
   }, [filteredQueue, selectedTaskId]);
 

@@ -3,7 +3,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { useInfiniteQuery } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { assert, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActivityEntry, ActivityResponse } from "../api/activity";
 import { AppActivityHistory } from "./AppActivityHistory";
 
@@ -85,10 +85,16 @@ function activityPage(): ActivityResponse {
         { type: "task_scheduled", count: 1 },
         { type: "maintenance_logged", count: 1 },
       ],
-      assets: [
-        { asset: entries[0]!.asset, count: 1 },
-        { asset: entries[1]!.asset, count: 1 },
-      ],
+      assets: (() => {
+        const first = entries[0];
+        const second = entries[1];
+        assert(first, "fixture entries[0] should exist");
+        assert(second, "fixture entries[1] should exist");
+        return [
+          { asset: first.asset, count: 1 },
+          { asset: second.asset, count: 1 },
+        ];
+      })(),
     },
     nextCursor: null,
   };
