@@ -7,14 +7,16 @@ date: 2026-08-01
 
 # Schema Migrations — Cross-Cutting Spec
 
-**Status:** `review`
+**Status:** `active`
 **Owner:** engineering
 **Applies To:** Every change that adds or edits a file in `/migrations`
 
 > The rule is expand/contract, decided in
 > [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md), which also decided it is
-> enforced by a blocking CI gate. **While this spec's status is `review`, that gate is not live and
-> the rule holds on author discipline.**
+> enforced by a blocking CI gate. That gate is live: the `verify` job in
+> [`ci.yml`](../../../.github/workflows/ci.yml) runs
+> [`migrations-fresh-apply.sh`](../../../.github/scripts/migrations-fresh-apply.sh) and
+> [`migration-ddl-scan.sh`](../../../.github/scripts/migration-ddl-scan.sh) on every PR.
 
 ---
 
@@ -129,18 +131,24 @@ as any other `NOT NULL` addition.
 ## Enforcement
 
 ADR-0017 decided this rule is **enforced in CI by a blocking gate**, with an override for the
-legitimate contraction case. While this spec's status is `review`, that gate is not live and the
-rule holds on author discipline alone — with `required_approving_review_count: 0` and auto-merge on
-`main`, nothing else stands behind it.
+legitimate contraction case. The gate is live: three steps in the `verify` job of
+[`ci.yml`](../../../.github/workflows/ci.yml), after `Test`, run
+[`migrations-fresh-apply.sh`](../../../.github/scripts/migrations-fresh-apply.sh),
+[`migration-ddl-scan.sh`](../../../.github/scripts/migration-ddl-scan.sh), and that scan's own
+selftest. The exact patterns, the trailing-comment and multi-line handling, and the
+`-- destructive-ok: <reason>` override syntax live in `migration-ddl-scan.sh` itself and its
+selftest, not here, so there is exactly one place to keep them correct.
 
 Enforcement takes two checks rather than one; why that is not redundant, and must not be
 "simplified" later, is recorded in
 [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md).
 
-What matters to an author is the consequence: **a green migration check is never clearance for the
-empty-table trap.** No check that applies migrations to a clean database can reach those two
-statements, because a clean database has none of the rows that make them dangerous. They stay the
-author's responsibility regardless of what automation exists.
+What matters to an author is the consequence: **a green migration check is not clearance for the
+whole empty-table trap.** `migration-ddl-scan.sh` now reaches one of the two statements in the table
+above — `ADD COLUMN ... NOT NULL` with no default — by reading the SQL text. It does not, and by
+design cannot, reach a unique index over a pre-existing table: that statement's danger is in rows it
+never mentions, which no check that applies migrations to a clean database can see either. That case
+stays the author's responsibility regardless of what automation exists.
 
 ## Feature Integration Contract
 

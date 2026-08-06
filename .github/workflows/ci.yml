@@ -54,6 +54,32 @@ jobs:
       - name: Test
         run: pnpm -r test
 
+      # /migrations has no other coverage. Applying every migration in order to a
+      # fresh D1 catches ordering bugs and bad SQL on the PR, before deploy.yml
+      # applies the same files --remote against production (issue #119).
+      #
+      # These three steps run unconditionally rather than path-scoped like the
+      # mutation gate or the OpenAPI breaking-change gate below: measured cost is
+      # ~13-20s combined (spike results on issue #119), which is what keeps
+      # `verify` inside its ~2-minute budget even on every PR. Scoping only pays
+      # off once a gate's own cost — not the fixed pnpm/checkout setup shared by
+      # the whole job — is what's driving `verify` over budget; a path filter here
+      # would add a script and a drift risk (the filter's path list silently
+      # diverging from what actually affects the D1 schema) to save single-digit
+      # seconds on PRs that don't touch migrations. Revisit if migration count
+      # growth pushes the apply step's cost materially higher.
+      - name: Apply migrations to a fresh D1
+        run: .github/scripts/migrations-fresh-apply.sh
+
+      # Separate check, not redundant with the apply above: a fresh D1 is empty,
+      # and SQLite only rejects `ADD COLUMN ... NOT NULL` without a default on a
+      # populated table. Only a static scan can catch it (issue #119).
+      - name: Scan migrations for destructive DDL
+        run: .github/scripts/migration-ddl-scan.sh
+
+      - name: Migration DDL scan selftest
+        run: .github/scripts/migration-ddl-scan.selftest.sh
+
       # Gate-logic selftest for the mutation path filter (ADR-0016). Cheap; runs
       # on every PR so a regex typo cannot silently widen/narrow the trust boundary.
       - name: Mutation scope selftest
