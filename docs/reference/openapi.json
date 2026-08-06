@@ -65,12 +65,36 @@
           "status": {
             "type": "string",
             "enum": [
-              "ok"
-            ]
+              "ok",
+              "error"
+            ],
+            "description": "`ok` when D1 answered; `error` (with a 503) when it did not"
+          },
+          "version": {
+            "type": "string",
+            "description": "Identifier of the deployed Worker version serving this request",
+            "example": "8c4c9a2e-1f3b-4d5e-9a6b-2c7d8e9f0a1b"
+          },
+          "latestMigration": {
+            "type": "string",
+            "nullable": true,
+            "description": "Filename of the latest applied D1 migration; null when D1 is unreachable",
+            "example": "0015_activity_actor_display_name.sql"
+          },
+          "database": {
+            "type": "string",
+            "enum": [
+              "reachable",
+              "unreachable"
+            ],
+            "description": "Result of a D1 round trip"
           }
         },
         "required": [
-          "status"
+          "status",
+          "version",
+          "latestMigration",
+          "database"
         ]
       },
       "CreatedAsset": {
@@ -100,44 +124,6 @@
         "required": [
           "error"
         ]
-      },
-      "CreateAssetBody": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "example": "My Truck"
-          },
-          "metadata": {
-            "$ref": "#/components/schemas/AssetMetadata"
-          }
-        },
-        "required": [
-          "name",
-          "metadata"
-        ]
-      },
-      "AssetMetadata": {
-        "oneOf": [
-          {
-            "$ref": "#/components/schemas/VehicleMetadata"
-          },
-          {
-            "$ref": "#/components/schemas/PropertyMetadata"
-          },
-          {
-            "$ref": "#/components/schemas/EquipmentMetadata"
-          }
-        ],
-        "discriminator": {
-          "propertyName": "kind",
-          "mapping": {
-            "vehicle": "#/components/schemas/VehicleMetadata",
-            "property": "#/components/schemas/PropertyMetadata",
-            "equipment": "#/components/schemas/EquipmentMetadata"
-          }
-        }
       },
       "VehicleMetadata": {
         "type": "object",
@@ -178,28 +164,6 @@
           "year"
         ]
       },
-      "PropertyMetadata": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "type": "string",
-            "enum": [
-              "property"
-            ]
-          },
-          "nickname": {
-            "type": "string",
-            "example": "Lake cabin"
-          },
-          "address": {
-            "$ref": "#/components/schemas/Address"
-          }
-        },
-        "required": [
-          "kind",
-          "address"
-        ]
-      },
       "Address": {
         "type": "object",
         "properties": {
@@ -232,6 +196,28 @@
           "country"
         ]
       },
+      "PropertyMetadata": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "property"
+            ]
+          },
+          "nickname": {
+            "type": "string",
+            "example": "Lake cabin"
+          },
+          "address": {
+            "$ref": "#/components/schemas/Address"
+          }
+        },
+        "required": [
+          "kind",
+          "address"
+        ]
+      },
       "EquipmentMetadata": {
         "type": "object",
         "properties": {
@@ -258,22 +244,67 @@
           "kind"
         ]
       },
-      "AssetListResponse": {
+      "AssetMetadata": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/VehicleMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/PropertyMetadata"
+          },
+          {
+            "$ref": "#/components/schemas/EquipmentMetadata"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "vehicle": "#/components/schemas/VehicleMetadata",
+            "property": "#/components/schemas/PropertyMetadata",
+            "equipment": "#/components/schemas/EquipmentMetadata"
+          }
+        }
+      },
+      "CreateAssetBody": {
         "type": "object",
         "properties": {
-          "assets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Asset"
-            }
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "My Truck"
           },
-          "counts": {
-            "$ref": "#/components/schemas/AssetCategoryCounts"
+          "metadata": {
+            "$ref": "#/components/schemas/AssetMetadata"
           }
         },
         "required": [
-          "assets",
-          "counts"
+          "name",
+          "metadata"
+        ]
+      },
+      "AssetSharing": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "team"
+            ],
+            "example": "personal"
+          },
+          "isOwner": {
+            "type": "boolean",
+            "example": true
+          },
+          "ownerDisplayName": {
+            "type": "string",
+            "example": "Dale"
+          }
+        },
+        "required": [
+          "scope",
+          "isOwner"
         ]
       },
       "Asset": {
@@ -330,31 +361,6 @@
           "sharing"
         ]
       },
-      "AssetSharing": {
-        "type": "object",
-        "properties": {
-          "scope": {
-            "type": "string",
-            "enum": [
-              "personal",
-              "team"
-            ],
-            "example": "personal"
-          },
-          "isOwner": {
-            "type": "boolean",
-            "example": true
-          },
-          "ownerDisplayName": {
-            "type": "string",
-            "example": "Dale"
-          }
-        },
-        "required": [
-          "scope",
-          "isOwner"
-        ]
-      },
       "AssetCategoryCounts": {
         "type": "object",
         "properties": {
@@ -386,18 +392,22 @@
           "equipment"
         ]
       },
-      "SearchAssetsResponse": {
+      "AssetListResponse": {
         "type": "object",
         "properties": {
-          "results": {
+          "assets": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/SearchResult"
+              "$ref": "#/components/schemas/Asset"
             }
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AssetCategoryCounts"
           }
         },
         "required": [
-          "results"
+          "assets",
+          "counts"
         ]
       },
       "SearchResult": {
@@ -434,6 +444,20 @@
           "type",
           "summary",
           "sharing"
+        ]
+      },
+      "SearchAssetsResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            }
+          }
+        },
+        "required": [
+          "results"
         ]
       },
       "MaintenanceRecord": {
@@ -582,13 +606,13 @@
               "soon",
               "ok"
             ],
-            "example": "soon",
-            "description": "Derived from nextDue and todayUtc using calendar-day rules"
+            "description": "Derived from nextDue and todayUtc using calendar-day rules",
+            "example": "soon"
           },
           "daysDue": {
             "type": "integer",
-            "example": 5,
-            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue"
+            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+            "example": 5
           },
           "createdAt": {
             "type": "string",
@@ -658,47 +682,6 @@
         },
         "required": [
           "maintenanceTasks"
-        ]
-      },
-      "DashboardResponse": {
-        "type": "object",
-        "properties": {
-          "viewerDisplayName": {
-            "type": "string",
-            "nullable": true,
-            "example": "Dale",
-            "description": "Authenticated user's display name when available"
-          },
-          "todayUtc": {
-            "type": "string",
-            "format": "date",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-            "example": "2026-06-16",
-            "description": "Server-side UTC calendar date used for urgency calculations"
-          },
-          "fleetTotals": {
-            "$ref": "#/components/schemas/DashboardFleetTotals"
-          },
-          "fleetHealth": {
-            "$ref": "#/components/schemas/DashboardFleetHealth"
-          },
-          "queueCountsByCategory": {
-            "$ref": "#/components/schemas/DashboardQueueCounts"
-          },
-          "queue": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/DashboardQueueItem"
-            }
-          }
-        },
-        "required": [
-          "viewerDisplayName",
-          "todayUtc",
-          "fleetTotals",
-          "fleetHealth",
-          "queueCountsByCategory",
-          "queue"
         ]
       },
       "DashboardFleetTotals": {
@@ -819,13 +802,13 @@
               "soon",
               "ok"
             ],
-            "example": "soon",
-            "description": "Derived from nextDue and todayUtc using calendar-day rules"
+            "description": "Derived from nextDue and todayUtc using calendar-day rules",
+            "example": "soon"
           },
           "daysDue": {
             "type": "integer",
-            "example": -3,
-            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue"
+            "description": "Signed calendar-day distance from todayUtc to nextDue; negative means overdue",
+            "example": -3
           },
           "intervalValue": {
             "type": "integer",
@@ -891,35 +874,93 @@
           "sharing"
         ]
       },
-      "ActivityResponse": {
+      "DashboardResponse": {
         "type": "object",
         "properties": {
-          "viewerUserId": {
-            "type": "string",
-            "format": "uuid",
-            "example": "7d914909-c903-41a4-a13a-82cbd0f61851",
-            "description": "Caller's domain user id for attributing 'you' vs teammate in the client"
-          },
-          "entries": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ActivityEntry"
-            }
-          },
-          "availableFilters": {
-            "$ref": "#/components/schemas/ActivityAvailableFilters"
-          },
-          "nextCursor": {
+          "viewerDisplayName": {
             "type": "string",
             "nullable": true,
-            "example": null
+            "description": "Authenticated user's display name when available",
+            "example": "Dale"
+          },
+          "todayUtc": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Server-side UTC calendar date used for urgency calculations",
+            "example": "2026-06-16"
+          },
+          "fleetTotals": {
+            "$ref": "#/components/schemas/DashboardFleetTotals"
+          },
+          "fleetHealth": {
+            "$ref": "#/components/schemas/DashboardFleetHealth"
+          },
+          "queueCountsByCategory": {
+            "$ref": "#/components/schemas/DashboardQueueCounts"
+          },
+          "queue": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DashboardQueueItem"
+            }
           }
         },
         "required": [
-          "viewerUserId",
-          "entries",
-          "availableFilters",
-          "nextCursor"
+          "viewerDisplayName",
+          "todayUtc",
+          "fleetTotals",
+          "fleetHealth",
+          "queueCountsByCategory",
+          "queue"
+        ]
+      },
+      "ActivityAssetSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+          },
+          "name": {
+            "type": "string",
+            "example": "My Truck"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "vehicle",
+              "property",
+              "equipment"
+            ],
+            "example": "vehicle"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type"
+        ]
+      },
+      "ActivityActorSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable acting-user id (never an email or auth-provider identifier)",
+            "example": "71afbc20-f2e0-4fc8-a989-278437cf792c"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Display-name snapshot of the actor at the time of the action",
+            "example": "Pat Rivera"
+          }
+        },
+        "required": [
+          "id",
+          "displayName"
         ]
       },
       "ActivityEntry": {
@@ -971,75 +1012,6 @@
           "actor"
         ]
       },
-      "ActivityAssetSnapshot": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
-          },
-          "name": {
-            "type": "string",
-            "example": "My Truck"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "vehicle",
-              "property",
-              "equipment"
-            ],
-            "example": "vehicle"
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "type"
-        ]
-      },
-      "ActivityActorSnapshot": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "71afbc20-f2e0-4fc8-a989-278437cf792c",
-            "description": "Stable acting-user id (never an email or auth-provider identifier)"
-          },
-          "displayName": {
-            "type": "string",
-            "example": "Pat Rivera",
-            "description": "Display-name snapshot of the actor at the time of the action"
-          }
-        },
-        "required": [
-          "id",
-          "displayName"
-        ]
-      },
-      "ActivityAvailableFilters": {
-        "type": "object",
-        "properties": {
-          "types": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ActivityTypeFilter"
-            }
-          },
-          "assets": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ActivityAssetFilter"
-            }
-          }
-        },
-        "required": [
-          "types",
-          "assets"
-        ]
-      },
       "ActivityTypeFilter": {
         "type": "object",
         "properties": {
@@ -1082,6 +1054,58 @@
           "count"
         ]
       },
+      "ActivityAvailableFilters": {
+        "type": "object",
+        "properties": {
+          "types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityTypeFilter"
+            }
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityAssetFilter"
+            }
+          }
+        },
+        "required": [
+          "types",
+          "assets"
+        ]
+      },
+      "ActivityResponse": {
+        "type": "object",
+        "properties": {
+          "viewerUserId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Caller's domain user id for attributing 'you' vs teammate in the client",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityEntry"
+            }
+          },
+          "availableFilters": {
+            "$ref": "#/components/schemas/ActivityAvailableFilters"
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "viewerUserId",
+          "entries",
+          "availableFilters",
+          "nextCursor"
+        ]
+      },
       "UserProfile": {
         "type": "object",
         "properties": {
@@ -1105,13 +1129,13 @@
             "type": "string",
             "nullable": true,
             "format": "email",
-            "example": "contact@example.com",
-            "description": "User-controlled contact email reminders may be sent to. Null when unset; distinct from the read-only provider auth email."
+            "description": "User-controlled contact email reminders may be sent to. Null when unset; distinct from the read-only provider auth email.",
+            "example": "contact@example.com"
           },
           "notificationEmailVerified": {
             "type": "boolean",
-            "example": false,
-            "description": "Whether the contact email is verified. Reminder emails are only delivered when true."
+            "description": "Whether the contact email is verified. Reminder emails are only delivered when true.",
+            "example": false
           }
         },
         "required": [
@@ -1171,8 +1195,8 @@
               "verified",
               "invalid"
             ],
-            "example": "verified",
-            "description": "`verified` when the address is now confirmed; `invalid` is the single non-leaking outcome for any unknown, expired, used, superseded, or address-changed token."
+            "description": "`verified` when the address is now confirmed; `invalid` is the single non-leaking outcome for any unknown, expired, used, superseded, or address-changed token.",
+            "example": "verified"
           }
         },
         "required": [
@@ -1190,74 +1214,6 @@
         },
         "required": [
           "token"
-        ]
-      },
-      "NotificationListResponse": {
-        "type": "object",
-        "properties": {
-          "notifications": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/Notification"
-            }
-          },
-          "unreadCount": {
-            "type": "integer",
-            "minimum": 0,
-            "example": 2
-          },
-          "nextCursor": {
-            "type": "string",
-            "nullable": true,
-            "example": null
-          }
-        },
-        "required": [
-          "notifications",
-          "unreadCount",
-          "nextCursor"
-        ]
-      },
-      "Notification": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
-          },
-          "type": {
-            "type": "string",
-            "enum": [
-              "maintenance_due_soon"
-            ],
-            "example": "maintenance_due_soon"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2026-07-13T00:00:00.000Z"
-          },
-          "readAt": {
-            "type": "string",
-            "nullable": true,
-            "format": "date-time",
-            "example": null
-          },
-          "asset": {
-            "$ref": "#/components/schemas/NotificationAssetSnapshot"
-          },
-          "task": {
-            "$ref": "#/components/schemas/NotificationTaskSnapshot"
-          }
-        },
-        "required": [
-          "id",
-          "type",
-          "createdAt",
-          "readAt",
-          "asset",
-          "task"
         ]
       },
       "NotificationAssetSnapshot": {
@@ -1313,6 +1269,74 @@
           "nextDue"
         ]
       },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "example": "d5b3b826-2d77-494a-b99d-0d9fcf7c47c0"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "maintenance_due_soon"
+            ],
+            "example": "maintenance_due_soon"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-07-13T00:00:00.000Z"
+          },
+          "readAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "example": null
+          },
+          "asset": {
+            "$ref": "#/components/schemas/NotificationAssetSnapshot"
+          },
+          "task": {
+            "$ref": "#/components/schemas/NotificationTaskSnapshot"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "createdAt",
+          "readAt",
+          "asset",
+          "task"
+        ]
+      },
+      "NotificationListResponse": {
+        "type": "object",
+        "properties": {
+          "notifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Notification"
+            }
+          },
+          "unreadCount": {
+            "type": "integer",
+            "minimum": 0,
+            "example": 2
+          },
+          "nextCursor": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          }
+        },
+        "required": [
+          "notifications",
+          "unreadCount",
+          "nextCursor"
+        ]
+      },
       "MarkAllNotificationsReadResponse": {
         "type": "object",
         "properties": {
@@ -1324,6 +1348,32 @@
         },
         "required": [
           "unreadCount"
+        ]
+      },
+      "TeamMember": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
+          },
+          "name": {
+            "type": "string",
+            "example": "Dale"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "member"
+            ],
+            "example": "owner"
+          }
+        },
+        "required": [
+          "userId",
+          "name",
+          "role"
         ]
       },
       "Team": {
@@ -1361,32 +1411,6 @@
           "createdAt"
         ]
       },
-      "TeamMember": {
-        "type": "object",
-        "properties": {
-          "userId": {
-            "type": "string",
-            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
-          },
-          "name": {
-            "type": "string",
-            "example": "Dale"
-          },
-          "role": {
-            "type": "string",
-            "enum": [
-              "owner",
-              "member"
-            ],
-            "example": "owner"
-          }
-        },
-        "required": [
-          "userId",
-          "name",
-          "role"
-        ]
-      },
       "CreateTeamBody": {
         "type": "object",
         "properties": {
@@ -1416,8 +1440,8 @@
           },
           "viewerUserId": {
             "type": "string",
-            "example": "7d914909-c903-41a4-a13a-82cbd0f61851",
-            "description": "The authenticated caller's user id (for client-side 'you' labels)."
+            "description": "The authenticated caller's user id (for client-side 'you' labels).",
+            "example": "7d914909-c903-41a4-a13a-82cbd0f61851"
           }
         },
         "required": [
@@ -1434,11 +1458,21 @@
         "tags": [
           "System"
         ],
-        "summary": "Liveness check",
-        "description": "Returns ok when the Worker is serving. No authentication.",
+        "summary": "Health check",
+        "description": "Reports the deployed Worker version, the latest applied D1 migration, and a D1 round-trip result. No authentication. Exposes no configuration values.",
         "responses": {
           "200": {
-            "description": "Service is healthy",
+            "description": "Service is healthy and D1 is reachable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "D1 is unreachable",
             "content": {
               "application/json": {
                 "schema": {

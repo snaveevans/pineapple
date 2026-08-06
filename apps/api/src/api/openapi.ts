@@ -113,11 +113,17 @@ export const healthRoute = createRoute({
   method: "get",
   path: "/health",
   tags: ["System"],
-  summary: "Liveness check",
-  description: "Returns ok when the Worker is serving. No authentication.",
+  summary: "Health check",
+  description:
+    "Reports the deployed Worker version, the latest applied D1 migration, and a D1 " +
+    "round-trip result. No authentication. Exposes no configuration values.",
   responses: {
     200: {
-      description: "Service is healthy",
+      description: "Service is healthy and D1 is reachable",
+      content: { "application/json": { schema: HealthResponseSchema } },
+    },
+    503: {
+      description: "D1 is unreachable",
       content: { "application/json": { schema: HealthResponseSchema } },
     },
   },

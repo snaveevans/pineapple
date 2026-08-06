@@ -9,8 +9,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Liveness check
-         * @description Returns ok when the Worker is serving. No authentication.
+         * Health check
+         * @description Reports the deployed Worker version, the latest applied D1 migration, and a D1 round-trip result. No authentication. Exposes no configuration values.
          */
         get: {
             parameters: {
@@ -21,8 +21,17 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description Service is healthy */
+                /** @description Service is healthy and D1 is reachable */
                 200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Health"];
+                    };
+                };
+                /** @description D1 is unreachable */
+                503: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -1462,8 +1471,26 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         Health: {
-            /** @enum {string} */
-            status: "ok";
+            /**
+             * @description `ok` when D1 answered; `error` (with a 503) when it did not
+             * @enum {string}
+             */
+            status: "ok" | "error";
+            /**
+             * @description Identifier of the deployed Worker version serving this request
+             * @example 8c4c9a2e-1f3b-4d5e-9a6b-2c7d8e9f0a1b
+             */
+            version: string;
+            /**
+             * @description Filename of the latest applied D1 migration; null when D1 is unreachable
+             * @example 0015_activity_actor_display_name.sql
+             */
+            latestMigration: string | null;
+            /**
+             * @description Result of a D1 round trip
+             * @enum {string}
+             */
+            database: "reachable" | "unreachable";
         };
         CreatedAsset: {
             /** @example 195d0ef0-47f5-439f-abfd-29f892c9a040 */
@@ -1475,12 +1502,6 @@ export interface components {
             /** @example metadata.year */
             field?: string;
         };
-        CreateAssetBody: {
-            /** @example My Truck */
-            name: string;
-            metadata: components["schemas"]["AssetMetadata"];
-        };
-        AssetMetadata: components["schemas"]["VehicleMetadata"] | components["schemas"]["PropertyMetadata"] | components["schemas"]["EquipmentMetadata"];
         VehicleMetadata: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1496,6 +1517,13 @@ export interface components {
             /** @example 1C6RR7LT4GS123456 */
             vin?: string;
         };
+        Address: {
+            street: string;
+            city: string;
+            state: string;
+            postalCode: string;
+            country: string;
+        };
         PropertyMetadata: {
             /**
              * @description discriminator enum property added by openapi-typescript
@@ -1505,13 +1533,6 @@ export interface components {
             /** @example Lake cabin */
             nickname?: string;
             address: components["schemas"]["Address"];
-        };
-        Address: {
-            street: string;
-            city: string;
-            state: string;
-            postalCode: string;
-            country: string;
         };
         EquipmentMetadata: {
             /**
@@ -1526,9 +1547,22 @@ export interface components {
             /** @example EAMT-1234567 */
             serialNumber?: string;
         };
-        AssetListResponse: {
-            assets: components["schemas"]["Asset"][];
-            counts: components["schemas"]["AssetCategoryCounts"];
+        AssetMetadata: components["schemas"]["VehicleMetadata"] | components["schemas"]["PropertyMetadata"] | components["schemas"]["EquipmentMetadata"];
+        CreateAssetBody: {
+            /** @example My Truck */
+            name: string;
+            metadata: components["schemas"]["AssetMetadata"];
+        };
+        AssetSharing: {
+            /**
+             * @example personal
+             * @enum {string}
+             */
+            scope: "personal" | "team";
+            /** @example true */
+            isOwner: boolean;
+            /** @example Dale */
+            ownerDisplayName?: string;
         };
         Asset: {
             /** @example 195d0ef0-47f5-439f-abfd-29f892c9a040 */
@@ -1558,17 +1592,6 @@ export interface components {
             updatedAt: string;
             sharing: components["schemas"]["AssetSharing"];
         };
-        AssetSharing: {
-            /**
-             * @example personal
-             * @enum {string}
-             */
-            scope: "personal" | "team";
-            /** @example true */
-            isOwner: boolean;
-            /** @example Dale */
-            ownerDisplayName?: string;
-        };
         AssetCategoryCounts: {
             /** @example 6 */
             all: number;
@@ -1579,8 +1602,9 @@ export interface components {
             /** @example 1 */
             equipment: number;
         };
-        SearchAssetsResponse: {
-            results: components["schemas"]["SearchResult"][];
+        AssetListResponse: {
+            assets: components["schemas"]["Asset"][];
+            counts: components["schemas"]["AssetCategoryCounts"];
         };
         SearchResult: {
             /** @example 195d0ef0-47f5-439f-abfd-29f892c9a040 */
@@ -1595,6 +1619,9 @@ export interface components {
             /** @example 2016 Ram 2500 */
             summary: string;
             sharing: components["schemas"]["AssetSharing"];
+        };
+        SearchAssetsResponse: {
+            results: components["schemas"]["SearchResult"][];
         };
         MaintenanceRecord: {
             /**
@@ -1712,23 +1739,6 @@ export interface components {
         MaintenanceTaskListResponse: {
             maintenanceTasks: components["schemas"]["MaintenanceTask"][];
         };
-        DashboardResponse: {
-            /**
-             * @description Authenticated user's display name when available
-             * @example Dale
-             */
-            viewerDisplayName: string | null;
-            /**
-             * Format: date
-             * @description Server-side UTC calendar date used for urgency calculations
-             * @example 2026-06-16
-             */
-            todayUtc: string;
-            fleetTotals: components["schemas"]["DashboardFleetTotals"];
-            fleetHealth: components["schemas"]["DashboardFleetHealth"];
-            queueCountsByCategory: components["schemas"]["DashboardQueueCounts"];
-            queue: components["schemas"]["DashboardQueueItem"][];
-        };
         DashboardFleetTotals: {
             /** @example 6 */
             total: number;
@@ -1814,43 +1824,22 @@ export interface components {
             assetType: "vehicle" | "property" | "equipment";
             sharing: components["schemas"]["AssetSharing"];
         };
-        ActivityResponse: {
+        DashboardResponse: {
             /**
-             * Format: uuid
-             * @description Caller's domain user id for attributing 'you' vs teammate in the client
-             * @example 7d914909-c903-41a4-a13a-82cbd0f61851
+             * @description Authenticated user's display name when available
+             * @example Dale
              */
-            viewerUserId: string;
-            entries: components["schemas"]["ActivityEntry"][];
-            availableFilters: components["schemas"]["ActivityAvailableFilters"];
-            /** @example null */
-            nextCursor: string | null;
-        };
-        ActivityEntry: {
-            /**
-             * Format: uuid
-             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
-             */
-            id: string;
-            /**
-             * @example maintenance_logged
-             * @enum {string}
-             */
-            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
-            /**
-             * Format: date-time
-             * @example 2026-06-09T18:25:24.887Z
-             */
-            occurredAt: string;
-            asset: components["schemas"]["ActivityAssetSnapshot"];
-            actor: components["schemas"]["ActivityActorSnapshot"];
-            /** @example Changed oil */
-            title?: string;
+            viewerDisplayName: string | null;
             /**
              * Format: date
-             * @example 2026-06-09
+             * @description Server-side UTC calendar date used for urgency calculations
+             * @example 2026-06-16
              */
-            performedAt?: string;
+            todayUtc: string;
+            fleetTotals: components["schemas"]["DashboardFleetTotals"];
+            fleetHealth: components["schemas"]["DashboardFleetHealth"];
+            queueCountsByCategory: components["schemas"]["DashboardQueueCounts"];
+            queue: components["schemas"]["DashboardQueueItem"][];
         };
         ActivityAssetSnapshot: {
             /**
@@ -1879,9 +1868,31 @@ export interface components {
              */
             displayName: string;
         };
-        ActivityAvailableFilters: {
-            types: components["schemas"]["ActivityTypeFilter"][];
-            assets: components["schemas"]["ActivityAssetFilter"][];
+        ActivityEntry: {
+            /**
+             * Format: uuid
+             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
+             */
+            id: string;
+            /**
+             * @example maintenance_logged
+             * @enum {string}
+             */
+            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
+            /**
+             * Format: date-time
+             * @example 2026-06-09T18:25:24.887Z
+             */
+            occurredAt: string;
+            asset: components["schemas"]["ActivityAssetSnapshot"];
+            actor: components["schemas"]["ActivityActorSnapshot"];
+            /** @example Changed oil */
+            title?: string;
+            /**
+             * Format: date
+             * @example 2026-06-09
+             */
+            performedAt?: string;
         };
         ActivityTypeFilter: {
             /**
@@ -1896,6 +1907,22 @@ export interface components {
             asset: components["schemas"]["ActivityAssetSnapshot"];
             /** @example 6 */
             count: number;
+        };
+        ActivityAvailableFilters: {
+            types: components["schemas"]["ActivityTypeFilter"][];
+            assets: components["schemas"]["ActivityAssetFilter"][];
+        };
+        ActivityResponse: {
+            /**
+             * Format: uuid
+             * @description Caller's domain user id for attributing 'you' vs teammate in the client
+             * @example 7d914909-c903-41a4-a13a-82cbd0f61851
+             */
+            viewerUserId: string;
+            entries: components["schemas"]["ActivityEntry"][];
+            availableFilters: components["schemas"]["ActivityAvailableFilters"];
+            /** @example null */
+            nextCursor: string | null;
         };
         UserProfile: {
             /**
@@ -1952,37 +1979,6 @@ export interface components {
             /** @example kQ8s2f...opaque-token */
             token: string;
         };
-        NotificationListResponse: {
-            notifications: components["schemas"]["Notification"][];
-            /** @example 2 */
-            unreadCount: number;
-            /** @example null */
-            nextCursor: string | null;
-        };
-        Notification: {
-            /**
-             * Format: uuid
-             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
-             */
-            id: string;
-            /**
-             * @example maintenance_due_soon
-             * @enum {string}
-             */
-            type: "maintenance_due_soon";
-            /**
-             * Format: date-time
-             * @example 2026-07-13T00:00:00.000Z
-             */
-            createdAt: string;
-            /**
-             * Format: date-time
-             * @example null
-             */
-            readAt: string | null;
-            asset: components["schemas"]["NotificationAssetSnapshot"];
-            task: components["schemas"]["NotificationTaskSnapshot"];
-        };
         NotificationAssetSnapshot: {
             /**
              * Format: uuid
@@ -2011,9 +2007,51 @@ export interface components {
              */
             nextDue: string;
         };
+        Notification: {
+            /**
+             * Format: uuid
+             * @example d5b3b826-2d77-494a-b99d-0d9fcf7c47c0
+             */
+            id: string;
+            /**
+             * @example maintenance_due_soon
+             * @enum {string}
+             */
+            type: "maintenance_due_soon";
+            /**
+             * Format: date-time
+             * @example 2026-07-13T00:00:00.000Z
+             */
+            createdAt: string;
+            /**
+             * Format: date-time
+             * @example null
+             */
+            readAt: string | null;
+            asset: components["schemas"]["NotificationAssetSnapshot"];
+            task: components["schemas"]["NotificationTaskSnapshot"];
+        };
+        NotificationListResponse: {
+            notifications: components["schemas"]["Notification"][];
+            /** @example 2 */
+            unreadCount: number;
+            /** @example null */
+            nextCursor: string | null;
+        };
         MarkAllNotificationsReadResponse: {
             /** @example 0 */
             unreadCount: number;
+        };
+        TeamMember: {
+            /** @example 7d914909-c903-41a4-a13a-82cbd0f61851 */
+            userId: string;
+            /** @example Dale */
+            name: string;
+            /**
+             * @example owner
+             * @enum {string}
+             */
+            role: "owner" | "member";
         };
         Team: {
             /** @example aaa11100-0000-0000-0000-000000000001 */
@@ -2028,17 +2066,6 @@ export interface components {
              * @example 2026-07-10T12:00:00.000Z
              */
             createdAt: string;
-        };
-        TeamMember: {
-            /** @example 7d914909-c903-41a4-a13a-82cbd0f61851 */
-            userId: string;
-            /** @example Dale */
-            name: string;
-            /**
-             * @example owner
-             * @enum {string}
-             */
-            role: "owner" | "member";
         };
         CreateTeamBody: {
             /** @example Field Ops */

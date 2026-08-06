@@ -31,6 +31,7 @@ import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1Ma
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
 import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSweepStore.ts";
+import { D1MigrationStatus } from "./infrastructure/persistence/D1MigrationStatus.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
 import { handleActivityQueueBatch } from "./infrastructure/activity/ActivityQueueConsumer.ts";
@@ -342,7 +343,30 @@ function serializeActivityEntry(entry: ActivityEntry): z.infer<typeof ActivityEn
 
 // ── Public routes (no auth) ──────────────────────────────────────────────────
 
-app.openapi(healthRoute, (c) => c.json({ status: "ok" } as const, 200));
+// Health check: reports which Worker version is serving, the latest applied
+// D1 migration (code and schema versions can drift — migrations are applied
+// separately from deploys), and a D1 round trip. Public; exposes only
+// operational state, never configuration values.
+app.openapi(healthRoute, async (c) => {
+  const version = c.env.CF_VERSION_METADATA.id;
+  try {
+    const latestMigration = await new D1MigrationStatus(c.env.DB).latestAppliedMigration();
+    return c.json(
+      { status: "ok" as const, version, latestMigration, database: "reachable" as const },
+      200,
+    );
+  } catch {
+    return c.json(
+      {
+        status: "error" as const,
+        version,
+        latestMigration: null,
+        database: "unreachable" as const,
+      },
+      503,
+    );
+  }
+});
 
 // Serve committed spec (app.doc() bakes in epoch date at module init in Workers).
 app.get("/openapi.json", (c) => c.json(openApiSpec));

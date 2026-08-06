@@ -143,4 +143,21 @@ export const ErrorResponseSchema = z
   })
   .openapi("Error");
 
-export const HealthResponseSchema = z.object({ status: z.literal("ok") }).openapi("Health");
+export const HealthResponseSchema = z
+  .object({
+    status: z
+      .enum(["ok", "error"])
+      .openapi({ description: "`ok` when D1 answered; `error` (with a 503) when it did not" }),
+    version: z.string().openapi({
+      description: "Identifier of the deployed Worker version serving this request",
+      example: "8c4c9a2e-1f3b-4d5e-9a6b-2c7d8e9f0a1b",
+    }),
+    latestMigration: z.string().nullable().openapi({
+      description: "Filename of the latest applied D1 migration; null when D1 is unreachable",
+      example: "0015_activity_actor_display_name.sql",
+    }),
+    database: z
+      .enum(["reachable", "unreachable"])
+      .openapi({ description: "Result of a D1 round trip" }),
+  })
+  .openapi("Health");
