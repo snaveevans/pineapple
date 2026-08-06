@@ -49,9 +49,9 @@ export type DashboardQueuePresentation = {
 
 export function formatDashboardDate(todayUtc: string): string {
   const [year, month, day] = ymdParts(todayUtc);
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- getUTCDay() ∈ [0,6]; WEEKDAYS is a 7-entry tuple, so the index is in bounds by construction.
-  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()]!;
-  return `${weekday} · ${MONTHS_LONG[month - 1]} ${day}, ${year}`;
+  const weekday = WEEKDAYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()] ?? "";
+  const monthName = MONTHS_LONG[month - 1] ?? "";
+  return `${weekday} · ${monthName} ${day}, ${year}`;
 }
 
 export function formatFleetSubline(todayUtc: string, total: number): string {
@@ -72,8 +72,7 @@ export function formatDueLabel(daysDue: number): string {
 export function formatLastService(lastCompletedDate: string | null): string {
   if (!lastCompletedDate) return "—";
   const [, month, day] = ymdParts(lastCompletedDate);
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- month ∈ [1,12] (ymdParts floors with `?? 1`); MONTHS_LONG is a 12-entry tuple, so month-1 ∈ [0,11] by construction.
-  const monthName = MONTHS_LONG[month - 1]!;
+  const monthName = MONTHS_LONG[month - 1] ?? "";
   return `${monthName.slice(0, 3)} ${day}`;
 }
 
