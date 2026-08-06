@@ -33,7 +33,10 @@
 # whose `DEFAULT` clause lands on its own continuation line must not be
 # flagged just because that DEFAULT isn't on the same physical line as
 # NOT NULL, so its "no DEFAULT" half is evaluated against every line of the
-# open statement, not just the one that tripped the trigger.
+# open statement, not just the one that tripped the trigger. That deferral
+# is flushed both when a statement closes with `;` and after a file's last
+# line, so a final statement missing its terminating semicolon — which
+# SQLite still executes — cannot silently drop a pending finding.
 #
 # A finding is acknowledged when the immediately preceding non-blank line —
 # or, if the finding is on a continuation line of a still-open statement, the
@@ -113,6 +116,19 @@ report() {
   fail=1
 }
 
+# Emits pattern 4's deferred finding, if one is armed and no DEFAULT ever
+# showed up in the statement. Called both when a statement closes with `;`
+# and after a file's last line, so a statement with no terminating
+# semicolon — which SQLite still executes — cannot silently drop a pending
+# finding (fail-open is worse than none).
+flush_pending_addnotnull() {
+  if [ -n "$pending_addnotnull_line" ] && [ "$stmt_has_default" != true ]; then
+    report "$pending_addnotnull_line" "$pending_addnotnull_text"
+  fi
+  pending_addnotnull_line=""
+  stmt_has_default=false
+}
+
 shopt -s nullglob
 files=("$DIR"/*.sql)
 shopt -u nullglob
@@ -186,18 +202,17 @@ for file in "${files[@]}"; do
     fi
 
     if [[ "$sql_part" =~ \;[[:space:]]*$ ]]; then
-      if [ -n "$pending_addnotnull_line" ] && [ "$stmt_has_default" != true ]; then
-        report "$pending_addnotnull_line" "$pending_addnotnull_text"
-      fi
+      flush_pending_addnotnull
       in_statement=false
-      pending_addnotnull_line=""
-      stmt_has_default=false
     else
       in_statement=true
     fi
 
     prev_nonblank="$line"
   done < "$file"
+
+  # The file may end mid-statement — no trailing `;` on the last line.
+  flush_pending_addnotnull
 done
 
 exit "$fail"

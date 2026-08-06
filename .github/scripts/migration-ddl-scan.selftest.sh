@@ -153,6 +153,19 @@ assert_pass "ADD COLUMN wrapped, DEFAULT before NOT NULL on separate lines" \
 assert_flag "RENAME COLUMN wrapped onto multiple lines, no acknowledgment" \
   $'ALTER TABLE t\n  RENAME COLUMN a TO b;'
 
+# A file's last statement can omit its terminating semicolon — SQLite still
+# executes it, so migrations-fresh-apply.sh stays green on one too. Pattern
+# 4's deferred check must flush at EOF, not only on a `;`, or this is a
+# fail-open hole with no other check behind it (PR #173 4th-pass review).
+assert_flag "ADD COLUMN NOT NULL, file ends with no terminating semicolon" \
+  'ALTER TABLE assets ADD COLUMN status TEXT NOT NULL'
+
+assert_flag "ADD COLUMN NOT NULL wrapped, file ends with no terminating semicolon" \
+  $'ALTER TABLE assets\n  ADD COLUMN status TEXT NOT NULL'
+
+assert_pass "ADD COLUMN NOT NULL with DEFAULT, file ends with no terminating semicolon" \
+  $'ALTER TABLE assets\n  ADD COLUMN status TEXT NOT NULL DEFAULT \'active\''
+
 assert_pass "destructive-ok marker is matched case-insensitively" \
   $'-- DESTRUCTIVE-OK: reason here\nDROP TABLE t;'
 
