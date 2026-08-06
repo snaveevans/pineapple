@@ -27,6 +27,24 @@ app served by a Cloudflare Worker — it currently hosts the marketing home page
   un-awaited promises (dropped work, swallowed errors).
   `@typescript-eslint/no-floating-promises` is an explicit lint error: `await`,
   `.catch`, or mark intentionally-detached work with `void`.
+- **CI-enforced lint bans (the trust boundary):** `main` merges on green CI
+  with 0 required reviews, so CI is where silent moves are caught. Three
+  repo-wide rules fail the build on an agent's cheapest unblocks:
+  - **No non-null `!`** (`@typescript-eslint/no-non-null-assertion`) — fixes a
+    nullability error by hiding it. Fix or narrowly justify each site (inline
+    `eslint-disable` with a reason); don't blanket-disable. Note
+    `noUncheckedIndexedAccess` is on, so `arr[i]` is `T | undefined` — use
+    optional chaining, a guard, or `??`.
+  - **No empty `catch {}`** (`no-empty`, `allowEmptyCatch: false`) — a swallowed
+    error hides a bug. Add a comment or rethrow; an intentionally-ignored catch
+    still needs a one-line explanation.
+  - **No focused/skipped tests** (`@vitest/eslint-plugin`:
+    `no-focused-tests`, `no-disabled-tests`) — `.only` silently skips the rest
+    of the suite and `.skip`/`xit` silently drop tests; both produce a green diff
+    that hides a regression. Use `test.todo` for pending work.
+    These apply to `**/*.{ts,tsx}` (incl. `.test.{ts,tsx}`). Full type-checked
+    linting of the React `.tsx` app is a separate concern — only the
+    non-type-checked `recommended` set plus these bans is active there.
 - **D1 (SQLite)** via the `DB` binding. Migrations in `/migrations`, applied
   with `wrangler d1 migrations apply pineapple --local|--remote`. **Schema change
   follows expand/contract** — add nullable, backfill, ship the code, drop the old
