@@ -355,7 +355,13 @@ app.openapi(healthRoute, async (c) => {
       { status: "ok" as const, version, latestMigration, database: "reachable" as const },
       200,
     );
-  } catch {
+  } catch (error) {
+    // Logged so a real D1 outage is distinguishable from the tolerated
+    // missing-bookkeeping case, which D1MigrationStatus handles internally.
+    console.error(
+      { error, method: c.req.method, path: c.req.path },
+      "Health check D1 query failed",
+    );
     return c.json(
       {
         status: "error" as const,

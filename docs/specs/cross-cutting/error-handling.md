@@ -69,9 +69,10 @@ Every feature spec must document:
 
 ## Exceptions
 
-| Feature       | Deviation                     | Reason                                                                                                         |
-| ------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `/api/auth/*` | Error envelope not guaranteed | Routes are delegated directly to Better Auth and bypasses `app.onError`; Better Auth owns its own error shapes |
+| Feature       | Deviation                                                       | Reason                                                                                                                                                                                                                                                                                       |
+| ------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/auth/*` | Error envelope not guaranteed                                   | Routes are delegated directly to Better Auth and bypasses `app.onError`; Better Auth owns its own error shapes                                                                                                                                                                               |
+| `GET /health` | Emits 503; body is the `Health` payload, not the error envelope | A readiness probe, not the domain error flow: there is no use case and no `DomainError` to map. 503 means the D1 round trip failed (any other failure is a bug and surfaces via `app.onError` as 500). Uptime consumers key on the status code and get the same `Health` shape on both paths |
 
 ## Anti-Patterns
 

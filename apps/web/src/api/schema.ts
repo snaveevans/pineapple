@@ -1482,7 +1482,7 @@ export interface components {
              */
             version: string;
             /**
-             * @description Filename of the latest applied D1 migration; null when D1 is unreachable
+             * @description Filename of the latest applied D1 migration; null when no migration state is recorded (database never migrated) or when D1 is unreachable — `database` distinguishes the two
              * @example 0015_activity_actor_display_name.sql
              */
             latestMigration: string | null;
