@@ -6,6 +6,14 @@ when adding a screen, changing a flow, or removing a feature.
 
 For the API contract behind each feature, see the linked spec in `docs/specs/features/`.
 
+Each entry lists its renderable states using the vocabulary from
+[`docs/specs/cross-cutting/loading-states.md`](../specs/cross-cutting/loading-states.md):
+`loading`, `error`, `empty`, `populated` for reads; `pending` and `error` for
+mutations. Content-stress states (long strings, pagination boundaries) and
+documented exceptions are noted per entry. These state lists are the input the
+state gallery (#145) enumerates from — every state listed here must be renderable
+in isolation.
+
 ---
 
 ## Marketing Home
@@ -13,11 +21,12 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/`
 **Goal:** Communicate the product's value to prospective users and route them to sign-up or login.
 
-**Key states:**
+**States:**
 
-- Default (unauthenticated / session check in flight): full nav and hero CTAs for sign-up and login
-- Authenticated: all login-destined CTAs swap to a single "Go to App" button (→ `/app`); footer login link is removed
-- Session check failure (network error, 4xx/5xx): silently falls back to unauthenticated state — no error shown
+- Unauthenticated — full nav and hero CTAs for sign-up and login
+- Authenticated — all login-destined CTAs swap to a single "Go to App" button (→ `/app`); footer login link removed
+
+**Exceptions:** Uses three-value session state (`undefined` / `null` / `Session`), not React Query — the auth lifecycle drives routing before React Query context is available (see `loading-states.md` Exceptions table). Session check failure silently falls back to unauthenticated; no error state is shown.
 
 **Non-obvious behavior:**
 
@@ -33,11 +42,13 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/login`
 **Goal:** Let the user authenticate via Google OAuth and land in the app.
 
-**Key states:**
+**States:**
 
-- Default: Google sign-in button
-- In-flight: button disabled while OAuth redirect is pending
-- Error: auth failure surfaces an error message inline
+- Idle — Google sign-in button
+- In-flight — button disabled while OAuth redirect is pending
+- Error — auth failure surfaces an error message inline
+
+**Exceptions:** Uses the OAuth redirect flow, not React Query — part of the auth-flow exception in `loading-states.md`. The "in-flight" state is the OAuth redirect, not a `useMutation` `isPending`.
 
 **Non-obvious behavior:**
 
@@ -53,18 +64,23 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/onboarding` (post-auth guard on `/app/*`); profile editing at `/app/profile` (avatar in top bar)
 **Goal:** Require authenticated users to confirm or enter a display name before showing the authenticated app, then let them update that name later.
 
-**Key states:**
+**States:**
 
-- Loading: after authentication, fetch `GET /api/users/me` before rendering authenticated routes
-- Incomplete onboarding with provider name: prefill the name field and require explicit confirmation
-- Incomplete onboarding without provider name: show an empty required name field
-- Saving: disable duplicate submits while `PATCH /api/users/me` is in flight
-- Complete: enter the originally requested authenticated route, or `/app` by default
-- Later profile edit: read and update the same domain profile name
-- Later profile edit: add, change, remove, and resend verification for the contact email used for maintenance reminders
-- Contact email unset: show an empty optional email field with a save action
-- Contact email unverified: show the saved address, an unverified badge, and a resend-verification action
-- Contact email verified: show a verified badge and reminder-delivery confirmation copy
+- `loading` — fetch `GET /api/users/me` before rendering authenticated routes
+- `error` — retryable error; 401 redirects to `/login`
+- `populated` (incomplete onboarding, provider name available) — name field prefilled; explicit confirmation required
+- `populated` (incomplete onboarding, no provider name) — empty required name field
+- `populated` (complete) — enters the originally requested authenticated route, or `/app` by default
+- `populated` (profile edit) — saved display name and contact-email state rendered for editing
+
+**Contact-email sub-states:** unset (empty optional field with save action) · unverified (saved address, unverified badge, resend-verification action) · verified (verified badge, reminder-delivery confirmation copy)
+
+**Mutations:**
+
+- `pending` (`PATCH /api/users/me`) — duplicate submits disabled while in flight
+- `error` — inline field errors; 422 field errors mapped to individual inputs; 401 redirects to `/login`
+
+**Content stress:** maximum-length display name (100 characters); long contact email address
 
 **Non-obvious behavior:**
 
@@ -84,11 +100,13 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/*`
 **Goal:** Give authenticated users consistent access to the main app destinations and account-level controls from every app screen.
 
-**Key states:**
+**States:**
 
-- Desktop: top bar shows the FieldOps brand, route tabs for Home, Assets, and History, plus search, a live notifications badge/link, and profile controls
-- Mobile: bottom tab bar shows the same Home, Assets, and History destinations
-- Active route: the matching tab is highlighted for the current page
+- Desktop — top bar shows the FieldOps brand, route tabs for Home, Assets, and History, plus search, a live notifications badge/link, and profile controls
+- Mobile — bottom tab bar shows the same Home, Assets, and History destinations
+- Active route — the matching tab is highlighted for the current page
+
+**Exceptions:** No async data states of its own — the shell is a layout. The notifications badge is driven by the Notifications query (see [Notifications](#notifications)). Not a React Query consumer at this layer.
 
 **Non-obvious behavior:**
 
@@ -103,16 +121,21 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/notifications`
 **Goal:** Let the authenticated user review due-soon maintenance reminders and clear unread items.
 
-**Key states:**
+**States:**
 
-- Loading: fetches `GET /api/notifications` and shows row skeletons
-- Empty inbox: explains that maintenance reminders will appear when tasks come due
-- Populated: newest-first notification list with unread marker, asset icon, task title, due copy, asset name, reminder date, and relative created time
-- Pagination: "Load older notifications" requests the next cursor when available
-- Mark one read: clicking an unread row calls `POST /api/notifications/{notificationId}/read`
-- Mark all read: header action calls `POST /api/notifications/read-all` and disables when there is nothing unread
-- Error: retryable load error; mutation errors surface above the list
-- Unauthenticated: 401 redirects to `/login`
+- `loading` — fetches `GET /api/notifications`; shows row skeletons
+- `error` — retryable load error; 401 redirects to `/login`
+- `empty` — "Maintenance reminders will appear when tasks come due." CTA: none (passive)
+- `populated` — newest-first notification list with unread marker, asset icon, task title, due copy, asset name, reminder date, and relative created time
+- `populated` (paginated) — "Load older notifications" requests the next cursor when available
+
+**Mutations:**
+
+- `pending` (mark one read) — clicking an unread row calls `POST /api/notifications/{notificationId}/read`
+- `pending` (mark all read) — header action calls `POST /api/notifications/read-all`; disabled when nothing is unread
+- `error` — mutation errors surface above the list
+
+**Content stress:** long asset name in notification rows; long task title
 
 **Non-obvious behavior:**
 
@@ -130,18 +153,22 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app`
 **Goal:** Give the authenticated user an at-a-glance view of upcoming and overdue service across their fleet, with a master/detail layout for acting on the next item.
 
-**Key states:**
+**States:**
 
-- Loading: fetches `GET /api/dashboard` before rendering fleet stats and queue
-- Empty fleet: prompts the user to add their first asset
-- Assets without scheduled tasks: fleet totals render; queue empty state points to the asset library
-- Populated: urgency-sorted maintenance queue with overdue/soon/on-track status from the API
-- Detail card (desktop) or inline expand (mobile) for the selected queue item
-- Sharing indicators on queue rows and the selected detail: "Shared with team" when the caller owns a team-shared asset; "Shared by {owner}" when a teammate shared it; none for personal assets
-- Filtered empty: category filter active but no matching queue rows
-- Error: dashboard-level error with retry
-- Mark complete: creates a linked maintenance record for the selected task and refetches dashboard + asset maintenance data
-- Add service: drawer modal to create a recurring maintenance task for any asset; defaults to the currently selected queue item's asset when one is selected
+- `loading` — fetches `GET /api/dashboard` before rendering fleet stats and queue
+- `error` — dashboard-level error with retry; 401 redirects to `/login`
+- `empty` (empty fleet) — prompts the user to add their first asset. CTA: link to add-asset form
+- `empty` (no scheduled tasks) — fleet totals render; queue empty state points to the asset library. CTA: link to asset library
+- `empty` (filtered) — category filter active but no matching queue rows. CTA: clear filter
+- `populated` — urgency-sorted maintenance queue with overdue/soon/on-track status from the API; detail card (desktop) or inline expand (mobile) for the selected queue item; sharing indicators on queue rows and selected detail ("Shared with team" / "Shared by {owner}" / none)
+
+**Mutations:**
+
+- `pending` (mark complete) — creates a linked maintenance record for the selected task and refetches dashboard + asset maintenance data
+- `pending` (add service) — drawer modal creates a recurring maintenance task for any asset; defaults to the currently selected queue item's asset when one is selected
+- `error` — inline error; mutation errors surface in the active modal/drawer
+
+**Content stress:** long asset name in queue rows and detail card; long task title; long owner display name in sharing badge
 
 **Non-obvious behavior:**
 
@@ -163,15 +190,16 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/assets`
 **Goal:** Let the user browse all their assets, narrow the list by category, and navigate to any asset's maintenance history.
 
-**Key states:**
+**States:**
 
-- Loading: loading state while fetching; toolbar controls hidden
-- Empty (no assets owned): prompt to add first asset with a direct link to the add form; no toolbar shown
-- Populated: grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`
-- Sharing indicators on cards: "Shared with team" for assets the user owns and shared; "Shared by {owner}" for assets a teammate shared with them; none for personal assets
-- Filtered: a category chip is active; the loaded list is narrowed to that asset type
-- Filtered empty: the selected category has no matching assets (library is otherwise non-empty); message names the category with a way to clear the filter or add an asset
-- Error: inline error message with a "Try again" retry button
+- `loading` — loading state while fetching; toolbar controls hidden
+- `error` — inline error message with a "Try again" retry button; 401 redirects to `/login`
+- `empty` (no assets owned) — prompt to add first asset with a direct link to the add form; no toolbar shown. CTA: link to add-asset form
+- `empty` (filtered) — selected category has no matching assets (library is otherwise non-empty); message names the category. CTA: clear filter or add an asset
+- `populated` — grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`; sharing indicators on cards ("Shared with team" / "Shared by {owner}" / none)
+- `populated` (filtered) — a category chip is active; the loaded list is narrowed to that asset type
+
+**Content stress:** long asset name on cards; long owner display name in sharing badge
 
 **Non-obvious behavior:**
 
@@ -199,15 +227,15 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 - **`cmd+k` keyboard shortcut on macOS opens search**; `ctrl+k` does the same on non-macOS keyboards
 - Mobile top-bar search button opens a full-screen search sheet
 
-**Key states:**
+**States:**
 
-- Closed/idle: not shown
-- Typing: debounced; loading indicator while the request is in flight
-- Results: ranked list from `GET /api/search?q=…` — each row shows name, type, a summary line, and a sharing marker when applicable; selecting a result navigates to that asset's maintenance page (`/app/assets/:id/maintenance`)
-- Sharing markers: "Shared with team" / "Shared by {owner}" from each hit's API `sharing` field; personal assets show none
-- No matches: clear "no matches" empty state (a 200 with an empty array, not an error)
-- Error: retryable error state
-- Unauthenticated (401): redirect to `/login`
+- Closed/idle — not shown
+- `loading` — debounced; loading indicator while the request is in flight
+- `error` — retryable error state; 401 redirects to `/login`
+- `empty` (no matches) — clear "no matches" empty state (a 200 with an empty array, not an error). CTA: none (refine query)
+- `populated` — ranked list from `GET /api/search?q=…`; each row shows name, type, a summary line, and a sharing marker when applicable; selecting a result navigates to that asset's maintenance page (`/app/assets/:id/maintenance`)
+
+**Content stress:** long asset name in result rows; long summary line
 
 **Non-obvious behavior:**
 
@@ -227,16 +255,17 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/history`
 **Goal:** Let the user review a durable, cross-asset timeline of actions they have taken across their fleet (owned assets and assets currently shared with their team).
 
-**Key states:**
+**States:**
 
-- Loading: fetches `GET /api/activity` before rendering the feed
-- Empty account history: explains that future asset, maintenance, and task actions will appear
-- Populated: reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, actor attribution ("by you" / teammate name), relative time, and absolute time
-- Filtered: type chips and a single asset selector refetch the server-side filtered feed
-- Search: inline search narrows the currently loaded history entries by title or asset name only; it does not query the API or search unloaded pages
-- Filtered empty: active filters/search remain visible and can be cleared
-- Pagination: "Load older" requests the next cursor while preserving active filters
-- Error: feed-level retry state
+- `loading` — fetches `GET /api/activity` before rendering the feed
+- `error` — feed-level retry state; 401 redirects to `/login`
+- `empty` (no account history) — explains that future asset, maintenance, and task actions will appear. CTA: none (passive)
+- `empty` (filtered) — active filters/search remain visible and can be cleared. CTA: clear filters
+- `populated` — reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, actor attribution ("by you" / teammate name), relative time, and absolute time
+- `populated` (filtered) — type chips and a single asset selector refetch the server-side filtered feed
+- `populated` (paginated) — "Load older" requests the next cursor while preserving active filters
+
+**Content stress:** long asset name in entries; long action title; long teammate display name in actor attribution; collection at pagination boundary
 
 **Non-obvious behavior:**
 
@@ -259,13 +288,18 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/assets/new`
 **Goal:** Let the user register a new asset (vehicle, equipment, or property) with a name, type, and optional notes.
 
-**Key states:**
+**States:**
 
-- Idle: blank form
-- Validation error: inline field errors on submit with focus moved to the first invalid field
-- Submitting: form disabled while the API call is in flight
-- Success: redirects to `/app/assets` and invalidates the assets query cache
-- API error: inline error message; form re-enabled for correction
+- Idle — blank form
+
+**Mutations:**
+
+- `pending` — form disabled while the API call is in flight
+- `error` (client validation) — inline field errors on submit with focus moved to the first invalid field
+- `error` (API) — inline error message; form re-enabled for correction; 422 field errors mapped to individual inputs; 401 redirects to `/login`
+- Success — redirects to `/app/assets` and invalidates the assets query cache
+
+**Content stress:** long asset name (maximum-length input); long notes field
 
 **Non-obvious behavior:**
 
@@ -281,19 +315,27 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/assets/:id/maintenance`
 **Goal:** Let the user view and log maintenance history for a specific asset, manage upcoming maintenance tasks, and (if they own the asset) share or unshare it with their team.
 
-**Key states:**
+**States:**
 
-- Loading: fetching asset, records, and tasks in parallel
-- Asset not found / 403: redirect to `/app/assets`
-- Empty records: prompt to log first record
-- Empty tasks: prompt to add first task
-- Populated: chronological list of records; task list with overdue/upcoming indicators
-- Create record form: inline or modal; validates date and description; submits to API
-- Create task form: inline; validates title and due date
-- Delete task: confirmation before removal
-- Share (owner only): sheet/drawer to share the asset to the caller's team or unshare it back to personal
-- Shared-by-teammate (member view): badge + strip explaining who shared it; no share control
-- No team when sharing: sheet explains a team is required and links to `/app/team`
+- `loading` — fetching asset, records, and tasks in parallel
+- `error` (not found / 403) — redirect to `/app/assets`
+- `error` (load failure) — retryable error; 401 redirects to `/login`
+- `empty` (no records) — prompt to log first record. CTA: open create-record form
+- `empty` (no tasks) — prompt to add first task. CTA: open create-task form
+- `populated` — chronological list of records; task list with overdue/upcoming indicators
+- `populated` (shared by teammate) — badge + strip explaining who shared it; no share control
+
+**Mutations:**
+
+- `pending` (create record) — inline or modal form validates date and description; submits to API
+- `pending` (create task) — inline form validates title and due date
+- `pending` (delete task) — confirmation before removal
+- `pending` (share/unshare, owner only) — sheet/drawer to share the asset to the caller's team or unshare it back to personal
+- `error` — inline field errors; 401 redirects to `/login`
+
+**Content stress:** long asset name in header; long record description; long task title; long owner display name in sharing badge
+
+**Exceptions:** Share control shows a "no team" state (sheet explains a team is required, links to `/app/team`) when the owner has no team — a value state, not an async state.
 
 **Non-obvious behavior:**
 
@@ -312,15 +354,21 @@ For the API contract behind each feature, see the linked spec in `docs/specs/fea
 **Route:** `/app/team` (accessed via a "My team" link on the profile page)
 **Goal:** Let the user create a team and view their team and its members.
 
-**Key states:**
+**States:**
 
-- Loading: fetches `GET /api/teams/me` before rendering
-- No team: shows a create-team prompt with an inline name field and submit button; on success the page transitions to show the created team
-- Has team: shows the team name, member count, and a member list with display name and role
-- Validation error (empty or over-length name): inline field error on submit
-- 409 Conflict (already in a team): banner explaining the user already belongs to a team
-- API error: generic error banner with retry
-- Unauthenticated: 401 redirects to `/login`
+- `loading` — fetches `GET /api/teams/me` before rendering
+- `error` — generic error banner with retry; 401 redirects to `/login`
+- `empty` (no team) — create-team prompt with an inline name field and submit button. CTA: create a team
+- `populated` (has team) — team name, member count, and a member list with display name and role
+
+**Mutations:**
+
+- `pending` (create team) — submit button disabled while in flight
+- `error` (validation) — inline field error on empty or over-length name
+- `error` (409 conflict) — banner explaining the user already belongs to a team
+- `error` (API) — generic error banner with retry
+
+**Content stress:** long team name (100 characters); long member display name
 
 **Non-obvious behavior:**
 
