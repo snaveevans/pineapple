@@ -81,9 +81,9 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 **Mutations:**
 
 - `pending` (`PATCH /api/users/me`, display name) — duplicate submits disabled while in flight
-- `pending` (set contact email, `POST /api/users/me/notification-email`) — submit disabled while in flight
+- `pending` (set contact email, `PUT /api/users/me/notification-email`) — submit disabled while in flight
 - `pending` (remove contact email, `DELETE /api/users/me/notification-email`) — action disabled while in flight
-- `pending` (resend verification, `POST /api/users/me/notification-email/verify`) — resend disabled while in flight; also disabled during cooldown
+- `pending` (resend verification, `POST /api/users/me/notification-email/verification`) — resend disabled while in flight; also disabled during cooldown
 - `error` — inline field errors; 422 field errors mapped to individual inputs; 401 redirects to `/login`
 
 **Notice states (local UI, not async):** saved ("This address is verified; reminders will be sent here.") · verification-sent ("Verification email sent to {address}; check your inbox.") · removed ("Contact email removed. Maintenance reminders will not be sent until you add one.") · cooldown ("You can request another verification email in a few minutes." — triggered by 429, disables resend)
