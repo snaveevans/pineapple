@@ -12,7 +12,10 @@ Each entry lists its renderable states using the vocabulary from
 mutations. Content-stress states (long strings, pagination boundaries) and
 documented exceptions are noted per entry. These state lists are the input the
 state gallery (#145) enumerates from — every state listed here must be renderable
-in isolation.
+in isolation. Navigate-away transitions (e.g. onboarding complete, create-asset
+success) are noted as transitions, not listed as enumerable states. The
+`unauthorized` (401) state is a non-vocab exception used by screens that paint a
+"Redirecting to sign in" UI before navigating to `/login`.
 
 ---
 
@@ -26,11 +29,10 @@ in isolation.
 - Unauthenticated — full nav and hero CTAs for sign-up and login
 - Authenticated — all login-destined CTAs swap to a single "Go to App" button (→ `/app`); footer login link removed
 
-**Exceptions:** Uses three-value session state (`undefined` / `null` / `Session`), not React Query — the auth lifecycle drives routing before React Query context is available (see `loading-states.md` Exceptions table). Session check failure silently falls back to unauthenticated; no error state is shown.
+**Exceptions:** Uses a boolean `useSession()` hook that defaults to unauthenticated (`false`) until the session endpoint proves otherwise — not React Query, and not the three-value session machine in `AuthFlow.tsx`. Any fetch failure is treated as unauthenticated; there is no error state. The unauthenticated button set renders immediately (no spinner), so there's no layout shift in the common case.
 
 **Non-obvious behavior:**
 
-- The unauthenticated button set renders immediately on load (no spinner/placeholder), so there's no layout shift in the common case
 - Authenticated users are not redirected away — they may intentionally visit the marketing page
 
 **Spec:** [`docs/specs/features/marketing-home.md`](../specs/features/marketing-home.md)
@@ -70,15 +72,21 @@ in isolation.
 - `error` — retryable error; 401 redirects to `/login`
 - `populated` (incomplete onboarding, provider name available) — name field prefilled; explicit confirmation required
 - `populated` (incomplete onboarding, no provider name) — empty required name field
-- `populated` (complete) — enters the originally requested authenticated route, or `/app` by default
 - `populated` (profile edit) — saved display name and contact-email state rendered for editing
 
-**Contact-email sub-states:** unset (empty optional field with save action) · unverified (saved address, unverified badge, resend-verification action) · verified (verified badge, reminder-delivery confirmation copy)
+Onboarding "complete" is a navigate-away transition (effect fires `navigate(returnTo)`), not a stable screen — not enumerable for the gallery.
+
+**Contact-email value sub-states:** unset (empty optional field with save action) · unverified (saved address, unverified badge, resend-verification action) · verified (verified badge, reminder-delivery confirmation copy)
 
 **Mutations:**
 
-- `pending` (`PATCH /api/users/me`) — duplicate submits disabled while in flight
+- `pending` (`PATCH /api/users/me`, display name) — duplicate submits disabled while in flight
+- `pending` (set contact email, `POST /api/users/me/notification-email`) — submit disabled while in flight
+- `pending` (remove contact email, `DELETE /api/users/me/notification-email`) — action disabled while in flight
+- `pending` (resend verification, `POST /api/users/me/notification-email/verify`) — resend disabled while in flight; also disabled during cooldown
 - `error` — inline field errors; 422 field errors mapped to individual inputs; 401 redirects to `/login`
+
+**Notice states (local UI, not async):** saved ("This address is verified; reminders will be sent here.") · verification-sent ("Verification email sent to {address}; check your inbox.") · removed ("Contact email removed. Maintenance reminders will not be sent until you add one.") · cooldown ("You can request another verification email in a few minutes." — triggered by 429, disables resend)
 
 **Content stress:** maximum-length display name (100 characters); long contact email address
 
@@ -124,8 +132,9 @@ in isolation.
 **States:**
 
 - `loading` — fetches `GET /api/notifications`; shows row skeletons
-- `error` — retryable load error; 401 redirects to `/login`
-- `empty` — "Maintenance reminders will appear when tasks come due." CTA: none (passive)
+- `error` — retryable load error
+- `unauthorized` (401) — lock icon, "Redirecting to sign in" / "Your session is no longer active." then navigates to `/login`
+- `empty` — "You're all caught up" / "Maintenance reminders will show up here as tasks come due on your assets." CTA: none (passive)
 - `populated` — newest-first notification list with unread marker, asset icon, task title, due copy, asset name, reminder date, and relative created time
 - `populated` (paginated) — "Load older notifications" requests the next cursor when available
 
@@ -135,7 +144,7 @@ in isolation.
 - `pending` (mark all read) — header action calls `POST /api/notifications/read-all`; disabled when nothing is unread
 - `error` — mutation errors surface above the list
 
-**Content stress:** long asset name in notification rows; long task title
+**Content stress:** long asset name in notification rows; long task title; collection at pagination boundary
 
 **Non-obvious behavior:**
 
@@ -168,6 +177,12 @@ in isolation.
 - `pending` (add service) — drawer modal creates a recurring maintenance task for any asset; defaults to the currently selected queue item's asset when one is selected
 - `error` — inline error; mutation errors surface in the active modal/drawer
 
+**Add-service drawer nested states** (fetches asset list on demand when opened):
+
+- `loading` — "Loading assets" / "Fetching your fleet so you can choose where to schedule this service…"
+- `error` — "Assets could not be loaded" / error message, with "Try again" retry
+- `empty` — "No assets available" / "Add an asset before scheduling a service." CTA: "Add asset" link to `/app/assets/new`
+
 **Content stress:** long asset name in queue rows and detail card; long task title; long owner display name in sharing badge
 
 **Non-obvious behavior:**
@@ -193,7 +208,8 @@ in isolation.
 **States:**
 
 - `loading` — loading state while fetching; toolbar controls hidden
-- `error` — inline error message with a "Try again" retry button; 401 redirects to `/login`
+- `error` — inline error message with a "Try again" retry button
+- `unauthorized` (401) — spinner + "Redirecting to sign in" then navigates to `/login`
 - `empty` (no assets owned) — prompt to add first asset with a direct link to the add form; no toolbar shown. CTA: link to add-asset form
 - `empty` (filtered) — selected category has no matching assets (library is otherwise non-empty); message names the category. CTA: clear filter or add an asset
 - `populated` — grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`; sharing indicators on cards ("Shared with team" / "Shared by {owner}" / none)
@@ -229,13 +245,14 @@ in isolation.
 
 **States:**
 
-- Closed/idle — not shown
+- Closed — not shown
+- Open (idle, empty query) — "Search your assets" / "Try a name, make, model, address, VIN, or serial number." (no API call until ≥1 non-space character)
 - `loading` — debounced; loading indicator while the request is in flight
 - `error` — retryable error state; 401 redirects to `/login`
-- `empty` (no matches) — clear "no matches" empty state (a 200 with an empty array, not an error). CTA: none (refine query)
+- `empty` (no matches) — "No assets match {query}" / "Try fewer words or another asset detail." CTA: none (refine query)
 - `populated` — ranked list from `GET /api/search?q=…`; each row shows name, type, a summary line, and a sharing marker when applicable; selecting a result navigates to that asset's maintenance page (`/app/assets/:id/maintenance`)
 
-**Content stress:** long asset name in result rows; long summary line
+**Content stress:** long asset name in result rows; long summary line; long owner display name in sharing badge
 
 **Non-obvious behavior:**
 
@@ -258,7 +275,8 @@ in isolation.
 **States:**
 
 - `loading` — fetches `GET /api/activity` before rendering the feed
-- `error` — feed-level retry state; 401 redirects to `/login`
+- `error` — feed-level retry state
+- `unauthorized` (401) — lock icon, "Redirecting to sign in" / "Your session is no longer active." then navigates to `/login`
 - `empty` (no account history) — explains that future asset, maintenance, and task actions will appear. CTA: none (passive)
 - `empty` (filtered) — active filters/search remain visible and can be cleared. CTA: clear filters
 - `populated` — reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, actor attribution ("by you" / teammate name), relative time, and absolute time
@@ -297,7 +315,8 @@ in isolation.
 - `pending` — form disabled while the API call is in flight
 - `error` (client validation) — inline field errors on submit with focus moved to the first invalid field
 - `error` (API) — inline error message; form re-enabled for correction; 422 field errors mapped to individual inputs; 401 redirects to `/login`
-- Success — redirects to `/app/assets` and invalidates the assets query cache
+
+Success is a navigate-away transition (invalidates assets query, navigates to `/app/assets`), not a stable screen — not enumerable for the gallery.
 
 **Content stress:** long asset name (maximum-length input); long notes field
 
@@ -318,8 +337,9 @@ in isolation.
 **States:**
 
 - `loading` — fetching asset, records, and tasks in parallel
-- `error` (not found / 403) — redirect to `/app/assets`
-- `error` (load failure) — retryable error; 401 redirects to `/login`
+- `error` (forbidden / 403) — dedicated `MRErrorState`: "Access denied" / "This asset belongs to another account. You don't have permission to view its maintenance history." No retry, no redirect
+- `error` (not found / 404) — dedicated `MRErrorState`: "Asset not found" / "We couldn't find this asset. It may have been removed." No retry, no redirect
+- `error` (load failure) — dedicated `MRErrorState`: "Couldn't load history" / "Something went wrong fetching maintenance records." with "Try again" retry
 - `empty` (no records) — prompt to log first record. CTA: open create-record form
 - `empty` (no tasks) — prompt to add first task. CTA: open create-task form
 - `populated` — chronological list of records; task list with overdue/upcoming indicators
@@ -329,9 +349,12 @@ in isolation.
 
 - `pending` (create record) — inline or modal form validates date and description; submits to API
 - `pending` (create task) — inline form validates title and due date
-- `pending` (delete task) — confirmation before removal
 - `pending` (share/unshare, owner only) — sheet/drawer to share the asset to the caller's team or unshare it back to personal
 - `error` — inline field errors; 401 redirects to `/login`
+
+**Local UI states (not async):**
+
+- Delete-task confirm — local "Delete task?" confirm dialog with Delete/Cancel buttons, distinct from any mutation `isPending` (the deletion is a direct async call, not a `useMutation`)
 
 **Content stress:** long asset name in header; long record description; long task title; long owner display name in sharing badge
 
@@ -357,8 +380,10 @@ in isolation.
 **States:**
 
 - `loading` — fetches `GET /api/teams/me` before rendering
-- `error` — generic error banner with retry; 401 redirects to `/login`
-- `empty` (no team) — create-team prompt with an inline name field and submit button. CTA: create a team
+- `error` — generic error banner with retry
+- `unauthorized` (401) — "Redirecting to sign in…" then navigates to `/login`
+- `empty` (no team) — EmptyState prompt: "You don't have a team yet" / "Create a team, then invite the one teammate you work with. You'll decide which assets to share — the rest stay yours alone." CTA: "Create a team" button (transitions to the form view)
+- `form` (create team) — separate view with name field (placeholder "e.g. The Ortega Household"), char counter, validation, and "Create team" submit; Cancel returns to the empty view
 - `populated` (has team) — team name, member count, and a member list with display name and role
 
 **Mutations:**
