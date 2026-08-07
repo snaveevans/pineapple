@@ -13,9 +13,11 @@ mutations. Content-stress states (long strings, pagination boundaries) and
 documented exceptions are noted per entry. These state lists are the input the
 state gallery (#145) enumerates from — every state listed here must be renderable
 in isolation. Navigate-away transitions (e.g. onboarding complete, create-asset
-success) are noted as transitions, not listed as enumerable states. The
-`unauthorized` (401) state is a non-vocab exception used by screens that paint a
-"Redirecting to sign in" UI before navigating to `/login`.
+success) are noted as transitions, not listed as enumerable states. Non-vocab
+state names — `unauthorized` (401 "Redirecting to sign in" UI), plain-prose
+layout states (e.g. "Desktop", "Closed", "Idle, vehicle type"), and local UI
+states (e.g. "form", "delete-task confirm") — are written plainly or carry an
+**Exceptions** note; they are never wrapped in backticks like vocabulary tokens.
 
 ---
 
@@ -114,7 +116,15 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 - Mobile — bottom tab bar shows the same Home, Assets, and History destinations
 - Active route — the matching tab is highlighted for the current page
 
-**Exceptions:** No async data states of its own — the shell is a layout. The notifications badge is driven by the Notifications query (see [Notifications](#notifications)). Not a React Query consumer at this layer.
+**Own async states (in `HFTopBar`):**
+
+- `loading` (profile) — avatar initial absent until `GET /api/users/me` resolves
+- `loading` (notifications) — unread badge absent until `GET /api/notifications?limit=1` resolves
+- `populated` (notifications, zero unread) — badge hidden
+- `populated` (notifications, has unread) — badge shows unread count
+- `error` (notifications) — badge degrades to hidden; a 401 is not retried (falls through to page-level redirect)
+
+**Exceptions:** The shell owns two `useQuery` calls (`getUserProfile` and `listNotifications({ limit: 1 })`) — these are real async states the gallery must cover. The notifications badge query uses a separate key (`notificationsPageQueryKey({ limit: 1 })`) from the Notifications page (`notificationsPageQueryKey({ limit: PAGE_SIZE })`), so it is not the same query.
 
 **Non-obvious behavior:**
 
@@ -215,7 +225,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 - `populated` — grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`; sharing indicators on cards ("Shared with team" / "Shared by {owner}" / none)
 - `populated` (filtered) — a category chip is active; the loaded list is narrowed to that asset type
 
-**Content stress:** long asset name on cards; long owner display name in sharing badge
+**Content stress:** long asset name on cards; long owner display name in sharing badge; long property address (street + city + state) in property card summaries
 
 **Non-obvious behavior:**
 
@@ -308,7 +318,11 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 **States:**
 
-- Idle — blank form
+- Idle, vehicle type — blank form with vehicle fields (year, make, model, VIN)
+- Idle, property type — blank form with property fields (street, city, state, postal code, country)
+- Idle, equipment type — blank form with equipment fields (manufacturer, model number, serial number)
+
+**Exceptions:** The three "Idle" states are non-vocab — they are mutually exclusive field-set renders off the selected asset type, not async states. Named plainly to distinguish them from the vocabulary tokens.
 
 **Mutations:**
 
@@ -318,7 +332,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 Success is a navigate-away transition (invalidates assets query, navigates to `/app/assets`), not a stable screen — not enumerable for the gallery.
 
-**Content stress:** long asset name (maximum-length input); long notes field
+**Content stress:** long asset name (maximum-length input); long property address (street + city + state + postal code + country)
 
 **Non-obvious behavior:**
 
@@ -383,8 +397,10 @@ Success is a navigate-away transition (invalidates assets query, navigates to `/
 - `error` — generic error banner with retry
 - `unauthorized` (401) — "Redirecting to sign in…" then navigates to `/login`
 - `empty` (no team) — EmptyState prompt: "You don't have a team yet" / "Create a team, then invite the one teammate you work with. You'll decide which assets to share — the rest stay yours alone." CTA: "Create a team" button (transitions to the form view)
-- `form` (create team) — separate view with name field (placeholder "e.g. The Ortega Household"), char counter, validation, and "Create team" submit; Cancel returns to the empty view
+- Form (create team) — separate view with name field (placeholder "e.g. The Ortega Household"), char counter, validation, and "Create team" submit; Cancel returns to the empty view
 - `populated` (has team) — team name, member count, and a member list with display name and role
+
+**Exceptions:** "Form (create team)" is a non-vocab local UI state — a value-state view transitioned to from the empty CTA, not an async state. Written plainly to distinguish it from vocabulary tokens.
 
 **Mutations:**
 
