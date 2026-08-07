@@ -118,13 +118,15 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 **Own async states (in `HFTopBar`):**
 
-- `loading` (profile) — avatar initial absent until `GET /api/users/me` resolves
+- `loading` (profile) — avatar renders the `?` placeholder initial until `GET /api/users/me` resolves; tooltip falls back to "Profile settings"
+- `populated` (profile) — avatar renders the first character of the display name, uppercased; tooltip is the display name
+- `error` (profile) — avatar stays on the `?` placeholder; the shell offers no retry affordance
 - `loading` (notifications) — unread badge absent until `GET /api/notifications?limit=1` resolves
 - `populated` (notifications, zero unread) — badge hidden
 - `populated` (notifications, has unread) — badge shows unread count
 - `error` (notifications) — badge degrades to hidden; a 401 is not retried (falls through to page-level redirect)
 
-**Exceptions:** The shell owns two `useQuery` calls (`getUserProfile` and `listNotifications({ limit: 1 })`) — these are real async states the gallery must cover. The notifications badge query uses a separate key (`notificationsPageQueryKey({ limit: 1 })`) from the Notifications page (`notificationsPageQueryKey({ limit: PAGE_SIZE })`), so it is not the same query.
+**Exceptions:** The shell owns two `useQuery` calls (`getUserProfile` and `listNotifications({ limit: 1 })`) — these are real async states the gallery must cover. The avatar never renders empty: `profileAvatarInitial` returns `?` for an absent or blank name, so the profile `loading` and `error` states are visually identical. The notifications badge query uses a separate key (`notificationsPageQueryKey({ limit: 1 })`) from the Notifications page (`notificationsPageQueryKey({ limit: PAGE_SIZE })`), so it is not the same query.
 
 **Non-obvious behavior:**
 
@@ -314,7 +316,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 ## Add Asset
 
 **Route:** `/app/assets/new`
-**Goal:** Let the user register a new asset (vehicle, equipment, or property) with a name, type, and optional notes.
+**Goal:** Let the user register a new asset (vehicle, equipment, or property) with a name, type, and the type-specific details for that asset kind.
 
 **States:**
 
