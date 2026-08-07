@@ -122,6 +122,15 @@ repositories live in `worker.ts`. Keep it that way.
   an asset name on a maintenance event) are assembled in the application layer, not by
   an aggregate. Telemetry handlers stay thin selective readers and must not write the
   PII-bearing fields to Analytics Engine. (ADR-0010)
+- **Validate external config against current docs, not training data.**
+  When writing config for an external service or library (Dependabot, Renovate,
+  Wrangler, GitHub Actions, etc.), validate keys and structure against the
+  service's current documentation or JSON schema — via Context7, the schema
+  registry (e.g. `json.schemastore.org`), or the official docs page — before
+  committing. Two tools with similar surfaces do not have interchangeable
+  config contracts. CI does not catch this class of error: lint/type-check/tests
+  don't parse most external config files, so the failure mode is silent and
+  post-merge. (See `pitfalls.md` 2026-08-06.)
 
 ## API documentation is generated — don't hand-edit the spec
 
