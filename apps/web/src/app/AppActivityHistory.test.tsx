@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { assert, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActivityEntry, ActivityResponse } from "../api/activity";
+import { ApiError } from "../api/client";
 import { AppActivityHistory } from "./AppActivityHistory";
 
 declare global {
@@ -187,5 +188,24 @@ describe("AppActivityHistory", () => {
 
     expect(document.body.textContent).toContain("by you");
     expect(document.body.textContent).toContain("by Pat Rivera");
+  });
+
+  it("redirects 401 responses to sign in", async () => {
+    activityQueryResult = {
+      data: undefined,
+      dataUpdatedAt: 0,
+      isPending: false,
+      isError: true,
+      error: new ApiError(401, { error: "Unauthorized" }),
+      hasNextPage: false,
+      isFetchingNextPage: false,
+      fetchNextPage: vi.fn(),
+      refetch: vi.fn(),
+    };
+
+    await renderHistory();
+
+    expect(document.body.textContent).toContain("Redirecting to sign in");
+    expect(navigate).toHaveBeenCalledWith("/login", { replace: true });
   });
 });

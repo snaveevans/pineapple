@@ -11,13 +11,23 @@ Each entry lists its renderable states using the vocabulary from
 `loading`, `error`, `empty`, `populated` for reads; `pending` and `error` for
 mutations. Content-stress states (long strings, pagination boundaries) and
 documented exceptions are noted per entry. These state lists are the input the
-state gallery (#145) enumerates from — every state listed here must be renderable
-in isolation. Navigate-away transitions (e.g. onboarding complete, create-asset
-success) are noted as transitions, not listed as enumerable states. Non-vocab
-state names — `unauthorized` (401 "Redirecting to sign in" UI), plain-prose
-layout states (e.g. "Desktop", "Closed", "Idle, vehicle type"), and local UI
-states (e.g. "form", "delete-task confirm") — are written plainly or carry an
-**Exceptions** note; they are never wrapped in backticks like vocabulary tokens.
+state gallery (#145) enumerates from — every state listed here must be
+renderable in isolation, unless it carries a gallery marker (below).
+Navigate-away transitions (e.g. onboarding complete, create-asset success) are
+noted as transitions, not listed as enumerable states. Non-vocab state names —
+`unauthorized` (401 "Redirecting to sign in" UI), plain-prose layout states
+(e.g. "Desktop", "Closed", "Idle, vehicle type"), and local UI states (e.g.
+"form", "delete-task confirm") — are written plainly or carry an **Exceptions**
+note; they are never wrapped in backticks like vocabulary tokens.
+
+**Gallery exclusions.** A state whose UI unmounts itself within the same tick
+is not gallery-able — the intermediate tree is gone before a screenshot can
+land. The recurring case is any screen that `navigate`s to `/login` on 401
+(including `OnboardingGuard`). Mark those states with the trailing token
+`[gallery:excluded #N]` (the issue that decided the exclusion) on the state
+bullet, and cover the redirect with an interaction test instead. `excluded` is
+a decision, not a promise; a future `deferred` marker would mean "gallery
+later." Do not change shipped navigate timing to make a transient photographable.
 
 ---
 
@@ -145,7 +155,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 - `loading` — fetches `GET /api/notifications`; shows row skeletons
 - `error` — retryable load error
-- `unauthorized` (401) — lock icon, "Redirecting to sign in" / "Your session is no longer active." then navigates to `/login`
+- `unauthorized` (401) `[gallery:excluded #195]` — lock icon, "Redirecting to sign in" / "Your session is no longer active." then navigates to `/login`
 - `empty` — "You're all caught up" / "Maintenance reminders will show up here as tasks come due on your assets." CTA: none (passive)
 - `populated` — newest-first notification list with unread marker, asset icon, task title, due copy, asset name, reminder date, and relative created time
 - `populated` (paginated) — "Load older notifications" requests the next cursor when available
@@ -221,7 +231,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 - `loading` — loading state while fetching; toolbar controls hidden
 - `error` — inline error message with a "Try again" retry button
-- `unauthorized` (401) — spinner + "Redirecting to sign in" then navigates to `/login`
+- `unauthorized` (401) `[gallery:excluded #195]` — spinner + "Redirecting to sign in" then navigates to `/login`
 - `empty` (no assets owned) — prompt to add first asset with a direct link to the add form; no toolbar shown. CTA: link to add-asset form
 - `empty` (filtered) — selected category has no matching assets (library is otherwise non-empty); message names the category. CTA: clear filter or add an asset
 - `populated` — grid view (desktop default) or list/row view; category chips and view toggle shown; each card links to `/app/assets/:id/maintenance`; sharing indicators on cards ("Shared with team" / "Shared by {owner}" / none)
@@ -288,7 +298,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 - `loading` — fetches `GET /api/activity` before rendering the feed
 - `error` — feed-level retry state
-- `unauthorized` (401) — lock icon, "Redirecting to sign in" / "Your session is no longer active." then navigates to `/login`
+- `unauthorized` (401) `[gallery:excluded #195]` — lock icon, "Redirecting to sign in" / "Your session is no longer active." then navigates to `/login`
 - `empty` (no account history) — explains that future asset, maintenance, and task actions will appear. CTA: none (passive)
 - `empty` (filtered) — active filters/search remain visible and can be cleared. CTA: clear filters
 - `populated` — reverse-chronological timeline grouped by action day, with an all-time activity breakdown rail; each entry shows action type, title/name, asset snapshot, actor attribution ("by you" / teammate name), relative time, and absolute time
@@ -397,7 +407,7 @@ Success is a navigate-away transition (invalidates assets query, navigates to `/
 
 - `loading` — fetches `GET /api/teams/me` before rendering
 - `error` — generic error banner with retry
-- `unauthorized` (401) — "Redirecting to sign in…" then navigates to `/login`
+- `unauthorized` (401) `[gallery:excluded #195]` — "Redirecting to sign in…" then navigates to `/login`
 - `empty` (no team) — EmptyState prompt: "You don't have a team yet" / "Create a team, then invite the one teammate you work with. You'll decide which assets to share — the rest stay yours alone." CTA: "Create a team" button (transitions to the form view)
 - Form (create team) — separate view with name field (placeholder "e.g. The Ortega Household"), char counter, validation, and "Create team" submit; Cancel returns to the empty view
 - `populated` (has team) — team name, member count, and a member list with display name and role
