@@ -206,19 +206,13 @@ export const TEAM_EMPTY = {
   viewerUserId: VIEWER_USER_ID,
 };
 
+/** Single owner only — FEATURES.md: invitations not landed yet. */
 export const TEAM_POPULATED = {
   team: {
     id: "aaa11100-0000-0000-0000-000000000001",
     name: "The Ortega Household",
     ownerId: VIEWER_USER_ID,
-    members: [
-      { userId: VIEWER_USER_ID, name: "Jamie Ortega", role: "owner" },
-      {
-        userId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
-        name: "Alex Partner",
-        role: "member",
-      },
-    ],
+    members: [{ userId: VIEWER_USER_ID, name: "Jamie Ortega", role: "owner" }],
     createdAt: "2026-01-01T00:00:00.000Z",
   },
   viewerUserId: VIEWER_USER_ID,

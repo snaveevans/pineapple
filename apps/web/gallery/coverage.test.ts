@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { join } from "node:path";
+import { checkCoverage } from "./check-coverage.ts";
 import {
   DEFAULT_FEATURE_SOURCES,
   parseFeatureFiles,
@@ -8,9 +9,8 @@ import {
 } from "./parse-features.ts";
 import {
   assertRegistryInvariants,
-  completeRegistry,
+  registryEntries,
   renderedStates,
-  staticRegistryEntries,
   type RegistryEntry,
 } from "./registry.ts";
 
@@ -18,41 +18,6 @@ const REPO_ROOT = join(import.meta.dirname, "../../..");
 
 function featurePaths(): string[] {
   return DEFAULT_FEATURE_SOURCES.map((p) => join(REPO_ROOT, p));
-}
-
-function checkCoverage(
-  featureStates: ReturnType<typeof parseFeatureFiles>,
-  registry: RegistryEntry[],
-): string[] {
-  const errors: string[] = [];
-  const byId = new Map(registry.map((e) => [e.id, e]));
-  const featureIds = new Set(featureStates.map((s) => s.id));
-
-  for (const f of featureStates) {
-    const entry = byId.get(f.id);
-    if (entry === undefined) {
-      errors.push(`FEATURES state ${f.id} has no registry entry`);
-      continue;
-    }
-    if (f.marker !== null && entry.category !== f.marker.kind) {
-      errors.push(
-        `${f.id}: FEATURES marker [gallery:${f.marker.kind} #${f.marker.issue}] disagrees with registry category ${entry.category}`,
-      );
-    }
-    if (entry.category === "deferred" || entry.category === "excluded") {
-      if (!Number.isInteger(entry.issue) || entry.issue <= 0) {
-        errors.push(`${f.id}: ${entry.category} entry missing issue number`);
-      }
-    }
-  }
-
-  for (const e of registry) {
-    if (!featureIds.has(e.id)) {
-      errors.push(`registry entry ${e.id} matches no FEATURES.md state`);
-    }
-  }
-
-  return errors;
 }
 
 describe("FEATURES.md state id derivation", () => {
@@ -127,10 +92,20 @@ describe("FEATURES.md state id derivation", () => {
 describe("gallery coverage check", () => {
   it("every FEATURES state is registered; every registry id exists in FEATURES", () => {
     const features = parseFeatureFiles(featurePaths());
-    const registry = completeRegistry(features);
+    const registry = registryEntries();
     assertRegistryInvariants(registry);
     const errors = checkCoverage(features, registry);
     expect(errors).toEqual([]);
+  });
+
+  it("does not synthesize deferred entries — registry is hand-authored", () => {
+    const features = parseFeatureFiles(featurePaths());
+    const registry = registryEntries();
+    // A FEATURES id with no static entry is missing, not auto-filled.
+    const withoutOne = registry.filter((e) => e.id !== "marketing-home/unauthenticated");
+    expect(checkCoverage(features, withoutOne).some((e) => e.includes("no registry entry"))).toBe(
+      true,
+    );
   });
 
   it("renders exactly 23 read states from the four fixture screens", () => {
@@ -166,7 +141,7 @@ describe("gallery coverage check", () => {
   });
 
   it("four unauthorized-401 states are excluded via #195", () => {
-    const excluded = staticRegistryEntries().filter((e) => e.category === "excluded");
+    const excluded = registryEntries().filter((e) => e.category === "excluded");
     expect(excluded.map((e) => e.id).sort()).toEqual([
       "activity-history/unauthorized-401",
       "asset-library/unauthorized-401",
@@ -181,7 +156,8 @@ describe("gallery coverage check", () => {
 
   it("FAILS when a FEATURES state has no registry entry", () => {
     const features = parseFeatureFiles(featurePaths());
-    const registry = completeRegistry(features).filter((e) => e.id !== "asset-library/loading");
+    // Real path: hand-authored registry missing an id (no completeRegistry synthesis).
+    const registry = registryEntries().filter((e) => e.id !== "asset-library/loading");
     const errors = checkCoverage(features, registry);
     expect(
       errors.some((e) => e.includes("asset-library/loading") && e.includes("no registry")),
@@ -191,7 +167,7 @@ describe("gallery coverage check", () => {
   it("FAILS when a registry entry names a missing FEATURES id", () => {
     const features = parseFeatureFiles(featurePaths());
     const registry: RegistryEntry[] = [
-      ...completeRegistry(features),
+      ...registryEntries(),
       {
         id: "asset-library/does-not-exist",
         category: "deferred",
@@ -205,7 +181,7 @@ describe("gallery coverage check", () => {
 
   it("FAILS when a gallery marker disagrees with the registry category", () => {
     const features = parseFeatureFiles(featurePaths());
-    const registry = completeRegistry(features).map((e) =>
+    const registry = registryEntries().map((e) =>
       e.id === "asset-library/unauthorized-401"
         ? {
             id: e.id,

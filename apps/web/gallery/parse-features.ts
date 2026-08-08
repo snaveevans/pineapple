@@ -227,7 +227,7 @@ export function parseFeaturesMarkdown(source: string, sourceFile: string): Parse
       continue;
     }
 
-    if (block === "skip" || block === "unknown") continue;
+    if (block === "skip") continue;
     if (
       block !== "states" &&
       block !== "own-async" &&

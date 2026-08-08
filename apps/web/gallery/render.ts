@@ -16,7 +16,8 @@ import {
   renderGallery,
   writeManifest,
 } from "./harness.ts";
-import { assertRegistryInvariants, completeRegistry, renderedStates } from "./registry.ts";
+import { checkCoverage } from "./check-coverage.ts";
+import { assertRegistryInvariants, registryEntries, renderedStates } from "./registry.ts";
 import { DEFAULT_FEATURE_SOURCES, parseFeatureFiles } from "./parse-features.ts";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -46,20 +47,14 @@ async function main(): Promise<void> {
   }
   mkdirSync(outDir, { recursive: true });
 
-  // Coverage gate before spending browser time.
+  // Coverage gate before spending browser time. Registry is hand-authored —
+  // missing FEATURES ids are NOT auto-filled as deferred.
   const features = parseFeatureFiles(DEFAULT_FEATURE_SOURCES.map((p) => join(REPO_ROOT, p)));
-  const registry = completeRegistry(features);
+  const registry = registryEntries();
   assertRegistryInvariants(registry);
-  const featureIds = new Set(features.map((f) => f.id));
-  for (const e of registry) {
-    if (!featureIds.has(e.id)) {
-      throw new Error(`registry entry ${e.id} matches no FEATURES.md state`);
-    }
-  }
-  for (const f of features) {
-    if (!registry.some((e) => e.id === f.id)) {
-      throw new Error(`FEATURES state ${f.id} has no registry entry`);
-    }
+  const coverageErrors = checkCoverage(features, registry);
+  if (coverageErrors.length > 0) {
+    throw new Error(`gallery coverage check failed:\n${coverageErrors.join("\n")}`);
   }
 
   console.log(`registry: ${registry.length} ids, rendered: ${renderedStates().length}`);

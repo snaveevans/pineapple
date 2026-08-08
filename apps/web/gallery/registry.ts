@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { DEFERRED } from "./deferred-entries.ts";
 import {
   ACTIVITY_EMPTY,
   ACTIVITY_PAGINATED,
@@ -379,73 +380,12 @@ export function renderedStates(): RenderedState[] {
   return RENDERED;
 }
 
-export function staticRegistryEntries(): RegistryEntry[] {
-  return [...RENDERED, ...EXCLUDED];
-}
-
-/** Merge static entries with deferred placeholders for every remaining FEATURES id. */
-export function completeRegistry(
-  featureIds: ReadonlyArray<{
-    id: string;
-    marker: { kind: "excluded" | "deferred"; issue: number } | null;
-  }>,
-): RegistryEntry[] {
-  const byId = new Map<string, RegistryEntry>();
-  for (const e of staticRegistryEntries()) byId.set(e.id, e);
-
-  for (const f of featureIds) {
-    if (byId.has(f.id)) continue;
-    if (f.marker?.kind === "excluded") {
-      byId.set(f.id, {
-        id: f.id,
-        category: "excluded",
-        issue: f.marker.issue,
-        reason: `Marked [gallery:excluded #${f.marker.issue}] in FEATURES.md`,
-      });
-      continue;
-    }
-    if (f.marker?.kind === "deferred") {
-      byId.set(f.id, {
-        id: f.id,
-        category: "deferred",
-        issue: f.marker.issue,
-        reason: `Marked [gallery:deferred #${f.marker.issue}] in FEATURES.md`,
-      });
-      continue;
-    }
-
-    const issue = classifyDeferredIssue(f.id);
-    byId.set(f.id, {
-      id: f.id,
-      category: "deferred",
-      issue: issue.issue,
-      reason: issue.reason,
-    });
-  }
-
-  return [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
-}
-
-function classifyDeferredIssue(id: string): { issue: number; reason: string } {
-  // #193 owns mutations, local UI, content-stress, notice, contact-email.
-  if (
-    id.includes("/mutation-") ||
-    id.includes("/local-") ||
-    id.includes("/content-stress-") ||
-    id.includes("/notice-") ||
-    id.includes("/contact-email-") ||
-    id.includes("/add-service-drawer-")
-  ) {
-    return {
-      issue: 193,
-      reason: "Mutation / local / content-stress gallery states (slice 3)",
-    };
-  }
-  // Remaining read states (other screens + non-rendered reads) → #192
-  return {
-    issue: 192,
-    reason: "Remaining read states (slice 2)",
-  };
+/**
+ * Full hand-authored registry. Nothing is synthesized from FEATURES.md —
+ * a new FEATURES id with no entry here fails the coverage check.
+ */
+export function registryEntries(): RegistryEntry[] {
+  return [...RENDERED, ...EXCLUDED, ...DEFERRED];
 }
 
 export function assertRegistryInvariants(entries: RegistryEntry[]): void {
@@ -461,5 +401,8 @@ export function assertRegistryInvariants(entries: RegistryEntry[]): void {
   }
   if (RENDERED.length !== 23) {
     throw new Error(`expected 23 rendered states, got ${RENDERED.length}`);
+  }
+  if (EXCLUDED.length !== 4) {
+    throw new Error(`expected 4 excluded states, got ${EXCLUDED.length}`);
   }
 }

@@ -1,15 +1,15 @@
 ---
 audience: all contributors
-purpose: canonical verification contract and mutation-testing gate for feature specs
+purpose: canonical verification contract — mutation gate (API) and state gallery (web)
 source: this file
-date: 2026-07-23
+date: 2026-08-08
 ---
 
 # Testing & Verification — Cross-Cutting Spec
 
 **Status:** `active`
 **Owner:** engineering
-**Applies To:** All features with logic in `apps/api/src/domain/**` or `apps/api/src/application/**`
+**Applies To:** API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); renderable web states in `docs/web/FEATURES.md` / `apps/web` (state gallery)
 
 > The mutation gate is the `Mutation` workflow (`.github/workflows/mutation.yml`), with `mutation`
 > a required status check on `main`. Tracked by [#86](https://github.com/snaveevans/pineapple/issues/86).
@@ -195,14 +195,17 @@ Frontend appearance has no mutation score. The gallery is the verification contr
 - Vendored latin variable woff2 fonts (Inter + JetBrains Mono) are committed under
   `apps/web/gallery/fonts/` and served by harness-owned CSS. Google Fonts CDN is blocked.
 - **No gallery PNG is ever committed.** Output lives in `apps/web/gallery/out/` (gitignored) and
-  ships as a CI artifact with `retention-days: 7`. The CI job asserts a clean
-  `git status --porcelain` after render so an accidental `git add` of screenshots fails the build.
+  ships as a CI artifact with `retention-days: 7`. Primary protection is the gitignore entry;
+  CI also fails if any path under `apps/web/gallery/**/*.png` or `apps/web/gallery/out/**` is
+  tracked in git (`git ls-files`), so a force-add cannot hide in the pack.
 
 ### Coverage check (the point)
 
 A vitest suite derives state IDs from `docs/web/FEATURES.md` and asserts:
 
-1. Every FEATURES id is in the registry as `rendered`, `deferred`, or `excluded`.
+1. Every FEATURES id is in the **hand-authored** registry as `rendered`, `deferred`, or
+   `excluded`. The registry does **not** auto-synthesize deferred entries from FEATURES —
+   a new bullet with no matching entry is a red build.
 2. Every registry id exists in FEATURES (renames cannot orphan a fixture).
 3. A `[gallery:excluded #N]` / `[gallery:deferred #N]` marker must match the registry category.
 4. Markers are stripped before ID derivation — they never enter the id string.

@@ -161,11 +161,19 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          # Shared build inputs can move pixels (lockfile bumps vite/react/etc.).
+          # Mirrors deploy.yml's web filter + mutation-scope's lockfile rule.
           if git diff --quiet "origin/$GITHUB_BASE_REF" -- \
             apps/web \
             docs/web \
             docs/specs/cross-cutting/testing.md \
-            .github/workflows/ci.yml
+            .github/workflows/ci.yml \
+            pnpm-lock.yaml \
+            package.json \
+            pnpm-workspace.yaml \
+            tsconfig.base.json \
+            tsconfig.json \
+            packages/shared
           then
             echo "run=false" >> "$GITHUB_OUTPUT"
           else
@@ -204,18 +212,21 @@ jobs:
           TZ: UTC
         run: pnpm --filter @snaveevans/pineapple-web gallery:render -- --out apps/web/gallery/out
 
-      - name: Assert gallery output is not staged for commit
+      # Gallery PNGs are gitignored under out/; that is the primary protection.
+      # Also fail if any gallery PNG is tracked in git (force-add / wrong path).
+      - name: Assert no gallery PNGs are tracked
         if: steps.gallery-scope.outputs.run == 'true'
         run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "Gallery render left a dirty worktree — PNGs must not be committed:"
-            git status --porcelain
+          tracked="$(git ls-files 'apps/web/gallery/**/*.png' 'apps/web/gallery/out/**' || true)"
+          if [ -n "$tracked" ]; then
+            echo "Gallery PNGs must not be committed:"
+            printf '%s\n' "$tracked"
             exit 1
           fi
 
       - name: Upload gallery artifact
         if: steps.gallery-scope.outputs.run == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: web-state-gallery
           path: apps/web/gallery/out
@@ -224,4 +235,4 @@ jobs:
 
       - name: Gallery skipped (no web paths touched)
         if: steps.gallery-scope.outputs.run != 'true'
-        run: echo "No apps/web, docs/web, or gallery-contract changes — gallery job no-op."
+        run: echo "No apps/web, docs/web, shared, or gallery-contract changes — gallery job no-op."
