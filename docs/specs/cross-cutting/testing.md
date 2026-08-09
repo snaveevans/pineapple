@@ -1,15 +1,15 @@
 ---
 audience: all contributors
-purpose: canonical verification contract and mutation-testing gate for feature specs
+purpose: canonical verification contract — mutation gate (API) and state gallery (web)
 source: this file
-date: 2026-07-23
+date: 2026-08-08
 ---
 
 # Testing & Verification — Cross-Cutting Spec
 
 **Status:** `active`
 **Owner:** engineering
-**Applies To:** All features with logic in `apps/api/src/domain/**` or `apps/api/src/application/**`
+**Applies To:** API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); renderable web states in `docs/web/FEATURES.md` / `apps/web` (state gallery)
 
 > The mutation gate is the `Mutation` workflow (`.github/workflows/mutation.yml`), with `mutation`
 > a required status check on `main`. Tracked by [#86](https://github.com/snaveevans/pineapple/issues/86).
@@ -167,7 +167,97 @@ Every feature that adds or changes logic in `domain/**` or `application/**` must
   [#95](https://github.com/snaveevans/pineapple/issues/95) (shared-asset access scoping) is
   security-relevant.
 - **The gate is partial.** `apps/api/src/api/**`, `apps/api/src/infrastructure/**`, and all of
-  `apps/web` are ungated. A green mutation check is not a statement about those layers.
+  `apps/web` are ungated by mutation testing. A green mutation check is not a statement about those
+  layers. Web appearance is gated separately by the state gallery (below).
 - **Run time grows with the codebase.** The baseline run was ~80s for 1518 mutants at
   `concurrency: 4`. If the blocking path becomes a drag on iteration, ADR-0016's revisit trigger
   applies.
+
+---
+
+## Web state gallery
+
+**Status:** `active` (slice 1 — harness + coverage; full surface lands via #192 / #193)
+**Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
+**Harness design source:** [#191](https://github.com/snaveevans/pineapple/issues/191) findings
+
+Frontend appearance has no mutation score. The gallery is the verification contract for
+`apps/web` renderable states listed in `docs/web/FEATURES.md`.
+
+### What it is
+
+- A Playwright harness drives the **production** `vite build` output (never `vite dev`).
+- The single API seam is `page.route` on `/api/**`. No product-code mocks, no Storybook.
+- Each FEATURES.md state is a typed registry entry categorised `rendered` | `deferred` |
+  `excluded`. Deferred names the issue that will land it; excluded names the issue that decided
+  it will not be photographed.
+- Two viewports per rendered state (desktop 1280×800, mobile 390×844), `deviceScaleFactor: 1`.
+- Vendored latin variable woff2 fonts (Inter + JetBrains Mono) are committed under
+  `apps/web/gallery/fonts/` and served by harness-owned CSS. Google Fonts CDN is blocked.
+- **No gallery PNG is ever committed.** Output lives in `apps/web/gallery/out/` (gitignored) and
+  ships as a CI artifact with `retention-days: 7`. Primary protection is the gitignore entry;
+  CI also fails if any path under `apps/web/gallery/**/*.png` or `apps/web/gallery/out/**` is
+  tracked in git (`git ls-files`), so a force-add cannot hide in the pack.
+
+### Coverage check (the point)
+
+A vitest suite derives state IDs from `docs/web/FEATURES.md` and asserts:
+
+1. Every FEATURES id is in the **hand-authored** registry as `rendered`, `deferred`, or
+   `excluded`. The registry does **not** auto-synthesize deferred entries from FEATURES —
+   a new bullet with no matching entry is a red build.
+2. Every registry id exists in FEATURES (renames cannot orphan a fixture).
+3. A `[gallery:excluded #N]` / `[gallery:deferred #N]` marker must match the registry category.
+4. Markers are stripped before ID derivation — they never enter the id string.
+5. Unrecognised FEATURES blocks fail loudly (inline prose blocks are parsed, not skipped).
+
+An ad-hoc screenshot pair that is byte-identical is how silent non-checks ship. The coverage
+check exists so a state added to FEATURES without a registry entry is a red build, not a missing
+picture nobody notices.
+
+### Determinism levers (minimum set proven by #191)
+
+- `screenshot({ animations: "disabled", caret: "hide", scale: "css", fullPage: true })`
+- `locale: "en-US"`, `timezoneId: "UTC"`, process `TZ=UTC`
+- `context.clock.install` at a fixed instant
+- `deviceScaleFactor: 1`
+- Chromium args `--font-render-hinting=none --disable-lcd-text`
+- Assert `document.fonts.check("600 16px Inter")` before every shot
+- Production build only (no React StrictMode double-invoke)
+
+Two consecutive runs on the **same runner image** must be byte-identical. PNG stability across
+GitHub runner image updates is not guaranteed; the visual-diff job (#146) carries a threshold.
+
+### Commands
+
+```bash
+pnpm --filter @snaveevans/pineapple-web build
+pnpm --filter @snaveevans/pineapple-web gallery:render -- --out apps/web/gallery/out
+pnpm --filter @snaveevans/pineapple-web test   # includes gallery coverage check
+```
+
+`--out` is required to stay parameterisable: #146 renders merge-base and HEAD into two directories
+in one job.
+
+### Feature integration contract
+
+Every change that adds or renames a renderable state in `docs/web/FEATURES.md` must:
+
+- Land a matching registry entry (`rendered`, or `deferred`/`excluded` with an issue number).
+- Not commit gallery output.
+- Not edit product code solely to make a transient state photographable — open an issue instead
+  (precedent: #195 for 401 redirect states).
+
+### Anti-patterns
+
+- **Committing gallery PNGs.** They bloat the pack forever and are unreclaimable without history
+  rewrite. Artifacts only.
+- **Driving the gallery through `vite dev`.** Dev StrictMode and HMR are non-deterministic
+  relative to production.
+- **Fulfilling the Google Fonts CSS URL with a multi-`@font-face` rewrite.** #191 found this
+  silently falls back to system fonts — deterministic but wrong. Rewrite `index.html` and serve
+  variable `@font-face` CSS instead.
+- **Inventing a second marker grammar.** `[gallery:excluded #N]` / `[gallery:deferred #N]` after
+  the em-dash is defined in the FEATURES preamble (#195).
+- **Substituting Storybook/Chromatic** for this harness. Settled on the epic; #151 may later
+  adapt the same registry.

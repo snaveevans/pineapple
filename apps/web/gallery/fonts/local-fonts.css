@@ -1,0 +1,16 @@
+/* Variable latin subsets — font-weight range required (multi-face rewrite falls back to system fonts). */
+@font-face {
+  font-family: "Inter";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("./inter-latin-variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("./jetbrainsmono-latin-variable.woff2") format("woff2");
+}
