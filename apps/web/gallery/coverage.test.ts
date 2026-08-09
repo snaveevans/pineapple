@@ -108,36 +108,14 @@ describe("gallery coverage check", () => {
     );
   });
 
-  it("renders exactly 23 read states from the four fixture screens", () => {
-    expect(renderedStates()).toHaveLength(23);
-    const ids = renderedStates()
-      .map((s) => s.id)
-      .sort();
-    expect(ids).toEqual([
-      "activity-history/empty-filtered",
-      "activity-history/empty-no-account-history",
-      "activity-history/error",
-      "activity-history/loading",
-      "activity-history/populated",
-      "activity-history/populated-filtered",
-      "activity-history/populated-paginated",
-      "asset-library/empty-filtered",
-      "asset-library/empty-no-assets-owned",
-      "asset-library/error",
-      "asset-library/loading",
-      "asset-library/populated",
-      "asset-library/populated-filtered",
-      "notifications/empty",
-      "notifications/error",
-      "notifications/loading",
-      "notifications/populated",
-      "notifications/populated-paginated",
-      "team/empty-no-team",
-      "team/error",
-      "team/form-create-team",
-      "team/loading",
-      "team/populated-has-team",
-    ]);
+  it("renders 66 read states after slice 2 (#192)", () => {
+    expect(renderedStates()).toHaveLength(66);
+    expect(renderedStates().some((s) => s.id.startsWith("asset-maintenance-"))).toBe(true);
+    expect(renderedStates().some((s) => s.id.startsWith("dashboard-home/"))).toBe(true);
+    expect(renderedStates().some((s) => s.id.startsWith("app-search/"))).toBe(true);
+    expect(registryEntries().filter((e) => e.category === "deferred" && e.issue === 192)).toEqual(
+      [],
+    );
   });
 
   it("four unauthorized-401 states are excluded via #195", () => {

@@ -177,8 +177,8 @@ Every feature that adds or changes logic in `domain/**` or `application/**` must
 
 ## Web state gallery
 
-**Status:** `active` (slice 1 — harness + coverage; full surface lands via #192 / #193)
-**Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
+**Status:** `active` (slices 1–2 landed; mutation/content-stress surface remains on #193)
+**Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145), [#192](https://github.com/snaveevans/pineapple/issues/192) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
 **Harness design source:** [#191](https://github.com/snaveevans/pineapple/issues/191) findings
 
 Frontend appearance has no mutation score. The gallery is the verification contract for
@@ -248,6 +248,26 @@ Every change that adds or renames a renderable state in `docs/web/FEATURES.md` m
 - Not edit product code solely to make a transient state photographable — open an issue instead
   (precedent: #195 for 401 redirect states).
 
+### Decisions on edge-case states (#192)
+
+1. **States that paint nothing (App Search `Closed`).** Keep them. `Closed` is the resting
+   chrome affordance — the search entry point is visible and the overlay is absent. The gallery
+   photographs the host page with that resting control, not an empty canvas. A pure unmount with
+   no host surface would not belong; that is not this case.
+2. **OAuth-redirect / navigate-away flows (Sign In, Onboarding complete).** Photograph only
+   stable frames. Sign In `idle`, `in-flight` (social POST held pending so the page never leaves
+   the origin), and `error` (`?error=google`) are stable and rendered. Onboarding incomplete forms
+   are stable and rendered. Navigate-away transitions (session already established → leave
+   `/login`, onboarding complete → leave `/onboarding`) remain non-enumerable per FEATURES.md —
+   do not invent a frozen frame, and do not force-capture a tick that unmounts. That is the same
+   rule as #195 for 401 redirects.
+3. **Load-error UI that is visually identical to loading.** User Profile / Onboarding load
+   `error` and Authenticated App Shell profile `error` settle on the same spinner as `loading`
+   (no retry affordance in product code). Both IDs stay rendered so coverage stays honest; the
+   photos document the current product, not a desired distinct error screen. Shell profile
+   `loading`/`error` cold-loads also surface the OnboardingGuard spinner rather than the top-bar
+   `?` avatar — the guard shares `userProfileQueryKey` and blocks the shell until me resolves.
+
 ### Anti-patterns
 
 - **Committing gallery PNGs.** They bloat the pack forever and are unreclaimable without history
@@ -261,3 +281,5 @@ Every change that adds or renames a renderable state in `docs/web/FEATURES.md` m
   the em-dash is defined in the FEATURES preamble (#195).
 - **Substituting Storybook/Chromatic** for this harness. Settled on the epic; #151 may later
   adapt the same registry.
+- **Forcing a capture of a navigate-away tick.** If the UI unmounts within a frame, mark
+  `excluded` under the #195 rule — do not invent a frozen frame.
