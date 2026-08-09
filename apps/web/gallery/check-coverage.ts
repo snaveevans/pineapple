@@ -21,7 +21,7 @@ export function checkCoverage(
         `${f.id}: FEATURES marker [gallery:${f.marker.kind} #${f.marker.issue}] disagrees with registry category ${entry.category}`,
       );
     }
-    if (entry.category === "deferred" || entry.category === "excluded") {
+    if (entry.category === "excluded") {
       if (!Number.isInteger(entry.issue) || entry.issue <= 0) {
         errors.push(`${f.id}: ${entry.category} entry missing issue number`);
       }

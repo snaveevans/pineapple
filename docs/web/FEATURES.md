@@ -32,7 +32,8 @@ bullet (state IDs derive from the text before `—`; the marker must not enter
 that substring). Do not mark `error` bullets that only note "401 redirects to
 `/login`" as a side effect of an otherwise stable error UI, and do not change
 shipped navigate timing to make a transient photographable. `excluded` is a
-decision, not a promise; a future `deferred` marker would mean "gallery later."
+decision, not a promise. Every other FEATURES state must be `rendered` in the
+gallery registry — there is no deferred hatch (#193).
 
 ---
 

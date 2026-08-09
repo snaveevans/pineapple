@@ -177,8 +177,8 @@ Every feature that adds or changes logic in `domain/**` or `application/**` must
 
 ## Web state gallery
 
-**Status:** `active` (slices 1–2 landed; mutation/content-stress surface remains on #193)
-**Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145), [#192](https://github.com/snaveevans/pineapple/issues/192) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
+**Status:** `active` (total — slices 1–3 landed; deferred hatch deleted on #193)
+**Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145), [#192](https://github.com/snaveevans/pineapple/issues/192), [#193](https://github.com/snaveevans/pineapple/issues/193) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
 **Harness design source:** [#191](https://github.com/snaveevans/pineapple/issues/191) findings
 
 Frontend appearance has no mutation score. The gallery is the verification contract for
@@ -188,9 +188,12 @@ Frontend appearance has no mutation score. The gallery is the verification contr
 
 - A Playwright harness drives the **production** `vite build` output (never `vite dev`).
 - The single API seam is `page.route` on `/api/**`. No product-code mocks, no Storybook.
-- Each FEATURES.md state is a typed registry entry categorised `rendered` | `deferred` |
-  `excluded`. Deferred names the issue that will land it; excluded names the issue that decided
-  it will not be photographed.
+- Each FEATURES.md state is a typed registry entry categorised `rendered` | `excluded`.
+  Excluded names the issue that decided it will not be photographed. There is **no**
+  `deferred` category — adding a state to FEATURES without a fixture fails CI.
+- Mutation / pending states are **driven** (form submit + never-resolving write stub), not
+  seeded as a cache snapshot. Content-stress strings are checked-in literals at documented
+  maxima (display name and team name = 100 characters).
 - Two viewports per rendered state (desktop 1280×800, mobile 390×844), `deviceScaleFactor: 1`.
 - Vendored latin variable woff2 fonts (Inter + JetBrains Mono) are committed under
   `apps/web/gallery/fonts/` and served by harness-owned CSS. Google Fonts CDN is blocked.
@@ -203,11 +206,10 @@ Frontend appearance has no mutation score. The gallery is the verification contr
 
 A vitest suite derives state IDs from `docs/web/FEATURES.md` and asserts:
 
-1. Every FEATURES id is in the **hand-authored** registry as `rendered`, `deferred`, or
-   `excluded`. The registry does **not** auto-synthesize deferred entries from FEATURES —
-   a new bullet with no matching entry is a red build.
+1. Every FEATURES id is in the **hand-authored** registry as `rendered` or `excluded`.
+   A new bullet with no matching entry is a red build.
 2. Every registry id exists in FEATURES (renames cannot orphan a fixture).
-3. A `[gallery:excluded #N]` / `[gallery:deferred #N]` marker must match the registry category.
+3. A `[gallery:excluded #N]` marker must match the registry category.
 4. Markers are stripped before ID derivation — they never enter the id string.
 5. Unrecognised FEATURES blocks fail loudly (inline prose blocks are parsed, not skipped).
 
@@ -243,7 +245,7 @@ in one job.
 
 Every change that adds or renames a renderable state in `docs/web/FEATURES.md` must:
 
-- Land a matching registry entry (`rendered`, or `deferred`/`excluded` with an issue number).
+- Land a matching registry entry (`rendered`, or `excluded` with an issue number and evidence).
 - Not commit gallery output.
 - Not edit product code solely to make a transient state photographable — open an issue instead
   (precedent: #195 for 401 redirect states).
@@ -279,8 +281,10 @@ Every change that adds or renames a renderable state in `docs/web/FEATURES.md` m
 - **Fulfilling the Google Fonts CSS URL with a multi-`@font-face` rewrite.** #191 found this
   silently falls back to system fonts — deterministic but wrong. Rewrite `index.html` and serve
   variable `@font-face` CSS instead.
-- **Inventing a second marker grammar.** `[gallery:excluded #N]` / `[gallery:deferred #N]` after
-  the em-dash is defined in the FEATURES preamble (#195).
+- **Inventing a second marker grammar.** `[gallery:excluded #N]` after the em-dash is defined in
+  the FEATURES preamble (#195). There is no `deferred` marker — the hatch was deleted on #193.
+- **Stubbing a mutation `pending` state from a seeded cache.** Pending means a write is in
+  flight: hold the mutation response and drive the submit via `interact`.
 - **Substituting Storybook/Chromatic** for this harness. Settled on the epic; #151 may later
   adapt the same registry.
 - **Forcing a capture of a navigate-away tick.** If the UI unmounts within a frame, mark

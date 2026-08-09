@@ -48,7 +48,7 @@ async function main(): Promise<void> {
   mkdirSync(outDir, { recursive: true });
 
   // Coverage gate before spending browser time. Registry is hand-authored —
-  // missing FEATURES ids are NOT auto-filled as deferred.
+  // every FEATURES id must be rendered or excluded (#193).
   const features = parseFeatureFiles(DEFAULT_FEATURE_SOURCES.map((p) => join(REPO_ROOT, p)));
   const registry = registryEntries();
   assertRegistryInvariants(registry);
