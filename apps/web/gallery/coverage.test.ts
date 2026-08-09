@@ -108,7 +108,7 @@ describe("gallery coverage check", () => {
   });
 
   it("renders the full gallery (slices 1–3) with no deferred hatch", () => {
-    expect(renderedStates()).toHaveLength(120);
+    expect(renderedStates()).toHaveLength(118);
     expect(
       registryEntries().every((e) => e.category === "rendered" || e.category === "excluded"),
     ).toBe(true);
@@ -200,7 +200,6 @@ describe("gallery coverage check", () => {
       "notifications/loading",
       "notifications/mutation-error",
       "notifications/mutation-pending-mark-all-read",
-      "notifications/mutation-pending-mark-one-read",
       "notifications/populated",
       "notifications/populated-paginated",
       "sign-in/error",
@@ -231,7 +230,6 @@ describe("gallery coverage check", () => {
       "user-profile-and-onboarding/mutation-pending-set-contact-email-put-api-users-me-notification-email",
       "user-profile-and-onboarding/notice-cooldown",
       "user-profile-and-onboarding/notice-removed",
-      "user-profile-and-onboarding/notice-saved",
       "user-profile-and-onboarding/notice-verification-sent",
       "user-profile-and-onboarding/populated-incomplete-onboarding-no-provider-name",
       "user-profile-and-onboarding/populated-incomplete-onboarding-provider-name-available",
@@ -239,7 +237,7 @@ describe("gallery coverage check", () => {
     ]);
   });
 
-  it("excludes 401 redirects (#195) and unreachable/identical shell states (#199)", () => {
+  it("excludes 401s (#195), shell twins (#199), and product-identical mutation/notice (#201)", () => {
     const excluded = registryEntries().filter((e) => e.category === "excluded");
     expect(excluded.map((e) => e.id).sort()).toEqual([
       "activity-history/unauthorized-401",
@@ -249,13 +247,39 @@ describe("gallery coverage check", () => {
       "authenticated-app-shell/loading-notifications",
       "authenticated-app-shell/loading-profile",
       "authenticated-app-shell/mobile",
+      "notifications/mutation-pending-mark-one-read",
       "notifications/unauthorized-401",
       "team/unauthorized-401",
+      "user-profile-and-onboarding/notice-saved",
     ]);
     for (const e of excluded) {
       if (e.category !== "excluded") throw new Error("unreachable");
-      expect([195, 199]).toContain(e.issue);
+      expect([195, 199, 201]).toContain(e.issue);
     }
+  });
+
+  it("rejects the removed deferred marker loudly", () => {
+    const md = `## Widget
+
+**States:**
+
+- \`loading\` — \`[gallery:deferred #193]\` later
+`;
+    expect(() => parseFeaturesMarkdown(md, "fixture.md")).toThrow(/deferred hatch was deleted/);
+  });
+
+  it("parses gallery:excluded markers on inline notice items", () => {
+    const md = `## User Profile & Onboarding
+
+**Notice states (local UI, not async):** saved ("ok") \`[gallery:excluded #201]\` · removed ("gone")
+`;
+    const states = parseFeaturesMarkdown(md, "fixture.md");
+    expect(states.map((s) => s.id)).toEqual([
+      "user-profile-and-onboarding/notice-saved",
+      "user-profile-and-onboarding/notice-removed",
+    ]);
+    expect(states[0]?.marker).toEqual({ kind: "excluded", issue: 201 });
+    expect(states[1]?.marker).toBeNull();
   });
 
   it("FAILS when a FEATURES state has no registry entry", () => {

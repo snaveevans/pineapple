@@ -230,24 +230,6 @@ export const STATES_193: RenderedState[] = [
     },
   },
   {
-    id: "user-profile-and-onboarding/notice-saved",
-    category: "rendered",
-    route: "/app/profile",
-    stubs: {
-      me: json(PROFILE),
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      putNotificationEmail: json(profileAfterEmailSet("dale@homemail.com", true)),
-    },
-    ready: readyProfile,
-    interact: async (page) => {
-      await page.locator("#pe-email-input").fill("dale@homemail.com");
-      await page.getByRole("button", { name: "Save", exact: true }).click();
-      await page
-        .getByText("This address is verified; reminders will be sent here.")
-        .waitFor({ state: "visible" });
-    },
-  },
-  {
     id: "user-profile-and-onboarding/notice-verification-sent",
     category: "rendered",
     route: "/app/profile",
@@ -345,31 +327,6 @@ export const STATES_193: RenderedState[] = [
   },
 
   // ── Notifications ──────────────────────────────────────────────────
-  {
-    id: "notifications/mutation-pending-mark-one-read",
-    category: "rendered",
-    route: "/app/notifications",
-    stubs: {
-      notifications: json(NOTIFICATIONS_POPULATED),
-      postNotificationRead: pending(),
-    },
-    ready: async (page) => {
-      await readyNotificationsList(page);
-      await page
-        .getByRole("button", { name: /Oil change due in 2d for Ford F-150/ })
-        .waitFor({ state: "visible" });
-    },
-    interact: async (page) => {
-      // Product shows no pending chrome for mark-one — hold the POST so the
-      // in-flight request is real; capture whatever paints (focus/unread).
-      await page.getByRole("button", { name: /Oil change due in 2d for Ford F-150/ }).click();
-      // Give React a frame to process the click without resolving the POST.
-      await page.evaluate(
-        () =>
-          new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))),
-      );
-    },
-  },
   {
     id: "notifications/mutation-pending-mark-all-read",
     category: "rendered",

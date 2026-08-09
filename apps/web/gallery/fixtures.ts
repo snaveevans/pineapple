@@ -579,8 +579,13 @@ export const NOTIFICATIONS_PAGINATION_BOUNDARY = {
   nextCursor: "notif-cursor-boundary" as string | null,
 };
 
+/** Single overdue vehicle queue item — aggregates match the queue (ADR-0009). */
 export const DASHBOARD_LONG_ASSET = {
-  ...DASHBOARD_POPULATED,
+  viewerDisplayName: "Dale Evans",
+  todayUtc: "2026-07-02",
+  fleetTotals: { total: 1, vehicle: 1, equipment: 0, property: 0 },
+  fleetHealth: { overdue: 1, soon: 0, onTrack: 0, unscheduled: 0 },
+  queueCountsByCategory: { all: 1, vehicle: 1, equipment: 0, property: 0 },
   queue: [
     {
       taskId: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
@@ -600,8 +605,13 @@ export const DASHBOARD_LONG_ASSET = {
   ],
 };
 
+/** Single overdue vehicle queue item with max-length task title. */
 export const DASHBOARD_LONG_TASK = {
-  ...DASHBOARD_POPULATED,
+  viewerDisplayName: "Dale Evans",
+  todayUtc: "2026-07-02",
+  fleetTotals: { total: 1, vehicle: 1, equipment: 0, property: 0 },
+  fleetHealth: { overdue: 1, soon: 0, onTrack: 0, unscheduled: 0 },
+  queueCountsByCategory: { all: 1, vehicle: 1, equipment: 0, property: 0 },
   queue: [
     {
       taskId: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
@@ -621,8 +631,13 @@ export const DASHBOARD_LONG_TASK = {
   ],
 };
 
+/** Single soon equipment queue item owned by a long display name. */
 export const DASHBOARD_LONG_OWNER = {
-  ...DASHBOARD_POPULATED,
+  viewerDisplayName: "Dale Evans",
+  todayUtc: "2026-07-02",
+  fleetTotals: { total: 1, vehicle: 0, equipment: 1, property: 0 },
+  fleetHealth: { overdue: 0, soon: 1, onTrack: 0, unscheduled: 0 },
+  queueCountsByCategory: { all: 1, vehicle: 0, equipment: 1, property: 0 },
   queue: [
     {
       taskId: "459b8627-012b-44f7-8ab1-8b0305bc106b",
@@ -755,7 +770,10 @@ export const ACTIVITY_LONG_ASSET = {
       title: "Cabin filter",
     },
   ],
-  availableFilters: ACTIVITY_POPULATED.availableFilters,
+  availableFilters: {
+    types: [{ type: "task_scheduled", count: 1 }],
+    assets: [{ asset: { id: TRUCK_ID, name: LONG_ASSET_NAME, type: "vehicle" }, count: 1 }],
+  },
   nextCursor: null as string | null,
 };
 
@@ -771,7 +789,10 @@ export const ACTIVITY_LONG_TITLE = {
       title: TASK_TITLE_100,
     },
   ],
-  availableFilters: ACTIVITY_POPULATED.availableFilters,
+  availableFilters: {
+    types: [{ type: "task_scheduled", count: 1 }],
+    assets: [{ asset: { id: TRUCK_ID, name: "Sprinter Van", type: "vehicle" }, count: 1 }],
+  },
   nextCursor: null as string | null,
 };
 
@@ -788,7 +809,12 @@ export const ACTIVITY_LONG_ACTOR = {
       performedAt: "2026-06-30",
     },
   ],
-  availableFilters: ACTIVITY_POPULATED.availableFilters,
+  availableFilters: {
+    types: [{ type: "maintenance_logged", count: 1 }],
+    assets: [
+      { asset: { id: GENERATOR_ID, name: "Generac Generator", type: "equipment" }, count: 1 },
+    ],
+  },
   nextCursor: null as string | null,
 };
 

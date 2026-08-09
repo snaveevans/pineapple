@@ -271,6 +271,10 @@ Every change that adds or renames a renderable state in `docs/web/FEATURES.md` m
 4. **No silent byte-identical pairs across different FEATURES ids.** Host stubs must make each
    rendered id’s photograph distinct (different route body and/or chrome signal). An ad-hoc pair
    that is byte-identical is how silent non-checks ship.
+5. **Product-identical mutation/notice frames are `excluded` (#201).** Notifications
+   `mutation-pending-mark-one-read` has no pending chrome (`isPending` unread). Profile
+   `notice-saved` uses the same contact-email subtext as `contact-email-verified`. Both are
+   `[gallery:excluded #201]` — do not fake a distinct frame.
 
 ### Anti-patterns
 

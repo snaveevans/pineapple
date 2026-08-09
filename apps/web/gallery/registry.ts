@@ -934,6 +934,20 @@ const EXCLUDED: ExcludedState[] = [
     issue: 199,
     reason: "Badge-hidden on error is pixel-identical to zero-unread",
   },
+  {
+    id: "notifications/mutation-pending-mark-one-read",
+    category: "excluded",
+    issue: 201,
+    reason:
+      "No pending chrome — markReadMutation.isPending is unread; hold-POST only differs from populated by focus",
+  },
+  {
+    id: "user-profile-and-onboarding/notice-saved",
+    category: "excluded",
+    issue: 201,
+    reason:
+      "emailNotice saved copy is product-identical to contact-email-verified fallback subtext",
+  },
 ];
 
 export const VIEWPORTS: Record<ViewportName, { width: number; height: number }> = {
@@ -965,10 +979,10 @@ export function assertRegistryInvariants(entries: RegistryEntry[]): void {
       }
     }
   }
-  if (RENDERED.length !== 120) {
-    throw new Error(`expected 120 rendered states, got ${RENDERED.length}`);
+  if (RENDERED.length !== 118) {
+    throw new Error(`expected 118 rendered states, got ${RENDERED.length}`);
   }
-  if (EXCLUDED.length !== 9) {
-    throw new Error(`expected 9 excluded states, got ${EXCLUDED.length}`);
+  if (EXCLUDED.length !== 11) {
+    throw new Error(`expected 11 excluded states, got ${EXCLUDED.length}`);
   }
 }

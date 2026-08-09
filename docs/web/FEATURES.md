@@ -104,7 +104,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 - `pending` (resend verification, `POST /api/users/me/notification-email/verification`) — resend disabled while in flight; also disabled during cooldown
 - `error` — inline field errors; 422 field errors mapped to individual inputs; 401 redirects to `/login`
 
-**Notice states (local UI, not async):** saved ("This address is verified; reminders will be sent here.") · verification-sent ("Verification email sent to {address}; check your inbox.") · removed ("Contact email removed. Maintenance reminders will not be sent until you add one.") · cooldown ("You can request another verification email in a few minutes." — triggered by 429, disables resend)
+**Notice states (local UI, not async):** saved ("This address is verified; reminders will be sent here.") `[gallery:excluded #201]` · verification-sent ("Verification email sent to {address}; check your inbox.") · removed ("Contact email removed. Maintenance reminders will not be sent until you add one.") · cooldown ("You can request another verification email in a few minutes." — triggered by 429, disables resend)
 
 **Content stress:** maximum-length display name (100 characters); long contact email address
 
@@ -168,7 +168,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 **Mutations:**
 
-- `pending` (mark one read) — clicking an unread row calls `POST /api/notifications/{notificationId}/read`
+- `pending` (mark one read) — `[gallery:excluded #201]` no pending chrome; `markReadMutation.isPending` is unread in the tree, so holding the POST only differs from `populated` by focus
 - `pending` (mark all read) — header action calls `POST /api/notifications/read-all`; disabled when nothing is unread
 - `error` — mutation errors surface above the list
 
