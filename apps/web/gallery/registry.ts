@@ -21,6 +21,7 @@ import {
   PROFILE,
   PROFILE_INCOMPLETE_NO_NAME,
   PROFILE_INCOMPLETE_WITH_NAME,
+  PROFILE_SHELL,
   RECORDS_EMPTY,
   RECORDS_POPULATED,
   RECORDS_POPULATED_SHARED,
@@ -522,124 +523,73 @@ const RENDERED: RenderedState[] = [
     },
   },
 
-  // ── Authenticated App Shell (10) ───────────────────────────────────
+  // ── Authenticated App Shell (5 rendered; 5 excluded #199) ──────────
   {
     id: "authenticated-app-shell/desktop",
     category: "rendered",
-    route: "/app",
+    // History empty + shell avatar J — not a twin of activity-history/empty (Dale).
+    route: "/app/history",
     stubs: {
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      me: json(PROFILE),
+      activity: json(ACTIVITY_EMPTY),
+      me: json(PROFILE_SHELL),
       notifications: json(NOTIFICATIONS_EMPTY),
     },
-    // Viewport-driven: both desktop and mobile shots land; chrome CSS switches layout.
     ready: async (page) => {
       await page.getByText("FieldOps").first().waitFor({ state: "visible" });
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
-    },
-  },
-  {
-    id: "authenticated-app-shell/mobile",
-    category: "rendered",
-    route: "/app",
-    stubs: {
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      me: json(PROFILE),
-      notifications: json(NOTIFICATIONS_EMPTY),
-    },
-    // Same host as desktop; the mobile shot is the meaningful one (bottom nav).
-    ready: async (page) => {
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
+      await page.getByText("Nothing here yet").waitFor({ state: "visible" });
+      await page.locator("a.hf-avatar", { hasText: "J" }).waitFor({ state: "visible" });
     },
   },
   {
     id: "authenticated-app-shell/active-route",
     category: "rendered",
+    // Populated assets + Assets tab + avatar J + unread badge — distinct from closed search.
     route: "/app/assets",
     stubs: {
-      assets: json(ASSETS_EMPTY),
-      me: json(PROFILE),
-      notifications: json(NOTIFICATIONS_EMPTY),
+      assets: json(ASSETS_POPULATED),
+      me: json(PROFILE_SHELL),
+      notifications: json(NOTIFICATIONS_POPULATED),
     },
+    localStorage: { "fieldops:assets:view": "grid" },
     ready: async (page) => {
-      // Route is /app/assets — empty library proves the active Assets destination rendered.
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
+      await page.getByText("Truck").waitFor({ state: "visible" });
       await page.locator('a[aria-current="page"]', { hasText: "Assets" }).first().waitFor({
         state: "attached",
       });
-    },
-  },
-  {
-    id: "authenticated-app-shell/loading-profile",
-    category: "rendered",
-    route: "/app",
-    stubs: {
-      me: pending(),
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      notifications: json(NOTIFICATIONS_EMPTY),
-    },
-    ready: async (page) => {
-      // OnboardingGuard holds the shell until me resolves — capture that spinner.
-      await page.getByText("Loading your profile…").waitFor({ state: "visible" });
+      await page.locator("a.hf-avatar", { hasText: "J" }).waitFor({ state: "visible" });
+      await page.getByLabel("Notifications, 1 unread").waitFor({ state: "visible" });
     },
   },
   {
     id: "authenticated-app-shell/populated-profile",
     category: "rendered",
+    // Empty home + avatar J — not a Dale twin of dashboard empty-empty-fleet.
     route: "/app",
     stubs: {
-      me: json(PROFILE),
+      me: json(PROFILE_SHELL),
       dashboard: json(DASHBOARD_EMPTY_FLEET),
       notifications: json(NOTIFICATIONS_EMPTY),
     },
     ready: async (page) => {
       await page.getByText("No assets yet").waitFor({ state: "visible" });
-      await page.locator("a.hf-avatar", { hasText: "D" }).waitFor({ state: "visible" });
-    },
-  },
-  {
-    id: "authenticated-app-shell/error-profile",
-    category: "rendered",
-    route: "/app",
-    stubs: {
-      me: err500("Profile unavailable"),
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      notifications: json(NOTIFICATIONS_EMPTY),
-    },
-    ready: async (page) => {
-      // Guard has no distinct error UI — settled failure stays on the spinner.
-      await advance(page, 5_000);
-      await page.getByText("Loading your profile…").waitFor({ state: "visible" });
-    },
-  },
-  {
-    id: "authenticated-app-shell/loading-notifications",
-    category: "rendered",
-    route: "/app",
-    stubs: {
-      me: json(PROFILE),
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      notifications: pending(),
-    },
-    ready: async (page) => {
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
-      await page.getByLabel("Notifications").waitFor({ state: "visible" });
-      await page.locator(".hf-badge").waitFor({ state: "hidden" });
+      await page.locator("a.hf-avatar", { hasText: "J" }).waitFor({ state: "visible" });
     },
   },
   {
     id: "authenticated-app-shell/populated-notifications-zero-unread",
     category: "rendered",
+    // No-tasks body + avatar J — not a twin of dashboard empty-no-scheduled-tasks (Dale).
     route: "/app",
     stubs: {
-      me: json(PROFILE),
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
+      me: json(PROFILE_SHELL),
+      dashboard: json(DASHBOARD_NO_TASKS),
       notifications: json(NOTIFICATIONS_EMPTY),
     },
     ready: async (page) => {
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
+      await page.getByText("No scheduled maintenance yet").waitFor({ state: "visible" });
       await page.getByLabel("Notifications").waitFor({ state: "visible" });
       await page.locator(".hf-badge").waitFor({ state: "hidden" });
+      await page.locator("a.hf-avatar", { hasText: "J" }).waitFor({ state: "visible" });
     },
   },
   {
@@ -655,22 +605,6 @@ const RENDERED: RenderedState[] = [
       await page.getByText("No assets yet").waitFor({ state: "visible" });
       await page.getByLabel("Notifications, 1 unread").waitFor({ state: "visible" });
       await page.locator(".hf-badge").waitFor({ state: "visible" });
-    },
-  },
-  {
-    id: "authenticated-app-shell/error-notifications",
-    category: "rendered",
-    route: "/app",
-    stubs: {
-      me: json(PROFILE),
-      dashboard: json(DASHBOARD_EMPTY_FLEET),
-      notifications: err500("Notifications unavailable"),
-    },
-    ready: async (page) => {
-      await advance(page, 5_000);
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
-      await page.getByLabel("Notifications").waitFor({ state: "visible" });
-      await page.locator(".hf-badge").waitFor({ state: "hidden" });
     },
   },
 
@@ -742,12 +676,20 @@ const RENDERED: RenderedState[] = [
   {
     id: "app-search/closed",
     category: "rendered",
-    route: "/app",
-    stubs: { dashboard: json(DASHBOARD_EMPTY_FLEET) },
+    // Assets list + shell avatar J + resting search. Mobile always lists, so avatar
+    // (not grid/list) is what keeps this off asset-library/populated (Dale).
+    route: "/app/assets",
+    stubs: {
+      assets: json(ASSETS_POPULATED),
+      me: json(PROFILE_SHELL),
+      notifications: json(NOTIFICATIONS_EMPTY),
+    },
+    localStorage: { "fieldops:assets:view": "list" },
     ready: async (page) => {
       await page.getByRole("button", { name: "Search assets" }).waitFor({ state: "visible" });
       await page.getByRole("dialog", { name: "Search assets" }).waitFor({ state: "hidden" });
-      await page.getByText("No assets yet").waitFor({ state: "visible" });
+      await page.getByText("Truck").waitFor({ state: "visible" });
+      await page.locator("a.hf-avatar", { hasText: "J" }).waitFor({ state: "visible" });
     },
   },
   {
@@ -1011,6 +953,36 @@ const EXCLUDED: ExcludedState[] = [
     issue: 195,
     reason: "Transient 401 redirect unmounts before capture (#191)",
   },
+  {
+    id: "authenticated-app-shell/mobile",
+    category: "excluded",
+    issue: 199,
+    reason: "Dual-viewport harness already photographs desktop id at mobile size",
+  },
+  {
+    id: "authenticated-app-shell/loading-profile",
+    category: "excluded",
+    issue: 199,
+    reason: "OnboardingGuard blocks shell before HFTopBar avatar can paint",
+  },
+  {
+    id: "authenticated-app-shell/error-profile",
+    category: "excluded",
+    issue: 199,
+    reason: "OnboardingGuard blocks shell before HFTopBar avatar can paint",
+  },
+  {
+    id: "authenticated-app-shell/loading-notifications",
+    category: "excluded",
+    issue: 199,
+    reason: "Badge-hidden while pending is pixel-identical to zero-unread",
+  },
+  {
+    id: "authenticated-app-shell/error-notifications",
+    category: "excluded",
+    issue: 199,
+    reason: "Badge-hidden on error is pixel-identical to zero-unread",
+  },
 ];
 
 export const VIEWPORTS: Record<ViewportName, { width: number; height: number }> = {
@@ -1041,10 +1013,10 @@ export function assertRegistryInvariants(entries: RegistryEntry[]): void {
       }
     }
   }
-  if (RENDERED.length !== 66) {
-    throw new Error(`expected 66 rendered states, got ${RENDERED.length}`);
+  if (RENDERED.length !== 61) {
+    throw new Error(`expected 61 rendered states, got ${RENDERED.length}`);
   }
-  if (EXCLUDED.length !== 4) {
-    throw new Error(`expected 4 excluded states, got ${EXCLUDED.length}`);
+  if (EXCLUDED.length !== 9) {
+    throw new Error(`expected 9 excluded states, got ${EXCLUDED.length}`);
   }
 }

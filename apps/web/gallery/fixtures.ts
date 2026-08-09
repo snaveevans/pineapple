@@ -8,6 +8,12 @@ export const PROFILE = {
   notificationEmailVerified: false,
 };
 
+/** Shell-only profile so the avatar initial is not a twin of every Dale-hosted shot. */
+export const PROFILE_SHELL = {
+  ...PROFILE,
+  name: "Jamie Ortega",
+};
+
 export const EMPTY_NOTIFS = {
   notifications: [],
   unreadCount: 0,
@@ -276,25 +282,27 @@ export const ASSET_SHARED_BY = {
 export const RECORDS_EMPTY = { maintenanceRecords: [] as const };
 export const TASKS_EMPTY = { maintenanceTasks: [] as const };
 
+// Domain-legal pairs vs FIXED_NOW (2026-07-02): nextDue = lastCompleted + interval;
+// linked records do not contradict task.lastCompletedDate / nextDue (advance() rules).
 export const RECORDS_POPULATED = {
   maintenanceRecords: [
     {
       id: "e914b960-772f-46a7-b6fb-f333dcfc7fc9",
       assetId: TRUCK_ID,
       title: "Oil change",
-      performedAt: "2026-06-09",
+      performedAt: "2026-03-14",
       notes: "Used 7 quarts of synthetic oil.",
       taskId: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
-      createdAt: "2026-06-09T18:25:24.887Z",
+      createdAt: "2026-03-14T18:25:24.887Z",
     },
     {
       id: "f60feab8-48df-4947-ae58-6ef7257531da",
       assetId: TRUCK_ID,
       title: "Tire rotation",
-      performedAt: "2026-03-14",
+      performedAt: "2026-02-01",
       notes: null,
       taskId: null,
-      createdAt: "2026-03-14T12:00:00.000Z",
+      createdAt: "2026-02-01T12:00:00.000Z",
     },
   ],
 };
@@ -307,6 +315,7 @@ export const TASKS_POPULATED = {
       title: "Oil change",
       intervalValue: 3,
       intervalUnit: "month" as const,
+      // lastCompleted 2026-03-14 + 3 months → nextDue 2026-06-14; daysDue vs 2026-07-02 = -18
       lastCompletedDate: "2026-03-14",
       nextDue: "2026-06-14",
       status: "overdue" as const,
@@ -319,7 +328,8 @@ export const TASKS_POPULATED = {
       title: "Cabin filter",
       intervalValue: 6,
       intervalUnit: "month" as const,
-      lastCompletedDate: "2026-04-01",
+      // lastCompleted 2026-01-10 + 6 months → nextDue 2026-07-10; daysDue vs 2026-07-02 = 8
+      lastCompletedDate: "2026-01-10",
       nextDue: "2026-07-10",
       status: "soon" as const,
       daysDue: 8,

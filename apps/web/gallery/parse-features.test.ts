@@ -12,9 +12,10 @@ describe("parse live FEATURES.md", () => {
     expect(ids.length).toBeGreaterThan(80);
     // Preamble has no ## so no states from conventions prose.
     expect(ids.every((id) => !id.startsWith("web-app-features"))).toBe(true);
-    // Four excluded markers survive as unauthorized-401.
+    // Excluded markers: four unauthorized-401 (#195) + five shell states (#199).
     const excluded = states.filter((s) => s.marker?.kind === "excluded");
-    expect(excluded).toHaveLength(4);
-    expect(excluded.every((s) => s.id.endsWith("/unauthorized-401"))).toBe(true);
+    expect(excluded).toHaveLength(9);
+    expect(excluded.filter((s) => s.id.endsWith("/unauthorized-401"))).toHaveLength(4);
+    expect(excluded.filter((s) => s.marker?.issue === 199)).toHaveLength(5);
   });
 });

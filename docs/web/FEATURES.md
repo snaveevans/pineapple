@@ -128,20 +128,20 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 **States:**
 
 - Desktop — top bar shows the FieldOps brand, route tabs for Home, Assets, and History, plus search, a live notifications badge/link, and profile controls
-- Mobile — bottom tab bar shows the same Home, Assets, and History destinations
+- Mobile — `[gallery:excluded #199]` bottom tab bar shows the same destinations; dual-viewport harness already photographs Desktop at mobile size
 - Active route — the matching tab is highlighted for the current page
 
 **Own async states (in `HFTopBar`):**
 
-- `loading` (profile) — avatar renders the `?` placeholder initial until `GET /api/users/me` resolves; tooltip falls back to "Profile settings"
+- `loading` (profile) — `[gallery:excluded #199]` avatar `?` until me resolves; unreachable on cold load — OnboardingGuard blocks the shell
 - `populated` (profile) — avatar renders the first character of the display name, uppercased; tooltip is the display name
-- `error` (profile) — avatar stays on the `?` placeholder; the shell offers no retry affordance
-- `loading` (notifications) — unread badge absent until `GET /api/notifications?limit=1` resolves
+- `error` (profile) — `[gallery:excluded #199]` avatar stays on `?`; unreachable on cold load — guard never mounts the shell
+- `loading` (notifications) — `[gallery:excluded #199]` badge absent while pending; pixel-identical to zero-unread
 - `populated` (notifications, zero unread) — badge hidden
 - `populated` (notifications, has unread) — badge shows unread count
-- `error` (notifications) — badge degrades to hidden; a 401 is not retried (falls through to page-level redirect)
+- `error` (notifications) — `[gallery:excluded #199]` badge degrades to hidden; pixel-identical to zero-unread
 
-**Exceptions:** The shell owns two `useQuery` calls (`getUserProfile` and `listNotifications({ limit: 1 })`) — these are real async states the gallery must cover. The avatar never renders empty: `profileAvatarInitial` returns `?` for an absent or blank name, so the profile `loading` and `error` states are visually identical. The notifications badge query uses a separate key (`notificationsPageQueryKey({ limit: 1 })`) from the Notifications page (`notificationsPageQueryKey({ limit: PAGE_SIZE })`), so it is not the same query.
+**Exceptions:** The shell owns two `useQuery` calls (`getUserProfile` and `listNotifications({ limit: 1 })`). Profile loading/error never paint on a mounted shell: OnboardingGuard shares `userProfileQueryKey` and refuses `<Outlet />` until me has data (#199). Notifications loading/error hide the badge the same way zero-unread does (#199). The notifications badge query uses a separate key (`notificationsPageQueryKey({ limit: 1 })`) from the Notifications page.
 
 **Non-obvious behavior:**
 

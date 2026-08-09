@@ -248,25 +248,27 @@ Every change that adds or renames a renderable state in `docs/web/FEATURES.md` m
 - Not edit product code solely to make a transient state photographable — open an issue instead
   (precedent: #195 for 401 redirect states).
 
-### Decisions on edge-case states (#192)
+### Decisions on edge-case states (#192 / #199)
 
-1. **States that paint nothing (App Search `Closed`).** Keep them. `Closed` is the resting
-   chrome affordance — the search entry point is visible and the overlay is absent. The gallery
-   photographs the host page with that resting control, not an empty canvas. A pure unmount with
-   no host surface would not belong; that is not this case.
+1. **States that paint nothing (App Search `Closed`).** Keep them on a **distinct host** so the
+   resting search control is not a byte-identical twin of another FEATURES id. `Closed` is the
+   chrome affordance (entry point visible, overlay absent) — photograph it on a populated assets
+   page, not on empty dashboard.
 2. **OAuth-redirect / navigate-away flows (Sign In, Onboarding complete).** Photograph only
    stable frames. Sign In `idle`, `in-flight` (social POST held pending so the page never leaves
    the origin), and `error` (`?error=google`) are stable and rendered. Onboarding incomplete forms
-   are stable and rendered. Navigate-away transitions (session already established → leave
-   `/login`, onboarding complete → leave `/onboarding`) remain non-enumerable per FEATURES.md —
-   do not invent a frozen frame, and do not force-capture a tick that unmounts. That is the same
-   rule as #195 for 401 redirects.
-3. **Load-error UI that is visually identical to loading.** User Profile / Onboarding load
-   `error` and Authenticated App Shell profile `error` settle on the same spinner as `loading`
-   (no retry affordance in product code). Both IDs stay rendered so coverage stays honest; the
-   photos document the current product, not a desired distinct error screen. Shell profile
-   `loading`/`error` cold-loads also surface the OnboardingGuard spinner rather than the top-bar
-   `?` avatar — the guard shares `userProfileQueryKey` and blocks the shell until me resolves.
+   are stable and rendered. Navigate-away transitions remain non-enumerable — do not invent a
+   frozen frame (#195 rule).
+3. **Unreachable or product-identical shell states are `excluded`, not faked.** Authenticated
+   App Shell profile `loading`/`error` never mount `HFTopBar` on cold load (OnboardingGuard shares
+   `userProfileQueryKey`). Notifications badge `loading`/`error` are pixel-identical to
+   zero-unread. Shell `mobile` double-counts the dual-viewport harness on `desktop`. All five are
+   `[gallery:excluded #199]`. Onboarding screen load `error` still renders as the same spinner as
+   `loading` (product has no distinct error UI) and stays `rendered` so the id is honest about
+   what paints.
+4. **No silent byte-identical pairs across different FEATURES ids.** Host stubs must make each
+   rendered id’s photograph distinct (different route body and/or chrome signal). An ad-hoc pair
+   that is byte-identical is how silent non-checks ship.
 
 ### Anti-patterns
 
