@@ -8,6 +8,12 @@ export const PROFILE = {
   notificationEmailVerified: false,
 };
 
+/** Shell-only profile so the avatar initial is not a twin of every Dale-hosted shot. */
+export const PROFILE_SHELL = {
+  ...PROFILE,
+  name: "Jamie Ortega",
+};
+
 export const EMPTY_NOTIFS = {
   notifications: [],
   unreadCount: 0,
@@ -217,3 +223,218 @@ export const TEAM_POPULATED = {
   },
   viewerUserId: VIEWER_USER_ID,
 };
+
+export const TRUCK_ID = "195d0ef0-47f5-439f-abfd-29f892c9a040";
+export const GENERATOR_ID = "337f2d25-f1ab-4544-af2e-8196aa9d5a11";
+
+export const PROFILE_INCOMPLETE_WITH_NAME = {
+  email: "dale@fieldops-demo.com",
+  name: "Dale Evans",
+  onboardingCompletedAt: null,
+  notificationEmail: null,
+  notificationEmailVerified: false,
+};
+
+export const PROFILE_INCOMPLETE_NO_NAME = {
+  email: "dale@fieldops-demo.com",
+  name: null,
+  onboardingCompletedAt: null,
+  notificationEmail: null,
+  notificationEmailVerified: false,
+};
+
+export const AUTH_SESSION_AUTHENTICATED = {
+  session: { id: "sess-gallery-1", userId: VIEWER_USER_ID },
+  user: { id: VIEWER_USER_ID, email: "dale@fieldops-demo.com", name: "Dale Evans" },
+};
+
+export const AUTH_SESSION_NONE = {
+  session: null,
+  user: null,
+};
+
+export const ASSET_OWNED = {
+  id: TRUCK_ID,
+  name: "Truck",
+  type: "vehicle",
+  metadata: { kind: "vehicle", make: "Ford", model: "F-150", year: 2020 },
+  archivedAt: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  sharing: { scope: "personal" as const, isOwner: true },
+};
+
+export const ASSET_SHARED_BY = {
+  id: GENERATOR_ID,
+  name: "Generator",
+  type: "equipment",
+  metadata: { kind: "equipment", manufacturer: "Generac", modelNumber: "7043" },
+  archivedAt: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  sharing: {
+    scope: "team" as const,
+    isOwner: false,
+    ownerDisplayName: "Pat Rivera",
+  },
+};
+
+export const RECORDS_EMPTY = { maintenanceRecords: [] as const };
+export const TASKS_EMPTY = { maintenanceTasks: [] as const };
+
+// Domain-legal pairs vs FIXED_NOW (2026-07-02): nextDue = lastCompleted + interval;
+// linked records do not contradict task.lastCompletedDate / nextDue (advance() rules).
+export const RECORDS_POPULATED = {
+  maintenanceRecords: [
+    {
+      id: "e914b960-772f-46a7-b6fb-f333dcfc7fc9",
+      assetId: TRUCK_ID,
+      title: "Oil change",
+      performedAt: "2026-03-14",
+      notes: "Used 7 quarts of synthetic oil.",
+      taskId: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      createdAt: "2026-03-14T18:25:24.887Z",
+    },
+    {
+      id: "f60feab8-48df-4947-ae58-6ef7257531da",
+      assetId: TRUCK_ID,
+      title: "Tire rotation",
+      performedAt: "2026-02-01",
+      notes: null,
+      taskId: null,
+      createdAt: "2026-02-01T12:00:00.000Z",
+    },
+  ],
+};
+
+export const TASKS_POPULATED = {
+  maintenanceTasks: [
+    {
+      id: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      assetId: TRUCK_ID,
+      title: "Oil change",
+      intervalValue: 3,
+      intervalUnit: "month" as const,
+      // lastCompleted 2026-03-14 + 3 months → nextDue 2026-06-14; daysDue vs 2026-07-02 = -18
+      lastCompletedDate: "2026-03-14",
+      nextDue: "2026-06-14",
+      status: "overdue" as const,
+      daysDue: -18,
+      createdAt: "2026-01-15T12:00:00.000Z",
+    },
+    {
+      id: "b2c3d4e5-f6a7-4890-bcde-f12345678901",
+      assetId: TRUCK_ID,
+      title: "Cabin filter",
+      intervalValue: 6,
+      intervalUnit: "month" as const,
+      // lastCompleted 2026-01-10 + 6 months → nextDue 2026-07-10; daysDue vs 2026-07-02 = 8
+      lastCompletedDate: "2026-01-10",
+      nextDue: "2026-07-10",
+      status: "soon" as const,
+      daysDue: 8,
+      createdAt: "2026-02-01T12:00:00.000Z",
+    },
+  ],
+};
+
+export const RECORDS_POPULATED_SHARED = {
+  maintenanceRecords: RECORDS_POPULATED.maintenanceRecords.map((r) => ({
+    ...r,
+    assetId: GENERATOR_ID,
+  })),
+};
+
+export const TASKS_POPULATED_SHARED = {
+  maintenanceTasks: TASKS_POPULATED.maintenanceTasks.map((t) => ({
+    ...t,
+    assetId: GENERATOR_ID,
+  })),
+};
+
+export const DASHBOARD_EMPTY_FLEET = {
+  viewerDisplayName: "Dale Evans",
+  todayUtc: "2026-07-02",
+  fleetTotals: { total: 0, vehicle: 0, equipment: 0, property: 0 },
+  fleetHealth: { overdue: 0, soon: 0, onTrack: 0, unscheduled: 0 },
+  queueCountsByCategory: { all: 0, vehicle: 0, equipment: 0, property: 0 },
+  queue: [] as const,
+};
+
+export const DASHBOARD_NO_TASKS = {
+  viewerDisplayName: "Dale Evans",
+  todayUtc: "2026-07-02",
+  fleetTotals: { total: 3, vehicle: 1, equipment: 1, property: 1 },
+  fleetHealth: { overdue: 0, soon: 0, onTrack: 0, unscheduled: 3 },
+  queueCountsByCategory: { all: 0, vehicle: 0, equipment: 0, property: 0 },
+  queue: [] as const,
+};
+
+export const DASHBOARD_POPULATED = {
+  viewerDisplayName: "Dale Evans",
+  todayUtc: "2026-07-02",
+  fleetTotals: { total: 3, vehicle: 1, equipment: 1, property: 1 },
+  fleetHealth: { overdue: 1, soon: 1, onTrack: 0, unscheduled: 1 },
+  queueCountsByCategory: { all: 2, vehicle: 1, equipment: 1, property: 0 },
+  queue: [
+    {
+      taskId: "a1b2c3d4-e5f6-4890-abcd-ef1234567890",
+      taskTitle: "Oil change",
+      nextDue: "2026-06-14",
+      status: "overdue" as const,
+      daysDue: -18,
+      intervalValue: 3,
+      intervalUnit: "month" as const,
+      lastCompletedDate: "2026-03-14",
+      createdAt: "2026-01-15T12:00:00.000Z",
+      assetId: TRUCK_ID,
+      assetName: "Work Truck",
+      assetType: "vehicle" as const,
+      sharing: { scope: "personal" as const, isOwner: true },
+    },
+    {
+      taskId: "459b8627-012b-44f7-8ab1-8b0305bc106b",
+      taskTitle: "Blade sharpen",
+      nextDue: "2026-07-04",
+      status: "soon" as const,
+      daysDue: 2,
+      intervalValue: 1,
+      intervalUnit: "month" as const,
+      lastCompletedDate: "2026-06-04",
+      createdAt: "2026-02-01T12:00:00.000Z",
+      assetId: GENERATOR_ID,
+      assetName: "Toro ZTR Mower",
+      assetType: "equipment" as const,
+      sharing: {
+        scope: "team" as const,
+        isOwner: false,
+        ownerDisplayName: "Pat",
+      },
+    },
+  ],
+};
+
+export const SEARCH_POPULATED = {
+  results: [
+    {
+      id: TRUCK_ID,
+      name: "Work Truck",
+      type: "vehicle" as const,
+      summary: "2020 Ford F-150",
+      sharing: { scope: "team" as const, isOwner: true },
+    },
+    {
+      id: GENERATOR_ID,
+      name: "Teammate Ram",
+      type: "vehicle" as const,
+      summary: "2021 Ram 2500",
+      sharing: {
+        scope: "team" as const,
+        isOwner: false,
+        ownerDisplayName: "Pat",
+      },
+    },
+  ],
+};
+
+export const SEARCH_EMPTY = { results: [] as const };

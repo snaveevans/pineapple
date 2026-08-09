@@ -108,8 +108,8 @@ describe("gallery coverage check", () => {
     );
   });
 
-  it("renders exactly 23 read states from the four fixture screens", () => {
-    expect(renderedStates()).toHaveLength(23);
+  it("renders the exhaustive slice-1+2 read-state set", () => {
+    expect(renderedStates()).toHaveLength(61);
     const ids = renderedStates()
       .map((s) => s.id)
       .sort();
@@ -121,36 +121,82 @@ describe("gallery coverage check", () => {
       "activity-history/populated",
       "activity-history/populated-filtered",
       "activity-history/populated-paginated",
+      "add-asset/idle-equipment-type",
+      "add-asset/idle-property-type",
+      "add-asset/idle-vehicle-type",
+      "app-search/closed",
+      "app-search/empty-no-matches",
+      "app-search/error",
+      "app-search/loading",
+      "app-search/open-idle-empty-query",
+      "app-search/populated",
       "asset-library/empty-filtered",
       "asset-library/empty-no-assets-owned",
       "asset-library/error",
       "asset-library/loading",
       "asset-library/populated",
       "asset-library/populated-filtered",
+      "asset-maintenance-records-and-tasks/empty-no-records",
+      "asset-maintenance-records-and-tasks/empty-no-tasks",
+      "asset-maintenance-records-and-tasks/error-forbidden-403",
+      "asset-maintenance-records-and-tasks/error-load-failure",
+      "asset-maintenance-records-and-tasks/error-not-found-404",
+      "asset-maintenance-records-and-tasks/loading",
+      "asset-maintenance-records-and-tasks/populated",
+      "asset-maintenance-records-and-tasks/populated-shared-by-teammate",
+      "authenticated-app-shell/active-route",
+      "authenticated-app-shell/desktop",
+      "authenticated-app-shell/populated-notifications-has-unread",
+      "authenticated-app-shell/populated-notifications-zero-unread",
+      "authenticated-app-shell/populated-profile",
+      "dashboard-home/empty-empty-fleet",
+      "dashboard-home/empty-filtered",
+      "dashboard-home/empty-no-scheduled-tasks",
+      "dashboard-home/error",
+      "dashboard-home/loading",
+      "dashboard-home/populated",
+      "marketing-home/authenticated",
+      "marketing-home/unauthenticated",
       "notifications/empty",
       "notifications/error",
       "notifications/loading",
       "notifications/populated",
       "notifications/populated-paginated",
+      "sign-in/error",
+      "sign-in/idle",
+      "sign-in/in-flight",
       "team/empty-no-team",
       "team/error",
       "team/form-create-team",
       "team/loading",
       "team/populated-has-team",
+      "user-profile-and-onboarding/error",
+      "user-profile-and-onboarding/loading",
+      "user-profile-and-onboarding/populated-incomplete-onboarding-no-provider-name",
+      "user-profile-and-onboarding/populated-incomplete-onboarding-provider-name-available",
+      "user-profile-and-onboarding/populated-profile-edit",
     ]);
+    expect(registryEntries().filter((e) => e.category === "deferred" && e.issue === 192)).toEqual(
+      [],
+    );
   });
 
-  it("four unauthorized-401 states are excluded via #195", () => {
+  it("excludes 401 redirects (#195) and unreachable/identical shell states (#199)", () => {
     const excluded = registryEntries().filter((e) => e.category === "excluded");
     expect(excluded.map((e) => e.id).sort()).toEqual([
       "activity-history/unauthorized-401",
       "asset-library/unauthorized-401",
+      "authenticated-app-shell/error-notifications",
+      "authenticated-app-shell/error-profile",
+      "authenticated-app-shell/loading-notifications",
+      "authenticated-app-shell/loading-profile",
+      "authenticated-app-shell/mobile",
       "notifications/unauthorized-401",
       "team/unauthorized-401",
     ]);
     for (const e of excluded) {
       if (e.category !== "excluded") throw new Error("unreachable");
-      expect(e.issue).toBe(195);
+      expect([195, 199]).toContain(e.issue);
     }
   });
 

@@ -85,7 +85,7 @@ async function installApiRoutes(
     };
 
     if (method === "GET" && path === "/api/users/me") {
-      await resolveStub(undefined, { kind: "json", body: PROFILE });
+      await resolveStub(stubs.me, { kind: "json", body: PROFILE });
       return;
     }
 
@@ -104,6 +104,31 @@ async function installApiRoutes(
       return;
     }
 
+    if (method === "GET" && /^\/api\/assets\/[^/]+\/maintenance-records$/.test(path)) {
+      await resolveStub(stubs.maintenanceRecords, {
+        kind: "json",
+        body: { maintenanceRecords: [] },
+      });
+      return;
+    }
+
+    if (method === "GET" && /^\/api\/assets\/[^/]+\/maintenance-tasks$/.test(path)) {
+      await resolveStub(stubs.maintenanceTasks, {
+        kind: "json",
+        body: { maintenanceTasks: [] },
+      });
+      return;
+    }
+
+    if (method === "GET" && /^\/api\/assets\/[^/]+$/.test(path)) {
+      await resolveStub(stubs.asset, {
+        kind: "json",
+        body: { error: "gallery harness: no asset stub" },
+        status: 404,
+      });
+      return;
+    }
+
     if (method === "GET" && path === "/api/activity") {
       await resolveStub(stubs.activity, {
         kind: "json",
@@ -119,6 +144,40 @@ async function installApiRoutes(
 
     if (method === "GET" && path === "/api/teams/me") {
       await resolveStub(stubs.teamsMe, { kind: "json", body: { team: null, viewerUserId: "" } });
+      return;
+    }
+
+    if (method === "GET" && path === "/api/dashboard") {
+      await resolveStub(stubs.dashboard, {
+        kind: "json",
+        body: {
+          viewerDisplayName: PROFILE.name,
+          todayUtc: "2026-07-02",
+          fleetTotals: { total: 0, vehicle: 0, equipment: 0, property: 0 },
+          fleetHealth: { overdue: 0, soon: 0, onTrack: 0, unscheduled: 0 },
+          queueCountsByCategory: { all: 0, vehicle: 0, equipment: 0, property: 0 },
+          queue: [],
+        },
+      });
+      return;
+    }
+
+    if (method === "GET" && path === "/api/search") {
+      await resolveStub(stubs.search, { kind: "json", body: { results: [] } });
+      return;
+    }
+
+    if (method === "GET" && path === "/api/auth/get-session") {
+      await resolveStub(stubs.authSession, { kind: "json", body: { session: null, user: null } });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/auth/sign-in/social") {
+      await resolveStub(stubs.authSignInSocial, {
+        kind: "json",
+        body: { error: "gallery harness: no social stub" },
+        status: 500,
+      });
       return;
     }
 
