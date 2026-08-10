@@ -40,9 +40,13 @@ echo "Uploading ${#files[@]} objects to r2://${BUCKET}/${PREFIX}/"
 for f in "${files[@]}"; do
   rel="${f#"$DIR"/}"
   key="${PREFIX}/${rel}"
+  # `pnpm --filter <pkg> exec` runs wrangler with cwd set to that package's
+  # directory, not the repo root — a relative --file path resolves against
+  # the wrong directory there, so absolutize it first.
+  abs_f="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
   echo "  put ${key}"
   "${WRANGLER[@]}" r2 object put "${BUCKET}/${key}" \
-    --file "$f" \
+    --file "$abs_f" \
     --remote \
     --content-type image/png \
     --cache-control "public, max-age=31536000, immutable" \
