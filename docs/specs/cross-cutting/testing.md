@@ -254,6 +254,15 @@ do not quietly raise the threshold until the build goes green.
 
 Dimension mismatches (added/removed/resized shot) count as changed without running pixelmatch.
 
+**Finding (2026-08-10, PR #209):** `asset-library/populated-filtered` mobile flipped between
+`unchanged` and a 78px `changed` result across otherwise-identical runs on this branch (no
+`apps/web/src` changes at any point). Base and head PNGs are visually indistinguishable; the diff
+overlay localizes it to the truck glyph inside one asset card — sub-pixel icon/font rendering
+noise, not a token or layout shift, and within `includeAA: false`'s known gap (that flag drops
+antialiased edge pixels, not antialiased _glyph interior_ pixels). Recorded per the rule above
+rather than silently retuning `threshold`; revisit if this or other states start flapping
+regularly once Phase B is on the table.
+
 #### What the job reports
 
 - Count of changed states (screen / state / viewport triples).
@@ -289,12 +298,18 @@ the PR comment can inline them as markdown.
 
 - [x] A PR with no visual change reports zero changed regions and uploads no images. `S1`
 - [x] A PR with an intended visual change reports exactly the affected states, with highlighted diff images. `S1`
-- [ ] The summary comment renders the changed images **inline**, legibly, on a phone. `S1`
-      (`upload-visual-diff-r2.sh` passed a relative `--file` path to
+- [x] The summary comment renders the changed images **inline**, legibly, on a phone. `S1`
+      Verified live on PR #209 (sha `290ccd6`): `pr/209/290ccd6.../{base,head,diff}/asset-library__populated-filtered__mobile.png`
+      uploaded to R2 and inlined via GitHub's camo cache (`HTTP 200`, `x-cache: HIT`, real 390×956
+      PNGs). Two bugs found and fixed en route, both in CI plumbing only (no product code touched):
+      (1) `upload-visual-diff-r2.sh` passed a relative `--file` path to
       `pnpm --filter @snaveevans/pineapple-web exec wrangler`, which runs with cwd set to `apps/web/`
-      — every object put 404'd and fell back to artifact-only via `continue-on-error`. R2
-      bucket/lifecycle/dev-url provisioning was never the problem; fixed 2026-08-10 by absolutizing
-      the file path. Still needs a live CI run to confirm + a phone-width screenshot.)
+      — every object put 404'd and silently fell back to artifact-only via `continue-on-error`. R2
+      bucket/lifecycle/dev-url provisioning was never the problem. (2) `diff.ts`'s CLI-entry guard
+      only checked `process.env.VITEST`, so importing `buildCommentMarkdown` from
+      `report-comment.ts` re-ran `diff.ts`'s own `main()` against the wrong argv (no `--base`),
+      crashing the process with `exit(1)` before the comment could be written. Scoped the guard to
+      `import.meta.url` matching the invoked script instead.
 - [x] No committed baseline PNGs are introduced, and no PNG is committed at all. `S1`
 - [x] Object keys are commit-scoped; pushing twice to the same PR shows the new images, not camo's cache. `S1`
 - [x] The R2 bucket is provisioned as IaC, not by hand in the dashboard. `S1`
