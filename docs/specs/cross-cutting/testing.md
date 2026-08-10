@@ -289,7 +289,12 @@ the PR comment can inline them as markdown.
 
 - [x] A PR with no visual change reports zero changed regions and uploads no images. `S1`
 - [x] A PR with an intended visual change reports exactly the affected states, with highlighted diff images. `S1`
-- [ ] The summary comment renders the changed images **inline**, legibly, on a phone. `S1` (demonstrate on first real PR with a delta — attach phone-width screenshot)
+- [ ] The summary comment renders the changed images **inline**, legibly, on a phone. `S1`
+      (`upload-visual-diff-r2.sh` passed a relative `--file` path to
+      `pnpm --filter @snaveevans/pineapple-web exec wrangler`, which runs with cwd set to `apps/web/`
+      — every object put 404'd and fell back to artifact-only via `continue-on-error`. R2
+      bucket/lifecycle/dev-url provisioning was never the problem; fixed 2026-08-10 by absolutizing
+      the file path. Still needs a live CI run to confirm + a phone-width screenshot.)
 - [x] No committed baseline PNGs are introduced, and no PNG is committed at all. `S1`
 - [x] Object keys are commit-scoped; pushing twice to the same PR shows the new images, not camo's cache. `S1`
 - [x] The R2 bucket is provisioned as IaC, not by hand in the dashboard. `S1`
