@@ -634,7 +634,10 @@ export const STATES_193: RenderedState[] = [
     route: "/app/history",
     stubs: { activity: json(ACTIVITY_LONG_ASSET) },
     ready: async (page) => {
-      await page.getByText(LONG_ASSET_NAME).waitFor({ state: "visible" });
+      // Name also appears in the asset filter + breakdown panel — pin the entry chip.
+      await page.locator(".hh-asset-chip-name", { hasText: LONG_ASSET_NAME }).waitFor({
+        state: "visible",
+      });
     },
   },
   {
@@ -643,7 +646,7 @@ export const STATES_193: RenderedState[] = [
     route: "/app/history",
     stubs: { activity: json(ACTIVITY_LONG_TITLE) },
     ready: async (page) => {
-      await page.getByText(TASK_TITLE_100).waitFor({ state: "visible" });
+      await page.locator(".hh-title", { hasText: TASK_TITLE_100 }).waitFor({ state: "visible" });
     },
   },
   {
@@ -652,7 +655,7 @@ export const STATES_193: RenderedState[] = [
     route: "/app/history",
     stubs: { activity: json(ACTIVITY_LONG_ACTOR) },
     ready: async (page) => {
-      await page.getByText(DISPLAY_NAME_100).waitFor({ state: "visible" });
+      await page.locator(".hh-actor", { hasText: DISPLAY_NAME_100 }).waitFor({ state: "visible" });
     },
   },
   {
