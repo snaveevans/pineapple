@@ -253,7 +253,6 @@ export function runDiff(opts: { baseDir: string; headDir: string; outDir: string
   };
 
   writeFileSync(join(opts.outDir, "summary.json"), JSON.stringify(summary, null, 2));
-  writeFileSync(join(opts.outDir, "comment.md"), buildCommentMarkdown(summary));
   return summary;
 }
 

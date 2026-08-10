@@ -7,7 +7,9 @@ date: 2026-08-09
 
 # Testing & Verification — Cross-Cutting Spec
 
-**Status:** `active` (gallery total; visual-diff Phase A in progress — [#146](https://github.com/snaveevans/pineapple/issues/146))
+**Status:** `in-progress` (gallery total and visual-diff Phase A both live; the Phase B
+required-check-promotion box — [#146](https://github.com/snaveevans/pineapple/issues/146) — is the
+one `[ ]` keeping this off `active`, per `SPECS.md`'s lifecycle rule)
 **Owner:** engineering
 **Applies To:** API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); renderable web states in `docs/web/FEATURES.md` / `apps/web` (state gallery + visual diff)
 
@@ -177,7 +179,8 @@ Every feature that adds or changes logic in `domain/**` or `application/**` must
 
 ## Web state gallery
 
-**Status:** `active` (total — slices 1–3 landed; deferred hatch deleted on #193)
+**Status:** `in-progress` (state coverage itself is total — slices 1–3 landed, deferred hatch
+deleted on #193 — but the visual-diff sub-section below carries #146's Phase B box, still `[ ]`)
 **Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145), [#192](https://github.com/snaveevans/pineapple/issues/192), [#193](https://github.com/snaveevans/pineapple/issues/193) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
 **Harness design source:** [#191](https://github.com/snaveevans/pineapple/issues/191) findings
 **Visual diff:** [#146](https://github.com/snaveevans/pineapple/issues/146) (Phase A non-blocking)
@@ -338,8 +341,10 @@ pnpm --filter @snaveevans/pineapple-web test   # includes gallery coverage check
 ```
 
 `--out` on `gallery:render` is required so one job can render merge-base and HEAD into two
-directories. `gallery:diff` writes a `summary.json`, highlighted diff PNGs, and a markdown body
-suitable for the PR comment.
+directories. `gallery:diff` writes `summary.json` and highlighted diff PNGs; the PR comment body
+is generated separately by `report-comment.ts` from that summary (never pre-written by the diff
+step itself — CI's fallback-detection depends on `comment.md` only existing once that later step
+succeeds).
 
 ### Feature integration contract
 
