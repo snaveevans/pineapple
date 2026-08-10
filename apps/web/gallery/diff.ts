@@ -9,11 +9,9 @@
  * Threshold contract: docs/specs/cross-cutting/testing.md (§ Visual diff).
  * Color distance 0.1 (pixelmatch default); changed iff numDiffPixels > 0.
  */
-import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
@@ -351,11 +349,6 @@ export function buildCommentMarkdown(
   );
 
   return lines.join("\n");
-}
-
-/** Content hash helper for optional content-addressed keys. */
-export function shortHash(buf: Buffer): string {
-  return createHash("sha256").update(buf).digest("hex").slice(0, 12);
 }
 
 function main(): void {
