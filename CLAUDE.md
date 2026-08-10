@@ -308,9 +308,13 @@ Use the template in `.github/pull_request_template.md`. Before opening:
 1. `pnpm lint && pnpm type-check && pnpm -r test`
 2. Regenerate OpenAPI if the contract changed
 3. Confirm one concern (scope discipline above)
+4. Fill **Risk** (`L|M|H|C`) and **Evidence** — human review time scales with
+   risk (glance at L; deep review at H/C). Prefer the `validation-gate` skill
+   after implementation; it rebases, runs adversarial `pr-review`, scores risk,
+   and fills the template.
 
 Agent shortcuts: `/start` (branch from type + optional issue + slug), `/pr`
-(open PR with issue link filled in).
+(open PR with issue link filled in), `/validation-gate` (full pre-PR gate).
 
 ### After merge
 

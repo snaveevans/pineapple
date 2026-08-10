@@ -33,11 +33,16 @@ If there is no issue, omit the Related section.
 ## PR contents
 
 - **Title:** concise, imperative; optional `(#N)` suffix when linked.
-- **Body:** fill the project PR template:
+- **Body:** fill the project PR template in `.github/pull_request_template.md`:
   - Summary (1–3 bullets from the actual diff)
   - Related (`Closes` / `Fixes` / `Refs` as decided)
+  - **Risk** — level `L|M|H|C`, why, and human validation budget (see
+    `validation-gate` skill hybrid rubric). Prefer running that skill for a full
+    gate; if opening a PR bare, still score risk honestly from the diff paths.
+  - **Evidence** — named tests, gallery/screenshots, traces, or short manual steps
   - Test plan (concrete steps, not empty checkboxes only)
   - Spec / AC link when feature work touched `docs/specs/`
+  - Validation gate checklist + escalations when the gate was run
 - Push the branch if needed, then create the PR with `gh pr create`.
 - Prefer a ready PR; use `--draft` only if the user asked or CI/tests were skipped.
 

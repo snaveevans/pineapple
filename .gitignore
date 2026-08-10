@@ -16,3 +16,4 @@ tmp
 .swarm
 # State gallery PNGs are CI artifacts only — never commit (#145).
 apps/web/gallery/out/
+.lavish

@@ -165,9 +165,17 @@ wants to grow past the slice, stop and make an explicit decision — either it's
 genuinely part of this slice, or it becomes a follow-up branch. Do not silently
 absorb scope. (~40 files / ~800 net lines is the signal to split, not a target.)
 
-## 6. Verify
+## 6. Verify → prefer validation gate
 
-Before opening a PR:
+**Default:** invoke the `validation-gate` skill. It rebases on `main`, runs a
+fresh-context `pr-review`, lint/type-check/tests, docs/spec sync, hybrid **Risk**
+score, evidence pack, and opens a PR from `.github/pull_request_template.md`
+(including Risk / Evidence / Escalations). Use it whenever the user wants the
+fuller handoff — or when you would otherwise open a PR after implementation.
+
+**Lightweight path** (only if the user asked for a bare PR or the change is
+trivial docs/chore): run verify yourself, then `/pr`, but still fill **Risk** and
+**Evidence** on the template.
 
 ```bash
 pnpm lint && pnpm type-check && pnpm -r test
@@ -184,7 +192,8 @@ Then run the full check one final time. Do not open a PR with a known-red branch
 
 ## 7. Spec sync
 
-Check off the acceptance criteria boxes for the implemented slice:
+When not using `validation-gate` (it includes this pass), check off the acceptance
+criteria boxes for the implemented slice:
 
 - `- [ ]` → `- [x]` for each criterion tagged with the target slice (`Sn`)
 - Check a box only when its behavior is implemented **and covered by a test** —
@@ -197,14 +206,14 @@ changed flow, added/removed a feature), also update `docs/web/FEATURES.md`.
 
 ## 8. PR
 
-Commit the work and open a PR. The `/pr` command encodes the PR conventions if
-you prefer to delegate; otherwise follow the template in
-`.github/pull_request_template.md` and the conventions in `CLAUDE.md` (Workflow
-→ Opening a PR):
+If `validation-gate` already opened the PR, skip to Report. Otherwise commit and
+open a PR via `/pr` or the template in `.github/pull_request_template.md` and
+`CLAUDE.md` (Workflow → Opening a PR):
 
 - **Summary:** 1-3 bullets on what changed and why
 - **Related:** `Closes #N` if this PR fully resolves the issue; `Refs #N` for a
   partial slice
+- **Risk / Evidence / Validation gate:** required sections — see template
 - **Test plan:** concrete verification steps (not empty checkboxes)
 - **Spec / AC:** link to `docs/specs/features/[name].md` and check off the
   criteria this PR implements
