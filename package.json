@@ -32,7 +32,7 @@
     "@vitest/eslint-plugin": "^1.6.26",
     "eslint": "^10.6.0",
     "eslint-config-prettier": "^10.0.0",
-    "eslint-plugin-boundaries": "^6.0.2",
+    "eslint-plugin-boundaries": "^7.0.2",
     "eslint-plugin-n": "^18.2.2",
     "husky": "^9.1.7",
     "lint-staged": "^17.2.0",
