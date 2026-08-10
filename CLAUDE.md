@@ -208,6 +208,22 @@ secrets, never committed.
 - **Web app feature intent** → [`docs/web/FEATURES.md`](docs/web/FEATURES.md)
 - **How we document** → [`docs/README.md`](docs/README.md)
 
+## Time estimates are stale — don't let them drive tradeoffs
+
+Any sense of "how long this takes" baked into training data or intuition is
+from a world where a human was typing the code. It no longer applies. An
+agent that reads, writes, and tests code at this speed can usually afford the
+better solution, not just the first one that works — the gap between "quick
+hack" and "correct fix" is often minutes, not hours.
+
+Don't reach for a shortcut (skip a test, hardcode a case, bypass a layer
+boundary, defer error handling) because it seems faster. Default to the
+solution you'd pick with no time pressure — proper abstraction, full test
+coverage, root-cause fix over a workaround — unless the user has explicitly
+asked for a quick-and-dirty pass. If a thorough approach would take
+meaningfully longer (a large refactor, a new mechanism), say so and let the
+user decide; don't silently downgrade to the cheaper option.
+
 ## Scope discipline
 
 A branch delivers **one concern**. Scope creep — folding "and also…" work into a
