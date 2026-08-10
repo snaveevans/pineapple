@@ -11,7 +11,7 @@
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
 
@@ -385,8 +385,12 @@ function main(): void {
   }
 }
 
-// Vitest imports this module; skip CLI entry when under the test runner.
-if (process.env.VITEST === undefined) {
+// report-comment.ts imports buildCommentMarkdown from this module — only run the
+// CLI entry when diff.ts itself is the invoked script, not merely imported, or
+// report-comment.ts's own argv (no --base) crashes this process before it can write.
+const isMainModule =
+  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+if (isMainModule) {
   try {
     main();
   } catch (err) {
