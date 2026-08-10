@@ -162,6 +162,14 @@ jobs:
             fi
           done
 
+      # wrangler deploy does not create R2 buckets either. The visual-diff CI job
+      # (#146) hosts only changed gallery images here — public r2.dev URL + 30d
+      # lifecycle. Idempotent; safe on every deploy. Not bound to the Worker.
+      - name: Ensure visual-diff R2 bucket exists
+        run: |
+          chmod +x .github/scripts/ensure-visual-diff-r2.sh
+          .github/scripts/ensure-visual-diff-r2.sh
+
       - name: Deploy Worker
         working-directory: apps/api
         run: pnpm wrangler deploy

@@ -14,6 +14,9 @@ tmp
 .tmp-api-*
 .playwright-mcp
 .swarm
-# State gallery PNGs are CI artifacts only — never commit (#145).
+# State gallery PNGs are CI artifacts only — never commit (#145 / #146).
 apps/web/gallery/out/
+apps/web/gallery/out-base/
+apps/web/gallery/out-head/
+apps/web/gallery/out-diff/
 .lavish
