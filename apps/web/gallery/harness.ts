@@ -181,6 +181,123 @@ async function installApiRoutes(
       return;
     }
 
+    if (method === "PATCH" && path === "/api/users/me") {
+      await resolveStub(stubs.patchMe, {
+        kind: "json",
+        body: { error: "gallery harness: no patchMe stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "PUT" && path === "/api/users/me/notification-email") {
+      await resolveStub(stubs.putNotificationEmail, {
+        kind: "json",
+        body: { error: "gallery harness: no putNotificationEmail stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "DELETE" && path === "/api/users/me/notification-email") {
+      await resolveStub(stubs.deleteNotificationEmail, {
+        kind: "json",
+        body: { error: "gallery harness: no deleteNotificationEmail stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/users/me/notification-email/verification") {
+      await resolveStub(stubs.postNotificationEmailVerification, {
+        kind: "json",
+        body: { error: "gallery harness: no postNotificationEmailVerification stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/notifications/read-all") {
+      await resolveStub(stubs.postNotificationsReadAll, {
+        kind: "json",
+        body: { error: "gallery harness: no postNotificationsReadAll stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && /^\/api\/notifications\/[^/]+\/read$/.test(path)) {
+      await resolveStub(stubs.postNotificationRead, {
+        kind: "json",
+        body: { error: "gallery harness: no postNotificationRead stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/assets") {
+      await resolveStub(stubs.postAsset, {
+        kind: "json",
+        body: { error: "gallery harness: no postAsset stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && /^\/api\/assets\/[^/]+\/maintenance-records$/.test(path)) {
+      await resolveStub(stubs.postMaintenanceRecord, {
+        kind: "json",
+        body: { error: "gallery harness: no postMaintenanceRecord stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && /^\/api\/assets\/[^/]+\/maintenance-tasks$/.test(path)) {
+      await resolveStub(stubs.postMaintenanceTask, {
+        kind: "json",
+        body: { error: "gallery harness: no postMaintenanceTask stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "DELETE" && /^\/api\/assets\/[^/]+\/maintenance-tasks\/[^/]+$/.test(path)) {
+      await resolveStub(stubs.deleteMaintenanceTask, {
+        kind: "json",
+        body: { error: "gallery harness: no deleteMaintenanceTask stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && /^\/api\/assets\/[^/]+\/share$/.test(path)) {
+      await resolveStub(stubs.postShare, {
+        kind: "json",
+        body: { error: "gallery harness: no postShare stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "DELETE" && /^\/api\/assets\/[^/]+\/share$/.test(path)) {
+      await resolveStub(stubs.deleteShare, {
+        kind: "json",
+        body: { error: "gallery harness: no deleteShare stub" },
+        status: 500,
+      });
+      return;
+    }
+
+    if (method === "POST" && path === "/api/teams") {
+      await resolveStub(stubs.postTeam, {
+        kind: "json",
+        body: { error: "gallery harness: no postTeam stub" },
+        status: 500,
+      });
+      return;
+    }
+
     // Default: benign empty JSON so stray calls don't hang the page.
     await route.fulfill({
       status: 200,

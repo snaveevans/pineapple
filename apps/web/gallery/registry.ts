@@ -1,5 +1,3 @@
-import type { Page } from "@playwright/test";
-import { DEFERRED } from "./deferred-entries.ts";
 import {
   ACTIVITY_EMPTY,
   ACTIVITY_PAGINATED,
@@ -19,6 +17,7 @@ import {
   NOTIFICATIONS_PAGINATED,
   NOTIFICATIONS_POPULATED,
   PROFILE,
+  PROFILE_EDIT_HOST,
   PROFILE_INCOMPLETE_NO_NAME,
   PROFILE_INCOMPLETE_WITH_NAME,
   PROFILE_SHELL,
@@ -36,92 +35,41 @@ import {
   activityFilteredEmpty,
   activityFilteredPopulated,
 } from "./fixtures.ts";
+import {
+  advance,
+  clickChip,
+  err500,
+  json,
+  openSearch,
+  pending,
+  typeSearchQuery,
+  type ExcludedState,
+  type RegistryEntry,
+  type RenderedState,
+  type ViewportName,
+} from "./helpers.ts";
+import { STATES_193 } from "./states-193.ts";
 
-export type GalleryCategory = "rendered" | "deferred" | "excluded";
-
-export type ViewportName = "desktop" | "mobile";
-
-export type ApiStub =
-  | { kind: "json"; status?: number; body: unknown }
-  | { kind: "pending" }
-  | { kind: "handler"; handle: (url: URL, method: string) => ApiStub | null };
-
-export type RouteStubs = {
-  /** GET /api/users/me — defaults to PROFILE when omitted. */
-  me?: ApiStub;
-  /** GET /api/assets (list). */
-  assets?: ApiStub;
-  /** GET /api/assets/{id}. */
-  asset?: ApiStub;
-  /** GET /api/assets/{id}/maintenance-records. */
-  maintenanceRecords?: ApiStub;
-  /** GET /api/assets/{id}/maintenance-tasks. */
-  maintenanceTasks?: ApiStub;
-  notifications?: ApiStub;
-  /** Page-level notifications (limit=20) vs chrome (limit=1) share path — one stub. */
-  activity?: ApiStub;
-  teamsMe?: ApiStub;
-  /** GET /api/dashboard. */
-  dashboard?: ApiStub;
-  /** GET /api/search. */
-  search?: ApiStub;
-  /** GET /api/auth/get-session. */
-  authSession?: ApiStub;
-  /** POST /api/auth/sign-in/social. */
-  authSignInSocial?: ApiStub;
-};
-
-export type RenderedState = {
-  id: string;
-  category: "rendered";
-  route: string;
-  stubs: RouteStubs;
-  localStorage?: Record<string, string>;
-  /** Wait until the target UI is stable. */
-  ready: (page: Page) => Promise<void>;
-  /** Optional interaction after first paint (filters, form open). */
-  interact?: (page: Page) => Promise<void>;
-};
-
-export type DeferredState = {
-  id: string;
-  category: "deferred";
-  issue: number;
-  reason: string;
-};
-
-export type ExcludedState = {
-  id: string;
-  category: "excluded";
-  issue: number;
-  reason: string;
-};
-
-export type RegistryEntry = RenderedState | DeferredState | ExcludedState;
-
-const json = (body: unknown, status = 200): ApiStub => ({ kind: "json", status, body });
-const pending = (): ApiStub => ({ kind: "pending" });
-const err500 = (message = "Something went wrong"): ApiStub => json({ error: message }, 500);
-
-async function clickChip(page: Page, name: RegExp): Promise<void> {
-  await page.getByRole("button", { name }).click();
-}
-
-/** Advance fake timers so React Query retries / search debounce can settle. */
-async function advance(page: Page, ms: number): Promise<void> {
-  await page.clock.runFor(ms);
-}
-
-async function openSearch(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Search assets" }).click();
-  await page.getByRole("dialog", { name: "Search assets" }).waitFor({ state: "visible" });
-}
-
-async function typeSearchQuery(page: Page, query: string): Promise<void> {
-  const input = page.getByRole("dialog", { name: "Search assets" }).locator("input").first();
-  await input.fill(query);
-  await advance(page, 300);
-}
+export type {
+  ApiStub,
+  ExcludedState,
+  GalleryCategory,
+  RegistryEntry,
+  RenderedState,
+  RouteStubs,
+  ViewportName,
+} from "./helpers.ts";
+export {
+  advance,
+  clickChip,
+  err500,
+  errStatus,
+  fillLabeledInput,
+  json,
+  openSearch,
+  pending,
+  typeSearchQuery,
+} from "./helpers.ts";
 
 const MAINTENANCE_ROUTE = `/app/assets/${TRUCK_ID}/maintenance`;
 const MAINTENANCE_SHARED_ROUTE = `/app/assets/${GENERATOR_ID}/maintenance`;
@@ -514,12 +462,12 @@ const RENDERED: RenderedState[] = [
     category: "rendered",
     route: "/app/profile",
     stubs: {
-      me: json(PROFILE),
+      me: json(PROFILE_EDIT_HOST),
       dashboard: json(DASHBOARD_EMPTY_FLEET),
     },
     ready: async (page) => {
       await page.getByRole("heading", { name: "Edit profile" }).waitFor({ state: "visible" });
-      await page.locator('input[value="Dale Evans"]').waitFor({ state: "visible" });
+      await page.locator('input[value="Dale R. Evans"]').waitFor({ state: "visible" });
     },
   },
 
@@ -926,6 +874,9 @@ const RENDERED: RenderedState[] = [
       await page.getByText(/you can view and log/).waitFor({ state: "visible" });
     },
   },
+
+  // ── Slice 3 (#193): mutation / local / content-stress ──────────────
+  ...STATES_193,
 ];
 
 const EXCLUDED: ExcludedState[] = [
@@ -983,6 +934,20 @@ const EXCLUDED: ExcludedState[] = [
     issue: 199,
     reason: "Badge-hidden on error is pixel-identical to zero-unread",
   },
+  {
+    id: "notifications/mutation-pending-mark-one-read",
+    category: "excluded",
+    issue: 201,
+    reason:
+      "No pending chrome — markReadMutation.isPending is unread; hold-POST only differs from populated by focus",
+  },
+  {
+    id: "user-profile-and-onboarding/notice-saved",
+    category: "excluded",
+    issue: 201,
+    reason:
+      "emailNotice saved copy is product-identical to contact-email-verified fallback subtext",
+  },
 ];
 
 export const VIEWPORTS: Record<ViewportName, { width: number; height: number }> = {
@@ -997,9 +962,10 @@ export function renderedStates(): RenderedState[] {
 /**
  * Full hand-authored registry. Nothing is synthesized from FEATURES.md —
  * a new FEATURES id with no entry here fails the coverage check.
+ * Categories are only `rendered` | `excluded` — the deferred hatch is gone (#193).
  */
 export function registryEntries(): RegistryEntry[] {
-  return [...RENDERED, ...EXCLUDED, ...DEFERRED];
+  return [...RENDERED, ...EXCLUDED];
 }
 
 export function assertRegistryInvariants(entries: RegistryEntry[]): void {
@@ -1007,16 +973,16 @@ export function assertRegistryInvariants(entries: RegistryEntry[]): void {
   for (const e of entries) {
     if (ids.has(e.id)) throw new Error(`duplicate registry id ${e.id}`);
     ids.add(e.id);
-    if (e.category === "deferred" || e.category === "excluded") {
+    if (e.category === "excluded") {
       if (!Number.isInteger(e.issue) || e.issue <= 0) {
         throw new Error(`${e.id}: ${e.category} entry must name a positive issue number`);
       }
     }
   }
-  if (RENDERED.length !== 61) {
-    throw new Error(`expected 61 rendered states, got ${RENDERED.length}`);
+  if (RENDERED.length !== 118) {
+    throw new Error(`expected 118 rendered states, got ${RENDERED.length}`);
   }
-  if (EXCLUDED.length !== 9) {
-    throw new Error(`expected 9 excluded states, got ${EXCLUDED.length}`);
+  if (EXCLUDED.length !== 11) {
+    throw new Error(`expected 11 excluded states, got ${EXCLUDED.length}`);
   }
 }

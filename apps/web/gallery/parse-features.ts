@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-export type GalleryMarkerKind = "excluded" | "deferred";
+export type GalleryMarkerKind = "excluded";
 
 export type ParsedFeatureState = {
   id: string;
@@ -11,7 +11,9 @@ export type ParsedFeatureState = {
   marker: { kind: GalleryMarkerKind; issue: number } | null;
 };
 
-const GALLERY_MARKER_RE = /\[gallery:(excluded|deferred)\s+#(\d+)\]/g;
+/** Only `excluded` remains — deferred hatch deleted on #193. */
+const GALLERY_MARKER_RE = /\[gallery:(excluded)\s+#(\d+)\]/g;
+const REMOVED_DEFERRED_MARKER_RE = /\[gallery:deferred\s+#\d+\]/;
 
 const SKIP_BLOCKS = new Set([
   "route",
@@ -88,19 +90,41 @@ function blockPrefix(kind: BlockKind): string {
   }
 }
 
-function extractMarker(afterDash: string): { kind: GalleryMarkerKind; issue: number } | null {
+function extractMarker(
+  text: string,
+  sourceFile: string,
+  lineNo?: number,
+): { kind: GalleryMarkerKind; issue: number } | null {
+  if (REMOVED_DEFERRED_MARKER_RE.test(text)) {
+    const where = lineNo !== undefined ? `${sourceFile}:${lineNo}` : sourceFile;
+    throw new Error(
+      `${where}: [gallery:deferred #N] is no longer valid — the deferred hatch was deleted on #193; use rendered or [gallery:excluded #N]`,
+    );
+  }
   GALLERY_MARKER_RE.lastIndex = 0;
-  const match = GALLERY_MARKER_RE.exec(afterDash);
+  const match = GALLERY_MARKER_RE.exec(text);
   if (match === null) return null;
   const kind = match[1];
   const issueRaw = match[2];
-  if (kind !== "excluded" && kind !== "deferred") return null;
+  if (kind !== "excluded") return null;
   if (issueRaw === undefined) return null;
   return { kind, issue: Number(issueRaw) };
 }
 
+/** Strip a gallery marker from inline-prose item text so it never enters the id. */
+function stripInlineMarker(
+  raw: string,
+  sourceFile: string,
+): { text: string; marker: ParsedFeatureState["marker"] } {
+  const marker = extractMarker(raw, sourceFile);
+  const text = raw.replace(GALLERY_MARKER_RE, " ").replace(/\s+/g, " ").trim();
+  return { text, marker };
+}
+
 function parseBulletLine(
   line: string,
+  sourceFile: string,
+  lineNo: number,
 ): { before: string; marker: ParsedFeatureState["marker"] } | null {
   const bullet = line.match(/^\s*-\s+(.*)$/);
   if (bullet === null || bullet[1] === undefined) return null;
@@ -108,28 +132,37 @@ function parseBulletLine(
   const dashIdx = body.search(/\s+—\s+/);
   if (dashIdx === -1) {
     // Bullets without an em-dash still count (e.g. plain layout states).
+    // Still reject a removed deferred marker if someone stuck one here.
+    extractMarker(body, sourceFile, lineNo);
     return { before: body, marker: null };
   }
   const before = body.slice(0, dashIdx).trim();
   const after = body.slice(dashIdx + 1);
-  return { before, marker: extractMarker(after) };
+  return { before, marker: extractMarker(after, sourceFile, lineNo) };
 }
 
-function parseInlineItems(body: string, separator: ";" | "·"): string[] {
-  return body
-    .split(separator)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0)
-    .map((part) =>
-      // Drop parenthetical asides but keep surrounding words:
-      // "unset (empty optional field…)" → "unset"
-      // "long address (street + city) on cards" → "long address on cards"
-      part
-        .replace(/\([^)]*\)/g, " ")
-        .replace(/\s+/g, " ")
-        .trim(),
-    )
-    .filter((part) => part.length > 0);
+function parseInlineItems(
+  body: string,
+  separator: ";" | "·",
+  sourceFile: string,
+): Array<{ text: string; marker: ParsedFeatureState["marker"] }> {
+  const out: Array<{ text: string; marker: ParsedFeatureState["marker"] }> = [];
+  for (const part of body.split(separator)) {
+    const trimmed = part.trim();
+    if (trimmed.length === 0) continue;
+    // Marker first (so it never enters the kebab id), then drop parentheticals:
+    // "unset (empty optional field…)" → "unset"
+    // "saved (…) `[gallery:excluded #201]`" → text "saved", marker excluded
+    const { text: withoutMarker, marker } = stripInlineMarker(trimmed, sourceFile);
+    const text = withoutMarker
+      .replace(/\([^)]*\)/g, " ")
+      .replace(/`/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text.length === 0) continue;
+    out.push({ text, marker });
+  }
+  return out;
 }
 
 export function resolveFeatureFiles(paths: string[]): string[] {
@@ -217,8 +250,8 @@ export function parseFeaturesMarkdown(source: string, sourceFile: string): Parse
           body = `${body} ${next.trim()}`;
           j++;
         }
-        for (const item of parseInlineItems(body, sep)) {
-          push(item, null);
+        for (const item of parseInlineItems(body, sep, sourceFile)) {
+          push(item.text, item.marker);
         }
         // Do not leave the block open for subsequent bullets.
         block = "skip";
@@ -238,7 +271,7 @@ export function parseFeaturesMarkdown(source: string, sourceFile: string): Parse
       continue;
     }
 
-    const parsed = parseBulletLine(line);
+    const parsed = parseBulletLine(line, sourceFile, i + 1);
     if (parsed === null) continue;
     push(parsed.before, parsed.marker);
   }
