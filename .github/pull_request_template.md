@@ -11,14 +11,15 @@
 
 ## Risk
 
-<!-- Agent fills this via the validation-gate skill. Human may bump. -->
+<!-- Agent always fills this — gate or bare /pr. Human may bump. -->
+<!-- Prefer the validation-gate skill; if opening bare, score from the diff paths. -->
 <!-- L = glance evidence only · M = evidence + spot-check · H = full review · C = human-designed plan required -->
 
 **Level:** <!-- L | M | H | C -->
 
 **Why:**
 
-<!-- Path-glob hits, agent override, and any product escalations. -->
+<!-- Path-glob floor, semantic elevations, agent override, and any product escalations. -->
 
 **Human validation budget:**
 

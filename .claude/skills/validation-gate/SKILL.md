@@ -9,7 +9,8 @@ Semi-automated quality gate between "agent says done" and "human judges the PR."
 
 Inspired by Kun Chen's **no-mistakes** pipeline, but built on this repo's existing
 skills (`pr-review`, `pr-respond`, `/pr`) rather than a separate push remote. Automation
-will deepen over time; today the human still owns commit/push approval and final merge.
+will deepen over time; today the human owns the **merge** — the agent commits and
+pushes its own branch autonomously, and stops at merge for explicit approval.
 
 **Phone-friendly by design.** Outputs live in the PR body (risk, evidence, escalations) —
 not in a desktop-only UI. Lavish is optional laptop polish for planning; it is not part of
@@ -18,7 +19,7 @@ this gate.
 ## What this skill is not
 
 - Not a replacement for `pr-review` or `pr-respond` — it **orchestrates** them.
-- Not a license to skip the user's commit/push approval (CLAUDE.md).
+- Not a license to merge without explicit user approval.
 - Not full unattended merge. Human validation budget still scales with **Risk**.
 
 ## When to run
@@ -41,8 +42,13 @@ git fetch origin
 ```
 
 - Must **not** be on `main`.
-- Prefer a clean worktree (no unrelated dirty files). If dirty, either include only
-  intended paths or stop and ask.
+- **Commit intended work before rebasing.** A finished-but-uncommitted tree is the
+  normal post-implementation state, and step 1's rebase + step 2's review both need
+  a committed branch diff to operate on. Committing the branch is autonomous (no
+  approval needed) — just don't commit to `main`. Do not stash-and-rebase to skip
+  this; the review has nothing to review without a commit.
+- No unrelated dirty files. If unrelated paths are dirty, include only intended paths
+  or stop and ask.
 - Capture **intent** in 2–4 lines from: user request, issue body, accepted plan/spec
   slice, and recent session decisions. This intent drives review and evidence — not
   "whatever the diff happens to do."
@@ -58,7 +64,12 @@ git rebase origin/main
 
 - Resolve conflicts yourself when mechanical.
 - If resolution needs a **product** choice, stop and escalate (list options).
-- Do not force-push unless the user explicitly asked and the branch is theirs.
+- **Already-pushed branch:** rebasing rewrites SHAs the remote already has, so
+  updating the PR (step 7) needs `git push --force-with-lease` instead of a fast-forward.
+  That force-push to your own feature branch is autonomous (the branch is yours to
+  rewrite). Detect with `git rev-parse --abbrev-ref '@{u}' 2>/dev/null`. Never force-push
+  `main` or a protected branch, and never rewrite a branch someone else is actively
+  reviewing without an explicit ask.
 
 ### 2. Fresh-context adversarial review
 
@@ -100,31 +111,44 @@ Against the captured intent and the diff:
 
 ### 5. Score risk (hybrid)
 
-Compute **baseline** from path globs on `git diff --name-only origin/main...HEAD`, then
-allow an **agent override** (up or down one level) with a one-line reason. Human may bump
-again on the PR.
+Compute a **path-glob baseline** from `git diff --name-only origin/main...HEAD`, apply
+**semantic elevations**, then allow an **agent override** (up or down one level) with a
+one-line reason. Human may bump again on the PR.
 
-| Level | Baseline signals (any one is enough to reach that floor) |
-| ----- | -------------------------------------------------------- |
-| **C** | `migrations/**`, auth/session/permissions core, irreversible data backfills, security-sensitive crypto/secrets handling |
-| **H** | `apps/api/src/domain/**` + multiple layers, public API / OpenAPI contract change, `permissions` / sharing / teams access paths, agent listed a product escalation |
-| **M** | Single-layer feature or fix with tests; web UI without auth/contract change; docs+code together |
-| **L** | Docs-only, test-only, pure chore, generated OpenAPI/schema regen **with** matching source, dependency lockstep already covered by CI |
+**Path-glob baseline** (highest matching floor wins):
+
+| Level | Any matching path                                                                                                                                                         |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **C** | `migrations/**`                                                                                                                                                           |
+| **H** | `apps/api/src/domain/**`, `apps/api/worker.ts`, `apps/api/wrangler.jsonc`, `packages/shared/**`, `apps/api/src/api/**` (OpenAPI schemas/contract), `.github/workflows/**` |
+| **M** | `apps/api/src/application/**`, `apps/api/src/infrastructure/**`, `apps/web/src/**` (non-trivial), a diff that mixes code + tests                                          |
+| **L** | `docs/**`, `*.md`-only, test-only, pure chore, generated OpenAPI/schema regen **with** matching source, dependency lockstep already covered by CI                         |
+
+**Semantic elevations** (raise the baseline; never lower it). Use when a signal isn't
+captured by the path the code lives in:
+
+| Raises to | Signal                                                                                                                |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
+| **C**     | auth/session/permissions core logic, irreversible data backfills, security-sensitive crypto/secrets handling          |
+| **H**     | public API / OpenAPI contract change, `permissions` / sharing / teams access paths, agent listed a product escalation |
+
+Baseline = max(path-glob floor, semantic elevation).
 
 **Override rules:**
 
-- Never override **below** C when a C glob matched.
+- Never override **below C** if a C path-glob **or** a C semantic signal matched.
 - Override **up** when intent is product-ambiguous, blast radius is unclear, or evidence is thin.
-- Override **down** one level only when the diff is narrower than the path suggests (e.g.
-  comment-only touch under `domain/`) — say why.
+- Override **down** one level only when the diff is narrower than the baseline suggests
+  (e.g. a comment-only touch under `domain/**` or `worker.ts`) — say why. Down-override
+  is forbidden past C.
 
 **Human validation budget** (copy onto the PR):
 
-| Level | Budget |
-| ----- | ------ |
-| **L** | Glance evidence. Do not read the diff. |
-| **M** | Evidence + escalations; spot-check 1–2 hot files. |
-| **H** | Full review + local poke on auth/API/data paths. |
+| Level | Budget                                                    |
+| ----- | --------------------------------------------------------- |
+| **L** | Glance evidence. Do not read the diff.                    |
+| **M** | Evidence + escalations; spot-check 1–2 hot files.         |
+| **H** | Full review + local poke on auth/API/data paths.          |
 | **C** | Plan must have been human-approved; deep review required. |
 
 ### 6. Evidence pack
@@ -149,9 +173,17 @@ Fill **every** section that applies:
 
 - Summary, Related, Risk, Evidence, Test plan, Spec/AC, Validation gate, Escalations
 
-Use the `/pr` command conventions (issue link mode, no commit without approval).
+Use the `/pr` command conventions (issue link mode).
 
-**Gate:** Do not commit or push without explicit user approval.
+Push path depends on whether the branch is already on the remote:
+
+- **New PR** (no upstream): `git push -u origin <branch>`, then `gh pr create`.
+- **Update after rebase** (upstream exists; step 1 flagged this): `git push --force-with-lease`
+  on your own feature branch. This is the one force-push the gate performs; it follows
+  from the step-1 rebase, not a separate ask. Never force-push `main` or a protected branch.
+
+**Gate:** Commit and push the branch autonomously. Do not **merge** without explicit
+user approval.
 
 ### 8. Babysit CI (optional pass)
 
@@ -173,19 +205,19 @@ Intent: …
 Risk: L|M|H|C — reason
 Evidence: …
 Escalations: none | …
-PR: url or "not opened — awaiting approval"
+PR: url or "not opened — <reason>"
 Human budget: <one line from the table>
 Next: <what you need from the human, if anything>
 ```
 
 ## Relationship to other skills
 
-| Skill            | Role under this gate                                      |
-| ---------------- | --------------------------------------------------------- |
-| `pr-review`      | Step 2 adversarial review                                 |
-| `pr-respond`     | Step 8 CI / review thread handling                        |
-| `issue-implement`| May hand off here instead of a bare verify→PR             |
-| `/pr`            | Step 7 mechanics                                          |
+| Skill             | Role under this gate                          |
+| ----------------- | --------------------------------------------- |
+| `pr-review`       | Step 2 adversarial review                     |
+| `pr-respond`      | Step 8 CI / review thread handling            |
+| `issue-implement` | May hand off here instead of a bare verify→PR |
+| `/pr`             | Step 7 mechanics                              |
 
 ## Evolution
 

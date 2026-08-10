@@ -43,7 +43,10 @@ If there is no issue, omit the Related section.
   - Test plan (concrete steps, not empty checkboxes only)
   - Spec / AC link when feature work touched `docs/specs/`
   - Validation gate checklist + escalations when the gate was run
-- Push the branch if needed, then create the PR with `gh pr create`.
+- Push the branch if needed, then create the PR with `gh pr create`. If updating an
+  already-pushed branch after a rebase, use `git push --force-with-lease` (your own
+  feature branch only; never force-push `main` or a protected branch). Committing and
+  pushing are autonomous; only **merge** needs explicit approval.
 - Prefer a ready PR; use `--draft` only if the user asked or CI/tests were skipped.
 
 ## Output

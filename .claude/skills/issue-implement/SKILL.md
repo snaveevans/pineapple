@@ -206,22 +206,31 @@ changed flow, added/removed a feature), also update `docs/web/FEATURES.md`.
 
 ## 8. PR
 
-If `validation-gate` already opened the PR, skip to Report. Otherwise commit and
-open a PR via `/pr` or the template in `.github/pull_request_template.md` and
-`CLAUDE.md` (Workflow → Opening a PR):
+How the PR opens depends on the §6 verify path:
+
+- **Validation gate ran and opened the PR** → skip to Report.
+- **Validation gate ran and stopped on a hard failure** (rebase conflict needing a
+  product choice, red tests, an escalation) → respect that stop; report and wait.
+- **Lightweight path (gate not used)** → commit and open a PR via `/pr` or the
+  template in `.github/pull_request_template.md` and `CLAUDE.md` (Workflow →
+  Opening a PR). Committing and pushing the branch are autonomous.
+
+Required template sections:
 
 - **Summary:** 1-3 bullets on what changed and why
 - **Related:** `Closes #N` if this PR fully resolves the issue; `Refs #N` for a
   partial slice
-- **Risk / Evidence / Validation gate:** required sections — see template
+- **Risk / Evidence:** always required — see template
+- **Validation gate:** include only when the gate was run; otherwise drop that
+  section (per the template)
 - **Test plan:** concrete verification steps (not empty checkboxes)
 - **Spec / AC:** link to `docs/specs/features/[name].md` and check off the
   criteria this PR implements
 
 End commit messages with the Co-Authored-By trailer.
 
-**Gate:** Do not commit or push without explicit user approval. (CLAUDE.md:
-"NEVER commit changes unless the user explicitly asks.")
+**Gate:** Commit and push the branch autonomously. Do not **merge** without
+explicit user approval.
 
 ## 9. Report
 

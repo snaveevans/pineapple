@@ -6,5 +6,5 @@ Use the `validation-gate` skill on the current branch.
 
 User notes: $ARGUMENTS
 
-If notes include a risk override or "draft", honor them. Do not commit or push without
-explicit approval in this conversation.
+If notes include a risk override or "draft", honor them. Commit and push the branch
+autonomously; do not merge without explicit approval.
