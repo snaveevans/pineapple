@@ -112,6 +112,12 @@ importers:
       '@playwright/test':
         specifier: ^1.55.0
         version: 1.62.1
+      '@types/pixelmatch':
+        specifier: ^5.2.6
+        version: 5.2.6
+      '@types/pngjs':
+        specifier: ^6.0.5
+        version: 6.0.5
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
@@ -127,6 +133,12 @@ importers:
       openapi-typescript:
         specifier: ^7.13.0
         version: 7.13.0(typescript@6.0.3)
+      pixelmatch:
+        specifier: ^7.2.0
+        version: 7.2.0
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -1368,6 +1380,12 @@ packages:
   '@types/node@26.1.2':
     resolution: {integrity: sha512-Vu4a5UFA9rIIFJ7rB/Vaafh9lrCQszopTCx6KjFboXTGQbPNasehVR5TEiithSDGyd1DEiUByggTZsg8jukeIg==}
 
+  '@types/pixelmatch@5.2.6':
+    resolution: {integrity: sha512-wC83uexE5KGuUODn6zkm9gMzTwdY5L0chiK+VrKcDfEjzxh1uadlWTvOmAbCpnM9zx/Ww3f8uKlYQVnO/TrqVg==}
+
+  '@types/pngjs@6.0.5':
+    resolution: {integrity: sha512-0k5eKfrA83JOZPppLtS2C7OUtyNAl2wKNxfyYl9Q5g9lPkgBl/9hNyAu6HuEH2J4XmIv2znEpkDd0SaZVxW6iQ==}
+
   '@types/react-dom@19.2.4':
     resolution: {integrity: sha512-Bsc+QHgp+P/F02XDzNCY9jnZNCUuLki36KT7VKrTXXLdHf+vHMNZnW1rVu5DNW/rCK+fya3DATySbLM4yhtKUw==}
     peerDependencies:
@@ -2511,6 +2529,10 @@ packages:
     resolution: {integrity: sha512-RvwwcruNjI1ncT5xRakeyS9Lf8lcItv34KD+aif+VH9kduAyfYBipGh12274xtenIPZ119/R9BdTBa8gAwSh0A==}
     engines: {node: '>=12'}
 
+  pixelmatch@7.2.0:
+    resolution: {integrity: sha512-xhcb4yHu9sM/G7foGzoLtXYcC0zHEaOXXjRKhGup0fw78Nf2Tkiapv4EQyMzrbcmQPsllAI7DbFY2UT7PlI9Pg==}
+    hasBin: true
+
   playwright-core@1.62.1:
     resolution: {integrity: sha512-wPYSwEBJY9GHraISXqyqtx0na0LpO3XEX7jNDhntbex7tzUS7kLnZsOlFruFJB4Hi/rhDMjXGqHewDZ68nYZVw==}
     engines: {node: '>=20'}
@@ -2524,6 +2546,10 @@ packages:
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
+
+  pngjs@7.0.0:
+    resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
+    engines: {node: '>=14.19.0'}
 
   postcss@8.5.26:
     resolution: {integrity: sha512-u82N74LFzG8ca+dD8puPnplTXoGH4fTPpVGuIbt36G3qvNlkvfD0lEAZSxaly3KX8TS/L1A1gsCEmvKmBcVbkQ==}
@@ -4017,6 +4043,14 @@ snapshots:
     dependencies:
       undici-types: 8.3.0
 
+  '@types/pixelmatch@5.2.6':
+    dependencies:
+      '@types/node': 26.1.2
+
+  '@types/pngjs@6.0.5':
+    dependencies:
+      '@types/node': 26.1.2
+
   '@types/react-dom@19.2.4(@types/react@19.2.18)':
     dependencies:
       '@types/react': 19.2.18
@@ -5060,6 +5094,10 @@ snapshots:
 
   picomatch@4.0.5: {}
 
+  pixelmatch@7.2.0:
+    dependencies:
+      pngjs: 7.0.0
+
   playwright-core@1.62.1: {}
 
   playwright@1.62.1:
@@ -5069,6 +5107,8 @@ snapshots:
       fsevents: 2.3.2
 
   pluralize@8.0.0: {}
+
+  pngjs@7.0.0: {}
 
   postcss@8.5.26:
     dependencies:

@@ -2,14 +2,16 @@
 audience: all contributors
 purpose: canonical verification contract — mutation gate (API) and state gallery (web)
 source: this file
-date: 2026-08-08
+date: 2026-08-09
 ---
 
 # Testing & Verification — Cross-Cutting Spec
 
-**Status:** `active`
+**Status:** `in-progress` (gallery total and visual-diff Phase A both live; the Phase B
+required-check-promotion box — [#146](https://github.com/snaveevans/pineapple/issues/146) — is the
+one `[ ]` keeping this off `active`, per `SPECS.md`'s lifecycle rule)
 **Owner:** engineering
-**Applies To:** API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); renderable web states in `docs/web/FEATURES.md` / `apps/web` (state gallery)
+**Applies To:** API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); renderable web states in `docs/web/FEATURES.md` / `apps/web` (state gallery + visual diff)
 
 > The mutation gate is the `Mutation` workflow (`.github/workflows/mutation.yml`), with `mutation`
 > a required status check on `main`. Tracked by [#86](https://github.com/snaveevans/pineapple/issues/86).
@@ -177,12 +179,15 @@ Every feature that adds or changes logic in `domain/**` or `application/**` must
 
 ## Web state gallery
 
-**Status:** `active` (total — slices 1–3 landed; deferred hatch deleted on #193)
+**Status:** `in-progress` (state coverage itself is total — slices 1–3 landed, deferred hatch
+deleted on #193 — but the visual-diff sub-section below carries #146's Phase B box, still `[ ]`)
 **Tracked by:** [#145](https://github.com/snaveevans/pineapple/issues/145), [#192](https://github.com/snaveevans/pineapple/issues/192), [#193](https://github.com/snaveevans/pineapple/issues/193) (epic [#143](https://github.com/snaveevans/pineapple/issues/143))
 **Harness design source:** [#191](https://github.com/snaveevans/pineapple/issues/191) findings
+**Visual diff:** [#146](https://github.com/snaveevans/pineapple/issues/146) (Phase A non-blocking)
 
 Frontend appearance has no mutation score. The gallery is the verification contract for
-`apps/web` renderable states listed in `docs/web/FEATURES.md`.
+`apps/web` renderable states listed in `docs/web/FEATURES.md`. The visual-diff job makes
+_change_ legible on a PR without a local dev session.
 
 ### What it is
 
@@ -228,18 +233,118 @@ picture nobody notices.
 - Production build only (no React StrictMode double-invoke)
 
 Two consecutive runs on the **same runner image** must be byte-identical. PNG stability across
-GitHub runner image updates is not guaranteed; the visual-diff job (#146) carries a threshold.
+GitHub runner image updates is not guaranteed; the visual-diff job carries a color threshold
+(below) rather than asserting byte equality across sides.
+
+### Visual diff against the base branch (#146)
+
+**No committed baselines.** The gallery job on a pull request renders the state gallery twice in
+the same runner job — once at the **merge-base** with `origin/$GITHUB_BASE_REF`, once at **HEAD** —
+then pixel-diffs the pair. No baseline PNGs live in the repo; there is no "accept new baseline"
+ceremony and no binary merge conflicts.
+
+#### Diff threshold (stated number + reason)
+
+| Lever                                     | Value                                     | Reason                                                                                                                                                                                                              |
+| ----------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Color distance (`pixelmatch` `threshold`) | **0.1**                                   | Library default YIQ distance. Filters subpixel antialiasing / PNG encoding noise that differs across Chromium patch bumps on the same runner OS image, while still flagging a solid token/color shift on a control. |
+| Changed iff                               | **`numDiffPixels > 0`** after that filter | No second "allow N pixels" fudge. A missed token re-declaration can be a small solid region — exactly the failure mode this gate exists to catch (#147 / #149).                                                     |
+
+Byte-equality is deliberately not required across the two sides: they share a runner image within
+one job, but the accommodation for cross-image drift is the color threshold, not a raised pixel
+budget. If a runner-image bump produces a wave of false positives, **record it as a finding** —
+do not quietly raise the threshold until the build goes green.
+
+Dimension mismatches (added/removed/resized shot) count as changed without running pixelmatch.
+
+**Finding (2026-08-10, PR #209):** `asset-library/populated-filtered` mobile flipped between
+`unchanged` and a 78px `changed` result across otherwise-identical runs on this branch (no
+`apps/web/src` changes at any point). Base and head PNGs are visually indistinguishable; the diff
+overlay localizes it to the truck glyph inside one asset card — sub-pixel icon/font rendering
+noise, not a token or layout shift, and within `includeAA: false`'s known gap (that flag drops
+antialiased edge pixels, not antialiased _glyph interior_ pixels). Recorded per the rule above
+rather than silently retuning `threshold`; revisit if this or other states start flapping
+regularly once Phase B is on the table.
+
+#### What the job reports
+
+- Count of changed states (screen / state / viewport triples).
+- List of affected triples.
+- For each change: base, head, and a highlighted diff PNG (pixelmatch red/diff overlay).
+- **Phase A (this issue):** the job is **non-blocking**. Diff findings never fail the check.
+  Harness crashes (cannot render) still fail so silent non-checks cannot ship.
+- **Phase B:** promote the job to a required check after ~5 consecutive clean runs on real PRs.
+  Same ratchet posture as the mutation floor (ADR-0016): earn the gate on measured evidence, then
+  never loosen it. Tracked as a checkbox on #146, not a follow-up issue.
+
+#### Hosting changed images (phone-reviewable PR comment)
+
+A GitHub Actions zip is not reviewable from a phone. Changed images need public HTTPS URLs so
+the PR comment can inline them as markdown.
+
+- **Host only the delta**, not the full gallery. Typical PR: 0 uploads. A token refactor: tens of
+  objects, single-digit MB. The full gallery remains a zip artifact (`retention-days: 7`) for the
+  rare deep dive.
+- **R2 bucket** `pineapple-visual-diff`, provisioned as IaC in `.github/workflows/deploy.yml`
+  (same posture as "Ensure Queues exist" — `wrangler deploy` does not create R2 buckets). Public
+  read via the managed `r2.dev` URL. Lifecycle rule expires objects after **30 days**.
+- **Object keys are commit-scoped:** `pr/{number}/{head_sha}/{file}`. GitHub camo caches external
+  images hard; a stable key like `pr-142/foo.png` would serve a stale image on the second push and
+  look like "no change." Immutable `Cache-Control` on upload.
+- **Fork PRs cannot read secrets.** Upload degrades to artifact-only; the job still posts (or
+  writes to the job summary) an explanatory note and **must not fail**. A red X on a fork PR for a
+  non-blocking Phase A check is exactly the flake that erodes trust in the gate.
+- Same-repo PRs get a sticky PR comment (`<!-- pineapple-web-visual-diff -->`) with the summary and
+  inline images, legible at phone width.
+
+#### Acceptance criteria (#146)
+
+- [x] A PR with no visual change reports zero changed regions and uploads no images. `S1`
+- [x] A PR with an intended visual change reports exactly the affected states, with highlighted diff images. `S1`
+- [x] The summary comment renders the changed images **inline**, legibly, on a phone. `S1`
+      Verified live on PR #209 (sha `290ccd6`): `pr/209/290ccd6.../{base,head,diff}/asset-library__populated-filtered__mobile.png`
+      uploaded to R2 and inlined via GitHub's camo cache (`HTTP 200`, `x-cache: HIT`, real 390×956
+      PNGs). Two bugs found and fixed en route, both in CI plumbing only (no product code touched):
+      (1) `upload-visual-diff-r2.sh` passed a relative `--file` path to
+      `pnpm --filter @snaveevans/pineapple-web exec wrangler`, which runs with cwd set to `apps/web/`
+      — every object put 404'd and silently fell back to artifact-only via `continue-on-error`. R2
+      bucket/lifecycle/dev-url provisioning was never the problem. (2) `diff.ts`'s CLI-entry guard
+      only checked `process.env.VITEST`, so importing `buildCommentMarkdown` from
+      `report-comment.ts` re-ran `diff.ts`'s own `main()` against the wrong argv (no `--base`),
+      crashing the process with `exit(1)` before the comment could be written. Scoped the guard to
+      `import.meta.url` matching the invoked script instead.
+- [x] No committed baseline PNGs are introduced, and no PNG is committed at all. `S1`
+- [x] Object keys are commit-scoped; pushing twice to the same PR shows the new images, not camo's cache. `S1`
+- [x] The R2 bucket is provisioned as IaC, not by hand in the dashboard. `S1`
+- [x] A lifecycle rule expires objects (30 days). `S1`
+- [x] A fork PR degrades to artifact-only with an explanatory note, and does not fail. `S1`
+- [x] The pixel threshold is a stated number with a stated reason (table above). `S1`
+- [x] Phase A is non-blocking on merge. `S1`
+- [ ] Phase B: promoted to a required check after ~5 consecutive clean runs. `S1` (checkbox only — flip when evidence exists)
+
+#### Delivery plan
+
+| Slice | Scope                                                                              | Issue | Depends on       |
+| ----- | ---------------------------------------------------------------------------------- | ----- | ---------------- |
+| `S1`  | Dual render, pixel diff, R2 delta hosting, sticky PR comment, Phase A non-blocking | #146  | #145, #192, #193 |
 
 ### Commands
 
 ```bash
 pnpm --filter @snaveevans/pineapple-web build
 pnpm --filter @snaveevans/pineapple-web gallery:render -- --out apps/web/gallery/out
+pnpm --filter @snaveevans/pineapple-web gallery:diff -- \
+  --base apps/web/gallery/out-base \
+  --head apps/web/gallery/out-head \
+  --out apps/web/gallery/out-diff
 pnpm --filter @snaveevans/pineapple-web test   # includes gallery coverage check
 ```
 
-`--out` is required to stay parameterisable: #146 renders merge-base and HEAD into two directories
-in one job.
+`--out` on `gallery:render` is required so one job can render merge-base and HEAD into two
+directories. `gallery:diff` writes `summary.json` and highlighted diff PNGs; the PR comment body
+is generated separately by `report-comment.ts` from that summary (never pre-written by the diff
+step itself — CI's fallback-detection depends on `comment.md` only existing once that later step
+succeeds).
 
 ### Feature integration contract
 
@@ -278,8 +383,11 @@ Every change that adds or renames a renderable state in `docs/web/FEATURES.md` m
 
 ### Anti-patterns
 
-- **Committing gallery PNGs.** They bloat the pack forever and are unreclaimable without history
-  rewrite. Artifacts only.
+- **Committing gallery PNGs or baselines.** They bloat the pack forever and are unreclaimable
+  without history rewrite. Artifacts only; visual diff is always merge-base vs HEAD in one job
+  (#146) — never a committed baseline set.
+- **Stable R2 object keys across pushes.** Camo caches hard; keys must include the head SHA (or a
+  content hash). A key like `pr-142/foo.png` will show a stale image on the second push.
 - **Driving the gallery through `vite dev`.** Dev StrictMode and HMR are non-deterministic
   relative to production.
 - **Fulfilling the Google Fonts CSS URL with a multi-`@font-face` rewrite.** #191 found this

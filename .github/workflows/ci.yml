@@ -138,15 +138,21 @@ jobs:
           review: false
           github-token: ""
 
-  # Web state gallery (#145). Path-scoped so it stays off the hot path for
-  # non-web PRs. PNGs are artifacts only — never committed.
+  # Web state gallery (#145) + visual diff against merge-base (#146).
+  # Path-scoped so it stays off the hot path for non-web PRs.
+  # PNGs are artifacts / R2 delta only — never committed.
+  # Phase A (#146): findings are non-blocking; harness crashes still fail.
   gallery:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Need full history for merge-base on PRs (visual diff #146).
+          fetch-depth: 0
 
       - name: Check whether apps/web or gallery inputs changed
         id: gallery-scope
@@ -154,11 +160,13 @@ jobs:
           set -uo pipefail
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "diff=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if ! git fetch --no-tags --depth=1 origin "$GITHUB_BASE_REF"; then
+          if ! git fetch --no-tags origin "$GITHUB_BASE_REF"; then
             echo "::warning::Could not fetch base ref — running gallery to fail closed"
             echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "diff=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           # Shared build inputs can move pixels (lockfile bumps vite/react/etc.).
@@ -168,6 +176,9 @@ jobs:
             docs/web \
             docs/specs/cross-cutting/testing.md \
             .github/workflows/ci.yml \
+            .github/scripts/ensure-visual-diff-r2.sh \
+            .github/scripts/upload-visual-diff-r2.sh \
+            .github/scripts/post-visual-diff-comment.sh \
             pnpm-lock.yaml \
             package.json \
             pnpm-workspace.yaml \
@@ -176,8 +187,10 @@ jobs:
             packages/shared
           then
             echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "diff=false" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "diff=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install pnpm
@@ -191,7 +204,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Install dependencies
+      - name: Install dependencies (HEAD)
         if: steps.gallery-scope.outputs.run == 'true'
         env:
           # Chromium is installed in a later step; do not let the postinstall refetch.
@@ -202,36 +215,174 @@ jobs:
         if: steps.gallery-scope.outputs.run == 'true'
         run: pnpm --filter @snaveevans/pineapple-web exec playwright install chromium --with-deps
 
-      - name: Build web (production)
+      - name: Build web (HEAD, production)
         if: steps.gallery-scope.outputs.run == 'true'
         run: pnpm --filter @snaveevans/pineapple-web build
 
-      - name: Render state gallery
+      - name: Render state gallery (HEAD)
         if: steps.gallery-scope.outputs.run == 'true'
         env:
           TZ: UTC
-        run: pnpm --filter @snaveevans/pineapple-web gallery:render -- --out apps/web/gallery/out
+        run: pnpm --filter @snaveevans/pineapple-web gallery:render -- --out apps/web/gallery/out-head
 
-      # Gallery PNGs are gitignored under out/; that is the primary protection.
+      # Dual render + pixel diff only on pull_request (Phase A of #146).
+      - name: Render state gallery (merge-base)
+        if: steps.gallery-scope.outputs.run == 'true' && steps.gallery-scope.outputs.diff == 'true'
+        id: base-render
+        env:
+          TZ: UTC
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+        run: |
+          set -euo pipefail
+          MERGE_BASE="$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")"
+          echo "merge_base=${MERGE_BASE}" >> "$GITHUB_OUTPUT"
+          echo "Rendering gallery at merge-base ${MERGE_BASE}"
+
+          # Detached worktree keeps HEAD checkout + out-head intact.
+          BASE_WT="${RUNNER_TEMP}/gallery-merge-base"
+          git worktree add --detach "$BASE_WT" "$MERGE_BASE"
+
+          # Reuse the runner's Chromium; install deps for the base tree.
+          cd "$BASE_WT"
+          pnpm install --frozen-lockfile
+          pnpm --filter @snaveevans/pineapple-web build
+          # Write into the HEAD workspace so the diff step sees both trees.
+          pnpm --filter @snaveevans/pineapple-web gallery:render -- \
+            --out "${GITHUB_WORKSPACE}/apps/web/gallery/out-base"
+
+          cd "${GITHUB_WORKSPACE}"
+          git worktree remove --force "$BASE_WT"
+
+      - name: Pixel-diff gallery (merge-base vs HEAD)
+        if: steps.gallery-scope.outputs.run == 'true' && steps.gallery-scope.outputs.diff == 'true'
+        id: gallery-diff
+        run: |
+          set -euo pipefail
+          pnpm --filter @snaveevans/pineapple-web gallery:diff -- \
+            --base apps/web/gallery/out-base \
+            --head apps/web/gallery/out-head \
+            --out apps/web/gallery/out-diff
+          # Phase A never fails on delta; expose the count for R2/comment steps.
+          delta="$(node --input-type=module -e 'import { readFileSync } from "node:fs"; const s = JSON.parse(readFileSync("apps/web/gallery/out-diff/summary.json","utf8")); process.stdout.write(String(s.changedCount+s.addedCount+s.removedCount+s.resizedCount));')"
+          echo "delta=${delta}" >> "$GITHUB_OUTPUT"
+          echo "Visual delta: ${delta}"
+
+      # Gallery PNGs are gitignored under out*/; that is the primary protection.
       # Also fail if any gallery PNG is tracked in git (force-add / wrong path).
       - name: Assert no gallery PNGs are tracked
         if: steps.gallery-scope.outputs.run == 'true'
         run: |
-          tracked="$(git ls-files 'apps/web/gallery/**/*.png' 'apps/web/gallery/out/**' || true)"
+          tracked="$(git ls-files 'apps/web/gallery/**/*.png' 'apps/web/gallery/out/**' 'apps/web/gallery/out-*/**' || true)"
           if [ -n "$tracked" ]; then
             echo "Gallery PNGs must not be committed:"
             printf '%s\n' "$tracked"
             exit 1
           fi
 
-      - name: Upload gallery artifact
+      - name: Upload HEAD gallery artifact
         if: steps.gallery-scope.outputs.run == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: web-state-gallery
-          path: apps/web/gallery/out
+          path: apps/web/gallery/out-head
           retention-days: 7
           if-no-files-found: error
+
+      - name: Upload visual-diff artifact
+        if: steps.gallery-scope.outputs.run == 'true' && steps.gallery-scope.outputs.diff == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-visual-diff
+          path: apps/web/gallery/out-diff
+          retention-days: 7
+          if-no-files-found: error
+
+      # Host only the delta on R2 so the PR comment is phone-reviewable (#146).
+      # Fork PRs have no secrets — degrade to artifact-only and never fail.
+      - name: Host delta on R2 and build PR comment
+        id: r2-upload
+        if: >-
+          steps.gallery-scope.outputs.run == 'true'
+          && steps.gallery-scope.outputs.diff == 'true'
+          && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          DELTA="${{ steps.gallery-diff.outputs.delta }}"
+          COMMENT_ARGS=(
+            --summary apps/web/gallery/out-diff/summary.json
+            --out apps/web/gallery/out-diff/comment.md
+            --head-sha "$HEAD_SHA"
+            --pr "$PR_NUMBER"
+          )
+
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ] || [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "No Cloudflare secrets (fork PR or unset) — artifact-only mode."
+            echo "hosted=false" >> "$GITHUB_OUTPUT"
+            node --experimental-strip-types apps/web/gallery/report-comment.ts \
+              "${COMMENT_ARGS[@]}" --artifact-only
+            exit 0
+          fi
+
+          if [ "$DELTA" = "0" ]; then
+            echo "Zero visual change — nothing to upload."
+            echo "hosted=true" >> "$GITHUB_OUTPUT"
+            echo "uploaded=0" >> "$GITHUB_OUTPUT"
+            node --experimental-strip-types apps/web/gallery/report-comment.ts \
+              "${COMMENT_ARGS[@]}"
+            exit 0
+          fi
+
+          chmod +x .github/scripts/ensure-visual-diff-r2.sh \
+            .github/scripts/upload-visual-diff-r2.sh
+
+          ensure_out="$(.github/scripts/ensure-visual-diff-r2.sh | tee /dev/stderr)"
+          PUBLIC_BASE="$(grep -E '^public_base_url=' <<<"$ensure_out" | tail -n1 | cut -d= -f2-)"
+          if [ -z "$PUBLIC_BASE" ]; then
+            echo "::error::Could not resolve r2.dev public base URL"
+            exit 1
+          fi
+
+          PREFIX="pr/${PR_NUMBER}/${HEAD_SHA}"
+          VISUAL_DIFF_PREFIX="$PREFIX" \
+            VISUAL_DIFF_DIR="apps/web/gallery/out-diff" \
+            .github/scripts/upload-visual-diff-r2.sh
+
+          IMAGE_BASE="${PUBLIC_BASE}/${PREFIX}"
+          echo "hosted=true" >> "$GITHUB_OUTPUT"
+          echo "image_base_url=${IMAGE_BASE}" >> "$GITHUB_OUTPUT"
+
+          node --experimental-strip-types apps/web/gallery/report-comment.ts \
+            "${COMMENT_ARGS[@]}" --image-base-url "$IMAGE_BASE"
+
+      - name: Post visual-diff PR comment
+        if: >-
+          steps.gallery-scope.outputs.run == 'true'
+          && steps.gallery-scope.outputs.diff == 'true'
+          && github.event_name == 'pull_request'
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY_FILE: apps/web/gallery/out-diff/comment.md
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          if [ ! -f "$COMMENT_BODY_FILE" ]; then
+            # R2 step failed before writing — fall back to a minimal artifact-only body.
+            node --experimental-strip-types apps/web/gallery/report-comment.ts \
+              --summary apps/web/gallery/out-diff/summary.json \
+              --out "$COMMENT_BODY_FILE" \
+              --head-sha "${{ github.event.pull_request.head.sha }}" \
+              --pr "${{ github.event.pull_request.number }}" \
+              --artifact-only
+          fi
+          chmod +x .github/scripts/post-visual-diff-comment.sh
+          .github/scripts/post-visual-diff-comment.sh
 
       - name: Gallery skipped (no web paths touched)
         if: steps.gallery-scope.outputs.run != 'true'

@@ -192,6 +192,16 @@ jobs:
           test -n "$CLOUDFLARE_ACCOUNT_ID"
           test -n "$CLOUDFLARE_API_TOKEN"
 
+      # wrangler deploy does not create R2 buckets either. The visual-diff CI job
+      # (#146) hosts only changed gallery images here — public r2.dev URL + 30d
+      # lifecycle. Idempotent; safe on every deploy. Not bound to the Worker. Lives
+      # in deploy-web (not deploy-api) because it's the web gallery feature's own
+      # infra — an apps/api-only push must not be the only thing that reconciles it.
+      - name: Ensure visual-diff R2 bucket exists
+        run: |
+          chmod +x .github/scripts/ensure-visual-diff-r2.sh
+          .github/scripts/ensure-visual-diff-r2.sh
+
       # Build the SPA (writes the redirect config wrangler deploy reads), then
       # deploy the Worker that serves it.
       - name: Build
