@@ -297,6 +297,50 @@ the PR comment can inline them as markdown.
 - Same-repo PRs get a sticky PR comment (`<!-- pineapple-web-visual-diff -->`) with the summary and
   inline images, legible at phone width.
 
+#### Running it locally
+
+CI's dual render is the only place this used to run. `scripts/gallery-diff-local.sh`
+wraps the same two CLIs so an agent (or a human) can get the merge-base-vs-HEAD
+verdict **before** pushing, while still holding the context needed to fix a
+regression. Interpretation guidance (how to read a changed state, the known flake,
+the no-tuning rule) lives in `.claude/skills/gallery-visual-diff/SKILL.md` — this
+section documents the mechanics only.
+
+- **Ordering problem it solves:** rendering a baseline before editing needs foresight
+  and goes stale on every pull/rebase; re-rendering the merge-base after every edit is
+  correct but pays the ~150s render cost on every iteration. The script always derives
+  the baseline from `git merge-base HEAD origin/main` in a **detached `git worktree`**
+  (never `git checkout` — HEAD's working tree, branch, and `node_modules` are never
+  touched) and **caches the rendered baseline keyed on the merge-base SHA**
+  (`~/.cache/pineapple-gallery/<sha>/out`). First run against a given merge-base pays
+  for the base render; every later iteration on that branch reuses the cache and only
+  rebuilds/re-renders HEAD. The cache self-invalidates the moment the merge-base moves
+  (a rebase or a `main` merge changes the SHA, which changes the cache key).
+- **Relevance gate first.** Before doing anything expensive, the script diffs
+  `apps/web/src` and `apps/web/gallery` against the merge-base; if neither changed, it
+  prints that and exits 0 immediately rather than spending ~8-12 minutes on a PR that
+  touches no rendered surface.
+- **Cost:** ~8-12 minutes cold (two production builds, two ~150s renders, one
+  `pnpm install` in the throwaway worktree). A cache hit only pays the HEAD side —
+  seconds, not minutes.
+- **Exit code:** 0 whenever the run completes, whether or not visual changes were
+  found — a changed state is information, not a script failure. Non-zero is reserved
+  for genuine failures (build, render, or worktree setup broke).
+- Output (`~/.cache/pineapple-gallery/runs/latest/`) lives outside the repo, same as
+  CI's artifact-only posture — no gallery PNG is ever committed, locally or in CI.
+- `--refresh-base` force-discards the cached baseline and re-renders it.
+- **The worktree/build/render mechanics are not duplicated between CI and local.**
+  `scripts/gallery-build-render.sh` (build + `gallery:render`) and
+  `scripts/gallery-render-at-ref.sh` (detached-worktree render at an arbitrary ref) are
+  the shared implementation; `gallery-diff-local.sh` and the CI `gallery` job's HEAD and
+  merge-base render steps all call into them rather than each spelling out the same
+  bash independently.
+
+```bash
+scripts/gallery-diff-local.sh
+scripts/gallery-diff-local.sh --refresh-base
+```
+
 #### Acceptance criteria (#146)
 
 - [x] A PR with no visual change reports zero changed regions and uploads no images. `S1`
