@@ -266,6 +266,20 @@ antialiased edge pixels, not antialiased _glyph interior_ pixels). Recorded per 
 rather than silently retuning `threshold`; revisit if this or other states start flapping
 regularly once Phase B is on the table.
 
+**Recurrence (2026-08-11, PR #210):** Same state, same viewport, same 78px magnitude, on a PR
+whose merge-base **is** #209's post-merge `main` and whose diff touches zero files under
+`apps/web/src` — so #210's "base" render is byte-for-byte the same source #209's "head" was.
+Confirms this is genuine cross-run Chromium rendering nondeterminism, not something either PR's
+code caused. A same-source local reproduction attempt did _not_ flake (base and a fresh HEAD
+render came back byte-identical), consistent with the original finding's "flipped between" framing
+— it's intermittent, not a steady offset. The `truck` icon (`apps/web/src/design/Icon.tsx`) is an
+inline SVG built from two `<circle>` wheels and short diagonal `<path>` strokes at 1.75px stroke
+width — exactly the shape (curves plus thin diagonals at sub-pixel widths) most sensitive to
+frame-to-frame anti-aliasing drift when its container's layout rounds by a fraction of a pixel
+differently between two separate browser process launches. This is the second occurrence — per
+the note above, that's the trigger to revisit once Phase B is on the table, not a threshold change
+now.
+
 #### What the job reports
 
 - Count of changed states (screen / state / viewport triples).
@@ -321,8 +335,10 @@ section documents the mechanics only.
   prints that and exits 0 immediately rather than spending ~8-12 minutes on a PR that
   touches no rendered surface.
 - **Cost:** ~8-12 minutes cold (two production builds, two ~150s renders, one
-  `pnpm install` in the throwaway worktree). A cache hit only pays the HEAD side —
-  seconds, not minutes.
+  `pnpm install` in the throwaway worktree). A cache hit skips the base-side install,
+  build, and render entirely, but HEAD is always rebuilt and re-rendered from scratch —
+  a warm-cache run is ~2-3 minutes, not seconds (measured: 2m40s in this PR's evidence,
+  versus 5m13s cold).
 - **Exit code:** 0 whenever the run completes, whether or not visual changes were
   found — a changed state is information, not a script failure. Non-zero is reserved
   for genuine failures (build, render, or worktree setup broke).

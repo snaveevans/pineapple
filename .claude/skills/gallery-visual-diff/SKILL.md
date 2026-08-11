@@ -10,9 +10,11 @@ CI runs (`docs/specs/cross-cutting/testing.md`, "Visual diff against the base br
 
 **Say the cost up front.** A cold run is ~8-12 minutes (two production builds, two
 ~150s Playwright renders, one `pnpm install` in a throwaway worktree). Every later run
-against the same merge-base reuses the cached baseline and only rebuilds/re-renders
-HEAD — seconds, not minutes. Decide with the user (or just note it) whether to run now
-or after you finish iterating on the change; don't block a fast edit-loop on a cold run.
+against the same merge-base reuses the cached baseline, skipping the base-side
+install/build/render — but HEAD still gets a full production build and its own ~150s
+render every time, cache hit or not. A warm-cache run is **~2-3 minutes, not seconds**.
+Decide with the user (or just note it) whether to run now or after you finish iterating
+on the change; don't block a fast edit-loop on a run that's still minutes long.
 
 ## Run it
 
