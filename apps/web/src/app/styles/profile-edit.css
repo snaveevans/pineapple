@@ -11,11 +11,11 @@
 }
 
 .pe-hint-warn {
-  color: oklch(60% 0.13 75) !important;
+  color: var(--hf-warn) !important;
 }
 
 .pe-hint-bad {
-  color: oklch(52% 0.18 28) !important;
+  color: var(--hf-bad) !important;
 }
 
 .pe-identity {

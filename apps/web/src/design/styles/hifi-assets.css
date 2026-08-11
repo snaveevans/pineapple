@@ -1,19 +1,9 @@
 /* FieldOps — Hi-Fi Assets styles
-   Extends the .hf design tokens from hifi.css. Adds asset-grid + asset-row
-   + toolbar + add-card. Same container-query contract — desktop card grid
-   collapses to horizontal rows at the mobile breakpoint. */
-
-/* tints per category (used by the thumb background) */
-.hf {
-  --hf-cat-vehicle-bg: oklch(96% 0.025 240);
-  --hf-cat-vehicle-fg: oklch(40% 0.1 240);
-  --hf-cat-equipment-bg: oklch(95% 0.035 60);
-  --hf-cat-equipment-fg: oklch(40% 0.1 60);
-  --hf-cat-property-bg: oklch(95% 0.03 295);
-  --hf-cat-property-fg: oklch(38% 0.1 295);
-  --hf-cat-lawn-bg: oklch(95% 0.04 145);
-  --hf-cat-lawn-fg: oklch(38% 0.1 145);
-}
+   Extends the .hf design tokens from hifi.css (the --hf-cat-* category
+   swatches used for the thumb background live in tokens.css). Adds
+   asset-grid + asset-row + toolbar + add-card. Same container-query
+   contract — desktop card grid collapses to horizontal rows at the mobile
+   breakpoint. */
 
 /* ============ Assets page chrome ============ */
 .hf-assets-page .hf-greeting .hf-h1 {
@@ -57,7 +47,7 @@
   justify-content: center;
   border: 0;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--hf-r-sm);
   color: var(--hf-ink-soft);
 }
 .hf-view-btn:hover {

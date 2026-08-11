@@ -1,0 +1,59 @@
+/* FieldOps — design tokens, single source of truth.
+   Declared once at :root so every scope (.hf, .au, .mk, .hfs-root, portalled
+   content) consumes the same values instead of re-declaring them. Imported
+   once, from index.css, so it's available globally regardless of which
+   scoped stylesheet a given screen pulls in. */
+
+:root {
+  /* surfaces / ink */
+  --hf-bg: oklch(98% 0.005 85); /* warm off-white app bg */
+  --hf-surface: oklch(100% 0 0); /* pure white card */
+  --hf-surface-2: oklch(97% 0.005 85); /* faint warm */
+  --hf-ink: oklch(22% 0.015 70); /* darkest text */
+  --hf-ink-soft: oklch(45% 0.012 75);
+  --hf-ink-faint: oklch(60% 0.008 80);
+  --hf-line: oklch(91% 0.006 80); /* hairline borders */
+  --hf-line-soft: oklch(94% 0.005 80);
+
+  /* brand: deep forest green — signals service/health */
+  --hf-brand: oklch(45% 0.1 150);
+  --hf-brand-2: oklch(38% 0.1 150);
+  --hf-brand-bg: oklch(95% 0.025 150);
+
+  /* status */
+  --hf-ok: oklch(50% 0.1 150);
+  --hf-ok-bg: oklch(96% 0.025 150);
+  --hf-warn: oklch(60% 0.13 75);
+  --hf-warn-bg: oklch(96% 0.045 80);
+  --hf-bad: oklch(52% 0.18 28);
+  --hf-bad-bg: oklch(96% 0.025 28);
+
+  /* asset tints (dashboard / library thumbs) */
+  --hf-tint-vehicle: oklch(94% 0.025 240);
+  --hf-tint-equip: oklch(94% 0.035 55);
+  --hf-tint-prop: oklch(94% 0.025 295);
+  --hf-tint-lawn: oklch(94% 0.03 145);
+
+  /* asset category swatches (bg + fg pairs) */
+  --hf-cat-vehicle-bg: oklch(96% 0.025 240);
+  --hf-cat-vehicle-fg: oklch(40% 0.1 240);
+  --hf-cat-equipment-bg: oklch(95% 0.035 60);
+  --hf-cat-equipment-fg: oklch(40% 0.1 60);
+  --hf-cat-property-bg: oklch(95% 0.03 295);
+  --hf-cat-property-fg: oklch(38% 0.1 295);
+  --hf-cat-lawn-bg: oklch(95% 0.04 145);
+  --hf-cat-lawn-fg: oklch(38% 0.1 145);
+
+  /* radii / shadows */
+  --hf-r-sm: 6px;
+  --hf-r: 10px;
+  --hf-r-lg: 14px;
+  --hf-shadow-1: 0 1px 2px rgba(20, 18, 14, 0.04), 0 1px 0 rgba(20, 18, 14, 0.03);
+  --hf-shadow-2: 0 4px 12px rgba(20, 18, 14, 0.06), 0 1px 0 rgba(20, 18, 14, 0.03);
+  --hf-shadow-3: 0 18px 50px -12px rgba(20, 18, 14, 0.22), 0 6px 16px -8px rgba(20, 18, 14, 0.12);
+
+  /* fonts */
+  --hf-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --hf-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
