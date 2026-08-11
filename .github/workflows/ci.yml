@@ -215,43 +215,29 @@ jobs:
         if: steps.gallery-scope.outputs.run == 'true'
         run: pnpm --filter @snaveevans/pineapple-web exec playwright install chromium --with-deps
 
-      - name: Build web (HEAD, production)
+      # Build+render is shared with local usage via scripts/gallery-build-render.sh
+      # (scripts/gallery-diff-local.sh, docs/specs/cross-cutting/testing.md).
+      - name: Build and render state gallery (HEAD)
         if: steps.gallery-scope.outputs.run == 'true'
-        run: pnpm --filter @snaveevans/pineapple-web build
-
-      - name: Render state gallery (HEAD)
-        if: steps.gallery-scope.outputs.run == 'true'
-        env:
-          TZ: UTC
-        run: pnpm --filter @snaveevans/pineapple-web gallery:render -- --out apps/web/gallery/out-head
+        run: bash scripts/gallery-build-render.sh apps/web/gallery/out-head
 
       # Dual render + pixel diff only on pull_request (Phase A of #146).
+      # Worktree mechanics are shared with local usage via
+      # scripts/gallery-render-at-ref.sh — see that script's header and
+      # scripts/gallery-diff-local.sh, which renders the same merge-base
+      # baseline (cached) before a push.
       - name: Render state gallery (merge-base)
         if: steps.gallery-scope.outputs.run == 'true' && steps.gallery-scope.outputs.diff == 'true'
         id: base-render
-        env:
-          TZ: UTC
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
         run: |
           set -euo pipefail
           MERGE_BASE="$(git merge-base HEAD "origin/${GITHUB_BASE_REF}")"
           echo "merge_base=${MERGE_BASE}" >> "$GITHUB_OUTPUT"
           echo "Rendering gallery at merge-base ${MERGE_BASE}"
-
-          # Detached worktree keeps HEAD checkout + out-head intact.
-          BASE_WT="${RUNNER_TEMP}/gallery-merge-base"
-          git worktree add --detach "$BASE_WT" "$MERGE_BASE"
-
-          # Reuse the runner's Chromium; install deps for the base tree.
-          cd "$BASE_WT"
-          pnpm install --frozen-lockfile
-          pnpm --filter @snaveevans/pineapple-web build
-          # Write into the HEAD workspace so the diff step sees both trees.
-          pnpm --filter @snaveevans/pineapple-web gallery:render -- \
-            --out "${GITHUB_WORKSPACE}/apps/web/gallery/out-base"
-
-          cd "${GITHUB_WORKSPACE}"
-          git worktree remove --force "$BASE_WT"
+          bash scripts/gallery-render-at-ref.sh \
+            "$MERGE_BASE" \
+            "${GITHUB_WORKSPACE}/apps/web/gallery/out-base" \
+            "${RUNNER_TEMP}/gallery-merge-base"
 
       - name: Pixel-diff gallery (merge-base vs HEAD)
         if: steps.gallery-scope.outputs.run == 'true' && steps.gallery-scope.outputs.diff == 'true'

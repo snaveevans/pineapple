@@ -266,6 +266,20 @@ antialiased edge pixels, not antialiased _glyph interior_ pixels). Recorded per 
 rather than silently retuning `threshold`; revisit if this or other states start flapping
 regularly once Phase B is on the table.
 
+**Recurrence (2026-08-11, PR #210):** Same state, same viewport, same 78px magnitude, on a PR
+whose merge-base **is** #209's post-merge `main` and whose diff touches zero files under
+`apps/web/src` — so #210's "base" render is byte-for-byte the same source #209's "head" was.
+Confirms this is genuine cross-run Chromium rendering nondeterminism, not something either PR's
+code caused. A same-source local reproduction attempt did _not_ flake (base and a fresh HEAD
+render came back byte-identical), consistent with the original finding's "flipped between" framing
+— it's intermittent, not a steady offset. The `truck` icon (`apps/web/src/design/Icon.tsx`) is an
+inline SVG built from two `<circle>` wheels and short diagonal `<path>` strokes at 1.75px stroke
+width — exactly the shape (curves plus thin diagonals at sub-pixel widths) most sensitive to
+frame-to-frame anti-aliasing drift when its container's layout rounds by a fraction of a pixel
+differently between two separate browser process launches. This is the second occurrence — per
+the note above, that's the trigger to revisit once Phase B is on the table, not a threshold change
+now.
+
 #### What the job reports
 
 - Count of changed states (screen / state / viewport triples).
@@ -296,6 +310,52 @@ the PR comment can inline them as markdown.
   non-blocking Phase A check is exactly the flake that erodes trust in the gate.
 - Same-repo PRs get a sticky PR comment (`<!-- pineapple-web-visual-diff -->`) with the summary and
   inline images, legible at phone width.
+
+#### Running it locally
+
+CI's dual render is the only place this used to run. `scripts/gallery-diff-local.sh`
+wraps the same two CLIs so an agent (or a human) can get the merge-base-vs-HEAD
+verdict **before** pushing, while still holding the context needed to fix a
+regression. Interpretation guidance (how to read a changed state, the known flake,
+the no-tuning rule) lives in `.claude/skills/gallery-visual-diff/SKILL.md` — this
+section documents the mechanics only.
+
+- **Ordering problem it solves:** rendering a baseline before editing needs foresight
+  and goes stale on every pull/rebase; re-rendering the merge-base after every edit is
+  correct but pays the ~150s render cost on every iteration. The script always derives
+  the baseline from `git merge-base HEAD origin/main` in a **detached `git worktree`**
+  (never `git checkout` — HEAD's working tree, branch, and `node_modules` are never
+  touched) and **caches the rendered baseline keyed on the merge-base SHA**
+  (`~/.cache/pineapple-gallery/<sha>/out`). First run against a given merge-base pays
+  for the base render; every later iteration on that branch reuses the cache and only
+  rebuilds/re-renders HEAD. The cache self-invalidates the moment the merge-base moves
+  (a rebase or a `main` merge changes the SHA, which changes the cache key).
+- **Relevance gate first.** Before doing anything expensive, the script diffs
+  `apps/web/src` and `apps/web/gallery` against the merge-base; if neither changed, it
+  prints that and exits 0 immediately rather than spending ~8-12 minutes on a PR that
+  touches no rendered surface.
+- **Cost:** ~8-12 minutes cold (two production builds, two ~150s renders, one
+  `pnpm install` in the throwaway worktree). A cache hit skips the base-side install,
+  build, and render entirely, but HEAD is always rebuilt and re-rendered from scratch —
+  a warm-cache run is ~2-3 minutes, not seconds (measured: 2m40s in this PR's evidence,
+  versus 5m13s cold).
+- **Exit code:** 0 whenever the run completes, whether or not visual changes were
+  found — a changed state is information, not a script failure. Non-zero is reserved
+  for genuine failures (build, render, or worktree setup broke).
+- Output (`~/.cache/pineapple-gallery/runs/latest/`) lives outside the repo, same as
+  CI's artifact-only posture — no gallery PNG is ever committed, locally or in CI.
+- `--refresh-base` force-discards the cached baseline and re-renders it.
+- **The worktree/build/render mechanics are not duplicated between CI and local.**
+  `scripts/gallery-build-render.sh` (build + `gallery:render`) and
+  `scripts/gallery-render-at-ref.sh` (detached-worktree render at an arbitrary ref) are
+  the shared implementation; `gallery-diff-local.sh` and the CI `gallery` job's HEAD and
+  merge-base render steps all call into them rather than each spelling out the same
+  bash independently.
+
+```bash
+scripts/gallery-diff-local.sh
+scripts/gallery-diff-local.sh --refresh-base
+```
 
 #### Acceptance criteria (#146)
 
