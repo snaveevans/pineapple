@@ -45,12 +45,19 @@ export function HFAssetIcon({
   asset: { category: AssetCategory; icon: IconName };
   size?: number;
 }) {
-  const style: CSSProperties = { width: size, height: size, background: CAT_TINTS[asset.category] };
+  const box = Math.round(size);
+  const style: CSSProperties = { width: box, height: box, background: CAT_TINTS[asset.category] };
   return (
     <div className="hf-asset-icon" style={style}>
-      <Icon name={asset.icon} size={size * 0.55} stroke={1.6} />
+      <Icon name={asset.icon} size={Math.round(box * 0.55)} stroke={1.6} />
     </div>
   );
+}
+
+/** Icon viewBox is 24×24. Multiples of 24 keep path geometry on whole CSS pixels. */
+export function thumbIconSize(height: number): number {
+  const raw = Math.round(height * 0.36);
+  return Math.max(24, Math.round(raw / 24) * 24);
 }
 
 export function HFAssetThumb({
@@ -63,7 +70,7 @@ export function HFAssetThumb({
   return (
     <div className="hf-asset-thumb" data-cat={asset.cat} style={{ height }}>
       <div className="hf-asset-thumb-icon">
-        <Icon name={asset.icon} size={Math.round(height * 0.36)} stroke={1.4} />
+        <Icon name={asset.icon} size={thumbIconSize(height)} stroke={1.4} />
       </div>
       <span className="hf-asset-cat-badge">{CAT_LABELS[asset.cat]}</span>
       {asset.status && <span className="hf-asset-status-dot" data-status={asset.status} />}

@@ -235,17 +235,18 @@ const PATHS: Record<IconName, ReactNode> = {
 };
 
 export function Icon({ name, size = 16, stroke = 1.75, color = "currentColor", style }: IconProps) {
+  const px = Math.round(size);
   return (
     <svg
-      width={size}
-      height={size}
+      width={px}
+      height={px}
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
       strokeWidth={stroke}
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ flexShrink: 0, ...style }}
+      style={{ flexShrink: 0, display: "block", ...style }}
     >
       {PATHS[name] ?? <circle cx="12" cy="12" r="9" />}
     </svg>

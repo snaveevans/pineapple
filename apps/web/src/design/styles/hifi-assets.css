@@ -189,7 +189,6 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--hf-ink-soft);
-  backdrop-filter: blur(4px);
 }
 
 /* status dot top-right */
@@ -364,7 +363,7 @@
 .hf-asset-row .hf-asset-cat-badge {
   top: 6px;
   left: 6px;
-  padding: 1.5px 6px;
+  padding: 2px 6px;
   font-size: 9px;
 }
 .hf-asset-row .hf-asset-status-dot {

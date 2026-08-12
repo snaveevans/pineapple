@@ -54,25 +54,15 @@ The script prints the diff directory path and the changed screen/state/viewport
 triples; `base/`, `head/`, and `diff/` subfolders hold the actual PNGs plus
 `summary.json`.
 
-## Known flake — do not chase it
-
-`asset-library/populated-filtered` at the **mobile** viewport has flapped between
-`unchanged` and a ~78px `changed` result across otherwise-identical runs, with no
-`apps/web/src` changes in play (recorded in `testing.md`, PR #209 — sub-pixel glyph
-interior rendering noise inside one asset card's icon, not a token or layout shift).
-
-If that state is the **only** one that shows a small change, **re-run before
-believing it**. Do not spend time investigating it as a real regression, and do not
-"fix" it by touching product code or the harness.
-
 ## Hard rule: never tune the threshold
 
 If you see what looks like a false positive (a change that shouldn't be there,
-happening consistently — not the known flake above), **record it as a finding** in
-`docs/specs/cross-cutting/testing.md` the same way PR #209's finding is recorded.
-**Never raise the `pixelmatch` threshold to make a diff go green.** "Make the diff
-pass" is not the goal here — "know whether the change is visually clean" is. Loosening
-the threshold answers a different, wrong question.
+happening consistently across re-runs with no intended visual edit), **record it as a
+finding** in `docs/specs/cross-cutting/testing.md` and fix the rendering source (e.g.
+half-pixel SVG geometry — see the #209/#210 truck-icon write-up there). **Never raise
+the `pixelmatch` threshold to make a diff go green.** "Make the diff pass" is not the
+goal here — "know whether the change is visually clean" is. Loosening the threshold
+answers a different, wrong question.
 
 ## This is not a CI gate — yet
 

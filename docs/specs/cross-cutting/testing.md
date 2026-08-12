@@ -257,28 +257,17 @@ do not quietly raise the threshold until the build goes green.
 
 Dimension mismatches (added/removed/resized shot) count as changed without running pixelmatch.
 
-**Finding (2026-08-10, PR #209):** `asset-library/populated-filtered` mobile flipped between
-`unchanged` and a 78px `changed` result across otherwise-identical runs on this branch (no
-`apps/web/src` changes at any point). Base and head PNGs are visually indistinguishable; the diff
-overlay localizes it to the truck glyph inside one asset card — sub-pixel icon/font rendering
-noise, not a token or layout shift, and within `includeAA: false`'s known gap (that flag drops
-antialiased edge pixels, not antialiased _glyph interior_ pixels). Recorded per the rule above
-rather than silently retuning `threshold`; revisit if this or other states start flapping
-regularly once Phase B is on the table.
-
-**Recurrence (2026-08-11, PR #210):** Same state, same viewport, same 78px magnitude, on a PR
-whose merge-base **is** #209's post-merge `main` and whose diff touches zero files under
-`apps/web/src` — so #210's "base" render is byte-for-byte the same source #209's "head" was.
-Confirms this is genuine cross-run Chromium rendering nondeterminism, not something either PR's
-code caused. A same-source local reproduction attempt did _not_ flake (base and a fresh HEAD
-render came back byte-identical), consistent with the original finding's "flipped between" framing
-— it's intermittent, not a steady offset. The `truck` icon (`apps/web/src/design/Icon.tsx`) is an
-inline SVG built from two `<circle>` wheels and short diagonal `<path>` strokes at 1.75px stroke
-width — exactly the shape (curves plus thin diagonals at sub-pixel widths) most sensitive to
-frame-to-frame anti-aliasing drift when its container's layout rounds by a fraction of a pixel
-differently between two separate browser process launches. This is the second occurrence — per
-the note above, that's the trigger to revisit once Phase B is on the table, not a threshold change
-now.
+**Finding (2026-08-10, PR #209) + recurrence (2026-08-11, PR #210) — fixed:**
+`asset-library/populated-filtered` mobile flipped between `unchanged` and a ~78px `changed`
+result across otherwise-identical runs (no product change in play). Diff overlay localized to
+the truck glyph inside one asset card — sub-pixel SVG anti-aliasing, not a token/layout shift.
+Root cause: mobile row thumbs use `height={84}` → icon size `round(84 * 0.36) = 30`. The icon
+viewBox is 24×24, so scale 1.25 places wheel centers (`cy=18` → 22.5) and radii (`r=2` → 2.5) on
+half-pixels; Chromium then AA-drifts across separate browser launches. `includeAA: false` drops
+antialiased _edge_ pixels, not glyph-interior ones — so the noise survived the color threshold.
+**Fix:** `thumbIconSize()` snaps thumb glyph sizes to multiples of 24 (mobile row → 24, grid →
+48 stays). Also dropped the cat-badge `backdrop-filter` and the row badge's `1.5px` padding
+(fractional box edges). Threshold was not raised.
 
 #### What the job reports
 
