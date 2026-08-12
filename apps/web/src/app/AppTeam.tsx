@@ -3,6 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { createTeam, getMyTeam, teamQueryKey, type Team } from "../api/teams";
 import { ApiError } from "../api/client";
+import { Button, ButtonSpinner } from "../design/Button";
+import { Card } from "../design/Card";
+import { EmptyState } from "../design/EmptyState";
+import { Field, FieldReqMark } from "../design/Field";
 import { Icon } from "../design/Icon";
 import { paths } from "../routes";
 import { HFTopBar, HFBottomNav } from "./AppChrome";
@@ -36,22 +40,22 @@ function TeamLoading() {
   );
 }
 
-function EmptyState({ onStart }: { onStart: () => void }) {
+function TeamEmptyState({ onStart }: { onStart: () => void }) {
   return (
-    <div className="tm-empty tm-fade-enter">
-      <div className="tm-empty-icon">
-        <Icon name="grid" size={26} stroke={1.6} />
-      </div>
-      <div className="tm-empty-title">You don't have a team yet</div>
-      <div className="tm-empty-sub">
-        Create a team, then invite the one teammate you work with. You'll decide which assets to
-        share — the rest stay yours alone.
-      </div>
-      <button className="hf-btn hf-btn-primary hf-btn-lg" onClick={onStart}>
-        <Icon name="plus" size={15} stroke={2} color="white" />
-        Create a team
-      </button>
-    </div>
+    <EmptyState
+      variant="panel"
+      icon="grid"
+      iconTone="brand"
+      title="You don't have a team yet"
+      description="Create a team, then invite the one teammate you work with. You'll decide which assets to share — the rest stay yours alone."
+      className="tm-fade-enter"
+      action={
+        <Button variant="primary" size="lg" onClick={onStart}>
+          <Icon name="plus" size={15} stroke={2} color="white" />
+          Create a team
+        </Button>
+      }
+    />
   );
 }
 
@@ -119,23 +123,34 @@ function CreateForm({
           <div className="hf-aa-section-head">
             <span className="hf-aa-section-title">Team details</span>
           </div>
-          <div className={`hf-field${hasFieldError ? " has-error" : ""}`}>
-            <label className="hf-field-label" htmlFor="tm-name-input">
-              Team name
-              <span className="hf-field-req">*</span>
+          <Field
+            label="Team name"
+            htmlFor="tm-name-input"
+            required
+            hint={
               <span
                 className={
-                  "hf-field-hint" +
-                  (charCount > DISPLAY_NAME_MAX_LENGTH
-                    ? " pe-hint-bad"
+                  charCount > DISPLAY_NAME_MAX_LENGTH
+                    ? "pe-hint-bad"
                     : charCount > 85
-                      ? " pe-hint-warn"
-                      : "")
+                      ? "pe-hint-warn"
+                      : undefined
                 }
               >
                 {charCount}/{DISPLAY_NAME_MAX_LENGTH}
               </span>
-            </label>
+            }
+            {...(hasFieldError
+              ? {
+                  error:
+                    fieldError === "empty"
+                      ? TEAM_NAME_REQUIRED_MESSAGE
+                      : TEAM_NAME_TOO_LONG_MESSAGE,
+                }
+              : {
+                  sub: "This is what your teammate will see once you invite them.",
+                })}
+          >
             <input
               id="tm-name-input"
               className={`hf-input${hasFieldError ? " is-invalid" : ""}`}
@@ -152,19 +167,7 @@ function CreateForm({
               autoFocus
               autoComplete="off"
             />
-            {hasFieldError ? (
-              <span className="hf-field-error" role="alert">
-                <Icon name="alert" size={12} stroke={2} />
-                {fieldError === "empty"
-                  ? TEAM_NAME_REQUIRED_MESSAGE
-                  : TEAM_NAME_TOO_LONG_MESSAGE}
-              </span>
-            ) : (
-              <span className="hf-field-sub">
-                This is what your teammate will see once you invite them.
-              </span>
-            )}
-          </div>
+          </Field>
         </div>
 
         <div className="hf-aa-next">
@@ -218,23 +221,24 @@ function CreateForm({
             </span>
           ) : (
             <>
-              Fields marked <span className="hf-field-req">*</span> are required
+              Fields marked <FieldReqMark /> are required
             </>
           )}
         </div>
         <div className="hf-aa-footer-actions">
-          <button
+          <Button
             type="button"
-            className="hf-btn hf-btn-secondary hf-btn-lg"
+            variant="secondary"
+            size="lg"
             disabled={mutation.isPending}
             onClick={onCancel}
           >
             Cancel
-          </button>
-          <button type="submit" className="hf-btn hf-btn-primary hf-btn-lg" disabled={mutation.isPending}>
+          </Button>
+          <Button type="submit" variant="primary" size="lg" disabled={mutation.isPending}>
             {mutation.isPending ? (
               <>
-                <span className="pe-btn-spinner" />
+                <ButtonSpinner />
                 Creating…
               </>
             ) : (
@@ -243,7 +247,7 @@ function CreateForm({
                 Create team
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </form>
@@ -270,7 +274,7 @@ function CreatedState({ team, currentUserId }: { team: Team; currentUserId: stri
         </div>
       </div>
 
-      <div className="tm-identity">
+      <Card className="tm-identity">
         <div className="tm-team-mark">
           <Icon name="grid" size={22} stroke={1.6} />
         </div>
@@ -280,7 +284,7 @@ function CreatedState({ team, currentUserId }: { team: Team; currentUserId: stri
             Created {createdLabel} · {memberCount} {memberCount === 1 ? "member" : "members"}
           </div>
         </div>
-      </div>
+      </Card>
 
       <div className="hf-aa-section">
         <div className="hf-aa-section-head">
@@ -409,7 +413,7 @@ export function AppTeam() {
             </p>
           </div>
 
-          {view === "empty" && <EmptyState onStart={() => setView("form")} />}
+          {view === "empty" && <TeamEmptyState onStart={() => setView("form")} />}
 
           {view === "form" && (
             <CreateForm onCancel={() => setView("empty")} onCreated={handleCreated} />

@@ -28,6 +28,9 @@ import {
   type MaintenanceTaskListResponse,
   type CreateMaintenanceTaskBody,
 } from "../api/maintenanceTasks.ts";
+import { Button, ButtonSpinner } from "../design/Button.tsx";
+import { EmptyState } from "../design/EmptyState.tsx";
+import { Field } from "../design/Field.tsx";
 import { Icon } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
@@ -224,18 +227,18 @@ function MRLoading({ density }: { density: "timeline" | "table" }) {
 
 function MREmpty({ assetName, onAdd }: { assetName: string; onAdd: () => void }) {
   return (
-    <div className="mr-empty">
-      <div className="mr-empty-art">
-        <Icon name="wrench" size={30} color="var(--hf-brand-2)" stroke={1.7} />
-      </div>
-      <div className="mr-empty-title">No maintenance logged yet</div>
-      <div className="mr-empty-sub">
-        Record work you've done on {assetName} so you can answer "when did I last…?" later.
-      </div>
-      <button className="mr-btn mr-btn-primary" onClick={onAdd}>
-        <Icon name="plus" size={16} stroke={2.2} />Add the first record
-      </button>
-    </div>
+    <EmptyState
+      icon="wrench"
+      iconTone="brand"
+      title="No maintenance logged yet"
+      description={`Record work you've done on ${assetName} so you can answer "when did I last…?" later.`}
+      action={
+        <Button variant="brand" onClick={onAdd}>
+          <Icon name="plus" size={16} stroke={2.2} />
+          Add the first record
+        </Button>
+      }
+    />
   );
 }
 
@@ -276,9 +279,10 @@ function MRErrorState({
       <div className="mr-error-title">{cfg.title}</div>
       <div className="mr-error-sub">{cfg.sub}</div>
       {cfg.retry && onRetry && (
-        <button className="mr-btn mr-btn-secondary" onClick={onRetry}>
-          <Icon name="repeat" size={14} stroke={2} />Try again
-        </button>
+        <Button variant="secondary" onClick={onRetry}>
+          <Icon name="repeat" size={14} stroke={2} />
+          Try again
+        </Button>
       )}
     </div>
   );
@@ -384,14 +388,25 @@ function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (
         {confirming ? (
           <div className="mr-task-confirm">
             <span className="mr-task-confirm-txt">Delete task?</span>
-            <button className="mr-btn mr-task-confirm-yes" onClick={() => { onDelete(task.id); setConfirming(false); }}>Delete</button>
-            <button className="mr-btn mr-btn-ghost mr-task-confirm-no" onClick={() => setConfirming(false)}>Cancel</button>
+            <Button
+              className="mr-task-confirm-yes"
+              onClick={() => {
+                onDelete(task.id);
+                setConfirming(false);
+              }}
+            >
+              Delete
+            </Button>
+            <Button variant="ghost" className="mr-task-confirm-no" onClick={() => setConfirming(false)}>
+              Cancel
+            </Button>
           </div>
         ) : (
           <div className="mr-task-actions">
-            <button className="mr-btn mr-btn-primary mr-task-log-btn" onClick={() => onLog(task.id)}>
-              <Icon name="check" size={13} stroke={2.3} />Log
-            </button>
+            <Button variant="brand" className="mr-task-log-btn" onClick={() => onLog(task.id)}>
+              <Icon name="check" size={13} stroke={2.3} />
+              Log
+            </Button>
             <button className="mr-task-del-btn" onClick={() => setConfirming(true)} aria-label="Delete task">
               <Icon name="x" size={14} stroke={2.1} />
             </button>
@@ -452,9 +467,10 @@ function MRScheduleSection({
             <span className="mr-hist-meta">{tasks.length} {tasks.length === 1 ? "task" : "tasks"}</span>
           )}
         </div>
-        <button className="mr-btn mr-btn-secondary mr-schedule-add-btn" onClick={onAdd}>
-          <Icon name="plus" size={14} stroke={2.2} />Add task
-        </button>
+        <Button variant="secondary" className="mr-schedule-add-btn" onClick={onAdd}>
+          <Icon name="plus" size={14} stroke={2.2} />
+          Add task
+        </Button>
       </div>
       {isLoading && <MRTaskLoading />}
       {!isLoading && sorted.length === 0 && <MRTaskEmpty onAdd={onAdd} />}
@@ -577,47 +593,93 @@ function MRCreateTaskForm({ asset, todayUtc, variant, onClose, onCreated }: MRCr
             <Icon name="alert" size={15} stroke={2} /><span>{banner}</span>
           </div>
         )}
-        <div className="mr-field">
-          <div className="mr-field-top">
-            <label className="mr-field-label" htmlFor="mt-title">Title <span className="mr-req">*</span></label>
-            <span className={`mr-field-count ${values.title.length > TASK_TITLE_MAX ? "over" : ""}`}>{values.title.length}/{TASK_TITLE_MAX}</span>
-          </div>
-          <input id="mt-title" ref={titleRef} type="text" className={`mr-input ${errors.title ? "err" : ""}`}
-            placeholder='e.g. "Replace furnace filter"' maxLength={TASK_TITLE_MAX + 20}
-            value={values.title} onChange={(e) => updateValue("title", e.target.value)} />
-          {errors.title && <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.title}</div>}
-        </div>
-        <div className="mr-field">
-          <div className="mr-field-top">
-            <label className="mr-field-label">Repeat every <span className="mr-req">*</span></label>
-          </div>
+        <Field
+          label="Title"
+          htmlFor="mt-title"
+          required
+          hint={
+            <span className={`mr-field-count ${values.title.length > TASK_TITLE_MAX ? "over" : ""}`}>
+              {values.title.length}/{TASK_TITLE_MAX}
+            </span>
+          }
+          {...(errors.title ? { error: errors.title } : {})}
+        >
+          <input
+            id="mt-title"
+            ref={titleRef}
+            type="text"
+            className={`hf-input${errors.title ? " is-invalid" : ""}`}
+            placeholder='e.g. "Replace furnace filter"'
+            maxLength={TASK_TITLE_MAX + 20}
+            value={values.title}
+            onChange={(e) => updateValue("title", e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Repeat every"
+          required
+          {...(errors.iv ? { error: errors.iv } : {})}
+        >
           <div className="mr-interval-row">
-            <input id="mt-iv" type="number" min="1" step="1" className={`mr-input mr-interval-num ${errors.iv ? "err" : ""}`}
-              value={values.intervalValue} onChange={(e) => updateValue("intervalValue", e.target.value)} />
+            <input
+              id="mt-iv"
+              type="number"
+              min="1"
+              step="1"
+              className={`hf-input mr-interval-num${errors.iv ? " is-invalid" : ""}`}
+              value={values.intervalValue}
+              onChange={(e) => updateValue("intervalValue", e.target.value)}
+            />
             <div className="mr-unit-seg" role="group" aria-label="Interval unit">
               {TASK_UNITS.map((u) => (
-                <button key={u.value} type="button" className={`mr-unit-btn ${values.intervalUnit === u.value ? "active" : ""}`}
-                  onClick={() => updateValue("intervalUnit", u.value)}>{u.label}</button>
+                <button
+                  key={u.value}
+                  type="button"
+                  className={`mr-unit-btn ${values.intervalUnit === u.value ? "active" : ""}`}
+                  onClick={() => updateValue("intervalUnit", u.value)}
+                >
+                  {u.label}
+                </button>
               ))}
             </div>
           </div>
-          {errors.iv && <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.iv}</div>}
-        </div>
-        <div className="mr-field">
-          <div className="mr-field-top">
-            <label className="mr-field-label" htmlFor="mt-last">Last completed</label>
-          </div>
-          <input id="mt-last" type="date" max={todayUtc} className={`mr-input mr-input-date ${errors.last ? "err" : ""}`}
-            value={values.lastCompletedDate} onChange={(e) => updateValue("lastCompletedDate", e.target.value)} />
-          {errors.last ? <div className="mr-field-err"><Icon name="alert" size={13} stroke={2} />{errors.last}</div> :
-            <div className="mr-field-hint">Optional — when was this last done? Leave blank to start counting from today.</div>}
-        </div>
+        </Field>
+        <Field
+          label="Last completed"
+          htmlFor="mt-last"
+          {...(errors.last
+            ? { error: errors.last }
+            : {
+                sub: "Optional — when was this last done? Leave blank to start counting from today.",
+              })}
+        >
+          <input
+            id="mt-last"
+            type="date"
+            max={todayUtc}
+            className={`hf-input mr-input-date${errors.last ? " is-invalid" : ""}`}
+            value={values.lastCompletedDate}
+            onChange={(e) => updateValue("lastCompletedDate", e.target.value)}
+          />
+        </Field>
       </div>
       <div className="mr-form-actions">
-        <button className="mr-btn mr-btn-ghost" onClick={onClose} disabled={mutation.isPending}>Cancel</button>
-        <button className="mr-btn mr-btn-primary mr-btn-save" onClick={submit} disabled={mutation.isPending}>
-          {mutation.isPending ? <><span className="mr-spinner" />Saving…</> : <><Icon name="check" size={15} stroke={2.4} />Save task</>}
-        </button>
+        <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+          Cancel
+        </Button>
+        <Button variant="brand" className="mr-btn-save" onClick={submit} disabled={mutation.isPending}>
+          {mutation.isPending ? (
+            <>
+              <ButtonSpinner />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Icon name="check" size={15} stroke={2.4} />
+              Save task
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );
@@ -725,20 +787,22 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
             </div>
           )}
 
-          <div className="mr-field">
-            <div className="mr-field-top">
-              <label className="mr-field-label" htmlFor="mr-title">
-                Title <span className="mr-req">*</span>
-              </label>
+          <Field
+            label="Title"
+            htmlFor="mr-title"
+            required
+            hint={
               <span className={`mr-field-count ${title.length > TITLE_MAX ? "over" : ""}`}>
                 {title.length}/{TITLE_MAX}
               </span>
-            </div>
+            }
+            {...(fieldErrors.title ? { error: fieldErrors.title } : {})}
+          >
             <input
               id="mr-title"
               ref={titleRef}
               type="text"
-              className={`mr-input ${fieldErrors.title ? "err" : ""}`}
+              className={`hf-input${fieldErrors.title ? " is-invalid" : ""}`}
               placeholder='What did you do? e.g. "Oil change"'
               maxLength={TITLE_MAX + 20}
               value={title}
@@ -748,23 +812,20 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
                 if (banner) setBanner(null);
               }}
             />
-            {fieldErrors.title && (
-              <div className="mr-field-err">
-                <Icon name="alert" size={13} stroke={2} />{fieldErrors.title}
-              </div>
-            )}
-          </div>
+          </Field>
 
-          <div className="mr-field">
-            <div className="mr-field-top">
-              <label className="mr-field-label" htmlFor="mr-date">
-                Performed date <span className="mr-req">*</span>
-              </label>
-            </div>
+          <Field
+            label="Performed date"
+            htmlFor="mr-date"
+            required
+            {...(fieldErrors.performedAt
+              ? { error: fieldErrors.performedAt }
+              : { sub: "When the work was done. Today or earlier." })}
+          >
             <input
               id="mr-date"
               type="date"
-              className={`mr-input mr-input-date ${fieldErrors.performedAt ? "err" : ""}`}
+              className={`hf-input mr-input-date${fieldErrors.performedAt ? " is-invalid" : ""}`}
               max={todayDateOnly()}
               value={performedAt}
               onChange={(e) => {
@@ -773,48 +834,52 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
                 if (banner) setBanner(null);
               }}
             />
-            {fieldErrors.performedAt ? (
-              <div className="mr-field-err">
-                <Icon name="alert" size={13} stroke={2} />{fieldErrors.performedAt}
-              </div>
-            ) : (
-              <div className="mr-field-hint">When the work was done. Today or earlier.</div>
-            )}
-          </div>
+          </Field>
 
           {effectiveTasks.length > 0 && (
-            <div className="mr-field">
-              <label className="mr-field-label" htmlFor="mr-task-link">Linked task</label>
+            <Field
+              label="Linked task"
+              htmlFor="mr-task-link"
+              sub={
+                isPreselected
+                  ? "Linked from schedule — saving will advance the next-due date."
+                  : "Optionally link this record to a scheduled task."
+              }
+            >
               <select
                 id="mr-task-link"
-                className="mr-input mr-select"
+                className="hf-select"
                 value={taskId}
                 onChange={(e) => setTaskId(e.target.value)}
                 disabled={isPreselected}
               >
                 <option value="">— None —</option>
                 {effectiveTasks.map((t) => (
-                  <option key={t.id} value={t.id}>{t.title}</option>
+                  <option key={t.id} value={t.id}>
+                    {t.title}
+                  </option>
                 ))}
               </select>
-              <div className="mr-field-hint">
-                {isPreselected
-                  ? "Linked from schedule — saving will advance the next-due date."
-                  : "Optionally link this record to a scheduled task."}
-              </div>
-            </div>
+            </Field>
           )}
 
-          <div className="mr-field">
-            <div className="mr-field-top">
-              <label className="mr-field-label" htmlFor="mr-notes">Notes</label>
+          <Field
+            label="Notes"
+            htmlFor="mr-notes"
+            hint={
               <span className={`mr-field-count ${notes.length > NOTES_MAX ? "over" : ""}`}>
                 {notes.length}/{NOTES_MAX}
               </span>
-            </div>
+            }
+            {...(fieldErrors.notes
+              ? { error: fieldErrors.notes }
+              : {
+                  sub: "Free-form details. No structured fields — just write what's useful.",
+                })}
+          >
             <textarea
               id="mr-notes"
-              className={`mr-input mr-textarea ${fieldErrors.notes ? "err" : ""}`}
+              className={`mr-textarea${fieldErrors.notes ? " is-invalid" : ""}`}
               placeholder="Optional — location, condition, cost, vendor, quantity…"
               value={notes}
               onChange={(e) => {
@@ -823,33 +888,26 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
                 if (banner) setBanner(null);
               }}
             />
-            {fieldErrors.notes ? (
-              <div className="mr-field-err">
-                <Icon name="alert" size={13} stroke={2} />{fieldErrors.notes}
-              </div>
-            ) : (
-              <div className="mr-field-hint">
-                Free-form details. No structured fields — just write what's useful.
-              </div>
-            )}
-          </div>
+          </Field>
         </div>
 
         <div className="mr-form-actions">
-          <button type="button" className="mr-btn mr-btn-ghost" onClick={onClose} disabled={mutation.isPending}>
+          <Button type="button" variant="ghost" onClick={onClose} disabled={mutation.isPending}>
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="mr-btn mr-btn-primary mr-btn-save"
-            disabled={mutation.isPending}
-          >
+          </Button>
+          <Button type="submit" variant="brand" className="mr-btn-save" disabled={mutation.isPending}>
             {mutation.isPending ? (
-              <><span className="mr-spinner" />Saving…</>
+              <>
+                <ButtonSpinner />
+                Saving…
+              </>
             ) : (
-              <><Icon name="check" size={15} stroke={2.4} />Save record</>
+              <>
+                <Icon name="check" size={15} stroke={2.4} />
+                Save record
+              </>
             )}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -951,9 +1009,9 @@ function MRShareSheet({
       </div>
       <div className="mr-form-actions">
         {noTeam ? (
-          <button type="button" className="mr-btn mr-btn-primary" style={{ width: "100%" }} onClick={onClose}>
+          <Button type="button" variant="brand" style={{ width: "100%" }} onClick={onClose}>
             Close
-          </button>
+          </Button>
         ) : isShared ? (
           <button
             type="button"
@@ -964,15 +1022,15 @@ function MRShareSheet({
             {busy ? "Unsharing…" : "Unshare"}
           </button>
         ) : (
-          <button
+          <Button
             type="button"
-            className="mr-btn mr-btn-primary"
+            variant="brand"
             style={{ width: "100%" }}
             onClick={onShare}
             disabled={busy || teamLoading || noTeam}
           >
             {busy ? "Sharing…" : `Share with ${displayTeam}`}
-          </button>
+          </Button>
         )}
       </div>
     </div>
@@ -1343,12 +1401,10 @@ export function AppMaintenanceRecords() {
                   </button>
                 )}
                 {!recordsQuery.isPending && (
-                  <button
-                    className="mr-btn mr-btn-primary mr-hero-add"
-                    onClick={() => openLogForm()}
-                  >
-                    <Icon name="plus" size={16} stroke={2.2} />Log maintenance
-                  </button>
+                  <Button variant="brand" className="mr-hero-add" onClick={() => openLogForm()}>
+                    <Icon name="plus" size={16} stroke={2.2} />
+                    Log maintenance
+                  </Button>
                 )}
               </div>
             </div>
@@ -1372,13 +1428,13 @@ export function AppMaintenanceRecords() {
             <div className="mr-banner" role="alert">
               <Icon name="alert" size={15} stroke={2} />
               <span>{taskDeleteError}</span>
-              <button
-                className="mr-btn mr-btn-ghost"
+              <Button
+                variant="ghost"
                 style={{ marginLeft: "auto", fontSize: "12px", padding: "2px 8px" }}
                 onClick={() => setTaskDeleteError(null)}
               >
                 Dismiss
-              </button>
+              </Button>
             </div>
           )}
 
@@ -1453,12 +1509,10 @@ export function AppMaintenanceRecords() {
 
       {showMobileAddBar && (
         <div className="mr-addbar">
-          <button
-            className="mr-btn mr-btn-primary mr-addbar-btn"
-            onClick={() => openLogForm()}
-          >
-            <Icon name="plus" size={17} stroke={2.2} />Add record
-          </button>
+          <Button variant="brand" className="mr-addbar-btn" onClick={() => openLogForm()}>
+            <Icon name="plus" size={17} stroke={2.2} />
+            Add record
+          </Button>
         </div>
       )}
 

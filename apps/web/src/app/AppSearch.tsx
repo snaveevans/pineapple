@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router";
 import { ApiError } from "../api/client";
 import { searchAssets, type SearchResult } from "../api/search";
+import { Button } from "../design/Button";
 import { Icon, type IconName } from "../design/Icon";
 import { paths } from "../routes";
 import { assetTypeLabel } from "./assetPresentation";
@@ -362,10 +363,10 @@ function SearchResultsBody({
         <div className="hfs-state-sub">
           {state.error ?? "Something went wrong reaching your fleet."}
         </div>
-        <button type="button" className="hf-btn hf-btn-secondary hf-btn-sm" onClick={onRetry}>
+        <Button variant="secondary" size="sm" onClick={onRetry}>
           <Icon name="repeat" size={13} stroke={2} />
           Try again
-        </button>
+        </Button>
       </div>
     );
   }

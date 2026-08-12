@@ -14,19 +14,7 @@
   --hh-gap: 16px;
 }
 
-.hh-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.hh-toolbar-end {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* Toolbar → design/Toolbar + primitives.css */
 
 .hh-search {
   display: flex;
@@ -203,9 +191,8 @@
 .hh-card {
   min-width: 0;
   padding: 12px 14px;
-  background: var(--hf-surface);
-  border: 1px solid var(--hf-line);
   border-radius: var(--hf-r);
+  /* Card base uses --hf-r-lg; activity cards stay on the tighter radius */
   box-shadow: var(--hf-shadow-1);
   transition:
     border-color 100ms,
@@ -534,47 +521,7 @@ a.hh-asset-chip:hover {
   color: var(--hf-ink-soft);
 }
 
-.hh-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 8px;
-  padding: 64px 24px;
-  border: 1px dashed var(--hf-line);
-  border-radius: var(--hf-r-lg);
-  background: var(--hf-surface);
-}
-
-.hh-state-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--hf-surface-2);
-  color: var(--hf-ink-faint);
-  margin-bottom: 4px;
-}
-
-.hh-state-title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--hf-ink);
-}
-
-.hh-state-sub {
-  font-size: 13px;
-  color: var(--hf-ink-soft);
-  max-width: 340px;
-  line-height: 1.5;
-}
-
-.hh-state .hf-btn {
-  margin-top: 8px;
-}
+/* Empty / loading states → design/EmptyState */
 
 .hh-spinner {
   width: 26px;
@@ -663,7 +610,7 @@ a.hh-asset-chip:hover {
     flex: 1;
   }
 
-  .hh-toolbar-end {
+  .hh .hf-toolbar-end {
     flex: 1;
   }
 }

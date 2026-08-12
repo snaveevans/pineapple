@@ -30,14 +30,16 @@ The authenticated pages share their chrome — the desktop top bar and mobile
 bottom tab bar — via [`src/app/AppChrome.tsx`](src/app/AppChrome.tsx), where the
 nav tabs link between `/app`, `/app/assets`, and `/app/history`.
 
-The shared design-system primitives (`Icon`, `HFStatusPill`, `HFAssetIcon`,
-`HFAssetThumb`) are ported from the FieldOps app prototype and live in
-[`src/design/`](src/design/), styled by `design/styles/hifi.css` +
-`hifi-assets.css` + `hifi-add-asset.css` (the `.hf-*` tokens/components).
-Feature pages add thin layers that mirror those tokens onto their own scopes,
-including `marketing.css` (`.mk`), `auth.css` (`.au`), and
-`activity-history.css` (`.ah`). The `/app` pages render the `.hf` system
-directly.
+The shared design-system primitives live in [`src/design/`](src/design/):
+
+- `Icon`, `HFStatusPill`, `HFAssetIcon`, `HFAssetThumb` — domain chrome
+- `Button`, `EmptyState`, `Field`, `Toolbar`, `Card` — layout/UI primitives
+  (single CSS definitions in `design/styles/primitives.css`, imported by
+  `hifi.css`)
+
+Feature pages add thin layers on top (`marketing.css` `.mk`, `auth.css` `.au`,
+page-specific sheets). Prefer composing the shared primitives over minting new
+button/card/empty/field classes.
 
 Routing uses React Router Data Mode. [`src/router.tsx`](src/router.tsx) owns the
 route tree and [`src/routes.ts`](src/routes.ts) exports shared path helpers for

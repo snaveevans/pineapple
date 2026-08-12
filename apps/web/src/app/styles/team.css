@@ -5,44 +5,7 @@
   padding: 0;
 }
 
-/* ── Empty state (no team) ────────────────────────────────────────────────── */
-
-.tm-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 14px;
-  padding: 44px 28px;
-  border: 1px solid var(--hf-line);
-  border-radius: var(--hf-r-lg);
-  background: var(--hf-surface);
-}
-
-.tm-empty-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: var(--hf-r-lg);
-  background: var(--hf-brand-bg);
-  color: var(--hf-brand-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.tm-empty-title {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: var(--hf-ink);
-}
-
-.tm-empty-sub {
-  font-size: 13px;
-  color: var(--hf-ink-soft);
-  max-width: 400px;
-  line-height: 1.55;
-}
+/* Empty state → design/EmptyState (variant="panel", iconTone="brand") */
 
 /* ── Team identity card (created state) ─────────────────────────────────────── */
 
@@ -51,10 +14,6 @@
   align-items: center;
   gap: 14px;
   padding: 16px 18px;
-  background: var(--hf-surface);
-  border: 1px solid var(--hf-line);
-  border-radius: var(--hf-r-lg);
-  box-shadow: var(--hf-shadow-1);
 }
 
 .tm-team-mark {

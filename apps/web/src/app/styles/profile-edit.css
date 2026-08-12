@@ -4,7 +4,9 @@
   max-width: 540px;
 }
 
+/* .pe-field-sub → .hf-field-sub in primitives.css */
 .pe-field-sub {
+  /* compat alias while call sites finish migrating */
   font-size: 12px;
   color: var(--hf-ink-faint);
   line-height: 1.4;
@@ -89,26 +91,7 @@
   white-space: nowrap;
 }
 
-.pe-btn-spinner {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: white;
-  animation: pe-spin 0.7s linear infinite;
-  flex-shrink: 0;
-}
-
-.pe-btn-spinner-dark {
-  border-color: oklch(80% 0.008 80);
-  border-top-color: var(--hf-ink-soft);
-}
-
-@keyframes pe-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+/* Button spinner → primitives.css (.hf-btn-spinner) */
 
 .pe-verify-badge {
   display: inline-flex;
@@ -142,19 +125,21 @@
   min-width: 0;
 }
 
-.pe-btn-sm {
+/* Compact controls in the email row (former .pe-btn-sm) */
+.pe-email-row .hf-btn,
+.pe-verify-row .hf-btn {
   height: 32px;
   padding: 0 12px;
   font-size: 12.5px;
 }
 
-.pe-btn-ghost {
+/* Destructive ghost used on the remove-email control */
+.pe-btn-danger-ghost {
   color: var(--hf-ink-soft);
   border-color: transparent;
   background: transparent;
 }
-
-.pe-btn-ghost:hover:not(:disabled) {
+.pe-btn-danger-ghost:hover:not(:disabled) {
   background: var(--hf-surface-2);
   color: var(--hf-bad);
 }

@@ -10,6 +10,8 @@ import {
   type AppNotification,
 } from "../api/notifications.ts";
 import { ApiError } from "../api/client.ts";
+import { Button } from "../design/Button.tsx";
+import { EmptyState } from "../design/EmptyState.tsx";
 import { Icon, type IconName } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { paths } from "../routes.ts";
@@ -114,29 +116,6 @@ function SkeletonRows() {
   );
 }
 
-function NotificationState({
-  icon,
-  title,
-  description,
-  action,
-}: {
-  icon: IconName;
-  title: string;
-  description: string;
-  action?: ReactNode;
-}) {
-  return (
-    <div className="nt-empty">
-      <div className="nt-empty-icon">
-        <Icon name={icon} size={22} stroke={1.6} />
-      </div>
-      <h2>{title}</h2>
-      <p>{description}</p>
-      {action}
-    </div>
-  );
-}
-
 export function AppNotifications() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -199,7 +178,7 @@ export function AppNotifications() {
     body = <SkeletonRows />;
   } else if (isUnauthorized) {
     body = (
-      <NotificationState
+      <EmptyState
         icon="lock"
         title="Redirecting to sign in"
         description="Your session is no longer active."
@@ -207,25 +186,22 @@ export function AppNotifications() {
     );
   } else if (notificationsQuery.isError) {
     body = (
-      <NotificationState
+      <EmptyState
         icon="alert"
+        iconTone="bad"
         title="Notifications could not be loaded"
         description="Something went wrong on our end. Check your connection and try again."
         action={
-          <button
-            type="button"
-            className="hf-btn hf-btn-primary"
-            onClick={() => void notificationsQuery.refetch()}
-          >
+          <Button variant="primary" onClick={() => void notificationsQuery.refetch()}>
             <Icon name="repeat" size={14} stroke={2} />
             Try again
-          </button>
+          </Button>
         }
       />
     );
   } else if (notifications.length === 0) {
     body = (
-      <NotificationState
+      <EmptyState
         icon="bell-off"
         title="You're all caught up"
         description="Maintenance reminders will show up here as tasks come due on your assets."
@@ -249,9 +225,7 @@ export function AppNotifications() {
         ))}
         <div className="nt-loadmore">
           {notificationsQuery.hasNextPage ? (
-            <button
-              type="button"
-              className="hf-btn"
+            <Button
               disabled={notificationsQuery.isFetchingNextPage}
               onClick={() => void notificationsQuery.fetchNextPage()}
             >
@@ -259,7 +233,7 @@ export function AppNotifications() {
               {notificationsQuery.isFetchingNextPage
                 ? "Loading older notifications"
                 : "Load older notifications"}
-            </button>
+            </Button>
           ) : null}
         </div>
       </>
@@ -277,9 +251,7 @@ export function AppNotifications() {
               <span className="nt-unread-count">{unreadCount} unread</span>
             )}
           </div>
-          <button
-            type="button"
-            className="hf-btn"
+          <Button
             onClick={() => markAllReadMutation.mutate()}
             disabled={
               notificationsQuery.isPending || unreadCount === 0 || markAllReadMutation.isPending
@@ -287,7 +259,7 @@ export function AppNotifications() {
           >
             <Icon name="check" size={13} stroke={2.2} />
             {markAllReadMutation.isPending ? "Saving..." : "Mark all as read"}
-          </button>
+          </Button>
         </div>
         <div className="nt-body">
           <div className="nt-col">{body}</div>
