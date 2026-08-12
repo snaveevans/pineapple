@@ -632,7 +632,7 @@ const RENDERED: RenderedState[] = [
       me: json(PROFILE_SHELL),
       notifications: json(NOTIFICATIONS_EMPTY),
     },
-    localStorage: { "fieldops:assets:view": "grid" },
+    localStorage: { "fieldops:assets:view": "list" },
     ready: async (page) => {
       await page.getByRole("button", { name: "Search assets" }).waitFor({ state: "visible" });
       await page.getByRole("dialog", { name: "Search assets" }).waitFor({ state: "hidden" });
