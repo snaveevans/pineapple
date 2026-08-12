@@ -4,7 +4,6 @@ import { Link, useNavigate } from "react-router";
 import { createTeam, getMyTeam, teamQueryKey, type Team } from "../api/teams";
 import { ApiError } from "../api/client";
 import { Button, ButtonSpinner } from "../design/Button";
-import { Card } from "../design/Card";
 import { EmptyState } from "../design/EmptyState";
 import { Field, FieldReqMark } from "../design/Field";
 import { Icon } from "../design/Icon";
@@ -43,7 +42,7 @@ function TeamLoading() {
 function TeamEmptyState({ onStart }: { onStart: () => void }) {
   return (
     <EmptyState
-      variant="panel"
+      surface="panel"
       icon="grid"
       iconTone="brand"
       title="You don't have a team yet"
@@ -274,7 +273,7 @@ function CreatedState({ team, currentUserId }: { team: Team; currentUserId: stri
         </div>
       </div>
 
-      <Card className="tm-identity">
+      <div className="tm-identity">
         <div className="tm-team-mark">
           <Icon name="grid" size={22} stroke={1.6} />
         </div>
@@ -284,7 +283,7 @@ function CreatedState({ team, currentUserId }: { team: Team; currentUserId: stri
             Created {createdLabel} · {memberCount} {memberCount === 1 ? "member" : "members"}
           </div>
         </div>
-      </Card>
+      </div>
 
       <div className="hf-aa-section">
         <div className="hf-aa-section-head">

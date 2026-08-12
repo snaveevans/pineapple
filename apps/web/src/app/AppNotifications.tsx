@@ -179,6 +179,7 @@ export function AppNotifications() {
   } else if (isUnauthorized) {
     body = (
       <EmptyState
+        surface="quiet"
         icon="lock"
         title="Redirecting to sign in"
         description="Your session is no longer active."
@@ -187,8 +188,8 @@ export function AppNotifications() {
   } else if (notificationsQuery.isError) {
     body = (
       <EmptyState
+        surface="quiet"
         icon="alert"
-        iconTone="bad"
         title="Notifications could not be loaded"
         description="Something went wrong on our end. Check your connection and try again."
         action={
@@ -202,6 +203,7 @@ export function AppNotifications() {
   } else if (notifications.length === 0) {
     body = (
       <EmptyState
+        surface="quiet"
         icon="bell-off"
         title="You're all caught up"
         description="Maintenance reminders will show up here as tasks come due on your assets."

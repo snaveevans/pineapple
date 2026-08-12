@@ -12,7 +12,6 @@ import {
 } from "../api/activity.ts";
 import { ApiError } from "../api/client.ts";
 import { Button } from "../design/Button.tsx";
-import { Card } from "../design/Card.tsx";
 import { EmptyState } from "../design/EmptyState.tsx";
 import { Icon, type IconName } from "../design/Icon.tsx";
 import { Toolbar } from "../design/Toolbar.tsx";
@@ -429,7 +428,7 @@ function ActivityEventCard({
       <div className="hh-node" data-type={entry.type}>
         <Icon name={config.icon} size={18} stroke={2} />
       </div>
-      <Card className="hh-card">
+      <div className="hh-card">
         <div className="hh-card-head">
           <div className="hh-card-headline">
             <span className="hh-verb" data-type={entry.type}>
@@ -448,7 +447,7 @@ function ActivityEventCard({
         </div>
         {detail}
         <ActivityAssetChip asset={entry.asset} />
-      </Card>
+      </div>
     </article>
   );
 }
@@ -623,11 +622,11 @@ export function AppActivityHistory() {
 
   let body: ReactNode;
   if (activityQuery.isPending) {
-    body = <EmptyState variant="inline" spinner title="Loading your history..." />;
+    body = <EmptyState surface="history" spinner title="Loading your history..." />;
   } else if (isUnauthorized) {
     body = (
       <EmptyState
-        variant="inline"
+        surface="history"
         icon="lock"
         title="Redirecting to sign in"
         description="Your session is no longer active."
@@ -636,7 +635,7 @@ export function AppActivityHistory() {
   } else if (activityQuery.isError) {
     body = (
       <EmptyState
-        variant="inline"
+        surface="history"
         icon="alert"
         iconTone="bad"
         title="History could not be loaded"
@@ -652,7 +651,7 @@ export function AppActivityHistory() {
   } else if (!hasActivity) {
     body = (
       <EmptyState
-        variant="inline"
+        surface="history"
         icon="clock"
         title="Nothing here yet"
         description="As you add assets and log maintenance, every action shows up here as a running history."
@@ -661,7 +660,7 @@ export function AppActivityHistory() {
   } else if (shownEntries.length === 0) {
     body = (
       <EmptyState
-        variant="inline"
+        surface="history"
         icon={searchQuery.trim() ? "search" : "filter"}
         title="No matching activity"
         description="No history matches your current filters. Try clearing the search or switching back to All."

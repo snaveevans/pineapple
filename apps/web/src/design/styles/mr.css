@@ -264,33 +264,51 @@
 
 .mr-banner { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: var(--hf-r); background: var(--hf-bad-bg); border: 1px solid oklch(88% 0.045 28); color: var(--hf-bad); font-size: 13px; font-weight: 500; }
 
-/* Field base → primitives.css. MR keeps taller textarea + date mono tweak. */
+/* Field component inside MR forms keeps former label weight */
+.mr-form .hf-field-label,
+.mr-form-body .hf-field-label {
+  font-weight: 600;
+}
+
+/* MR form controls — exact former metrics (not hf-input geometry). */
+.mr-field { display: flex; flex-direction: column; gap: 6px; }
+.mr-field-top { display: flex; align-items: baseline; justify-content: space-between; }
+.mr-field-label { font-size: 12.5px; font-weight: 600; color: var(--hf-ink); }
+.mr-req { color: var(--hf-bad); }
 .mr-field-count { font-family: var(--hf-mono); font-size: 10.5px; color: var(--hf-ink-faint); }
 .mr-field-count.over { color: var(--hf-bad); }
-.mr-textarea {
+.mr-input {
   width: 100%;
-  min-height: 88px;
-  line-height: 1.5;
-  resize: vertical;
-  padding: 11px 13px;
+  background: var(--hf-surface);
   border: 1px solid var(--hf-line);
   border-radius: var(--hf-r);
-  background: var(--hf-surface);
+  padding: 11px 13px;
+  font-family: var(--hf-sans);
+  font-size: 15px;
   color: var(--hf-ink);
-  font: inherit;
-  font-size: 14px;
-  outline: 0;
+  letter-spacing: -0.01em;
+  outline: none;
+  transition: border-color 100ms, box-shadow 100ms;
 }
-.mr-textarea:focus {
-  border-color: var(--hf-brand);
-  box-shadow: 0 0 0 3px var(--hf-brand-bg);
+.mr-input:focus { border-color: var(--hf-brand); box-shadow: 0 0 0 3px var(--hf-brand-bg); }
+.mr-input::placeholder { color: var(--hf-ink-faint); }
+.mr-input.err,
+.mr-input.is-invalid { border-color: var(--hf-bad); }
+.mr-input.err:focus,
+.mr-input.is-invalid:focus { box-shadow: 0 0 0 3px var(--hf-bad-bg); }
+.mr-input-date { font-family: var(--hf-mono); font-size: 14px; }
+.mr-textarea { min-height: 88px; line-height: 1.5; resize: vertical; }
+.mr-field-hint { font-size: 11.5px; color: var(--hf-ink-faint); line-height: 1.4; }
+.mr-field-err { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--hf-bad); font-weight: 500; }
+.mr-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: mr-spin 0.7s linear infinite;
 }
-.mr-textarea.err,
-.mr-textarea.is-invalid {
-  border-color: var(--hf-bad);
-  background: var(--hf-bad-bg);
-}
-.mr-input-date { font-family: var(--hf-mono); font-size: 13px; }
+@keyframes mr-spin { to { transform: rotate(360deg); } }
 
 /* inline form (two-pane side) */
 .mr-form-inline { background: var(--hf-surface); border: 1px solid var(--hf-line); border-radius: var(--hf-r-lg); box-shadow: var(--hf-shadow-1); }

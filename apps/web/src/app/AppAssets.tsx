@@ -6,7 +6,6 @@ import { ApiError } from "../api/client";
 import { Button } from "../design/Button";
 import { EmptyState, EmptyStateActions } from "../design/EmptyState";
 import { Icon, type IconName } from "../design/Icon";
-import { Toolbar } from "../design/Toolbar";
 import { HFAssetThumb, type AssetCategory } from "../design/hf";
 import { paths } from "../routes";
 import { HFTopBar, HFBottomNav } from "./AppChrome";
@@ -154,8 +153,22 @@ function HFAssetsToolbar({
   ];
 
   return (
-    <Toolbar
-      end={
+    <div className="hf-assets-toolbar">
+      <div className="hf-filter-chips" role="group" aria-label="Filter assets by category">
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            className={`hf-chip ${activeFilter === category.id ? "active" : ""}`}
+            aria-pressed={activeFilter === category.id}
+            onClick={() => onFilter(category.id)}
+          >
+            {category.label}
+            <span className="hf-chip-count">{category.count}</span>
+          </button>
+        ))}
+      </div>
+      <div className="hf-assets-toolbar-end">
         <div className="hf-view-toggle">
           {views.map((view) => (
             <button
@@ -171,23 +184,8 @@ function HFAssetsToolbar({
             </button>
           ))}
         </div>
-      }
-    >
-      <div className="hf-filter-chips" role="group" aria-label="Filter assets by category">
-        {categories.map((category) => (
-          <button
-            key={category.id}
-            type="button"
-            className={`hf-chip ${activeFilter === category.id ? "active" : ""}`}
-            aria-pressed={activeFilter === category.id}
-            onClick={() => onFilter(category.id)}
-          >
-            {category.label}
-            <span className="hf-chip-count">{category.count}</span>
-          </button>
-        ))}
       </div>
-    </Toolbar>
+    </div>
   );
 }
 
@@ -252,7 +250,7 @@ function HFAssetsEmpty() {
 function HFAssetsFilteredEmpty({ category, onClear }: { category: string; onClear: () => void }) {
   return (
     <EmptyState
-      variant="inline"
+      surface="inline"
       icon="filter"
       title={`No ${category.toLowerCase()} yet`}
       description="You don't have any assets in this category."
@@ -353,25 +351,23 @@ export function AppAssets() {
             category={assetFilterLabel(activeFilter)}
             onClear={() => setActiveFilter("all")}
           />
+        ) : showRows ? (
+          <div className="hf-asset-rows">
+            {shownAssets.map((asset) => (
+              <HFAssetRowCard key={asset.id} asset={asset} />
+            ))}
+            <Link className="hf-row-add" to={paths.addAsset}>
+              <Icon name="plus" size={16} stroke={2} />
+              Add an asset
+            </Link>
+          </div>
         ) : (
-          showRows ? (
-            <div className="hf-asset-rows">
-              {shownAssets.map((asset) => (
-                <HFAssetRowCard key={asset.id} asset={asset} />
-              ))}
-              <Link className="hf-row-add" to={paths.addAsset}>
-                <Icon name="plus" size={16} stroke={2} />
-                Add an asset
-              </Link>
-            </div>
-          ) : (
-            <div className="hf-asset-grid">
-              {shownAssets.map((asset) => (
-                <HFAssetGridCard key={asset.id} asset={asset} />
-              ))}
-              <HFAddCard />
-            </div>
-          )
+          <div className="hf-asset-grid">
+            {shownAssets.map((asset) => (
+              <HFAssetGridCard key={asset.id} asset={asset} />
+            ))}
+            <HFAddCard />
+          </div>
         )}
       </main>
       <HFBottomNav />

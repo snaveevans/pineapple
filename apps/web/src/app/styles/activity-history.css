@@ -191,8 +191,9 @@
 .hh-card {
   min-width: 0;
   padding: 12px 14px;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
   border-radius: var(--hf-r);
-  /* Card base uses --hf-r-lg; activity cards stay on the tighter radius */
   box-shadow: var(--hf-shadow-1);
   transition:
     border-color 100ms,

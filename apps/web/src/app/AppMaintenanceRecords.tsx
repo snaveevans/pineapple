@@ -228,8 +228,8 @@ function MRLoading({ density }: { density: "timeline" | "table" }) {
 function MREmpty({ assetName, onAdd }: { assetName: string; onAdd: () => void }) {
   return (
     <EmptyState
+      surface="hero"
       icon="wrench"
-      iconTone="brand"
       title="No maintenance logged yet"
       description={`Record work you've done on ${assetName} so you can answer "when did I last…?" later.`}
       action={
@@ -608,7 +608,7 @@ function MRCreateTaskForm({ asset, todayUtc, variant, onClose, onCreated }: MRCr
             id="mt-title"
             ref={titleRef}
             type="text"
-            className={`hf-input${errors.title ? " is-invalid" : ""}`}
+            className={`mr-input${errors.title ? " is-invalid" : ""}`}
             placeholder='e.g. "Replace furnace filter"'
             maxLength={TASK_TITLE_MAX + 20}
             value={values.title}
@@ -626,7 +626,7 @@ function MRCreateTaskForm({ asset, todayUtc, variant, onClose, onCreated }: MRCr
               type="number"
               min="1"
               step="1"
-              className={`hf-input mr-interval-num${errors.iv ? " is-invalid" : ""}`}
+              className={`mr-input mr-interval-num${errors.iv ? " is-invalid" : ""}`}
               value={values.intervalValue}
               onChange={(e) => updateValue("intervalValue", e.target.value)}
             />
@@ -657,7 +657,7 @@ function MRCreateTaskForm({ asset, todayUtc, variant, onClose, onCreated }: MRCr
             id="mt-last"
             type="date"
             max={todayUtc}
-            className={`hf-input mr-input-date${errors.last ? " is-invalid" : ""}`}
+            className={`mr-input mr-input-date${errors.last ? " is-invalid" : ""}`}
             value={values.lastCompletedDate}
             onChange={(e) => updateValue("lastCompletedDate", e.target.value)}
           />
@@ -802,7 +802,7 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
               id="mr-title"
               ref={titleRef}
               type="text"
-              className={`hf-input${fieldErrors.title ? " is-invalid" : ""}`}
+              className={`mr-input${fieldErrors.title ? " is-invalid" : ""}`}
               placeholder='What did you do? e.g. "Oil change"'
               maxLength={TITLE_MAX + 20}
               value={title}
@@ -825,7 +825,7 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
             <input
               id="mr-date"
               type="date"
-              className={`hf-input mr-input-date${fieldErrors.performedAt ? " is-invalid" : ""}`}
+              className={`mr-input mr-input-date${fieldErrors.performedAt ? " is-invalid" : ""}`}
               max={todayDateOnly()}
               value={performedAt}
               onChange={(e) => {
@@ -848,7 +848,7 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
             >
               <select
                 id="mr-task-link"
-                className="hf-select"
+                className="mr-input mr-select"
                 value={taskId}
                 onChange={(e) => setTaskId(e.target.value)}
                 disabled={isPreselected}
@@ -879,7 +879,7 @@ function MRForm({ asset, assetId, variant, onClose, onSaved, tasks = [], presele
           >
             <textarea
               id="mr-notes"
-              className={`mr-textarea${fieldErrors.notes ? " is-invalid" : ""}`}
+              className={`mr-input mr-textarea${fieldErrors.notes ? " is-invalid" : ""}`}
               placeholder="Optional — location, condition, cost, vendor, quantity…"
               value={notes}
               onChange={(e) => {

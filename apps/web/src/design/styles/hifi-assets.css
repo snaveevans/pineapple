@@ -14,9 +14,20 @@
 }
 
 /* ============ Toolbar (filter chips + view toggle) ============ */
-/* Toolbar layout → primitives.css (.hf-toolbar). Assets keeps chip density. */
-.hf-toolbar .hf-filter-chips {
+.hf-assets-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+}
+.hf-assets-toolbar .hf-filter-chips {
   gap: 6px;
+}
+.hf-assets-toolbar-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 .hf-view-toggle {
@@ -432,8 +443,16 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
-  .hf-assets-page .hf-toolbar {
-    flex-wrap: nowrap;
+  .hf-assets-toolbar {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "chips end";
+    row-gap: 10px;
+  }
+  .hf-filter-chips {
+    grid-area: chips;
+  }
+  .hf-assets-toolbar-end {
+    grid-area: end;
   }
 }
 
@@ -444,22 +463,29 @@
   }
 }
 
-/* MOBILE (≤580px on app container): swap grid for horizontal rows */
+/* MOBILE (≤580px on app container): swap grid for horizontal rows.
+   Both layouts are always mounted; CSS alone chooses visibility so gallery
+   shots cannot flake on a React isMobileLayout race. */
 @container hfapp (max-width: 580px) {
-  .hf-assets-page[data-view] .hf-asset-grid {
+  .hf-assets-page .hf-asset-grid {
     display: none;
   }
-  .hf-assets-page[data-view] .hf-asset-rows {
+  .hf-assets-page .hf-asset-rows {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
-  .hf-assets-page .hf-toolbar-end {
+  .hf-assets-toolbar {
+    grid-template-columns: 1fr;
+    grid-template-areas: "chips";
+    gap: 10px;
+  }
+  .hf-assets-toolbar-end {
     display: none;
   }
   .hf-view-toggle {
     display: none;
-  } /* grid/list toggle hides on mobile */
+  }
   .hf-filter-chips {
     flex-wrap: wrap;
   }
