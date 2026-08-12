@@ -332,7 +332,7 @@ a.hh-asset-chip:hover {
 .hh-asset-chip .hf-asset-icon {
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--hf-r-sm);
 }
 
 .hh-asset-chip-name {

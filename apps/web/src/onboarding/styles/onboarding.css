@@ -195,8 +195,8 @@
   justify-content: center;
 }
 .ob-mini-thumb-lawn {
-  background: oklch(95% 0.04 145);
-  color: oklch(38% 0.1 145);
+  background: var(--hf-cat-lawn-bg);
+  color: var(--hf-cat-lawn-fg);
 }
 .ob-mini-body {
   padding: 10px 12px 12px;
@@ -226,8 +226,8 @@
   width: 38px;
   height: 38px;
   border-radius: 8px;
-  background: oklch(96% 0.025 240);
-  color: oklch(40% 0.1 240);
+  background: var(--hf-cat-vehicle-bg);
+  color: var(--hf-cat-vehicle-fg);
   display: flex;
   align-items: center;
   justify-content: center;

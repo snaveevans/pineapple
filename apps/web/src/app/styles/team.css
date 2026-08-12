@@ -22,7 +22,7 @@
 .tm-empty-icon {
   width: 52px;
   height: 52px;
-  border-radius: 14px;
+  border-radius: var(--hf-r-lg);
   background: var(--hf-brand-bg);
   color: var(--hf-brand-2);
   display: flex;
