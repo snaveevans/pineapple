@@ -1,4 +1,4 @@
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router";
 
 export type ButtonVariant = "default" | "primary" | "secondary" | "ghost" | "brand";
@@ -14,7 +14,7 @@ type ButtonOwnProps = {
 };
 
 type ButtonAsButton = ButtonOwnProps &
-  Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonOwnProps> & {
+  Omit<ButtonHTMLAttributes<HTMLButtonElement>, keyof ButtonOwnProps | "href"> & {
     to?: undefined;
     href?: undefined;
   };
@@ -25,6 +25,7 @@ type ButtonAsLink = ButtonOwnProps & {
   disabled?: boolean;
   onClick?: AnchorHTMLAttributes<HTMLAnchorElement>["onClick"];
   title?: string;
+  style?: CSSProperties;
 };
 
 type ButtonAsAnchor = ButtonOwnProps & {
@@ -35,9 +36,21 @@ type ButtonAsAnchor = ButtonOwnProps & {
   rel?: string;
   onClick?: AnchorHTMLAttributes<HTMLAnchorElement>["onClick"];
   title?: string;
+  style?: CSSProperties;
 };
 
 export type ButtonProps = ButtonAsButton | ButtonAsLink | ButtonAsAnchor;
+
+const OWN_KEYS = new Set([
+  "variant",
+  "size",
+  "end",
+  "loading",
+  "className",
+  "children",
+  "to",
+  "href",
+]);
 
 function buttonClassName({
   variant = "default",
@@ -80,73 +93,58 @@ export function Button(props: ButtonProps) {
   });
 
   if (props.to !== undefined) {
-    const { to, disabled, onClick, title, children } = props;
+    const { to, disabled, onClick, title, children, style } = props;
     if (disabled || loading) {
       return (
-        <span className={cls} aria-disabled="true" title={title}>
+        <span className={cls} aria-disabled="true" title={title} style={style}>
           {loading ? <ButtonSpinner /> : null}
           {children}
         </span>
       );
     }
     return (
-      <Link className={cls} to={to} onClick={onClick} title={title}>
+      <Link className={cls} to={to} onClick={onClick} title={title} style={style}>
         {children}
       </Link>
     );
   }
 
   if (props.href !== undefined) {
-    const { href, disabled, onClick, title, target, rel, children } = props;
+    const { href, disabled, onClick, title, target, rel, children, style } = props;
     if (disabled || loading) {
       return (
-        <span className={cls} aria-disabled="true" title={title}>
+        <span className={cls} aria-disabled="true" title={title} style={style}>
           {loading ? <ButtonSpinner /> : null}
           {children}
         </span>
       );
     }
     return (
-      <a className={cls} href={href} onClick={onClick} title={title} target={target} rel={rel}>
+      <a
+        className={cls}
+        href={href}
+        onClick={onClick}
+        title={title}
+        target={target}
+        rel={rel}
+        style={style}
+      >
         {children}
       </a>
     );
   }
 
-  const {
-    children,
-    type = "button",
-    disabled,
-    onClick,
-    title,
-    form,
-    name,
-    value,
-    autoFocus,
-    tabIndex,
-    id,
-    "aria-label": ariaLabel,
-    "aria-pressed": ariaPressed,
-    "aria-busy": ariaBusy,
-  } = props;
+  const buttonProps = props as ButtonAsButton;
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(buttonProps)) {
+    if (!OWN_KEYS.has(key) && key !== "type" && key !== "disabled") {
+      rest[key] = value;
+    }
+  }
+  const { children, type = "button", disabled } = buttonProps;
 
   return (
-    <button
-      type={type}
-      className={cls}
-      disabled={disabled || loading}
-      onClick={onClick}
-      title={title}
-      form={form}
-      name={name}
-      value={value}
-      autoFocus={autoFocus}
-      tabIndex={tabIndex}
-      id={id}
-      aria-label={ariaLabel}
-      aria-pressed={ariaPressed}
-      aria-busy={ariaBusy}
-    >
+    <button type={type} className={cls} disabled={disabled || loading} {...rest}>
       {loading ? (
         <ButtonSpinner dark={variant === "default" || variant === "secondary" || variant === "ghost"} />
       ) : null}

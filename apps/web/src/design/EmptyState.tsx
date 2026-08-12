@@ -46,7 +46,7 @@ export function EmptyState({
           <Icon name={icon} size={iconTone === "brand" ? 26 : 24} stroke={1.8} />
         </div>
       ) : null}
-      <div className="hf-empty-title">{title}</div>
+      <h2 className="hf-empty-title">{title}</h2>
       {description !== undefined && description !== null && description !== false ? (
         <div className="hf-empty-sub">{description}</div>
       ) : null}
