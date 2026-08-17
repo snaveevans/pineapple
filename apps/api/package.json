@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@hono/zod-openapi": "^1.5.3",
-    "@scalar/hono-api-reference": "^0.11.11",
+    "@scalar/hono-api-reference": "^0.11.14",
     "@snaveevans/pineapple-shared": "workspace:*",
     "better-auth": "^1.6.28",
     "better-auth-cloudflare": "^0.3.1",
