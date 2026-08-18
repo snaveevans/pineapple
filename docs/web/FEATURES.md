@@ -361,6 +361,43 @@ Success is a navigate-away transition (invalidates assets query, navigates to `/
 
 ---
 
+## Edit Asset
+
+**Route:** `/app/assets/:assetId/edit`
+**Goal:** Let the asset's owner correct or update an existing asset's name and type-specific details. The asset's type (vehicle/property/equipment) cannot be changed.
+
+**States:**
+
+- `loading` — fetching the asset before the form can render
+- `error` (forbidden / 403) — "Access denied"; no form rendered. Also shown when the asset loads successfully but its `sharing.isOwner` is false
+- `error` (not found / 404) — "Asset not found"; no form rendered
+- `error` (load failure) — "Couldn't load asset" with a "Try again" retry
+- Idle, vehicle type — form prefilled with the asset's current name, make, model, year, VIN
+- Idle, property type — form prefilled with the asset's current name, nickname, and address fields
+- Idle, equipment type — form prefilled with the asset's current name, manufacturer, model number, serial number
+
+**Exceptions:** The three "Idle" states are non-vocab, mirroring Add Asset — mutually exclusive field-set renders off the asset's (fixed) type, not async states.
+
+**Mutations:**
+
+- `pending` — save button disabled and shows "Saving…" while the API call is in flight
+- `error` (client validation) — inline field errors on submit with focus moved to the first invalid field
+- `error` (API) — banner with the server's message; 422 field errors mapped to individual inputs; 401 redirects to `/login`
+
+Success is a navigate-away transition (updates the asset query cache, invalidates the assets list, navigates to `/app/assets/:assetId/maintenance`), not a stable screen — not enumerable for the gallery.
+
+**Content stress:** long asset name (a pre-existing stored value, not a typed one — the form is prefilled); long property address (street + city)
+
+**Non-obvious behavior:**
+
+- The asset type is shown as a read-only chip, not the selectable type picker used on Add Asset — an asset's type cannot change after creation
+- Only the asset's owner can use this screen. The entry point on the asset detail page is hidden for a team member viewing a shared asset they don't own; a non-owner who reaches the route directly (bookmark, typed URL) sees the same "Access denied" state as a 403, not the form — the check runs client-side against the fetched asset's `sharing.isOwner`, in addition to the server enforcing it on save
+- 401 redirects to `/login` whether it happens while loading the asset or while saving
+
+**Spec:** [`docs/specs/features/edit-asset.md`](../specs/features/edit-asset.md)
+
+---
+
 ## Asset Maintenance Records & Tasks
 
 **Route:** `/app/assets/:id/maintenance`
@@ -399,6 +436,7 @@ Success is a navigate-away transition (invalidates assets query, navigates to `/
 - 401 on any fetch redirects to `/login`
 - Sharing uses the asset's server-computed `sharing` descriptor (`scope`, `isOwner`, optional `ownerDisplayName`); only the asset owner can change sharing
 - Share/unshare are idempotent on the API; the sheet closes on success and refreshes the asset query
+- An edit button (owner only, gated on `sharing.isOwner` like the share control) links to `/app/assets/:id/edit` — see [Edit Asset](#edit-asset)
 
 **Spec:** [`docs/specs/features/maintenance-record.md`](../specs/features/maintenance-record.md), [`docs/specs/features/maintenance-task.md`](../specs/features/maintenance-task.md), [`docs/specs/features/teams-foundation.md`](../specs/features/teams-foundation.md)
 

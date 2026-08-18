@@ -146,6 +146,7 @@ Aggregates raise events when something significant happens. Today:
 | `TeamCreated`                | a team is created                                 | event id, team/owner/actor, and team name                                                                                                           |
 | `AssetSharedToTeam`          | an asset is shared to a team                      | event id, asset/owner/actor, asset name, team id + name                                                                                             |
 | `AssetUnsharedFromTeam`      | an asset is returned to personal                  | event id, asset/owner/actor, asset name, team id + name (of the team it left)                                                                       |
+| `AssetEdited`                | an asset's name and/or metadata is edited         | event id, asset/owner/actor, new and previous name, asset type, and `nameChanged`/`metadataChanged` flags                                           |
 
 Events are published after persistence through the in-memory event bus for
 telemetry. Tracked activity events are also written to an outbox in the same D1

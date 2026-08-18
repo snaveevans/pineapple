@@ -3,6 +3,7 @@ import { validateMetadata, type AssetMetadata } from "./AssetMetadata.ts";
 import type { AssetType } from "./AssetType.ts";
 import type { DomainEvent } from "../events/DomainEvent.ts";
 import { AssetCreated } from "./events/AssetCreated.ts";
+import { AssetEdited } from "./events/AssetEdited.ts";
 import { AssetSharedToTeam } from "./events/AssetSharedToTeam.ts";
 import { AssetUnsharedFromTeam } from "./events/AssetUnsharedFromTeam.ts";
 
@@ -84,10 +85,40 @@ export class Asset {
     );
   }
 
-  rename(name: string): void {
-    if (!name?.trim()) throw new ValidationError("Name required", "name");
-    this.name = name.trim();
+  /**
+   * Update this asset's name and/or metadata in a single mutation, raising at most
+   * one AssetEdited event. `metadata.kind` must match the asset's existing kind —
+   * an asset's type cannot change after creation.
+   */
+  edit(props: { name: string; metadata: AssetMetadata; actorId: UserId }): void {
+    if (!props.name?.trim()) throw new ValidationError("Name required", "name");
+    if (props.metadata.kind !== this.metadata.kind) {
+      throw new ValidationError("Asset type cannot change", "metadata.kind");
+    }
+    validateMetadata(props.metadata);
+
+    const trimmedName = props.name.trim();
+    const nameChanged = trimmedName !== this.name;
+    const metadataChanged = JSON.stringify(props.metadata) !== JSON.stringify(this.metadata);
+    if (!nameChanged && !metadataChanged) return;
+
+    const previousName = this.name;
+    this.name = trimmedName;
+    this.metadata = props.metadata;
     this.updatedAt = new Date();
+
+    this._domainEvents.push(
+      AssetEdited({
+        assetId: this.id,
+        ownerId: this.ownerId,
+        actorId: props.actorId,
+        assetName: this.name,
+        previousName,
+        assetType: this.type,
+        nameChanged,
+        metadataChanged,
+      }),
+    );
   }
 
   /**

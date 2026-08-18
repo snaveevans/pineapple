@@ -1390,6 +1390,16 @@ export function AppMaintenanceRecords() {
               </div>
               <div className="mr-hero-actions">
                 {sharing?.isOwner && (
+                  <Link
+                    to={paths.editAsset(assetId)}
+                    className="mr-share-btn"
+                    title="Edit asset"
+                    aria-label="Edit asset"
+                  >
+                    <Icon name="edit" size={16} stroke={1.8} />
+                  </Link>
+                )}
+                {sharing?.isOwner && (
                   <button
                     type="button"
                     className={`mr-share-btn${sharing.scope === "team" ? " is-active" : ""}`}

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import { AuthFlow } from "./auth/AuthFlow";
 import { AppAddAsset } from "./app/AppAddAsset";
+import { AppEditAsset } from "./app/AppEditAsset";
 import { AppAssets } from "./app/AppAssets";
 import { AppHome } from "./app/AppHome";
 import { AppActivityHistory } from "./app/AppActivityHistory";
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: "assets", element: <AppAssets /> },
       { path: "history", element: <AppActivityHistory /> },
       { path: "assets/new", element: <AppAddAsset /> },
+      { path: "assets/:assetId/edit", element: <AppEditAsset /> },
       { path: "assets/:assetId/maintenance", element: <AppMaintenanceRecords /> },
     ],
   },
