@@ -26,12 +26,18 @@ jobs:
     timeout-minutes: 20
     # Overrides the workflow-level permissions above (job-level replaces,
     # it does not add). `issues: write` is only needed to idempotently
-    # create the `breaking-api` escape-hatch label (issue #118).
+    # create the `breaking-api` (issue #118) and `large-diff` (issue #88)
+    # escape-hatch labels.
     permissions:
       contents: read
       issues: write
     steps:
+      # fetch-depth 0: the PR diff-size budget gate (issue #88) needs
+      # git merge-base against the PR base branch, which a shallow clone
+      # can't compute (same reason the gallery job's own checkout uses this).
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6 # version comes from package.json "packageManager"
@@ -58,6 +64,12 @@ jobs:
       # on every PR so a regex typo cannot silently widen/narrow the trust boundary.
       - name: Mutation scope selftest
         run: .github/scripts/mutation-scope.selftest.sh
+
+      # Gate-logic selftest for the PR diff-size budget (issue #88). Cheap;
+      # runs on every PR so a regression here can't silently stop enforcing
+      # CLAUDE.md's scope-discipline budget.
+      - name: PR diff-size budget selftest
+        run: .github/scripts/pr-diff-size-budget.selftest.sh
 
       # The committed OpenAPI spec must match what the code generates, so the
       # static file (read by codebase tools) never drifts from the live API.
@@ -137,3 +149,35 @@ jobs:
           # annotations on the Files changed tab and in the job log.
           review: false
           github-token: ""
+
+      # Escape hatch for a genuinely defended cross-cutting PR (CLAUDE.md §
+      # Scope discipline, issue #88). Ensure it exists so it's always
+      # available to apply, whether or not this run finds an oversized diff.
+      - name: Ensure large-diff escape-hatch label exists
+        if: github.event_name == 'pull_request'
+        # GITHUB_TOKEN is forced read-only on fork-originated PRs regardless
+        # of the job's requested permissions, so this write would 403 there.
+        # It's best-effort housekeeping, not the gate itself — don't fail the
+        # whole job over it (mirrors the breaking-api label step, issue #118).
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh label create large-diff \
+            --color 5319E7 \
+            --description "Deliberately allows a PR past the scope-discipline diff-size budget (CLAUDE.md)" \
+            --force >/dev/null
+
+      # CLAUDE.md's scope-discipline budget (~40 files / ~800 net lines),
+      # encoded as a gate (issue #88). No --depth on this fetch: unlike the
+      # openapi-spec-diff step above, this needs real history for
+      # git merge-base, not just the base ref's tip content — the checkout
+      # step's fetch-depth: 0 supplies the HEAD side of that history.
+      - name: PR diff-size budget
+        if: >-
+          github.event_name == 'pull_request' &&
+          !contains(github.event.pull_request.labels.*.name, 'large-diff')
+        run: |
+          git fetch --no-tags origin "$GITHUB_BASE_REF"
+          .github/scripts/pr-diff-size-budget.sh "origin/$GITHUB_BASE_REF"
