@@ -10,6 +10,7 @@
   --hf-surface: oklch(100% 0 0); /* pure white card */
   --hf-surface-2: oklch(97% 0.005 85); /* faint warm */
   --hf-ink: oklch(22% 0.015 70); /* darkest text */
+  --hf-ink-2: oklch(28% 0.015 70); /* lighter/hover variant, mirrors --hf-brand-2 */
   --hf-ink-soft: oklch(45% 0.012 75);
   --hf-ink-faint: oklch(60% 0.008 80);
   --hf-line: oklch(91% 0.006 80); /* hairline borders */
@@ -26,6 +27,8 @@
   --hf-warn: oklch(60% 0.13 75);
   --hf-warn-bg: oklch(96% 0.045 80);
   --hf-bad: oklch(52% 0.18 28);
+  --hf-bad-2: oklch(44% 0.18 28); /* darker/hover variant, mirrors --hf-brand-2 */
+  --hf-bad-a16: oklch(52% 0.18 28 / 0.16); /* invalid-field focus ring */
   --hf-bad-bg: oklch(96% 0.025 28);
 
   /* asset tints (dashboard / library thumbs) */
@@ -48,9 +51,54 @@
   --hf-r-sm: 6px;
   --hf-r: 10px;
   --hf-r-lg: 14px;
+  --hf-r-xl: 20px; /* large hero icons, modal/sheet panel corners */
+  --hf-r-full: 999px; /* pill / circle chrome */
   --hf-shadow-1: 0 1px 2px rgba(20, 18, 14, 0.04), 0 1px 0 rgba(20, 18, 14, 0.03);
   --hf-shadow-2: 0 4px 12px rgba(20, 18, 14, 0.06), 0 1px 0 rgba(20, 18, 14, 0.03);
   --hf-shadow-3: 0 18px 50px -12px rgba(20, 18, 14, 0.22), 0 6px 16px -8px rgba(20, 18, 14, 0.12);
+
+  /* overlay elevation (modal / drawer / bottom-sheet panels + their scrim) */
+  --hf-scrim: rgba(20, 18, 14, 0.34);
+  --hf-shadow-modal: 0 24px 70px rgba(20, 18, 14, 0.28);
+  --hf-shadow-drawer: -12px 0 50px rgba(20, 18, 14, 0.2);
+  --hf-shadow-sheet: 0 -8px 40px rgba(20, 18, 14, 0.18);
+  --hf-texture-line: rgba(
+    20,
+    18,
+    14,
+    0.02
+  ); /* subtle diagonal hatch on dashed empty-state panels */
+  --hf-texture-line-subtle: rgba(
+    20,
+    18,
+    14,
+    0.012
+  ); /* fainter hatch, wider 22px spacing (auth / marketing decorative panels) */
+
+  /* status border tints (paired with the -bg/-fg pairs above, used on chips/badges/cards) */
+  --hf-ok-border: oklch(88% 0.04 150);
+  --hf-bad-border: oklch(88% 0.045 28);
+  --hf-warn-border: oklch(88% 0.06 75);
+  --hf-warn-ink: oklch(45% 0.13 75); /* darker warn text, e.g. on a warn-bg pill */
+
+  /* activity/event type swatches (History timeline) */
+  --hf-evt-maint: oklch(46% 0.1 150);
+  --hf-evt-maint-bg: oklch(95% 0.03 150);
+  --hf-evt-added: oklch(49% 0.11 292);
+  --hf-evt-added-bg: oklch(95% 0.03 292);
+  --hf-evt-scheduled: oklch(49% 0.11 252);
+  --hf-evt-scheduled-bg: oklch(95% 0.03 252);
+  --hf-evt-completed: oklch(50% 0.09 196);
+  --hf-evt-completed-bg: oklch(95% 0.03 196);
+  --hf-evt-deleted: oklch(54% 0.13 28);
+  --hf-evt-added-border: oklch(88% 0.04 292);
+  --hf-evt-scheduled-border: oklch(88% 0.04 252);
+  --hf-evt-completed-border: oklch(88% 0.04 196);
+
+  /* interaction */
+  --hf-line-strong: oklch(85% 0.008 80); /* hover/focus border, darker than --hf-line */
+  --hf-spinner-track: oklch(100% 0 0 / 0.35); /* spinner ring on a colored/dark button */
+  --hf-on-brand: oklch(100% 0 0); /* white foreground on a saturated/dark background */
 
   /* fonts */
   --hf-sans:

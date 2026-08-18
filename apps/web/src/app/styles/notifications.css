@@ -35,7 +35,7 @@
   color: var(--hf-brand-2);
   background: var(--hf-brand-bg);
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   white-space: nowrap;
 }
 
@@ -163,7 +163,7 @@
 
 .nt-skel-line {
   height: 9px;
-  border-radius: 4px;
+  border-radius: var(--hf-r-sm);
   background: var(--hf-surface-2);
 }
 
