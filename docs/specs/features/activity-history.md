@@ -205,7 +205,7 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       `maintenance_logged` entry
 - [ ] `S1` Entries for deleted tasks and archived assets are still returned and fully
       renderable from their snapshot
-- [ ] `S3` `task_updated` is a valid entry `type`, sourced from `MaintenanceTaskUpdated`;
+- [x] `S3` `task_updated` is a valid entry `type`, sourced from `MaintenanceTaskUpdated`;
       an entry includes the task's post-edit title snapshot and follows the same entry
       shape as the other maintenance entry types
 - [x] `S2` For a shared asset, the caller sees its **entire** activity history — including

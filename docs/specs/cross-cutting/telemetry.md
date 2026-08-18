@@ -251,6 +251,7 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `POST /api/assets/{assetId}/maintenance-tasks`            | `CreateMaintenanceTask`    |
 | `GET /api/assets/{assetId}/maintenance-tasks`             | `ListMaintenanceTasks`     |
 | `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}` | `DeleteMaintenanceTask`    |
+| `PATCH /api/assets/{assetId}/maintenance-tasks/{taskId}`  | `UpdateMaintenanceTask`    |
 | `POST /api/teams`                                         | `CreateTeam`               |
 | `GET /api/teams/me`                                       | `GetMyTeam`                |
 | `POST /api/assets/{assetId}/share`                        | `ShareAsset`               |

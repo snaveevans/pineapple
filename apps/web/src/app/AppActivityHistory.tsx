@@ -31,6 +31,7 @@ const TYPE_ORDER: ActivityEntryType[] = [
   "maintenance_logged",
   "task_completed",
   "task_scheduled",
+  "task_updated",
   "asset_added",
   "task_deleted",
 ];
@@ -71,6 +72,12 @@ const TYPE_CONFIG: Record<ActivityEntryType, ActivityTypeConfig> = {
     label: "Tasks scheduled",
     color: "var(--hh-scheduled)",
   },
+  task_updated: {
+    icon: "edit",
+    verb: "Edited task",
+    label: "Tasks edited",
+    color: "var(--hh-updated)",
+  },
   asset_added: {
     icon: "plus",
     verb: "Added asset",
@@ -99,6 +106,7 @@ function emptyTypeCounts(): TypeCounts {
     maintenance_logged: 0,
     task_completed: 0,
     task_scheduled: 0,
+    task_updated: 0,
     task_deleted: 0,
   };
 }

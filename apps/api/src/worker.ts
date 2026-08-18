@@ -67,6 +67,7 @@ import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRe
 import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
+import { UpdateMaintenanceTask } from "./application/usecases/UpdateMaintenanceTask.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
 import { SearchAssets } from "./application/usecases/SearchAssets.ts";
@@ -104,6 +105,7 @@ import {
   createMaintenanceRecordRoute,
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
+  updateMaintenanceTaskRoute,
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
@@ -940,6 +942,29 @@ app.openapi(deleteMaintenanceTaskRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.body(null, 204);
+});
+
+app.openapi(updateMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, taskId } = c.req.valid("param");
+  const { title, intervalValue, intervalUnit } = c.req.valid("json");
+  const result = await new UpdateMaintenanceTask(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+    c.get("eventBus"),
+    new SystemUtcDateProvider(),
+  ).execute({
+    taskId: MaintenanceTaskId.from(taskId),
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+    ...(title !== undefined ? { title } : {}),
+    ...(intervalValue !== undefined ? { intervalValue } : {}),
+    ...(intervalUnit !== undefined ? { intervalUnit } : {}),
+  });
+  if (!result.ok) throw result.error;
+  const todayUtc = new SystemUtcDateProvider().today();
+  return c.json(serializeMaintenanceTask(result.value, todayUtc), 200);
 });
 
 const worker: ExportedHandler<Bindings, unknown> = {

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/MaintenanceTaskAdvanced.ts";
 import { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
+import { MaintenanceTaskUpdated } from "../../domain/maintenance/events/MaintenanceTaskUpdated.ts";
 import { AssetCreated } from "../../domain/asset/events/AssetCreated.ts";
 import {
   isNotificationEventMessage,
@@ -39,6 +40,24 @@ describe("toNotificationEventMessage", () => {
       taskTitle: "Oil change",
       assetName: "Truck",
       nextDue: "2026-10-01",
+    });
+    expect(msg && isNotificationEventMessage(msg)).toBe(true);
+  });
+
+  it("converts MaintenanceTaskUpdated with the nextDue conclusion and snapshot", () => {
+    const event = MaintenanceTaskUpdated({
+      ...base,
+      intervalValue: 6,
+      intervalUnit: "month",
+      nextDue: "2027-01-01",
+    });
+    const msg = toNotificationEventMessage(event);
+    expect(msg).toMatchObject({
+      type: "MaintenanceTaskUpdated",
+      maintenanceTaskId: base.maintenanceTaskId,
+      taskTitle: "Oil change",
+      assetName: "Truck",
+      nextDue: "2027-01-01",
     });
     expect(msg && isNotificationEventMessage(msg)).toBe(true);
   });

@@ -1,4 +1,8 @@
-import type { CreateMaintenanceTaskBody, IntervalUnit } from "../api/maintenanceTasks.ts";
+import type {
+  CreateMaintenanceTaskBody,
+  IntervalUnit,
+  UpdateMaintenanceTaskBody,
+} from "../api/maintenanceTasks.ts";
 import { formatShortDate, ymdParts, ymdToUTC } from "./dateFormat.ts";
 
 export const TASK_TITLE_MAX = 100;
@@ -144,5 +148,28 @@ export function toCreateMaintenanceTaskBody(
     intervalValue,
     intervalUnit: values.intervalUnit,
     ...(values.lastCompletedDate ? { lastCompletedDate: values.lastCompletedDate } : {}),
+  };
+}
+
+export function maintenanceTaskFormValuesFromTask(task: {
+  title: string;
+  intervalValue: number;
+  intervalUnit: IntervalUnit;
+}): MaintenanceTaskFormValues {
+  return {
+    title: task.title,
+    intervalValue: String(task.intervalValue),
+    intervalUnit: task.intervalUnit,
+    lastCompletedDate: "",
+  };
+}
+
+export function toUpdateMaintenanceTaskBody(
+  values: Pick<MaintenanceTaskFormValues, "title" | "intervalValue" | "intervalUnit">,
+): UpdateMaintenanceTaskBody {
+  return {
+    title: values.title.trim(),
+    intervalValue: Number(values.intervalValue),
+    intervalUnit: values.intervalUnit,
   };
 }

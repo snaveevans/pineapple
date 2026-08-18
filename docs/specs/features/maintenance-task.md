@@ -7,7 +7,7 @@ metadata:
 
 # Maintenance Task
 
-**Status:** in-progress
+**Status:** active
 **Owner:** product and engineering
 **Last Updated:** 2026-08-17
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-record.md](./maintenance-record.md), [dashboard.md](./dashboard.md), [activity-history.md](./activity-history.md)
@@ -68,23 +68,23 @@ tagged boxes are all `[x]`." See docs/specs/SPECS.md. -->
 
 ### Task edit
 
-- [ ] `S2` `PATCH /api/assets/{assetId}/maintenance-tasks/{taskId}` accepts `{ title?, intervalValue?, intervalUnit? }` and returns the full updated task with status 200
-- [ ] `S2` At least one of `title`, `intervalValue`, `intervalUnit` must be present in the request body; a body with none of them returns 422
-- [ ] `S2` `lastCompletedDate` and `nextDue` are not fields on this endpoint's request schema; the endpoint never accepts a direct override of either — `nextDue` is always derived (see recompute rule below)
-- [ ] `S2` `ownerId` is never accepted in the request body; it is derived from the authenticated session
-- [ ] `S2` When provided, `title` follows the same validation as task creation (non-empty after trim, ≤100 characters)
-- [ ] `S2` When provided, `intervalValue` follows the same validation as task creation (positive integer ≥ 1)
-- [ ] `S2` When provided, `intervalUnit` follows the same validation as task creation (one of `day | week | month | year`)
-- [ ] `S2` A field omitted from the request body keeps its current stored value
-- [ ] `S2` When the request includes `intervalValue` and/or `intervalUnit`, `nextDue` is recomputed as `(lastCompletedDate ?? todayUtc) + interval`, using the resulting `intervalValue`/`intervalUnit` and the same calendar arithmetic as task creation
-- [ ] `S2` When the request includes only `title` (no `intervalValue` or `intervalUnit`), `lastCompletedDate` and `nextDue` are left unchanged
-- [ ] `S2` When the requested `title`, `intervalValue`, and `intervalUnit` (after applying only the provided fields) are identical to the task's current stored values, the edit is a no-op: the task is returned unchanged with status 200, and no `MaintenanceTaskUpdated` event is published
-- [ ] `S2` Editing a task on an archived asset is permitted — asset archival blocks new maintenance activity (creating tasks or records), not correction of an existing task's metadata
-- [ ] `S2` Editing a task that doesn't exist returns 404
-- [ ] `S2` Editing a task that exists but belongs to a different asset than the path `assetId` returns 404
-- [ ] `S2` Editing a task whose asset the requester cannot access returns 403
-- [ ] `S2` The update use case checks that the target asset exists and the requester can access it before applying the edit, following the same asset-then-task-then-access order as task deletion
-- [ ] `S2` A successful edit that changes `title`, `intervalValue`, or `intervalUnit` publishes a `MaintenanceTaskUpdated` domain event carrying the resulting `nextDue` as a producer-owned conclusion (ADR-0010), so the notifications scheduler reschedules the pending reminder via its existing supersede path without reading task storage back
+- [x] `S2` `PATCH /api/assets/{assetId}/maintenance-tasks/{taskId}` accepts `{ title?, intervalValue?, intervalUnit? }` and returns the full updated task with status 200
+- [x] `S2` At least one of `title`, `intervalValue`, `intervalUnit` must be present in the request body; a body with none of them returns 422
+- [x] `S2` `lastCompletedDate` and `nextDue` are not fields on this endpoint's request schema; the endpoint never accepts a direct override of either — `nextDue` is always derived (see recompute rule below)
+- [x] `S2` `ownerId` is never accepted in the request body; it is derived from the authenticated session
+- [x] `S2` When provided, `title` follows the same validation as task creation (non-empty after trim, ≤100 characters)
+- [x] `S2` When provided, `intervalValue` follows the same validation as task creation (positive integer ≥ 1)
+- [x] `S2` When provided, `intervalUnit` follows the same validation as task creation (one of `day | week | month | year`)
+- [x] `S2` A field omitted from the request body keeps its current stored value
+- [x] `S2` When the request includes `intervalValue` and/or `intervalUnit`, `nextDue` is recomputed as `(lastCompletedDate ?? todayUtc) + interval`, using the resulting `intervalValue`/`intervalUnit` and the same calendar arithmetic as task creation
+- [x] `S2` When the request includes only `title` (no `intervalValue` or `intervalUnit`), `lastCompletedDate` and `nextDue` are left unchanged
+- [x] `S2` When the requested `title`, `intervalValue`, and `intervalUnit` (after applying only the provided fields) are identical to the task's current stored values, the edit is a no-op: the task is returned unchanged with status 200, and no `MaintenanceTaskUpdated` event is published
+- [x] `S2` Editing a task on an archived asset is permitted — asset archival blocks new maintenance activity (creating tasks or records), not correction of an existing task's metadata
+- [x] `S2` Editing a task that doesn't exist returns 404
+- [x] `S2` Editing a task that exists but belongs to a different asset than the path `assetId` returns 404
+- [x] `S2` Editing a task whose asset the requester cannot access returns 403
+- [x] `S2` The update use case checks that the target asset exists and the requester can access it before applying the edit, following the same asset-then-task-then-access order as task deletion
+- [x] `S2` A successful edit that changes `title`, `intervalValue`, or `intervalUnit` publishes a `MaintenanceTaskUpdated` domain event carrying the resulting `nextDue` as a producer-owned conclusion (ADR-0010), so the notifications scheduler reschedules the pending reminder via its existing supersede path without reading task storage back
 
 ### Record-task linking (change to existing maintenance-record endpoint)
 
@@ -101,7 +101,7 @@ tagged boxes are all `[x]`." See docs/specs/SPECS.md. -->
 - [x] `S1` A 401 response from the API redirects to `/login` through the API client layer
 - [x] `S1` A 403 response from asset or task ownership checks is shown as an access-denied error
 - [x] `S1` A 404 response is shown as a not-found error when the asset or task does not exist
-- [ ] `S2` A 403/404 response from a task edit is shown using the same access-denied / not-found treatment as the rest of this feature
+- [x] `S2` A 403/404 response from a task edit is shown using the same access-denied / not-found treatment as the rest of this feature
 
 ## Delivery Plan
 

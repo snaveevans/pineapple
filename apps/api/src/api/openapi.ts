@@ -22,6 +22,7 @@ import {
   MaintenanceTaskListResponseSchema,
   MaintenanceTaskParamsSchema,
   MaintenanceTaskResponseSchema,
+  UpdateMaintenanceTaskBodySchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
 import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
 import { ActivityQuerySchema, ActivityResponseSchema } from "./schemas/activitySchemas.ts";
@@ -716,6 +717,45 @@ export const deleteMaintenanceTaskRoute = createRoute({
   },
 });
 
+export const updateMaintenanceTaskRoute = createRoute({
+  method: "patch",
+  path: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
+  tags: ["Maintenance"],
+  summary: "Edit a maintenance task",
+  description:
+    "Updates title and/or interval. At least one field is required. lastCompletedDate and nextDue cannot be set directly here — nextDue is recomputed from the task's existing lastCompletedDate (or today) whenever intervalValue/intervalUnit changes. A request that would not change any stored value is a no-op: 200 with the unchanged task, no event published.",
+  security: [cookieAuth],
+  request: {
+    params: MaintenanceTaskParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: UpdateMaintenanceTaskBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated maintenance task",
+      content: { "application/json": { schema: MaintenanceTaskResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The task's asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such task",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const shareAssetRoute = createRoute({
   method: "post",
   path: "/api/assets/{assetId}/share",
@@ -868,6 +908,7 @@ export function getApiDocument() {
   doc.openapi(createMaintenanceTaskRoute, stub);
   doc.openapi(listMaintenanceTasksRoute, stub);
   doc.openapi(deleteMaintenanceTaskRoute, stub);
+  doc.openapi(updateMaintenanceTaskRoute, stub);
   doc.openapi(getDashboardRoute, stub);
   doc.openapi(getActivityRoute, stub);
   doc.openapi(getUserProfileRoute, stub);

@@ -463,6 +463,13 @@
   color: var(--hf-ink-faint);
 }
 .mr-task-del-btn:hover { background: var(--hf-bad-bg); border-color: var(--hf-bad-border); color: var(--hf-bad); }
+.mr-task-edit-btn {
+  width: 28px; height: 28px; border-radius: var(--hf-r-sm); flex-shrink: 0;
+  background: none; border: 1px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--hf-ink-faint);
+}
+.mr-task-edit-btn:hover { background: var(--hf-surface-2); border-color: var(--hf-line); color: var(--hf-ink); }
 
 /* delete confirm */
 .mr-task-confirm { display: flex; align-items: center; gap: 7px; }

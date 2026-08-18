@@ -10,6 +10,7 @@ import type { MaintenanceRecordCreated } from "../../domain/maintenance/events/M
 import type { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/MaintenanceTaskAdvanced.ts";
 import type { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import type { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
+import type { MaintenanceTaskUpdated } from "../../domain/maintenance/events/MaintenanceTaskUpdated.ts";
 
 export const ACTIVITY_HISTORY_CONSUMER = "activity_history";
 export const ACTIVITY_HISTORY_QUEUE_NAME = "pineapple-activity-history";
@@ -19,6 +20,7 @@ type ActivityDomainEvent =
   | AssetCreated
   | MaintenanceRecordCreated
   | MaintenanceTaskCreated
+  | MaintenanceTaskUpdated
   | MaintenanceTaskAdvanced
   | MaintenanceTaskDeleted;
 
@@ -66,6 +68,14 @@ export type MaintenanceTaskCreatedActivityEventMessage = ActivityEventCommon<
   title: string;
 };
 
+export type MaintenanceTaskUpdatedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceTaskUpdated",
+  "task_updated"
+> & {
+  maintenanceTaskId: MaintenanceTaskId;
+  title: string;
+};
+
 export type MaintenanceTaskAdvancedActivityEventMessage = ActivityEventCommon<
   "MaintenanceTaskAdvanced",
   "task_completed"
@@ -88,6 +98,7 @@ export type ActivityEventMessage =
   | AssetCreatedActivityEventMessage
   | MaintenanceRecordCreatedActivityEventMessage
   | MaintenanceTaskCreatedActivityEventMessage
+  | MaintenanceTaskUpdatedActivityEventMessage
   | MaintenanceTaskAdvancedActivityEventMessage
   | MaintenanceTaskDeletedActivityEventMessage;
 
@@ -105,6 +116,7 @@ const ACTIVITY_EVENT_MESSAGE_FACTORIES = {
   AssetCreated: fromAssetCreated,
   MaintenanceRecordCreated: fromMaintenanceRecordCreated,
   MaintenanceTaskCreated: fromMaintenanceTaskCreated,
+  MaintenanceTaskUpdated: fromMaintenanceTaskUpdated,
   MaintenanceTaskAdvanced: fromMaintenanceTaskAdvanced,
   MaintenanceTaskDeleted: fromMaintenanceTaskDeleted,
 } satisfies ActivityMessageFactoryMap;
@@ -121,6 +133,10 @@ const ACTIVITY_EVENT_MESSAGE_VALIDATORS = {
     isString(value.maintenanceTaskId) &&
     isString(value.title) &&
     value.activityEntryType === "task_scheduled",
+  MaintenanceTaskUpdated: (value) =>
+    isString(value.maintenanceTaskId) &&
+    isString(value.title) &&
+    value.activityEntryType === "task_updated",
   MaintenanceTaskAdvanced: (value) =>
     isString(value.maintenanceTaskId) &&
     isString(value.maintenanceRecordId) &&
@@ -188,6 +204,16 @@ function fromMaintenanceRecordCreated(
 function fromMaintenanceTaskCreated(
   event: MaintenanceTaskCreated,
 ): MaintenanceTaskCreatedActivityEventMessage {
+  return {
+    ...common(event, event.activityEntryType),
+    maintenanceTaskId: event.maintenanceTaskId,
+    title: event.title,
+  };
+}
+
+function fromMaintenanceTaskUpdated(
+  event: MaintenanceTaskUpdated,
+): MaintenanceTaskUpdatedActivityEventMessage {
   return {
     ...common(event, event.activityEntryType),
     maintenanceTaskId: event.maintenanceTaskId,

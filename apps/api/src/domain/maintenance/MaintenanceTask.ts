@@ -13,9 +13,13 @@ import { type IntervalUnit, INTERVAL_UNITS, addInterval } from "./IntervalUnit.t
 import { MaintenanceTaskAdvanced } from "./events/MaintenanceTaskAdvanced.ts";
 import { MaintenanceTaskCreated } from "./events/MaintenanceTaskCreated.ts";
 import { MaintenanceTaskDeleted } from "./events/MaintenanceTaskDeleted.ts";
+import { MaintenanceTaskUpdated } from "./events/MaintenanceTaskUpdated.ts";
 
 export class MaintenanceTask {
   private _domainEvents: DomainEvent[] = [];
+  private _title: string;
+  private _intervalValue: number;
+  private _intervalUnit: IntervalUnit;
   private _lastCompletedDate: string | null;
   private _nextDue: string;
 
@@ -23,15 +27,30 @@ export class MaintenanceTask {
     readonly id: MaintenanceTaskId,
     readonly assetId: AssetId,
     readonly ownerId: UserId,
-    readonly title: string,
-    readonly intervalValue: number,
-    readonly intervalUnit: IntervalUnit,
+    title: string,
+    intervalValue: number,
+    intervalUnit: IntervalUnit,
     lastCompletedDate: string | null,
     nextDue: string,
     readonly createdAt: Date,
   ) {
+    this._title = title;
+    this._intervalValue = intervalValue;
+    this._intervalUnit = intervalUnit;
     this._lastCompletedDate = lastCompletedDate;
     this._nextDue = nextDue;
+  }
+
+  get title(): string {
+    return this._title;
+  }
+
+  get intervalValue(): number {
+    return this._intervalValue;
+  }
+
+  get intervalUnit(): IntervalUnit {
+    return this._intervalUnit;
   }
 
   get lastCompletedDate(): string | null {
@@ -144,6 +163,79 @@ export class MaintenanceTask {
         assetType: assetSnapshot.assetType,
         title: this.title,
         performedAt,
+        nextDue: this._nextDue,
+      }),
+    );
+    return true;
+  }
+
+  /**
+   * Applies a partial edit of title/interval. Recomputes nextDue from
+   * lastCompletedDate (or todayUtc when absent) only when intervalValue and/or
+   * intervalUnit is supplied — a title-only edit never touches lastCompletedDate
+   * or nextDue. Publishes no event and returns false when the resulting values
+   * are identical to the current ones (no-op edit).
+   */
+  update(
+    props: {
+      title?: string;
+      intervalValue?: number;
+      intervalUnit?: IntervalUnit;
+      todayUtc: string;
+    },
+    actorId: UserId,
+    assetSnapshot: { assetName: string; assetType: AssetType },
+  ): boolean {
+    const nextTitle = props.title !== undefined ? props.title.trim() : this._title;
+    if (!nextTitle) throw new ValidationError("Title is required", "title");
+    if (nextTitle.length > 100) {
+      throw new ValidationError("Title must be 100 characters or fewer", "title");
+    }
+
+    const nextIntervalValue = props.intervalValue ?? this._intervalValue;
+    if (!Number.isInteger(nextIntervalValue) || nextIntervalValue < 1) {
+      throw new ValidationError("Interval value must be a positive integer", "intervalValue");
+    }
+
+    const nextIntervalUnit = props.intervalUnit ?? this._intervalUnit;
+    if (!INTERVAL_UNITS.includes(nextIntervalUnit)) {
+      throw new ValidationError("Interval unit must be day, week, month, or year", "intervalUnit");
+    }
+
+    const intervalChanged = props.intervalValue !== undefined || props.intervalUnit !== undefined;
+    let nextDue = this._nextDue;
+    if (intervalChanged) {
+      try {
+        validateDateOnly(props.todayUtc);
+      } catch {
+        throw new InvariantError("UTC date provider returned an invalid date");
+      }
+      const baseline = this._lastCompletedDate ?? props.todayUtc;
+      nextDue = addInterval(baseline, nextIntervalValue, nextIntervalUnit);
+    }
+
+    const changed =
+      nextTitle !== this._title ||
+      nextIntervalValue !== this._intervalValue ||
+      nextIntervalUnit !== this._intervalUnit;
+    if (!changed) return false;
+
+    this._title = nextTitle;
+    this._intervalValue = nextIntervalValue;
+    this._intervalUnit = nextIntervalUnit;
+    this._nextDue = nextDue;
+
+    this._domainEvents.push(
+      MaintenanceTaskUpdated({
+        maintenanceTaskId: this.id,
+        assetId: this.assetId,
+        ownerId: this.ownerId,
+        actorId,
+        assetName: assetSnapshot.assetName,
+        assetType: assetSnapshot.assetType,
+        title: this._title,
+        intervalValue: this._intervalValue,
+        intervalUnit: this._intervalUnit,
         nextDue: this._nextDue,
       }),
     );
