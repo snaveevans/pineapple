@@ -211,6 +211,7 @@ secrets, never committed.
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
 - **Product behavior / features** → [`docs/specs/SPECS.md`](docs/specs/SPECS.md)
 - **Web app feature intent** → [`docs/web/FEATURES.md`](docs/web/FEATURES.md)
+- **Which web component to use, and when not to** → [`docs/web/COMPONENTS.md`](docs/web/COMPONENTS.md)
 - **How we document** → [`docs/README.md`](docs/README.md)
 
 ## Time estimates are stale — don't let them drive tradeoffs
