@@ -62,8 +62,6 @@ export default tseslint.config(
       "**/worker-configuration.d.ts",
       // Generated from openapi.json by `api:types`; likewise committed, not hand-authored.
       "apps/web/src/api/schema.ts",
-      // Gallery PNG output is gitignored and never linted (#145).
-      "apps/web/gallery/out/**",
     ],
   },
 

@@ -32,7 +32,7 @@
 ## Evidence
 
 <!-- What proves the change works as intended. Link artifacts, not vibes. -->
-<!-- Examples: test names that cover the behavior, Playwright/state-gallery shots,
+<!-- Examples: test names that cover the behavior, screenshots,
      API traces, logs, manual steps with expected results. -->
 
 - [ ]
