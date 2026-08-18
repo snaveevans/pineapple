@@ -6,6 +6,7 @@ export const ACTIVITY_ENTRY_TYPES = [
   "maintenance_logged",
   "task_completed",
   "task_scheduled",
+  "task_updated",
   "task_deleted",
 ] as const;
 

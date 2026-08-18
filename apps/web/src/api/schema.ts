@@ -747,7 +747,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    type?: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
+                    type?: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
                     assetId?: string;
                     cursor?: string;
                     limit?: number;
@@ -1933,7 +1933,7 @@ export interface components {
              * @example maintenance_logged
              * @enum {string}
              */
-            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
+            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
             /**
              * Format: date-time
              * @example 2026-06-09T18:25:24.887Z
@@ -1985,7 +1985,7 @@ export interface components {
              * @example maintenance_logged
              * @enum {string}
              */
-            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_deleted";
+            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
             /** @example 4 */
             count: number;
         };

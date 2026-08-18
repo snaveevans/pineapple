@@ -137,6 +137,34 @@ describe("D1ActivityLogRepository", () => {
     ]);
   });
 
+  it("projects a task edit as a task_updated activity entry", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const event = baseEvent({
+      type: "MaintenanceTaskUpdated",
+      activityEntryType: "task_updated",
+      title: "Replace furnace filter",
+    }) as Extract<ActivityEventMessage, { type: "MaintenanceTaskUpdated" }>;
+
+    await new D1ActivityLogRepository(db).recordEvent(event);
+
+    expect(statements).toHaveLength(1);
+    expect(statements[0]?.values).toEqual([
+      event.id,
+      event.id,
+      event.ownerId,
+      event.actorId,
+      "Pat Rivera",
+      "task_updated",
+      event.occurredAt,
+      event.assetId,
+      event.assetName,
+      event.assetType,
+      "Replace furnace filter",
+      null,
+      expect.any(String),
+    ]);
+  });
+
   it("rejects malformed cursors as validation errors", async () => {
     const { db } = createDatabaseHarness();
     await expect(

@@ -172,6 +172,12 @@
   border-color: var(--hf-evt-completed-border);
 }
 
+.hh-node[data-type="task_updated"] {
+  background: var(--hf-evt-updated-bg);
+  color: var(--hf-evt-updated);
+  border-color: var(--hf-evt-updated-border);
+}
+
 .hh-node[data-type="task_deleted"] {
   background: var(--hf-bad-bg);
   color: var(--hf-evt-deleted);
@@ -234,6 +240,10 @@
 
 .hh-verb[data-type="task_completed"] {
   color: var(--hf-evt-completed);
+}
+
+.hh-verb[data-type="task_updated"] {
+  color: var(--hf-evt-updated);
 }
 
 .hh-verb[data-type="task_deleted"] {

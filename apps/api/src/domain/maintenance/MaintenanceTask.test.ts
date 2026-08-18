@@ -228,6 +228,141 @@ describe("MaintenanceTask.advance", () => {
   });
 });
 
+describe("MaintenanceTask.update", () => {
+  it("changes only title, leaving lastCompletedDate and nextDue untouched", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents(); // clear create event
+    const nextDueBefore = task.nextDue;
+
+    const result = task.update({ title: "Replace filter", todayUtc: today }, actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(result).toBe(true);
+    expect(task.title).toBe("Replace filter");
+    expect(task.lastCompletedDate).toBe("2026-04-11");
+    expect(task.nextDue).toBe(nextDueBefore);
+  });
+
+  it("does not shift nextDue when a title change resends the current (unchanged) interval, even with no lastCompletedDate", () => {
+    // Regression: a client that always submits its full form state (title +
+    // intervalValue + intervalUnit) must not trigger a recompute just because
+    // intervalValue/intervalUnit were present in the request — only an actual
+    // interval change should move nextDue. This matters most when
+    // lastCompletedDate is null, since the recompute baseline would otherwise
+    // silently shift from the original creation date to "today".
+    const task = makeTask({ intervalValue: 2, intervalUnit: "month" });
+    task.pullEvents();
+    const nextDueBefore = task.nextDue;
+
+    const result = task.update(
+      {
+        title: "Replace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+        todayUtc: "2026-09-01", // well after task creation
+      },
+      actorId,
+      { assetName, assetType },
+    );
+
+    expect(result).toBe(true);
+    expect(task.title).toBe("Replace filter");
+    expect(task.lastCompletedDate).toBeNull();
+    expect(task.nextDue).toBe(nextDueBefore);
+  });
+
+  it("recomputes nextDue from lastCompletedDate when interval changes", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-04-11",
+      intervalValue: 2,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+
+    const result = task.update({ intervalValue: 3, todayUtc: today }, actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(result).toBe(true);
+    expect(task.intervalValue).toBe(3);
+    expect(task.nextDue).toBe("2026-07-11");
+  });
+
+  it("recomputes nextDue from todayUtc when there is no lastCompletedDate", () => {
+    const task = makeTask({ intervalValue: 2, intervalUnit: "month" });
+    task.pullEvents();
+
+    const result = task.update({ intervalValue: 1, todayUtc: "2026-07-01" }, actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(result).toBe(true);
+    expect(task.nextDue).toBe("2026-08-01");
+  });
+
+  it("emits MaintenanceTaskUpdated when a value actually changes", () => {
+    const task = makeTask();
+    task.pullEvents();
+
+    task.update({ title: "New title", todayUtc: today }, actorId, { assetName, assetType });
+    const events = task.pullEvents();
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskUpdated",
+      assetId,
+      ownerId,
+      actorId,
+      assetName,
+      assetType,
+      title: "New title",
+      nextDue: task.nextDue,
+    });
+  });
+
+  it("is a no-op when the resulting values equal the current ones", () => {
+    const task = makeTask({ intervalValue: 2, intervalUnit: "month" });
+    task.pullEvents();
+
+    const result = task.update(
+      { title: "Replace furnace filter", intervalValue: 2, intervalUnit: "month", todayUtc: today },
+      actorId,
+      { assetName, assetType },
+    );
+
+    expect(result).toBe(false);
+    expect(task.pullEvents()).toHaveLength(0);
+  });
+
+  it("throws ValidationError for an empty title", () => {
+    const task = makeTask();
+    expect(() =>
+      task.update({ title: "   ", todayUtc: today }, actorId, { assetName, assetType }),
+    ).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError for an invalid intervalValue", () => {
+    const task = makeTask();
+    expect(() =>
+      task.update({ intervalValue: 0, todayUtc: today }, actorId, { assetName, assetType }),
+    ).toThrow(ValidationError);
+  });
+
+  it("throws ValidationError for an invalid intervalUnit", () => {
+    const task = makeTask();
+    expect(() =>
+      task.update({ intervalUnit: "fortnight" as "day", todayUtc: today }, actorId, {
+        assetName,
+        assetType,
+      }),
+    ).toThrow(ValidationError);
+  });
+});
+
 describe("MaintenanceTask.remove", () => {
   it("emits MaintenanceTaskDeleted", () => {
     const task = makeTask();

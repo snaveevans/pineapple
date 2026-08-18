@@ -8,6 +8,7 @@ import { MaintenanceRecordCreatedTelemetryHandler } from "./maintenance/Maintena
 import { MaintenanceTaskAdvancedTelemetryHandler } from "./maintenance/MaintenanceTaskAdvancedTelemetryHandler.ts";
 import { MaintenanceTaskCreatedTelemetryHandler } from "./maintenance/MaintenanceTaskCreatedTelemetryHandler.ts";
 import { MaintenanceTaskDeletedTelemetryHandler } from "./maintenance/MaintenanceTaskDeletedTelemetryHandler.ts";
+import { MaintenanceTaskUpdatedTelemetryHandler } from "./maintenance/MaintenanceTaskUpdatedTelemetryHandler.ts";
 import { MaintenanceReminderCreatedTelemetryHandler } from "./notification/MaintenanceReminderCreatedTelemetryHandler.ts";
 import { ReminderEmailDispatchedTelemetryHandler } from "./notification/ReminderEmailDispatchedTelemetryHandler.ts";
 import { UserNameUpdatedTelemetryHandler } from "./user/UserNameUpdatedTelemetryHandler.ts";
@@ -42,6 +43,7 @@ export function registerDomainTelemetry(deps: {
     deps.maintenanceTaskDomainDataset,
   );
   deps.eventBus.subscribe(new MaintenanceTaskCreatedTelemetryHandler(maintenanceTaskDomainSink));
+  deps.eventBus.subscribe(new MaintenanceTaskUpdatedTelemetryHandler(maintenanceTaskDomainSink));
   deps.eventBus.subscribe(new MaintenanceTaskDeletedTelemetryHandler(maintenanceTaskDomainSink));
   deps.eventBus.subscribe(new MaintenanceTaskAdvancedTelemetryHandler(maintenanceTaskDomainSink));
 

@@ -262,6 +262,8 @@ function entryFromEvent(event: ActivityEventMessage): {
       };
     case "MaintenanceTaskCreated":
       return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
+    case "MaintenanceTaskUpdated":
+      return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
     case "MaintenanceTaskDeleted":
       return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
   }
