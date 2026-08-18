@@ -37,6 +37,8 @@ Once created, an asset's name and details are today permanent — the only way t
 - [x] `S1` Submitting an edit identical to the asset's current values succeeds without error
 - [ ] `S1` An authenticated owner can reach an edit entry point from the asset's detail page
 - [ ] `S1` The edit entry point is not shown to a team member viewing an asset they don't own
+- [x] `S1` A non-owner who reaches the edit route directly (not via the entry point) sees an access-denied state instead of the form, whether the API call itself was rejected or it succeeded but the fetched asset's `sharing.isOwner` is false
+- [x] `S1` A missing or unloadable asset shows a dedicated state (not found, or a retryable load-failure state) instead of the form
 - [x] `S1` The edit form is prefilled with the asset's current name and type-specific field values
 - [x] `S1` The asset's type is displayed in the edit form but cannot be changed
 - [x] `S1` Field-level validation errors match create-asset's rules and messages, and run before submission
@@ -53,29 +55,31 @@ Single slice — the whole feature (`S1`).
 
 ## Edge Cases & Error States
 
-| Scenario                                                      | Expected Behavior                                                                                         |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| All fields cleared before submit                              | Banner + field errors shown; first invalid field focused                                                  |
-| Year field: letters entered                                   | "Must be a whole number."                                                                                 |
-| Year field: value < 1900 or > current year + 1                | `"Must be between 1900 and ${currentYear + 1}."`                                                          |
-| VIN: 1–16 characters                                          | `"VIN must be exactly 17 characters (N entered)."`                                                        |
-| VIN: exactly 17 characters                                    | Accepted                                                                                                  |
-| VIN: empty                                                    | Accepted (optional)                                                                                       |
-| Metadata `kind` in the request doesn't match the asset's type | 422 — asset type is immutable; not reachable from the web form, only a direct API call                    |
-| Non-owner submits an edit via the API directly                | Rejected, no changes applied (403 today per [permissions.md](../cross-cutting/permissions.md); see Flags) |
-| Non-owner viewing a shared asset                              | No edit entry point rendered; the asset's fields are read-only                                            |
-| Asset does not exist / already deleted                        | 404                                                                                                       |
-| Edit submitted with no actual changes                         | Saves successfully; no error shown                                                                        |
-| API returns 401                                               | Redirect to `/login` (replace)                                                                            |
-| API returns any other error                                   | Banner with the server's error message                                                                    |
-| User navigates away mid-edit                                  | No confirmation prompt; unsaved form state is lost (matches create-asset)                                 |
-| Two sessions edit the same asset concurrently                 | Last write wins; no conflict detection (consistent with the rest of the app)                              |
+| Scenario                                                        | Expected Behavior                                                                                                 |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| All fields cleared before submit                                | Banner + field errors shown; first invalid field focused                                                          |
+| Year field: letters entered                                     | "Must be a whole number."                                                                                         |
+| Year field: value < 1900 or > current year + 1                  | `"Must be between 1900 and ${currentYear + 1}."`                                                                  |
+| VIN: 1–16 characters                                            | `"VIN must be exactly 17 characters (N entered)."`                                                                |
+| VIN: exactly 17 characters                                      | Accepted                                                                                                          |
+| VIN: empty                                                      | Accepted (optional)                                                                                               |
+| Metadata `kind` in the request doesn't match the asset's type   | 422 — asset type is immutable; not reachable from the web form, only a direct API call                            |
+| Non-owner submits an edit via the API directly                  | Rejected, no changes applied (403 today per [permissions.md](../cross-cutting/permissions.md); see Flags)         |
+| Non-owner viewing a shared asset, on the asset's detail page    | No edit entry point rendered there                                                                                |
+| Non-owner reaches the edit route directly (bookmark, typed URL) | The asset loads (they can view it), but the edit form is not rendered — an "Access denied" state is shown instead |
+| Asset does not exist / already deleted, on load                 | "Asset not found" state, no form rendered                                                                         |
+| Asset load fails for a reason other than 401/403/404            | "Couldn't load asset" state with a retry button                                                                   |
+| Edit submitted with no actual changes                           | Saves successfully; no error shown                                                                                |
+| API returns 401 (load or save)                                  | Redirect to `/login` (replace)                                                                                    |
+| API returns any other error on save                             | Banner with the server's error message                                                                            |
+| User navigates away mid-edit                                    | No confirmation prompt; unsaved form state is lost (matches create-asset)                                         |
+| Two sessions edit the same asset concurrently                   | Last write wins; no conflict detection (consistent with the rest of the app)                                      |
 
 ## Telemetry
 
 **Request telemetry:** `PATCH /api/assets/{id}` maps to a new `EditAsset` operation via `createTechnicalTelemetryMiddleware`. This is a new route — it must be added to the operation name mapping in `technicalTelemetry.ts` and the Operation Name Mapping table in [telemetry.md](../cross-cutting/telemetry.md) before it ships.
 
-**Domain event:** On a successful edit that changes the name and/or metadata, an `AssetEdited` event is published to the event bus, dataset `pineapple_asset_domain_events`, binding `ASSET_DOMAIN_TELEMETRY` — following the `AssetCreated`/`AssetSharedToTeam` pattern. Per the telemetry anti-pattern on PII, the event carries the new name and metadata for durable consumers (e.g. a future History entry), but **the telemetry data point itself records only ids and boolean change-flags, never the name or metadata values**:
+**Domain event:** On a successful edit that changes the name and/or metadata, an `AssetEdited` event is published to the event bus, dataset `pineapple_asset_domain_events`, binding `ASSET_DOMAIN_TELEMETRY` — following the `AssetCreated`/`AssetSharedToTeam` pattern. The event carries the new and previous **name** plus **`nameChanged`/`metadataChanged`** flags for durable consumers (e.g. a future History entry showing a rename); it does not carry the metadata object itself — a consumer needing the new metadata value still has to read the asset back. Per the telemetry anti-pattern on PII, **the telemetry data point itself records only ids and boolean change-flags, never the name value**:
 
 **Domain event data point — `AssetEdited`** (dataset: `pineapple_asset_domain_events`, index: `owner_id`):
 

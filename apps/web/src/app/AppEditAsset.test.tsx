@@ -198,6 +198,73 @@ describe("AppEditAsset", () => {
     expect(navigate).toHaveBeenCalledWith("/login", { replace: true });
   });
 
+  it("shows access denied when the asset load is forbidden (403)", async () => {
+    getAssetMock.mockRejectedValue(new ApiError(403, { error: "Forbidden" }));
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    if (queryClient === null) throw new Error("Query client was not initialized");
+    const client = queryClient;
+
+    await act(async () => {
+      root?.render(
+        <QueryClientProvider client={client}>
+          <AppEditAsset />
+        </QueryClientProvider>,
+      );
+    });
+    await waitFor(() => document.body.textContent?.includes("Access denied") ?? false);
+
+    expect(document.body.textContent).not.toContain("Edit asset");
+    expect(document.querySelector(".hf-input")).toBeNull();
+  });
+
+  it("shows asset not found when the asset load 404s", async () => {
+    getAssetMock.mockRejectedValue(new ApiError(404, { error: "Not found" }));
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    if (queryClient === null) throw new Error("Query client was not initialized");
+    const client = queryClient;
+
+    await act(async () => {
+      root?.render(
+        <QueryClientProvider client={client}>
+          <AppEditAsset />
+        </QueryClientProvider>,
+      );
+    });
+    await waitFor(() => document.body.textContent?.includes("Asset not found") ?? false);
+
+    expect(document.querySelector(".hf-input")).toBeNull();
+  });
+
+  it("shows access denied when the fetched asset's sharing.isOwner is false", async () => {
+    getAssetMock.mockResolvedValue(
+      vehicleAsset({ sharing: { scope: "team", isOwner: false, ownerDisplayName: "Pat" } }),
+    );
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    if (queryClient === null) throw new Error("Query client was not initialized");
+    const client = queryClient;
+
+    await act(async () => {
+      root?.render(
+        <QueryClientProvider client={client}>
+          <AppEditAsset />
+        </QueryClientProvider>,
+      );
+    });
+    await waitFor(() => document.body.textContent?.includes("Access denied") ?? false);
+
+    expect(document.body.textContent).toContain("Only the asset's owner can edit it.");
+    expect(document.querySelector(".hf-input")).toBeNull();
+  });
+
   it("redirects to login on a 401 while saving", async () => {
     editAssetMock.mockRejectedValue(new ApiError(401, { error: "Not authenticated" }));
     await renderEditAsset();

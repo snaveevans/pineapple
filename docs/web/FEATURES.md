@@ -369,6 +369,9 @@ Success is a navigate-away transition (invalidates assets query, navigates to `/
 **States:**
 
 - `loading` — fetching the asset before the form can render
+- `error` (forbidden / 403) — "Access denied"; no form rendered. Also shown when the asset loads successfully but its `sharing.isOwner` is false
+- `error` (not found / 404) — "Asset not found"; no form rendered
+- `error` (load failure) — "Couldn't load asset" with a "Try again" retry
 - Idle, vehicle type — form prefilled with the asset's current name, make, model, year, VIN
 - Idle, property type — form prefilled with the asset's current name, nickname, and address fields
 - Idle, equipment type — form prefilled with the asset's current name, manufacturer, model number, serial number
@@ -383,10 +386,12 @@ Success is a navigate-away transition (invalidates assets query, navigates to `/
 
 Success is a navigate-away transition (updates the asset query cache, invalidates the assets list, navigates to `/app/assets/:assetId/maintenance`), not a stable screen — not enumerable for the gallery.
 
+**Content stress:** long asset name (a pre-existing stored value, not a typed one — the form is prefilled); long property address (street + city)
+
 **Non-obvious behavior:**
 
 - The asset type is shown as a read-only chip, not the selectable type picker used on Add Asset — an asset's type cannot change after creation
-- Only the asset's owner can reach this screen; the entry point on the asset detail page is hidden for a team member viewing a shared asset they don't own
+- Only the asset's owner can use this screen. The entry point on the asset detail page is hidden for a team member viewing a shared asset they don't own; a non-owner who reaches the route directly (bookmark, typed URL) sees the same "Access denied" state as a 403, not the form — the check runs client-side against the fetched asset's `sharing.isOwner`, in addition to the server enforcing it on save
 - 401 redirects to `/login` whether it happens while loading the asset or while saving
 
 **Spec:** [`docs/specs/features/edit-asset.md`](../specs/features/edit-asset.md)

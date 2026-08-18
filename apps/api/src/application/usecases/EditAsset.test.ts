@@ -236,6 +236,29 @@ describe("EditAsset", () => {
     expect(result.error).toBeInstanceOf(NotFoundError);
   });
 
+  it("returns a domain error thrown while saving", async () => {
+    const asset = makeAsset(ownerId);
+    const assets = new FakeAssetRepository(asset);
+    assets.save = () => Promise.reject(new ValidationError("save failed", "asset"));
+
+    const result = await new EditAsset(
+      assets,
+      new FakeTeamRepository(null),
+      new RecordingEventBus(),
+    ).execute({
+      assetId: asset.id,
+      requesterId: ownerId,
+      name: "New Name",
+      metadata: vehicleMetadata,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBeInstanceOf(ValidationError);
+    if (!(result.error instanceof ValidationError)) return;
+    expect(result.error.field).toBe("asset");
+  });
+
   it("rethrows non-domain errors from save", async () => {
     const asset = makeAsset(ownerId);
     const assets = new FakeAssetRepository(asset);
