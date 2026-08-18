@@ -402,6 +402,17 @@ function ActivityEventCard({
         </div>
       );
       break;
+    case "task_updated":
+      headline = <h3 className="hh-title">{title}</h3>;
+      detail = (
+        <div className="hh-detail">
+          <div className="hh-link-line">
+            <Icon name="info" size={13} color="var(--hf-ink-faint)" />
+            Recurring task updated
+          </div>
+        </div>
+      );
+      break;
     case "task_completed":
       headline = <h3 className="hh-title">{title}</h3>;
       detail = (

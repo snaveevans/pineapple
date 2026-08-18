@@ -242,6 +242,10 @@
   color: var(--hf-evt-completed);
 }
 
+.hh-verb[data-type="task_updated"] {
+  color: var(--hf-evt-updated);
+}
+
 .hh-verb[data-type="task_deleted"] {
   color: var(--hf-evt-deleted);
 }

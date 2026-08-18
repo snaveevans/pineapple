@@ -75,6 +75,18 @@ const entries: ActivityEntry[] = [
     title: "Oil change",
     performedAt: "2026-06-30",
   },
+  {
+    id: "4e72f7e3-6f1e-4e48-a9bd-ec9f50043ebd",
+    type: "task_updated",
+    occurredAt: "2026-06-30T11:00:00.000Z",
+    asset: {
+      id: "337f2d25-f1ab-4544-af2e-8196aa9d5a11",
+      name: "Generac Generator",
+      type: "equipment",
+    },
+    actor: { id: teammateUserId, displayName: "Pat Rivera" },
+    title: "Replace generator oil",
+  },
 ];
 
 function activityPage(): ActivityResponse {
@@ -85,6 +97,7 @@ function activityPage(): ActivityResponse {
       types: [
         { type: "task_scheduled", count: 1 },
         { type: "maintenance_logged", count: 1 },
+        { type: "task_updated", count: 1 },
       ],
       assets: (() => {
         const first = entries[0];
@@ -165,6 +178,14 @@ describe("AppActivityHistory", () => {
     expect(document.body.textContent).toContain("Yesterday");
     expect(document.body.textContent).toContain("Cabin filter");
     expect(document.body.textContent).toContain("Oil change");
+  });
+
+  it("renders task edits with their title and update detail", async () => {
+    await renderHistory();
+
+    expect(document.body.textContent).toContain("Edited task");
+    expect(document.body.textContent).toContain("Replace generator oil");
+    expect(document.body.textContent).toContain("Recurring task updated");
   });
 
   it("filters only the loaded history entries by search text", async () => {
