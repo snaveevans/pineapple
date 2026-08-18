@@ -293,51 +293,39 @@ early silently disables nothing and `reportNeedlessDisables` catches it.
 - [x] `pnpm lint` fails on a bare pixel `border-radius` outside `tokens.css`. `S1`
 - [x] Zero violations at merge — every literal outside `tokens.css` is either tokenized or carries
       a justified inline disable. `S1`
-      Baseline (measured with this branch's `stylelint.config.js` against `origin/main`'s CSS as
-      it stood right after #149's primitives extraction, 14 stylesheets): **272 violations**.
-      Resolved into: - **30 new `--hf-*` tokens** in `tokens.css` — status border tints (`--hf-ok/bad/warn-border`),
-      a darker `--hf-bad-2`/`--hf-ink-2` hover pair (mirrors the existing `--hf-brand-2`),
-      activity/event swatches (12 tokens promoted from `activity-history.css`'s local `--hh-*`
-      custom properties, which #147 didn't reach since they aren't `--hf-*`-prefixed), overlay
-      elevation (`--hf-scrim`, three `--hf-shadow-*`), a `--hf-r-full` pill radius and a
-      `--hf-r-xl` tier for large hero icons/panel corners (20px — 16-24px raw values that don't
-      cleanly collapse into the issue's three named tiers), spinner track, on-brand foreground,
-      and two hatch-texture tints. Each is backed by 2+ real repeated sites. - **Near-duplicate values reconciled into one canonical token**, each a deliberate call,
-      listed in full (not just "e.g."): four slightly-drifted "bad-border" reds → one
-      `--hf-bad-border`; three modal/drawer/sheet shadow blur radii → three `--hf-shadow-*`
-      tokens; `--hh-spine` (89% L) and `activity-history.css`'s bad-tone icon background (0.04
-      chroma) folded into the existing `--hf-line` (91% L) and `--hf-bad-bg` (0.025 chroma);
-      four scrim alphas (0.28/0.34×2/0.42) → one `--hf-scrim` (0.34, the majority value); four
-      spinner-track alphas (0.3×2/0.4×2) → one `--hf-spinner-track` (0.35, splitting the
-      difference — no majority existed to prefer). **Also resolves the specific case #147/#211
-      named and deliberately left raw** ("close to but not identical to a token" — the
-      `app-search.css` equipment-icon tint at `oklch(42% 0.1 60)` vs. the token's
-      `oklch(40% 0.1 60)`) — snapped to `var(--hf-cat-equipment-fg)`, and the adjacent
-      property-icon tint (`oklch(40% 0.1 295)` vs. the token's `oklch(38% 0.1 295)`) to
-      `var(--hf-cat-property-fg)`, both a ≤2-point lightness nudge, both spot-checked live
-      (no visible difference at that magnitude). - **Border-radius scale-snapping** — the issue's Scope section requires only
-      `--hf-r-sm`/`--hf-r`/`--hf-r-lg` (plus the pill/xl additions above), so dozens of
-      non-matching raw px values were snapped to the nearest tier. Two sites were kept as
-      literals instead, because snapping would have been a real, not cosmetic, shape change:
-      `primitives.css`'s `.mr-root .hf-btn` (a comment two lines above explicitly promises
-      "exact former `.mr-btn` metrics" — 9px stays 9px, not `--hf-r` 10px) and
-      `activity-history.css`'s `.hh-bd-swatch` (9×9px legend dot at 3px — CSS caps
-      `border-radius` at half the box side, so `--hf-r-sm`'s 6px would round it to a full
-      circle instead of the intended rounded square). - **17 justified inline disables** for genuine one-offs (decorative textures, the marketing
-      CTA glass effect, single-use focus rings, the two geometry exceptions above). - **3 fully dead rules deleted outright** (`mr.css`'s unused `.brand-green`/`.brand-blue`/
-      `.brand-slate` theme overrides — confirmed unreferenced by any component via `git grep`
-      across all of `apps/web/src`, both `.tsx` and `.css`). Note: #147's PR body characterized
-      these same rules as "an intentional per-instance theme switcher, not copies of the
-      source," and declined to touch them as out of scope for that refactor. No open issue
-      references a planned theme-switcher feature, and the dead-code check is unambiguous
-      (`git log -S` shows the classes were added once, in the original responsive-UI commit,
-      and never referenced by any component since) — deleting them here, rather than leaving
-      unenforceable raw literals in place, is the correct call for a token-_enforcement_ gate,
-      but the tension with #147's framing is worth a reviewer's eyes. - **Visual verification:** the Playwright-based gallery/visual-diff harness (see Known
-      Issues above — "removed as low-value and flaky") was removed from `main` mid-implementation
-      and is not available on this branch. Spot-checked live instead — full marketing home page
-      and the `/login` screen rendered via `vite dev`, console clean, no visual regressions —
-      rather than a systematic per-state diff. `S1`
+
+      Baseline (this branch's `stylelint.config.js` against `origin/main`'s CSS right after #149's
+              primitives extraction, 14 stylesheets): **272 violations**, resolved via:
+
+  - **30 new `--hf-*` tokens** in `tokens.css` (status border tints, a `--hf-bad-2`/`--hf-ink-2`
+    hover pair mirroring `--hf-brand-2`, 12 activity/event swatches promoted from
+    `activity-history.css`'s local — non-`--hf-*` — `--hh-*` properties #147 didn't reach, overlay
+    elevation, a `--hf-r-full` pill and a `--hf-r-xl` (20px) tier for hero icons/panel corners
+    outside the issue's three named tiers, spinner track, on-brand foreground, two hatch
+    textures), each backed by 2+ real repeated sites.
+  - **Near-duplicates reconciled into one canonical token**, each disclosed: four drifted
+    "bad-border" reds → `--hf-bad-border`; three shadow blur radii → three `--hf-shadow-*`;
+    `--hh-spine`/a bad-tone icon bg folded into `--hf-line`/`--hf-bad-bg`; four scrim alphas →
+    `--hf-scrim` (majority value); four spinner alphas → `--hf-spinner-track` (split, no
+    majority). Also resolves the case #147/#211 explicitly left raw ("close to but not identical
+    to a token") — `app-search.css`'s two category-icon tints, each a ≤2-point lightness nudge
+    onto the existing token, spot-checked live.
+  - **Border-radius scale-snapping** onto the issue's 3 named tiers (plus pill/xl), except two
+    sites kept as literals where snapping would be a real shape change:
+    `.mr-root .hf-btn` (a comment promises "exact former `.mr-btn` metrics") and
+    `.hh-bd-swatch` (a 9×9px dot at 3px — `--hf-r-sm`'s 6px hits CSS's half-side radius cap and
+    renders as a circle, not a rounded square).
+  - **17 justified inline disables** (decorative textures, the marketing CTA glass effect,
+    single-use focus rings, the two geometry exceptions above).
+  - **3 dead rules deleted** (`mr.css`'s unreferenced `.brand-green`/`.brand-blue`/`.brand-slate`
+    — confirmed via `git grep`/`git log -S`). #147's PR body called these same rules "an
+    intentional theme switcher" and left them alone; no issue references that feature, so
+    deleting unenforceable dead literals is correct here, but the differing framing is worth a
+    reviewer's eyes.
+  - **Visual verification:** the Playwright gallery/visual-diff harness (Known Issues, above) was
+    removed from `main` mid-implementation. Spot-checked live instead (marketing home, `/login`
+    via `vite dev`, console clean) rather than a systematic per-state diff. `S1`
+
 - [x] The rules run in `lint-staged` as well as CI (via `pnpm lint`). `S1`
 
 ### Delivery plan
