@@ -46,3 +46,48 @@ post-merge.
 - PR #176, review comment: https://github.com/snaveevans/pineapple/pull/176#issuecomment-5209057744
 - Fix commit: `eeca7e9` on branch `chore/125-automated-dependency-updates`
 - Schema: https://json.schemastore.org/dependabot-2.0.json (`additionalProperties: false` on update entries)
+
+## 2026-08-17 — Flaky `AppAssets.test.tsx` only under the root `pnpm test` / pre-push hook
+
+### Symptom
+
+`git push` failed via the `pre-push` husky hook (`pnpm type-check && pnpm test`,
+where root `test` is a bare `vitest run` across the whole workspace in one process)
+with `TypeError: Cannot read properties of undefined (reading 'clear')` at
+`window.localStorage.clear()` in `apps/web/src/app/AppAssets.test.tsx`'s
+`beforeEach`, failing all 5 tests in that file. The diff being pushed touched zero
+`.ts`/`.tsx` files (CSS-only change), and `pnpm --filter @snaveevans/pineapple-web
+test` (the per-package run, using `apps/web`'s own `vitest.config.ts`) passed
+108/108 every time. Re-running the identical root-level `vitest run` command
+repeatedly on the identical committed tree passed twice, failed once, passed
+again — confirmed non-deterministic, not content-driven (also reproduced,
+inconsistently, on a clean `origin/main` checkout).
+
+### Cause
+
+Not fully root-caused. Likely a `window.localStorage` initialization race specific
+to running the full ~101-file / 620-test suite in one Vitest process from the
+repo root (root `vitest.config.ts` has no explicit `environment`/`setupFiles` —
+it only excludes `.claude/**` worktrees), vs. the per-package config that always
+passed. Only ever seen in this one file/suite combination.
+
+### Fix
+
+Retried the push (`git push`) without changing any code — passed on the next
+attempt. Did **not** use `--no-verify`.
+
+### How to avoid next time
+
+If `pnpm push` / the pre-push hook fails specifically in `AppAssets.test.tsx`
+with a `window.localStorage` `TypeError`, and your diff doesn't touch any
+`.ts`/`.tsx` files, don't chase it as a real regression — confirm via
+`pnpm --filter @snaveevans/pineapple-web test` (should pass), then retry the
+push once or twice. If it's still red after 2-3 tries, treat it as a genuine
+regression and investigate further; this entry is about the known-flaky case,
+not a blanket license to retry-until-green.
+
+### Evidence
+
+- Branch `stylelint` (issue #148), local session: root `vitest run` outcomes on
+  the same commit, in order: fail (5/5 `AppAssets.test.tsx` tests) → pass
+  (101/101) → pass (101/101) → fail (same 5 tests) → pass (101/101, pushed).
