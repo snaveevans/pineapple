@@ -1,14 +1,14 @@
 /* FieldOps — "Add a service" modal (dashboard). */
 
 .hf-svc-overlay { position: fixed; inset: 0; z-index: 60; overflow: hidden; }
-.hf-svc-scrim { position: absolute; inset: 0; background: rgba(20, 18, 14, 0.34); animation: hf-svc-fade 240ms ease-out; }
+.hf-svc-scrim { position: absolute; inset: 0; background: var(--hf-scrim); animation: hf-svc-fade 240ms ease-out; }
 @keyframes hf-svc-fade { from { opacity: 0; } }
 
 .hf-svc-drawer {
   position: absolute; top: 0; right: 0; bottom: 0;
   width: min(440px, 100%);
   background: var(--hf-bg);
-  box-shadow: -12px 0 50px rgba(20, 18, 14, 0.2);
+  box-shadow: var(--hf-shadow-drawer);
   display: flex; flex-direction: column;
   will-change: transform;
   animation: hf-svc-slide-r 360ms cubic-bezier(0.32, 0.72, 0, 1);
@@ -65,10 +65,10 @@
   transition: border-color 100ms, box-shadow 100ms;
 }
 .hf-svc-body .hf-input::placeholder { color: var(--hf-ink-faint); }
-.hf-svc-body .hf-input:hover { border-color: oklch(85% 0.008 80); }
+.hf-svc-body .hf-input:hover { border-color: var(--hf-line-strong); }
 .hf-svc-body .hf-input:focus { outline: none; border-color: var(--hf-brand); box-shadow: 0 0 0 3px var(--hf-brand-bg); }
 .hf-svc-body .hf-input.is-invalid { border-color: var(--hf-bad); background: var(--hf-bad-bg); }
-.hf-svc-body .hf-input.is-invalid:focus { box-shadow: 0 0 0 3px oklch(52% 0.18 28 / 0.16); }
+.hf-svc-body .hf-input.is-invalid:focus { box-shadow: 0 0 0 3px var(--hf-bad-a16); }
 .hf-svc-body .hf-mono-input { font-family: var(--hf-mono); font-size: 13px; }
 .hf-svc-field-err {
   display: flex; align-items: center; gap: 5px;
@@ -85,7 +85,7 @@
   cursor: pointer; text-align: left;
   transition: border-color 100ms, background 100ms;
 }
-.hf-svc-asset:hover:not(:disabled) { border-color: oklch(85% 0.008 80); background: var(--hf-surface-2); }
+.hf-svc-asset:hover:not(:disabled) { border-color: var(--hf-line-strong); background: var(--hf-surface-2); }
 .hf-svc-asset:disabled { opacity: 0.6; cursor: not-allowed; }
 .hf-svc-picker-row:disabled { opacity: 0.6; cursor: not-allowed; }
 .hf-svc-asset-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -133,7 +133,7 @@
 .hf-seg-btn {
   flex: 1; height: 32px;
   border: none; background: transparent; cursor: pointer;
-  border-radius: 7px;
+  border-radius: var(--hf-r-sm);
   font-family: var(--hf-sans); font-size: 12.5px; font-weight: 500;
   color: var(--hf-ink-soft);
   transition: background 100ms, color 100ms;
@@ -148,7 +148,7 @@
   display: flex; align-items: center; gap: 10px;
   padding: 11px 13px;
   background: var(--hf-brand-bg);
-  border: 1px solid oklch(88% 0.04 150);
+  border: 1px solid var(--hf-ok-border);
   border-radius: var(--hf-r);
   color: var(--hf-brand-2);
 }
@@ -157,7 +157,7 @@
 
 .hf-svc-spinner {
   width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid oklch(100% 0 0 / 0.4); border-top-color: white;
+  border: 2px solid var(--hf-spinner-track); border-top-color: var(--hf-on-brand);
   animation: hf-svc-spin 600ms linear infinite;
 }
 @keyframes hf-svc-spin { to { transform: rotate(360deg); } }
@@ -179,7 +179,7 @@
   padding: 10px 12px;
   border-radius: var(--hf-r);
   background: var(--hf-bad-bg);
-  border: 1px solid oklch(88% 0.06 28);
+  border: 1px solid var(--hf-bad-border);
   color: var(--hf-bad);
   font-size: 12.5px;
 }

@@ -47,7 +47,7 @@
   background: repeating-linear-gradient(
     135deg,
     transparent 0 22px,
-    rgba(20, 18, 14, 0.012) 22px 23px
+    var(--hf-texture-line-subtle) 22px 23px
   );
 }
 .au-brand-logo {
@@ -62,7 +62,7 @@
 .au-brand-mark {
   width: 30px;
   height: 30px;
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   background: var(--hf-ink);
   display: flex;
   align-items: center;
@@ -117,7 +117,7 @@
   flex-shrink: 0;
   margin-top: 1px;
   background: var(--hf-brand);
-  color: #fff;
+  color: var(--hf-on-brand);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -196,7 +196,7 @@
 .au-google {
   width: 100%;
   height: 50px;
-  border-radius: 11px;
+  border-radius: var(--hf-r);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -217,7 +217,7 @@
 }
 .au-google:hover {
   background: var(--hf-surface-2);
-  border-color: oklch(82% 0.012 80);
+  border-color: var(--hf-line-strong);
   box-shadow: var(--hf-shadow-2);
 }
 .au-google:active {
@@ -315,7 +315,7 @@
 .au-redirect-badge {
   width: 72px;
   height: 72px;
-  border-radius: 20px;
+  border-radius: var(--hf-r-xl);
   background: var(--hf-surface);
   border: 1px solid var(--hf-line);
   box-shadow: var(--hf-shadow-2);
@@ -328,7 +328,7 @@
 .au-spinner {
   position: absolute;
   inset: -9px;
-  border-radius: 24px;
+  border-radius: var(--hf-r-xl);
   border: 2.5px solid var(--hf-brand-bg);
   border-top-color: var(--hf-brand);
   animation: au-spin 0.8s linear infinite;
@@ -375,9 +375,9 @@
 .au-fail-badge {
   width: 72px;
   height: 72px;
-  border-radius: 20px;
+  border-radius: var(--hf-r-xl);
   background: var(--hf-bad-bg);
-  border: 1px solid oklch(88% 0.045 28);
+  border: 1px solid var(--hf-bad-border);
   color: var(--hf-bad);
   display: flex;
   align-items: center;
@@ -414,14 +414,14 @@
 .au-btn-primary {
   width: 100%;
   height: 50px;
-  border-radius: 11px;
+  border-radius: var(--hf-r);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 9px;
   background: var(--hf-brand);
   border: 1px solid var(--hf-brand-2);
-  color: #fff;
+  color: var(--hf-on-brand);
   font-family: inherit;
   font-size: 15.5px;
   font-weight: 600;
@@ -478,7 +478,7 @@
   right: 30px;
   transform: rotate(3deg);
   padding: 9px 13px;
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   display: flex;
   align-items: center;
   gap: 8px;

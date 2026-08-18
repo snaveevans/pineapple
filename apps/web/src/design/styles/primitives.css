@@ -7,7 +7,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 13px;
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   font-size: 13px;
   font-weight: 500;
   border: 1px solid var(--hf-line);
@@ -31,7 +31,7 @@
   border-color: var(--hf-ink);
 }
 .hf-btn-primary:hover {
-  background: oklch(28% 0.015 70);
+  background: var(--hf-ink-2);
 }
 .hf-btn-secondary {
   background: var(--hf-surface);
@@ -49,8 +49,9 @@
 /* Brand-filled primary — lifted from former .mr-btn-primary */
 .hf-btn-brand {
   background: var(--hf-brand);
-  color: #fff;
+  color: var(--hf-on-brand);
   border-color: var(--hf-brand);
+  /* stylelint-disable-next-line function-disallowed-list -- one-off primary-button lift, not part of the --hf-shadow-* elevation scale */
   box-shadow: 0 1px 2px rgba(20, 18, 14, 0.12);
 }
 .hf-btn-brand:hover {
@@ -64,6 +65,7 @@
   justify-content: center;
   gap: 7px;
   padding: 9px 14px;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list -- keep the exact former .mr-btn radius (see comment above); 10px would be a real, if subtle, geometry change */
   border-radius: 9px;
   font-size: 13.5px;
   font-weight: 600;
@@ -94,12 +96,13 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border: 2px solid var(--hf-spinner-track);
+  border-top-color: var(--hf-on-brand);
   animation: hf-btn-spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 .hf-btn-spinner-dark {
+  /* stylelint-disable-next-line function-disallowed-list -- one-off: needs to read against a dark button, not the default --hf-line-strong hover tone */
   border-color: oklch(80% 0.008 80);
   border-top-color: var(--hf-ink-soft);
 }
@@ -140,9 +143,9 @@
   flex-shrink: 0;
 }
 .hf-empty-icon[data-tone="bad"] {
-  background: oklch(96% 0.04 28);
+  background: var(--hf-bad-bg);
   color: var(--hf-bad);
-  border-color: oklch(88% 0.05 28);
+  border-color: var(--hf-bad-border);
 }
 .hf-empty-icon[data-tone="brand"] {
   border-radius: var(--hf-r-lg);
@@ -201,7 +204,7 @@
   border: 1px dashed var(--hf-line);
   border-radius: var(--hf-r-lg);
   background:
-    repeating-linear-gradient(135deg, transparent 0 16px, rgba(20, 18, 14, 0.02) 16px 17px),
+    repeating-linear-gradient(135deg, transparent 0 16px, var(--hf-texture-line) 16px 17px),
     var(--hf-surface);
 }
 
@@ -264,7 +267,7 @@
 .hf-empty--history .hf-empty-icon {
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--hf-r);
   margin-bottom: 4px;
   color: var(--hf-ink-faint);
   border: none;
@@ -286,7 +289,7 @@
 .hf-empty--hero .hf-empty-icon {
   width: 72px;
   height: 72px;
-  border-radius: 20px;
+  border-radius: var(--hf-r-xl);
   margin-bottom: 0;
   border: none;
 }
@@ -345,7 +348,7 @@
   height: 40px;
   padding: 0 12px;
   border: 1px solid var(--hf-line);
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   background: var(--hf-surface);
   color: var(--hf-ink);
   font: inherit;
@@ -360,7 +363,7 @@
 }
 .hf-input:hover,
 .hf-select:hover {
-  border-color: oklch(85% 0.008 80);
+  border-color: var(--hf-line-strong);
 }
 .hf-input:focus,
 .hf-select:focus {
@@ -399,7 +402,7 @@
 .hf-input.is-invalid:focus,
 .hf-select.is-invalid:focus {
   border-color: var(--hf-bad);
-  box-shadow: 0 0 0 3px oklch(52% 0.18 28 / 0.16);
+  box-shadow: 0 0 0 3px var(--hf-bad-a16);
 }
 .hf-field-error {
   display: flex;

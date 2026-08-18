@@ -55,7 +55,7 @@
 .hf-logo-mark {
   width: 26px;
   height: 26px;
-  border-radius: 7px;
+  border-radius: var(--hf-r-sm);
   background: var(--hf-ink);
   display: flex;
   align-items: center;
@@ -78,7 +78,7 @@
   align-items: center;
   gap: 7px;
   padding: 7px 11px;
-  border-radius: 7px;
+  border-radius: var(--hf-r-sm);
   color: var(--hf-ink-soft);
   font-size: 13.5px;
   font-weight: 500;
@@ -105,7 +105,7 @@
 .hf-icon-btn {
   width: 32px;
   height: 32px;
-  border-radius: 7px;
+  border-radius: var(--hf-r-sm);
   border: 1px solid transparent;
   background: transparent;
   color: var(--hf-ink-soft);
@@ -126,8 +126,8 @@
   height: 14px;
   padding: 0 3px;
   background: var(--hf-bad);
-  color: white;
-  border-radius: 7px;
+  color: var(--hf-on-brand);
+  border-radius: var(--hf-r-sm);
   font-size: 9px;
   font-weight: 700;
   line-height: 14px;
@@ -224,21 +224,21 @@
 }
 .hf-stat-bad {
   background: var(--hf-bad-bg);
-  border-color: oklch(85% 0.04 28);
+  border-color: var(--hf-bad-border);
 }
 .hf-stat-bad .hf-stat-val {
   color: var(--hf-bad);
 }
 .hf-stat-warn {
   background: var(--hf-warn-bg);
-  border-color: oklch(88% 0.045 75);
+  border-color: var(--hf-warn-border);
 }
 .hf-stat-warn .hf-stat-val {
-  color: oklch(48% 0.13 75);
+  color: var(--hf-warn-ink);
 }
 .hf-stat-ok {
   background: var(--hf-ok-bg);
-  border-color: oklch(88% 0.04 150);
+  border-color: var(--hf-ok-border);
 }
 .hf-stat-ok .hf-stat-val {
   color: var(--hf-ok);
@@ -263,7 +263,7 @@
   gap: 6px;
   padding: 6px 11px;
   border: 1px solid var(--hf-line);
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   background: var(--hf-surface);
   color: var(--hf-ink-soft);
   font-size: 12.5px;
@@ -271,7 +271,7 @@
 }
 .hf-chip:hover {
   color: var(--hf-ink);
-  border-color: oklch(85% 0.008 80);
+  border-color: var(--hf-line-strong);
 }
 .hf-chip.active {
   background: var(--hf-ink);
@@ -279,6 +279,7 @@
   border-color: var(--hf-ink);
 }
 .hf-chip.active .hf-chip-count {
+  /* stylelint-disable-next-line function-disallowed-list -- one-off muted count text readable against the dark .hf-chip.active background */
   color: oklch(75% 0.008 80);
 }
 .hf-chip-count {
@@ -305,10 +306,12 @@
   position: sticky;
   top: 0;
 }
+/* stylelint-disable function-disallowed-list -- one-off overdue-card tint/gradient, not part of the --hf-bad-* status scale (bg is too saturated for a full-card wash) */
 .hf-detail-card[data-status="overdue"] {
   border-color: oklch(82% 0.06 28);
   background: linear-gradient(to bottom, oklch(98% 0.015 28) 0%, var(--hf-surface) 60%);
 }
+/* stylelint-enable function-disallowed-list */
 
 .hf-detail-body {
   display: flex;
@@ -506,7 +509,7 @@
   overflow: hidden;
 }
 .hf-row:hover {
-  border-color: oklch(85% 0.008 80);
+  border-color: var(--hf-line-strong);
 }
 .hf-row.selected {
   border-color: var(--hf-ink);
@@ -559,7 +562,7 @@
   gap: 4px;
   max-width: 100%;
   padding: 2px 8px 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   border: 1px solid transparent;
   font-size: 11px;
   font-weight: 600;
@@ -577,7 +580,7 @@
 .hf-share-badge.is-owner {
   background: var(--hf-brand-bg);
   color: var(--hf-brand-2);
-  border-color: oklch(88% 0.04 150);
+  border-color: var(--hf-ok-border);
 }
 .hf-share-badge.is-member {
   background: var(--hf-surface-2);
@@ -625,7 +628,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   color: var(--hf-ink);
   flex-shrink: 0;
 }
@@ -636,7 +639,7 @@
   align-items: center;
   gap: 5px;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   font-size: 11.5px;
   font-weight: 500;
   border: 1px solid transparent;
@@ -646,17 +649,17 @@
 .hf-pill-bad {
   background: var(--hf-bad-bg);
   color: var(--hf-bad);
-  border-color: oklch(88% 0.045 28);
+  border-color: var(--hf-bad-border);
 }
 .hf-pill-warn {
   background: var(--hf-warn-bg);
-  color: oklch(45% 0.13 75);
-  border-color: oklch(88% 0.06 75);
+  color: var(--hf-warn-ink);
+  border-color: var(--hf-warn-border);
 }
 .hf-pill-ok {
   background: var(--hf-ok-bg);
   color: var(--hf-ok);
-  border-color: oklch(88% 0.045 150);
+  border-color: var(--hf-ok-border);
 }
 
 /* ============ BOTTOM NAV (mobile only) ============ */

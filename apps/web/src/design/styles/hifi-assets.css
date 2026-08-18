@@ -35,7 +35,7 @@
   padding: 3px;
   background: var(--hf-surface);
   border: 1px solid var(--hf-line);
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   gap: 2px;
 }
 .hf-view-btn {
@@ -100,7 +100,7 @@
   box-shadow: var(--hf-shadow-1);
 }
 .hf-asset-card:hover {
-  border-color: oklch(80% 0.012 80);
+  border-color: var(--hf-line-strong);
   box-shadow: var(--hf-shadow-2);
   transform: translateY(-1px);
 }
@@ -119,7 +119,7 @@
 
 /* overdue accent: left edge stripe + tinted thumb fade */
 .hf-asset-card[data-status="overdue"] {
-  border-color: oklch(85% 0.05 28);
+  border-color: var(--hf-bad-border);
 }
 .hf-asset-card[data-status="overdue"]::before {
   /* the stripe is rendered inside the thumb instead — keep card border subtle */
@@ -133,6 +133,7 @@
   align-items: center;
   justify-content: center;
   /* warm pattern background so empty-photo state feels intentional */
+  /* stylelint-disable-next-line function-disallowed-list -- one-off texture tint, rgb black rather than the warm --hf-texture-line tone, used nowhere else */
   background: repeating-linear-gradient(135deg, transparent 0 18px, rgba(0, 0, 0, 0.012) 18px 19px);
 }
 .hf-asset-thumb[data-cat="vehicle"] {
@@ -170,9 +171,10 @@
   top: 10px;
   left: 10px;
   padding: 3px 8px;
+  /* stylelint-disable-next-line function-disallowed-list -- one-off near-opaque scrim behind a badge sitting on a photo thumbnail, not a --hf-surface card */
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--hf-line);
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   font-family: var(--hf-mono);
   font-size: 10px;
   text-transform: uppercase;
@@ -266,7 +268,7 @@
 /* ============ Add-asset ghost card ============ */
 .hf-add-card {
   background:
-    repeating-linear-gradient(135deg, transparent 0 16px, rgba(20, 18, 14, 0.025) 16px 17px),
+    repeating-linear-gradient(135deg, transparent 0 16px, var(--hf-texture-line) 16px 17px),
     var(--hf-surface);
   border-style: dashed;
   box-shadow: none;
@@ -279,7 +281,7 @@
 }
 .hf-add-card:hover .hf-add-card-plus {
   background: var(--hf-brand);
-  color: white;
+  color: var(--hf-on-brand);
   border-color: var(--hf-brand);
 }
 .hf-add-card-inner {
@@ -333,7 +335,7 @@
     box-shadow 120ms;
 }
 .hf-asset-row:hover {
-  border-color: oklch(80% 0.012 80);
+  border-color: var(--hf-line-strong);
 }
 .hf-asset-row-static {
   cursor: default;
@@ -342,12 +344,12 @@
   border-color: var(--hf-line);
 }
 .hf-asset-row[data-status="overdue"] {
-  border-color: oklch(85% 0.05 28);
+  border-color: var(--hf-bad-border);
 }
 .hf-asset-row .hf-asset-thumb {
   width: 84px;
   height: 84px;
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   flex-shrink: 0;
 }
 .hf-asset-row .hf-asset-cat-badge {

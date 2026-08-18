@@ -1,15 +1,4 @@
 .hh {
-  --hh-maint: oklch(46% 0.1 150);
-  --hh-maint-bg: oklch(95% 0.03 150);
-  --hh-added: oklch(49% 0.11 292);
-  --hh-added-bg: oklch(95% 0.03 292);
-  --hh-scheduled: oklch(49% 0.11 252);
-  --hh-scheduled-bg: oklch(95% 0.03 252);
-  --hh-completed: oklch(50% 0.09 196);
-  --hh-completed-bg: oklch(95% 0.03 196);
-  --hh-deleted: oklch(54% 0.13 28);
-  --hh-deleted-bg: oklch(96% 0.028 28);
-  --hh-spine: oklch(89% 0.006 80);
   --hh-node: 44px;
   --hh-gap: 16px;
 }
@@ -25,12 +14,13 @@
   padding: 0 10px;
   background: var(--hf-surface);
   border: 1px solid var(--hf-line);
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   color: var(--hf-ink-faint);
 }
 
 .hh-search:focus-within {
-  border-color: oklch(80% 0.01 80);
+  border-color: var(--hf-line-strong);
+  /* stylelint-disable-next-line function-disallowed-list -- one-off focus-ring glow, no repeated focus-ring token exists yet */
   box-shadow: 0 0 0 3px oklch(92% 0.01 80);
 }
 
@@ -52,7 +42,7 @@
   height: 32px;
   padding: 0 30px 0 11px;
   border: 1px solid var(--hf-line);
-  border-radius: 8px;
+  border-radius: var(--hf-r);
   background: var(--hf-surface)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a857a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")
     no-repeat right 9px center;
@@ -65,7 +55,7 @@
 }
 
 .hh-select:hover {
-  border-color: oklch(85% 0.008 80);
+  border-color: var(--hf-line-strong);
 }
 
 .hh-grid {
@@ -136,7 +126,7 @@
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--hh-spine);
+  background: var(--hf-line);
 }
 
 .hh-daygroup:last-child .hh-event:last-child::before {
@@ -159,33 +149,33 @@
 }
 
 .hh-node[data-type="maintenance_logged"] {
-  background: var(--hh-maint-bg);
-  color: var(--hh-maint);
-  border-color: oklch(88% 0.04 150);
+  background: var(--hf-evt-maint-bg);
+  color: var(--hf-evt-maint);
+  border-color: var(--hf-ok-border);
 }
 
 .hh-node[data-type="asset_added"] {
-  background: var(--hh-added-bg);
-  color: var(--hh-added);
-  border-color: oklch(88% 0.04 292);
+  background: var(--hf-evt-added-bg);
+  color: var(--hf-evt-added);
+  border-color: var(--hf-evt-added-border);
 }
 
 .hh-node[data-type="task_scheduled"] {
-  background: var(--hh-scheduled-bg);
-  color: var(--hh-scheduled);
-  border-color: oklch(88% 0.04 252);
+  background: var(--hf-evt-scheduled-bg);
+  color: var(--hf-evt-scheduled);
+  border-color: var(--hf-evt-scheduled-border);
 }
 
 .hh-node[data-type="task_completed"] {
-  background: var(--hh-completed-bg);
-  color: var(--hh-completed);
-  border-color: oklch(88% 0.04 196);
+  background: var(--hf-evt-completed-bg);
+  color: var(--hf-evt-completed);
+  border-color: var(--hf-evt-completed-border);
 }
 
 .hh-node[data-type="task_deleted"] {
-  background: var(--hh-deleted-bg);
-  color: var(--hh-deleted);
-  border-color: oklch(88% 0.05 28);
+  background: var(--hf-bad-bg);
+  color: var(--hf-evt-deleted);
+  border-color: var(--hf-bad-border);
 }
 
 .hh-card {
@@ -201,7 +191,7 @@
 }
 
 .hh-card:hover {
-  border-color: oklch(86% 0.008 80);
+  border-color: var(--hf-line-strong);
   box-shadow: var(--hf-shadow-2);
 }
 
@@ -231,23 +221,23 @@
 }
 
 .hh-verb[data-type="maintenance_logged"] {
-  color: var(--hh-maint);
+  color: var(--hf-evt-maint);
 }
 
 .hh-verb[data-type="asset_added"] {
-  color: var(--hh-added);
+  color: var(--hf-evt-added);
 }
 
 .hh-verb[data-type="task_scheduled"] {
-  color: var(--hh-scheduled);
+  color: var(--hf-evt-scheduled);
 }
 
 .hh-verb[data-type="task_completed"] {
-  color: var(--hh-completed);
+  color: var(--hf-evt-completed);
 }
 
 .hh-verb[data-type="task_deleted"] {
-  color: var(--hh-deleted);
+  color: var(--hf-evt-deleted);
 }
 
 .hh-title {
@@ -306,14 +296,14 @@
   padding: 5px 10px 5px 5px;
   background: var(--hf-surface-2);
   border: 1px solid var(--hf-line-soft);
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   font-size: 12px;
   color: var(--hf-ink-soft);
   text-decoration: none;
 }
 
 a.hh-asset-chip:hover {
-  border-color: oklch(85% 0.008 80);
+  border-color: var(--hf-line-strong);
   color: var(--hf-ink);
 }
 
@@ -351,7 +341,7 @@ a.hh-asset-chip:hover {
   padding: 4px 9px;
   background: var(--hf-surface-2);
   border: 1px solid var(--hf-line-soft);
-  border-radius: 7px;
+  border-radius: var(--hf-r-sm);
   font-size: 12px;
   color: var(--hf-ink-soft);
   white-space: nowrap;
@@ -385,7 +375,7 @@ a.hh-asset-chip:hover {
   padding: 0 16px;
   background: var(--hf-surface);
   border: 1px solid var(--hf-line);
-  border-radius: 999px;
+  border-radius: var(--hf-r-full);
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
@@ -397,7 +387,7 @@ a.hh-asset-chip:hover {
 }
 
 .hh-loadmore-btn:hover:not(:disabled) {
-  border-color: oklch(82% 0.01 80);
+  border-color: var(--hf-line-strong);
   color: var(--hf-ink);
 }
 
@@ -472,6 +462,7 @@ a.hh-asset-chip:hover {
 .hh-bd-swatch {
   width: 9px;
   height: 9px;
+  /* stylelint-disable-next-line declaration-property-value-disallowed-list -- keep as a rounded square, not --hf-r-sm's circle: on a 9px box, CSS caps radius at half the side (4.5px), so 6px renders as a full circle */
   border-radius: 3px;
   flex-shrink: 0;
 }
@@ -486,14 +477,14 @@ a.hh-asset-chip:hover {
 .hh-bd-track {
   grid-column: 1 / -1;
   height: 5px;
-  border-radius: 3px;
+  border-radius: var(--hf-r-sm);
   background: var(--hf-surface-2);
   overflow: hidden;
 }
 
 .hh-bd-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: var(--hf-r-sm);
 }
 
 .hh-active-asset {

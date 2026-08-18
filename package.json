@@ -6,7 +6,8 @@
   "scripts": {
     "kill-ports": "lsof -ti:8787,5173,9229,9230 | xargs kill -9 2>/dev/null || true",
     "dev": "pnpm -r --parallel --filter @snaveevans/pineapple-api --filter @snaveevans/pineapple-web run dev",
-    "lint": "eslint .",
+    "lint": "eslint . && pnpm run lint:css",
+    "lint:css": "stylelint \"apps/web/src/**/*.css\"",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "pnpm -r --if-present run type-check",
@@ -24,6 +25,9 @@
     ],
     "**/*.{json,yaml,md,cjs,mjs}": [
       "prettier --write"
+    ],
+    "apps/web/src/**/*.css": [
+      "stylelint"
     ]
   },
   "devDependencies": {
@@ -37,6 +41,7 @@
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
+    "stylelint": "^17.14.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0",
     "vitest": "^4.1.10"
