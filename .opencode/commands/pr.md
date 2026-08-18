@@ -39,7 +39,7 @@ If there is no issue, omit the Related section.
   - **Risk** — level `L|M|H|C`, why, and human validation budget (see
     `validation-gate` skill hybrid rubric). Prefer running that skill for a full
     gate; if opening a PR bare, still score risk honestly from the diff paths.
-  - **Evidence** — named tests, gallery/screenshots, traces, or short manual steps
+  - **Evidence** — named tests, screenshots, traces, or short manual steps
   - Test plan (concrete steps, not empty checkboxes only)
   - Spec / AC link when feature work touched `docs/specs/`
   - Validation gate checklist + escalations when the gate was run

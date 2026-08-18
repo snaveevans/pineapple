@@ -158,8 +158,7 @@ Attach proof that the change meets **intent**, not merely that tests passed.
 Prefer, in order:
 
 1. Named tests that exercise the behavior (file + test name)
-2. Web: state-gallery / Playwright / screenshot paths when UI changed (see #145 /
-   `test/145-web-state-gallery` when present)
+2. Web: manual screenshot(s) when UI changed
 3. API: curl/trace or vitest integration output for the contract path
 4. Manual steps with expected results (last resort; keep short)
 
