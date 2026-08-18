@@ -20,7 +20,6 @@
   align-items: center;
   gap: 12px;
 }
-
 .hf-assets-toolbar .hf-filter-chips {
   gap: 6px;
 }
@@ -432,81 +431,7 @@
   background: var(--hf-brand-bg);
 }
 
-/* ============ Loading, error, and empty states ============ */
-.hf-assets-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  gap: 10px;
-  padding: 64px 24px;
-  min-height: 320px;
-}
-.hf-assets-state-inline {
-  padding: 48px 24px;
-  min-height: 0;
-  border: 1px dashed var(--hf-line);
-  border-radius: var(--hf-r-lg);
-  background:
-    repeating-linear-gradient(135deg, transparent 0 16px, rgba(20, 18, 14, 0.02) 16px 17px),
-    var(--hf-surface);
-}
-.hf-assets-state-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--hf-surface-2);
-  color: var(--hf-ink-soft);
-  border: 1px solid var(--hf-line);
-  margin-bottom: 2px;
-}
-.hf-assets-state-icon[data-tone="bad"] {
-  background: oklch(96% 0.04 28);
-  color: var(--hf-bad);
-  border-color: oklch(88% 0.05 28);
-}
-.hf-assets-state-title {
-  color: var(--hf-ink);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-.hf-assets-state-sub {
-  max-width: 340px;
-  color: var(--hf-ink-soft);
-  font-size: 13px;
-  line-height: 1.5;
-}
-.hf-assets-state .hf-btn {
-  margin-top: 6px;
-}
-.hf-assets-state-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 6px;
-}
-.hf-assets-spinner {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  border: 2.5px solid var(--hf-line);
-  border-top-color: var(--hf-ink);
-  animation: hf-assets-spin 0.7s linear infinite;
-}
-@keyframes hf-assets-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hf-assets-spinner {
-    animation-duration: 2s;
-  }
-}
+/* Empty / loading / error states → design/EmptyState + primitives.css */
 
 /* ===================================================================
    Responsive — same container-query contract as the home screen
@@ -538,12 +463,14 @@
   }
 }
 
-/* MOBILE (≤580px on app container): swap grid for horizontal rows */
+/* MOBILE (≤580px on app container): swap grid for horizontal rows.
+   Both layouts are always mounted; CSS alone chooses visibility so gallery
+   shots cannot flake on a React isMobileLayout race. */
 @container hfapp (max-width: 580px) {
-  .hf-assets-page[data-view] .hf-asset-grid {
+  .hf-assets-page .hf-asset-grid {
     display: none;
   }
-  .hf-assets-page[data-view] .hf-asset-rows {
+  .hf-assets-page .hf-asset-rows {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -554,11 +481,11 @@
     gap: 10px;
   }
   .hf-assets-toolbar-end {
-    justify-content: flex-start;
+    display: none;
   }
   .hf-view-toggle {
     display: none;
-  } /* grid/list toggle hides on mobile */
+  }
   .hf-filter-chips {
     flex-wrap: wrap;
   }

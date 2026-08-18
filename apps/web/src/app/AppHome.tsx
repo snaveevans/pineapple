@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import { assetsQueryKey, listAssets } from "../api/assets.ts";
 import { dashboardQueryKey, getDashboard } from "../api/dashboard.ts";
 import { createMaintenanceRecord, maintenanceRecordsQueryKey } from "../api/maintenanceRecords.ts";
 import { maintenanceTasksQueryKey } from "../api/maintenanceTasks.ts";
 import { ApiError } from "../api/client.ts";
+import { Button } from "../design/Button.tsx";
+import { EmptyState } from "../design/EmptyState.tsx";
 import { Icon } from "../design/Icon.tsx";
 import { HFAssetIcon, HFStatusPill } from "../design/hf.tsx";
 import { HFTopBar, HFBottomNav } from "./AppChrome.tsx";
@@ -95,27 +97,23 @@ function HFDetailBody({
       ) : null}
 
       <div className="hf-actions">
-        <button
-          className="hf-btn hf-btn-primary"
-          onClick={onMarkComplete}
-          disabled={completing}
-        >
+        <Button variant="primary" onClick={onMarkComplete} disabled={completing}>
           <Icon name="check" size={14} stroke={2.2} />
           {completing ? "Saving…" : "Mark complete"}
-        </button>
-        <button className="hf-btn hf-btn-secondary" disabled title="Coming soon">
+        </Button>
+        <Button variant="secondary" disabled title="Coming soon">
           <Icon name="calendar" size={14} />
           Reschedule
-        </button>
-        <button className="hf-btn hf-btn-ghost" disabled title="Coming soon">
+        </Button>
+        <Button variant="ghost" disabled title="Coming soon">
           <Icon name="snooze" size={14} />
           Snooze
-        </button>
+        </Button>
         {!compact && (
-          <Link className="hf-btn hf-btn-ghost hf-btn-end" to={paths.assetMaintenance(item.assetId)}>
+          <Button variant="ghost" end to={paths.assetMaintenance(item.assetId)}>
             View asset
             <Icon name="chevron-right" size={14} />
-          </Link>
+          </Button>
         )}
       </div>
     </div>
@@ -153,24 +151,6 @@ function HFGreeting({
           <div className="hf-stat-lbl">On track</div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function HFDashboardState({
-  title,
-  description,
-  action,
-}: {
-  title: string;
-  description: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="hf-assets-state">
-      <div className="hf-assets-state-title">{title}</div>
-      <div className="hf-assets-state-sub">{description}</div>
-      {action}
     </div>
   );
 }
@@ -309,9 +289,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
       <div className={`hf hf-app hf-mobile-${mobileMode}`}>
         <HFTopBar />
         <main className="hf-main hf-shell">
-          <HFDashboardState
+          <EmptyState
             title="Loading dashboard"
             description="Fetching your fleet health and maintenance queue..."
+            spinner
           />
         </main>
         <HFBottomNav />
@@ -324,16 +305,15 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
       <div className={`hf hf-app hf-mobile-${mobileMode}`}>
         <HFTopBar />
         <main className="hf-main hf-shell">
-          <HFDashboardState
+          <EmptyState
+            icon="alert"
+            iconTone="bad"
             title="Dashboard could not be loaded"
             description={dashboardQuery.error.message}
             action={
-              <button
-                className="hf-btn hf-btn-secondary"
-                onClick={() => void dashboardQuery.refetch()}
-              >
+              <Button variant="secondary" onClick={() => void dashboardQuery.refetch()}>
                 Try again
-              </button>
+              </Button>
             }
           />
         </main>
@@ -354,14 +334,15 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
             subline={formatFleetSubline(dashboard.todayUtc, 0)}
             health={{ overdue: 0, soon: 0, onTrack: 0 }}
           />
-          <HFDashboardState
+          <EmptyState
+            icon="plus"
             title="No assets yet"
             description="Add your first vehicle, property, or piece of equipment to start tracking maintenance."
             action={
-              <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
+              <Button variant="primary" to={paths.addAsset}>
                 <Icon name="plus" size={14} stroke={2.2} />
                 Add asset
-              </Link>
+              </Button>
             }
           />
         </main>
@@ -397,33 +378,32 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
               </button>
             ))}
           </div>
-          <button
-            className="hf-btn hf-btn-secondary hf-btn-sm"
-            onClick={() => setAddServiceOpen(true)}
-          >
+          <Button variant="secondary" size="sm" onClick={() => setAddServiceOpen(true)}>
             <Icon name="plus" size={14} stroke={2} />
             Add service
-          </button>
+          </Button>
         </div>
 
         {queue.length === 0 ? (
-          <HFDashboardState
+          <EmptyState
+            icon="calendar"
             title="No scheduled maintenance yet"
             description="Add maintenance tasks to your assets so the dashboard can track what's due next."
             action={
-              <Link className="hf-btn hf-btn-primary" to={paths.assets}>
+              <Button variant="primary" to={paths.assets}>
                 Go to assets
-              </Link>
+              </Button>
             }
           />
         ) : filteredQueue.length === 0 || !selected ? (
-          <HFDashboardState
+          <EmptyState
+            icon="filter"
             title="No tasks in this category"
             description="Try another filter to see scheduled maintenance for that asset type."
             action={
-              <button className="hf-btn hf-btn-secondary" onClick={() => setCategory("all")}>
+              <Button variant="secondary" onClick={() => setCategory("all")}>
                 Show all tasks
-              </button>
+              </Button>
             }
           />
         ) : (
@@ -519,9 +499,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                 </button>
               </div>
               <div className="hf-svc-body">
-                <HFDashboardState
+                <EmptyState
                   title="Loading assets"
                   description="Fetching your fleet so you can choose where to schedule this service…"
+                  spinner
                 />
               </div>
             </div>
@@ -544,16 +525,15 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                 </button>
               </div>
               <div className="hf-svc-body">
-                <HFDashboardState
+                <EmptyState
+                  icon="alert"
+                  iconTone="bad"
                   title="Assets could not be loaded"
                   description={assetsQuery.error.message}
                   action={
-                    <button
-                      className="hf-btn hf-btn-secondary"
-                      onClick={() => void assetsQuery.refetch()}
-                    >
+                    <Button variant="secondary" onClick={() => void assetsQuery.refetch()}>
                       Try again
-                    </button>
+                    </Button>
                   }
                 />
               </div>
@@ -585,21 +565,22 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                 </button>
               </div>
               <div className="hf-svc-body">
-                <HFDashboardState
+                <EmptyState
+                  icon="plus"
                   title="No assets available"
                   description="Add an asset before scheduling a service."
                   action={
-                    <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
+                    <Button variant="primary" to={paths.addAsset}>
                       <Icon name="plus" size={14} stroke={2.2} />
                       Add asset
-                    </Link>
+                    </Button>
                   }
                 />
               </div>
               <div className="hf-svc-foot">
-                <button className="hf-btn hf-btn-primary" onClick={() => setAddServiceOpen(false)}>
+                <Button variant="primary" onClick={() => setAddServiceOpen(false)}>
                   Close
-                </button>
+                </Button>
               </div>
             </div>
           </div>

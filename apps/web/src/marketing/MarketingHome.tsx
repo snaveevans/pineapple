@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { Button } from "../design/Button";
 import { Icon } from "../design/Icon";
 import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb, HFStatusPill } from "../design/hf";
@@ -144,10 +145,10 @@ function MKHeroCollage() {
           <div className="mk-next-svc">Oil change + tire rotation</div>
           <div className="mk-next-row">
             <HFStatusPill status="overdue" due="3 days late" />
-            <button className="hf-btn hf-btn-primary hf-btn-sm">
+            <Button variant="primary" size="sm">
               <Icon name="check" size={13} stroke={2.2} />
               Done
-            </button>
+            </Button>
           </div>
         </div>
       </div>

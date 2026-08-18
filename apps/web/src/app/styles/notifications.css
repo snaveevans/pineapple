@@ -131,44 +131,7 @@
   margin: 4px 0;
 }
 
-.nt-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 6px;
-  padding: 64px 24px;
-  color: var(--hf-ink-faint);
-}
-
-.nt-empty-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background: var(--hf-surface-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--hf-ink-faint);
-  margin-bottom: 6px;
-}
-
-.nt-empty h2 {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--hf-ink-soft);
-  margin: 0;
-}
-
-.nt-empty p {
-  font-size: 12.5px;
-  margin: 0;
-  max-width: 280px;
-}
-
-.nt-empty .hf-btn {
-  margin-top: 12px;
-}
+/* Empty state → design/EmptyState */
 
 .nt-loading {
   display: flex;

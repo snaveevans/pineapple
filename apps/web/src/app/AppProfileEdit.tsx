@@ -11,6 +11,8 @@ import {
   type UserProfile,
 } from "../api/userProfile";
 import { ApiError } from "../api/client";
+import { Button, ButtonSpinner } from "../design/Button";
+import { Field, FieldReqMark } from "../design/Field";
 import { Icon } from "../design/Icon";
 import { paths } from "../routes";
 import {
@@ -349,23 +351,32 @@ export function AppProfileEdit() {
               <span className="hf-aa-section-title">Display name</span>
             </div>
 
-            <div className={`hf-field${hasFieldError ? " has-error" : ""}`}>
-              <label className="hf-field-label" htmlFor="pe-name-input">
-                Display name
-                <span className="hf-field-req">*</span>
+            <Field
+              label="Display name"
+              htmlFor="pe-name-input"
+              required
+              hint={
                 <span
                   className={
-                    "hf-field-hint" +
-                    (charCount > DISPLAY_NAME_MAX_LENGTH
-                      ? " pe-hint-bad"
+                    charCount > DISPLAY_NAME_MAX_LENGTH
+                      ? "pe-hint-bad"
                       : charCount > 85
-                        ? " pe-hint-warn"
-                        : "")
+                        ? "pe-hint-warn"
+                        : undefined
                   }
                 >
                   {charCount}/{DISPLAY_NAME_MAX_LENGTH}
                 </span>
-              </label>
+              }
+              {...(hasFieldError
+                ? {
+                    error:
+                      fieldError === "empty" ? NAME_REQUIRED_MESSAGE : NAME_TOO_LONG_MESSAGE,
+                  }
+                : fieldSubText
+                  ? { sub: fieldSubText }
+                  : {})}
+            >
               <input
                 id="pe-name-input"
                 className={`hf-input${hasFieldError ? " is-invalid" : ""}`}
@@ -382,15 +393,7 @@ export function AppProfileEdit() {
                 autoFocus
                 autoComplete="name"
               />
-              {hasFieldError ? (
-                <span className="hf-field-error" role="alert">
-                  <Icon name="alert" size={12} stroke={2} />
-                  {fieldError === "empty" ? NAME_REQUIRED_MESSAGE : NAME_TOO_LONG_MESSAGE}
-                </span>
-              ) : (
-                fieldSubText && <span className="pe-field-sub">{fieldSubText}</span>
-              )}
-            </div>
+            </Field>
           </div>
 
           <div className="hf-aa-section">
@@ -408,10 +411,13 @@ export function AppProfileEdit() {
               )}
             </div>
 
-            <div className={`hf-field${emailError !== null ? " has-error" : ""}`}>
-              <label className="hf-field-label" htmlFor="pe-email-input">
-                Email address
-              </label>
+            <Field
+              label="Email address"
+              htmlFor="pe-email-input"
+              {...(emailError !== null
+                ? { error: emailError }
+                : { sub: contactEmailSubText })}
+            >
               <div className="pe-email-row">
                 <input
                   id="pe-email-input"
@@ -429,15 +435,16 @@ export function AppProfileEdit() {
                   disabled={emailBusy}
                   onKeyDown={handleContactEmailKeyDown}
                 />
-                <button
+                <Button
                   type="button"
-                  className="hf-btn hf-btn-secondary pe-btn-sm"
+                  variant="secondary"
+                  size="sm"
                   disabled={emailBusy}
                   onClick={handleSaveContactEmail}
                 >
                   {setEmailMutation.isPending ? (
                     <>
-                      <span className="pe-btn-spinner pe-btn-spinner-dark" />
+                      <ButtonSpinner dark />
                       Saving...
                     </>
                   ) : (
@@ -446,48 +453,43 @@ export function AppProfileEdit() {
                       {hasContactEmail ? "Update" : "Save"}
                     </>
                   )}
-                </button>
+                </Button>
                 {hasContactEmail && (
-                  <button
+                  <Button
                     type="button"
-                    className="hf-btn hf-btn-secondary pe-btn-sm pe-btn-ghost"
+                    variant="ghost"
+                    size="sm"
+                    className="pe-btn-danger-ghost"
                     title="Remove contact email"
                     aria-label="Remove contact email"
                     disabled={emailBusy}
                     onClick={handleRemoveContactEmail}
                   >
                     <Icon name="x" size={13} stroke={2.2} />
-                  </button>
+                  </Button>
                 )}
               </div>
-              {emailError !== null ? (
-                <span className="hf-field-error" role="alert">
-                  <Icon name="alert" size={12} stroke={2} />
-                  {emailError}
-                </span>
-              ) : (
-                <span className="pe-field-sub">{contactEmailSubText}</span>
-              )}
-            </div>
+            </Field>
 
             {isContactEmailUnverified && (
               <div className="pe-verify-row">
                 <span className="pe-verify-row-text">{verificationRowText}</span>
-                <button
+                <Button
                   type="button"
-                  className="hf-btn hf-btn-secondary pe-btn-sm"
+                  variant="secondary"
+                  size="sm"
                   disabled={resendEmailMutation.isPending || emailNotice === "cooldown"}
                   onClick={handleResendVerification}
                 >
                   {resendEmailMutation.isPending ? (
                     <>
-                      <span className="pe-btn-spinner pe-btn-spinner-dark" />
+                      <ButtonSpinner dark />
                       Sending...
                     </>
                   ) : (
                     "Resend verification email"
                   )}
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -531,27 +533,24 @@ export function AppProfileEdit() {
             </span>
           ) : (
             <>
-              Fields marked <span className="hf-field-req">*</span> are required
+              Fields marked <FieldReqMark /> are required
             </>
           )}
         </div>
         <div className="hf-aa-footer-actions">
-          <button
+          <Button
             type="button"
-            className="hf-btn hf-btn-secondary hf-btn-lg"
+            variant="secondary"
+            size="lg"
             disabled={mutation.isPending}
             onClick={handleCancel}
           >
             Cancel
-          </button>
-          <button
-            type="submit"
-            className="hf-btn hf-btn-primary hf-btn-lg"
-            disabled={mutation.isPending}
-          >
+          </Button>
+          <Button type="submit" variant="primary" size="lg" disabled={mutation.isPending}>
             {mutation.isPending ? (
               <>
-                <span className="pe-btn-spinner" />
+                <ButtonSpinner />
                 Saving…
               </>
             ) : (
@@ -560,7 +559,7 @@ export function AppProfileEdit() {
                 Save changes
               </>
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

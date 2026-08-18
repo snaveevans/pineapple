@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { assetsQueryKey, listAssets, type AssetCategoryCounts } from "../api/assets";
 import { ApiError } from "../api/client";
+import { Button } from "../design/Button";
+import { EmptyState, EmptyStateActions } from "../design/EmptyState";
 import { Icon, type IconName } from "../design/Icon";
 import { HFAssetThumb, type AssetCategory } from "../design/hf";
 import { paths } from "../routes";
@@ -195,85 +197,75 @@ function HFAssetsHeader({ count, showCount }: { count: number; showCount: boolea
         {showCount && <div className="hf-greeting-sub">{assetCountCopy(count)}</div>}
       </div>
       <div className="hf-stats hf-stats-tight">
-        <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
+        <Button variant="primary" to={paths.addAsset}>
           <Icon name="plus" size={14} stroke={2.2} />
           Add asset
-        </Link>
+        </Button>
       </div>
     </div>
   );
 }
 
 function HFAssetsLoading() {
-  return (
-    <div className="hf-assets-state" role="status">
-      <span className="hf-assets-spinner" />
-      <div className="hf-assets-state-title">Loading assets</div>
-    </div>
-  );
+  return <EmptyState spinner title="Loading assets" role="status" />;
 }
 
 function HFAssetsError({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="hf-assets-state">
-      <div className="hf-assets-state-icon" data-tone="bad">
-        <Icon name="alert" size={26} stroke={1.8} />
-      </div>
-      <div className="hf-assets-state-title">Assets could not be loaded</div>
-      <div className="hf-assets-state-sub">{message || "Something went wrong on our end."}</div>
-      <button type="button" className="hf-btn hf-btn-primary" onClick={onRetry}>
-        <Icon name="repeat" size={14} stroke={2} />
-        Try again
-      </button>
-    </div>
+    <EmptyState
+      icon="alert"
+      iconTone="bad"
+      title="Assets could not be loaded"
+      description={message || "Something went wrong on our end."}
+      action={
+        <Button variant="primary" onClick={onRetry}>
+          <Icon name="repeat" size={14} stroke={2} />
+          Try again
+        </Button>
+      }
+    />
   );
 }
 
 function HFAssetsRedirecting() {
-  return (
-    <div className="hf-assets-state" role="status">
-      <span className="hf-assets-spinner" />
-      <div className="hf-assets-state-title">Redirecting to sign in</div>
-    </div>
-  );
+  return <EmptyState spinner title="Redirecting to sign in" role="status" />;
 }
 
 function HFAssetsEmpty() {
   return (
-    <div className="hf-assets-state">
-      <div className="hf-assets-state-icon">
-        <Icon name="plus" size={26} stroke={2} />
-      </div>
-      <div className="hf-assets-state-title">No assets yet</div>
-      <div className="hf-assets-state-sub">
-        Add your trucks, equipment, and properties to start tracking maintenance in one place.
-      </div>
-      <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
-        <Icon name="plus" size={14} stroke={2.2} />
-        Add asset
-      </Link>
-    </div>
+    <EmptyState
+      icon="plus"
+      title="No assets yet"
+      description="Add your trucks, equipment, and properties to start tracking maintenance in one place."
+      action={
+        <Button variant="primary" to={paths.addAsset}>
+          <Icon name="plus" size={14} stroke={2.2} />
+          Add asset
+        </Button>
+      }
+    />
   );
 }
 
 function HFAssetsFilteredEmpty({ category, onClear }: { category: string; onClear: () => void }) {
   return (
-    <div className="hf-assets-state hf-assets-state-inline">
-      <div className="hf-assets-state-icon">
-        <Icon name="filter" size={24} stroke={1.8} />
-      </div>
-      <div className="hf-assets-state-title">No {category.toLowerCase()} yet</div>
-      <div className="hf-assets-state-sub">You don't have any assets in this category.</div>
-      <div className="hf-assets-state-actions">
-        <button type="button" className="hf-btn hf-btn-ghost" onClick={onClear}>
-          Clear filter
-        </button>
-        <Link className="hf-btn hf-btn-primary" to={paths.addAsset}>
-          <Icon name="plus" size={14} stroke={2.2} />
-          Add asset
-        </Link>
-      </div>
-    </div>
+    <EmptyState
+      surface="inline"
+      icon="filter"
+      title={`No ${category.toLowerCase()} yet`}
+      description="You don't have any assets in this category."
+      action={
+        <EmptyStateActions>
+          <Button variant="ghost" onClick={onClear}>
+            Clear filter
+          </Button>
+          <Button variant="primary" to={paths.addAsset}>
+            <Icon name="plus" size={14} stroke={2.2} />
+            Add asset
+          </Button>
+        </EmptyStateActions>
+      }
+    />
   );
 }
 
@@ -359,25 +351,23 @@ export function AppAssets() {
             category={assetFilterLabel(activeFilter)}
             onClear={() => setActiveFilter("all")}
           />
+        ) : showRows ? (
+          <div className="hf-asset-rows">
+            {shownAssets.map((asset) => (
+              <HFAssetRowCard key={asset.id} asset={asset} />
+            ))}
+            <Link className="hf-row-add" to={paths.addAsset}>
+              <Icon name="plus" size={16} stroke={2} />
+              Add an asset
+            </Link>
+          </div>
         ) : (
-          showRows ? (
-            <div className="hf-asset-rows">
-              {shownAssets.map((asset) => (
-                <HFAssetRowCard key={asset.id} asset={asset} />
-              ))}
-              <Link className="hf-row-add" to={paths.addAsset}>
-                <Icon name="plus" size={16} stroke={2} />
-                Add an asset
-              </Link>
-            </div>
-          ) : (
-            <div className="hf-asset-grid">
-              {shownAssets.map((asset) => (
-                <HFAssetGridCard key={asset.id} asset={asset} />
-              ))}
-              <HFAddCard />
-            </div>
-          )
+          <div className="hf-asset-grid">
+            {shownAssets.map((asset) => (
+              <HFAssetGridCard key={asset.id} asset={asset} />
+            ))}
+            <HFAddCard />
+          </div>
         )}
       </main>
       <HFBottomNav />
