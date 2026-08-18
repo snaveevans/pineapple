@@ -83,7 +83,7 @@ tagged boxes are all `[x]`." See docs/specs/SPECS.md. -->
 - [x] `S2` Editing a task that doesn't exist returns 404
 - [x] `S2` Editing a task that exists but belongs to a different asset than the path `assetId` returns 404
 - [x] `S2` Editing a task whose asset the requester cannot access returns 403
-- [x] `S2` The update use case checks that the target asset exists and the requester can access it before applying the edit, following the same asset-then-task-then-access order as task deletion
+- [x] `S2` The update use case checks that the target asset exists and the requester can access it before applying the edit, following the same task-then-asset-then-access order as task deletion (task lookup and asset-mismatch check first, then asset lookup, then the access check)
 - [x] `S2` A successful edit that changes `title`, `intervalValue`, or `intervalUnit` publishes a `MaintenanceTaskUpdated` domain event carrying the resulting `nextDue` as a producer-owned conclusion (ADR-0010), so the notifications scheduler reschedules the pending reminder via its existing supersede path without reading task storage back
 
 ### Record-task linking (change to existing maintenance-record endpoint)
