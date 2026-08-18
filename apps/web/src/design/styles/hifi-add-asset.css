@@ -177,6 +177,19 @@
   font-weight: 500;
 }
 
+/* ============ read-only type (edit asset — type cannot change) ============ */
+.hf-type-readonly {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+  background: var(--hf-surface-2);
+  color: var(--hf-ink-soft);
+  font-size: 14px;
+}
+
 /* ============ type picker (3 radio cards) ============ */
 .hf-aa-types {
   display: grid;

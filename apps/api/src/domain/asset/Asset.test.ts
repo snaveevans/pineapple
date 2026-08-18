@@ -131,15 +131,67 @@ describe("Asset", () => {
     );
   });
 
-  it("rename trims and rejects blank names", () => {
+  it("edit trims the name and rejects blank names", () => {
     const asset = Asset.create({ ownerId, name: "Truck", metadata: validVehicle });
     asset.pullEvents();
 
-    asset.rename("  New Name  ");
+    asset.edit({ name: "  New Name  ", metadata: validVehicle, actorId: ownerId });
     expect(asset.name).toBe("New Name");
 
-    expectValidationField(() => asset.rename(""), "name");
-    expectValidationField(() => asset.rename("   "), "name");
+    expectValidationField(
+      () => asset.edit({ name: "", metadata: validVehicle, actorId: ownerId }),
+      "name",
+    );
+    expectValidationField(
+      () => asset.edit({ name: "   ", metadata: validVehicle, actorId: ownerId }),
+      "name",
+    );
+  });
+
+  it("edit updates name and metadata together and emits exactly one AssetEdited event", () => {
+    const asset = Asset.create({ ownerId, name: "Truck", metadata: validVehicle });
+    asset.pullEvents();
+
+    const nextMetadata = { ...validVehicle, model: "3500" };
+    asset.edit({ name: "New Name", metadata: nextMetadata, actorId: ownerId });
+
+    expect(asset.name).toBe("New Name");
+    expect(asset.metadata).toEqual(nextMetadata);
+
+    const events = asset.pullEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "AssetEdited",
+      assetId: asset.id,
+      ownerId,
+      actorId: ownerId,
+      assetName: "New Name",
+      previousName: "Truck",
+      assetType: "vehicle",
+      nameChanged: true,
+      metadataChanged: true,
+    });
+  });
+
+  it("edit rejects a metadata kind that differs from the asset's current kind", () => {
+    const asset = Asset.create({ ownerId, name: "Truck", metadata: validVehicle });
+    asset.pullEvents();
+
+    expectValidationField(
+      () => asset.edit({ name: "Truck", metadata: validProperty, actorId: ownerId }),
+      "metadata.kind",
+    );
+    expect(asset.pullEvents()).toHaveLength(0);
+  });
+
+  it("edit with no actual changes succeeds and emits no event", () => {
+    const asset = Asset.create({ ownerId, name: "Truck", metadata: validVehicle });
+    asset.pullEvents();
+
+    asset.edit({ name: "Truck", metadata: validVehicle, actorId: ownerId });
+
+    expect(asset.name).toBe("Truck");
+    expect(asset.pullEvents()).toHaveLength(0);
   });
 
   it("reconstitutes without emitting events", () => {

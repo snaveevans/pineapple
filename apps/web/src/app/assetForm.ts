@@ -1,4 +1,4 @@
-import type { AssetType, CreateAssetBody } from "../api/assets";
+import type { AssetResponse, AssetType, CreateAssetBody, EditAssetBody } from "../api/assets";
 
 export type AssetForm = {
   name: string;
@@ -121,6 +121,31 @@ export function toCreateAssetBody(type: AssetType, form: AssetForm): CreateAsset
       };
     }
   }
+}
+
+/** Same field shape as create; a distinct name so edit call sites read clearly. */
+export function toEditAssetBody(type: AssetType, form: AssetForm): EditAssetBody {
+  return toCreateAssetBody(type, form);
+}
+
+export function assetToForm(asset: AssetResponse): AssetForm {
+  const metadata = asset.metadata;
+  return {
+    name: asset.name,
+    make: metadata.kind === "vehicle" ? metadata.make : "",
+    model: metadata.kind === "vehicle" ? metadata.model : "",
+    year: metadata.kind === "vehicle" ? String(metadata.year) : "",
+    vin: metadata.kind === "vehicle" ? (metadata.vin ?? "") : "",
+    nickname: metadata.kind === "property" ? (metadata.nickname ?? "") : "",
+    street: metadata.kind === "property" ? metadata.address.street : "",
+    city: metadata.kind === "property" ? metadata.address.city : "",
+    state: metadata.kind === "property" ? metadata.address.state : "",
+    postal: metadata.kind === "property" ? metadata.address.postalCode : "",
+    country: metadata.kind === "property" ? metadata.address.country : "United States",
+    manufacturer: metadata.kind === "equipment" ? (metadata.manufacturer ?? "") : "",
+    modelNumber: metadata.kind === "equipment" ? (metadata.modelNumber ?? "") : "",
+    serialNumber: metadata.kind === "equipment" ? (metadata.serialNumber ?? "") : "",
+  };
 }
 
 const API_FIELD_TO_FORM_FIELD: Record<string, keyof AssetForm> = {

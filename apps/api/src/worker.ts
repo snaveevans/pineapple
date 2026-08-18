@@ -59,6 +59,7 @@ import { SystemUtcDateProvider } from "./infrastructure/time/SystemUtcDateProvid
 
 // Application
 import { CreateAsset } from "./application/usecases/CreateAsset.ts";
+import { EditAsset } from "./application/usecases/EditAsset.ts";
 import { GetAsset } from "./application/usecases/GetAsset.ts";
 import { ListAssets } from "./application/usecases/ListAssets.ts";
 import { CreateMaintenanceRecord } from "./application/usecases/CreateMaintenanceRecord.ts";
@@ -114,6 +115,7 @@ import {
   markNotificationReadRoute,
   markAllNotificationsReadRoute,
   getAssetRoute,
+  editAssetRoute,
   healthRoute,
   listAssetsRoute,
   listMaintenanceRecordsRoute,
@@ -764,6 +766,29 @@ app.openapi(getAssetRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(serializeAsset(result.value.asset, result.value.sharing), 200);
+});
+
+app.openapi(editAssetRoute, async (c) => {
+  const user = c.get("user");
+  const { id } = c.req.valid("param");
+  const { name, metadata } = c.req.valid("json");
+  const result = await new EditAsset(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    c.get("eventBus"),
+  ).execute({
+    assetId: AssetId.from(id),
+    requesterId: user.id,
+    name,
+    // Cast: Zod's `.optional()` yields `T | undefined` but the domain type uses
+    // exactOptionalPropertyTypes (absent ≠ explicitly undefined).
+    metadata: metadata as AssetMetadata,
+  });
+  if (!result.ok) throw result.error;
+  return c.json(
+    serializeAsset(result.value, toSharingDescriptor(result.value, user.id, null)),
+    200,
+  );
 });
 
 app.openapi(searchAssetsRoute, async (c) => {

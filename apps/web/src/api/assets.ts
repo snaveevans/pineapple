@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost } from "./client.ts";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client.ts";
 import type { components } from "./schema.ts";
 
 // Wire shapes come from the spec (docs/reference/openapi.json), not from
@@ -14,6 +14,7 @@ export type AssetResponse = components["schemas"]["Asset"];
 export type AssetListResponse = components["schemas"]["AssetListResponse"];
 export type CreateAssetBody = components["schemas"]["CreateAssetBody"];
 export type CreatedAssetResponse = components["schemas"]["CreatedAsset"];
+export type EditAssetBody = components["schemas"]["EditAssetBody"];
 
 export const assetsQueryKey = ["assets"] as const;
 export const assetQueryKey = (id: string) => ["asset", id] as const;
@@ -28,6 +29,10 @@ export function listAssets(): Promise<AssetListResponse> {
 
 export function createAsset(body: CreateAssetBody): Promise<CreatedAssetResponse> {
   return apiPost("/api/assets", { body });
+}
+
+export function editAsset(id: string, body: EditAssetBody): Promise<AssetResponse> {
+  return apiPatch("/api/assets/{id}", { path: { id }, body });
 }
 
 export function shareAsset(assetId: string): Promise<AssetResponse> {
