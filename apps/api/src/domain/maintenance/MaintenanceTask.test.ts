@@ -245,6 +245,34 @@ describe("MaintenanceTask.update", () => {
     expect(task.nextDue).toBe(nextDueBefore);
   });
 
+  it("does not shift nextDue when a title change resends the current (unchanged) interval, even with no lastCompletedDate", () => {
+    // Regression: a client that always submits its full form state (title +
+    // intervalValue + intervalUnit) must not trigger a recompute just because
+    // intervalValue/intervalUnit were present in the request — only an actual
+    // interval change should move nextDue. This matters most when
+    // lastCompletedDate is null, since the recompute baseline would otherwise
+    // silently shift from the original creation date to "today".
+    const task = makeTask({ intervalValue: 2, intervalUnit: "month" });
+    task.pullEvents();
+    const nextDueBefore = task.nextDue;
+
+    const result = task.update(
+      {
+        title: "Replace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+        todayUtc: "2026-09-01", // well after task creation
+      },
+      actorId,
+      { assetName, assetType },
+    );
+
+    expect(result).toBe(true);
+    expect(task.title).toBe("Replace filter");
+    expect(task.lastCompletedDate).toBeNull();
+    expect(task.nextDue).toBe(nextDueBefore);
+  });
+
   it("recomputes nextDue from lastCompletedDate when interval changes", () => {
     const task = makeTask({
       lastCompletedDate: "2026-04-11",

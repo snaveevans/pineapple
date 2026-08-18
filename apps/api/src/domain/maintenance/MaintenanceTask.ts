@@ -171,8 +171,9 @@ export class MaintenanceTask {
 
   /**
    * Applies a partial edit of title/interval. Recomputes nextDue from
-   * lastCompletedDate (or todayUtc when absent) only when intervalValue and/or
-   * intervalUnit is supplied — a title-only edit never touches lastCompletedDate
+   * lastCompletedDate (or todayUtc when absent) only when the resulting
+   * intervalValue/intervalUnit actually differ from what's stored — resending
+   * the current interval alongside a title change never touches lastCompletedDate
    * or nextDue. Publishes no event and returns false when the resulting values
    * are identical to the current ones (no-op edit).
    */
@@ -202,7 +203,12 @@ export class MaintenanceTask {
       throw new ValidationError("Interval unit must be day, week, month, or year", "intervalUnit");
     }
 
-    const intervalChanged = props.intervalValue !== undefined || props.intervalUnit !== undefined;
+    // Gated on the *resulting* value differing from what's stored, not on whether
+    // the caller merely included the field — a client that resends the current
+    // interval alongside an unrelated title change (e.g. a form that always
+    // submits its full state) must not shift nextDue as a side effect.
+    const intervalChanged =
+      nextIntervalValue !== this._intervalValue || nextIntervalUnit !== this._intervalUnit;
     let nextDue = this._nextDue;
     if (intervalChanged) {
       try {
