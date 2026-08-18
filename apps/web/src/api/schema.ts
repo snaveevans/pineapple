@@ -204,7 +204,72 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit an asset
+         * @description Updates the asset's name and type-specific metadata. Asset-owner only. The metadata `kind` must match the asset's existing type — an asset's type cannot change after creation.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["EditAssetBody"];
+                };
+            };
+            responses: {
+                /** @description Updated asset */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Asset"];
+                    };
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Caller is not the asset owner */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No such asset */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Validation failed, or the metadata kind doesn't match the asset's type */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/search": {
@@ -1605,6 +1670,11 @@ export interface components {
             property: number;
             /** @example 1 */
             equipment: number;
+        };
+        EditAssetBody: {
+            /** @example My Truck */
+            name: string;
+            metadata: components["schemas"]["AssetMetadata"];
         };
         SearchAssetsResponse: {
             results: components["schemas"]["SearchResult"][];

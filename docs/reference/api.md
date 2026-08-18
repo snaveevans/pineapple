@@ -53,6 +53,7 @@ sign-in. There is no separate "register" step.
 | POST   | `/api/assets`                                      | yes   | Create an asset                                                         |
 | GET    | `/api/assets`                                      | yes   | List the caller's active assets                                         |
 | GET    | `/api/assets/{id}`                                 | yes   | Get one asset the caller owns                                           |
+| PATCH  | `/api/assets/{id}`                                 | yes   | Edit an asset's name and metadata (owner only)                          |
 | GET    | `/api/search`                                      | yes   | Search the caller's assets                                              |
 | GET    | `/api/dashboard`                                   | yes   | Get dashboard summary data                                              |
 | GET    | `/api/activity`                                    | yes   | List the caller's activity history                                      |

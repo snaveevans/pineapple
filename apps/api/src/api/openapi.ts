@@ -6,6 +6,7 @@ import {
   AssetShareParamSchema,
   CreateAssetBodySchema,
   CreatedAssetResponseSchema,
+  EditAssetBodySchema,
   ErrorResponseSchema,
   HealthResponseSchema,
 } from "./schemas/assetSchemas.ts";
@@ -201,6 +202,45 @@ export const getAssetRoute = createRoute({
     },
     404: {
       description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const editAssetRoute = createRoute({
+  method: "patch",
+  path: "/api/assets/{id}",
+  tags: ["Assets"],
+  summary: "Edit an asset",
+  description:
+    "Updates the asset's name and type-specific metadata. Asset-owner only. The metadata `kind` must match the asset's existing type — an asset's type cannot change after creation.",
+  security: [cookieAuth],
+  request: {
+    params: AssetIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: EditAssetBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated asset",
+      content: { "application/json": { schema: AssetResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "Caller is not the asset owner",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed, or the metadata kind doesn't match the asset's type",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
@@ -821,6 +861,7 @@ export function getApiDocument() {
   doc.openapi(createAssetRoute, stub);
   doc.openapi(listAssetsRoute, stub);
   doc.openapi(getAssetRoute, stub);
+  doc.openapi(editAssetRoute, stub);
   doc.openapi(searchAssetsRoute, stub);
   doc.openapi(createMaintenanceRecordRoute, stub);
   doc.openapi(listMaintenanceRecordsRoute, stub);

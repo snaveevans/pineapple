@@ -34,6 +34,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | ------------------------------------------------------------- | ------------- | ----------- |
 | [sign-in.md](./features/sign-in.md)                           | Auth          | review      |
 | [create-asset.md](./features/create-asset.md)                 | Assets        | draft       |
+| [edit-asset.md](./features/edit-asset.md)                     | Assets        | in-progress |
 | [asset-library.md](./features/asset-library.md)               | Assets        | in-progress |
 | [app-search.md](./features/app-search.md)                     | Assets        | in-progress |
 | [dashboard.md](./features/dashboard.md)                       | Home          | in-progress |

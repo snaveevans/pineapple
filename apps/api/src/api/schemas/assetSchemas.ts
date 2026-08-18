@@ -73,6 +73,15 @@ export const CreateAssetBodySchema = z
 
 export type CreateAssetBody = z.infer<typeof CreateAssetBodySchema>;
 
+export const EditAssetBodySchema = z
+  .object({
+    name: z.string().min(1, "Name is required").openapi({ example: "My Truck" }),
+    metadata: AssetMetadataSchema,
+  })
+  .openapi("EditAssetBody");
+
+export type EditAssetBody = z.infer<typeof EditAssetBodySchema>;
+
 export const AssetIdParamSchema = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },

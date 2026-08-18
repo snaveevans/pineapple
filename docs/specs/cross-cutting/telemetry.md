@@ -137,6 +137,26 @@ index: `owner_id`). Telemetry records ids only — not asset or team names (ADR-
 **Domain event data point — `AssetUnsharedFromTeam`** (dataset: `pineapple_asset_domain_events`,
 index: `owner_id`). Same shape as share; `source_use_case` is `"UnshareAsset"`.
 
+**Domain event data point — `AssetEdited`** (dataset: `pineapple_asset_domain_events`,
+index: `owner_id`). Telemetry records ids and boolean change-flags only — never the name or
+metadata values (ADR-0010):
+
+| Field        | Name               | Value                                       |
+| ------------ | ------------------ | ------------------------------------------- |
+| `indexes[0]` | —                  | `owner_id`                                  |
+| `blobs[0]`   | `event_type`       | `"AssetEdited"`                             |
+| `blobs[1]`   | `aggregate_type`   | `"Asset"`                                   |
+| `blobs[2]`   | `asset_id`         | Asset UUID                                  |
+| `blobs[3]`   | `owner_id`         | Owner UUID                                  |
+| `blobs[4]`   | `actor_id`         | Actor UUID                                  |
+| `blobs[5]`   | `source_use_case`  | `"EditAsset"`                               |
+| `blobs[6]`   | `schema_version`   | `"v1"`                                      |
+| `blobs[7]`   | `result`           | `"success"`                                 |
+| `doubles[0]` | `count`            | Always `1`                                  |
+| `doubles[1]` | `event_time_ms`    | Event timestamp (ms since epoch)            |
+| `doubles[2]` | `name_changed`     | `1` if the name changed, else `0`           |
+| `doubles[3]` | `metadata_changed` | `1` if any metadata field changed, else `0` |
+
 ### Analytics Engine Constraints
 
 These limits apply to every data point written and must be respected when designing new event schemas:
@@ -213,6 +233,7 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `POST /api/assets`                                        | `CreateAsset`              |
 | `GET /api/assets`                                         | `ListAssets`               |
 | `GET /api/assets/{id}`                                    | `GetAsset`                 |
+| `PATCH /api/assets/{id}`                                  | `EditAsset`                |
 | `GET /api/activity`                                       | `ListActivity`             |
 | `GET /api/dashboard`                                      | `GetDashboard`             |
 | `GET /api/search`                                         | `SearchAssets`             |

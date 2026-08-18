@@ -39,7 +39,8 @@ export type IconName =
   | "image"
   | "lock"
   | "mail"
-  | "users";
+  | "users"
+  | "edit";
 
 export interface IconProps {
   name: IconName;
@@ -230,6 +231,12 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="10" cy="7" r="4" />
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.2a4 4 0 0 1 0 7.6" />
+    </>
+  ),
+  edit: (
+    <>
+      <path d="M4 20l1-4L16 5l3 3L8 19l-4 1z" />
+      <path d="M14 7l3 3" />
     </>
   ),
 };
