@@ -25,14 +25,20 @@ export function prepareMaintenanceTaskSave(
   db: D1Database,
   task: MaintenanceTask,
 ): D1PreparedStatement {
-  // ON CONFLICT only updates the mutable tracking fields (last_completed_date, next_due).
-  // title, interval_value, and interval_unit are immutable after creation; no update path exists.
+  // ON CONFLICT updates every mutable field. advance() only ever changes
+  // last_completed_date/next_due (title/interval pass through unchanged), and
+  // update() only ever changes title/interval_value/interval_unit/next_due
+  // (last_completed_date passes through unchanged) — so a single upsert covers
+  // both callers safely.
   return db
     .prepare(
       `INSERT INTO maintenance_tasks
          (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
+         title = excluded.title,
+         interval_value = excluded.interval_value,
+         interval_unit = excluded.interval_unit,
          last_completed_date = excluded.last_completed_date,
          next_due = excluded.next_due`,
     )

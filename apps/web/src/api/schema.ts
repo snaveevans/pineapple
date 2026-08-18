@@ -682,7 +682,73 @@ export interface paths {
         };
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Edit a maintenance task
+         * @description Updates title and/or interval. At least one field is required. lastCompletedDate and nextDue cannot be set directly here — nextDue is recomputed from the task's existing lastCompletedDate (or today) whenever intervalValue/intervalUnit changes. A request that would not change any stored value is a no-op: 200 with the unchanged task, no event published.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    assetId: string;
+                    taskId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateMaintenanceTaskBody"];
+                };
+            };
+            responses: {
+                /** @description Updated maintenance task */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MaintenanceTask"];
+                    };
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The task's asset belongs to another user */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No such task */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Validation failed */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/dashboard": {
@@ -1808,6 +1874,17 @@ export interface components {
         };
         MaintenanceTaskListResponse: {
             maintenanceTasks: components["schemas"]["MaintenanceTask"][];
+        };
+        UpdateMaintenanceTaskBody: {
+            /** @example Replace furnace filter */
+            title?: string;
+            /** @example 3 */
+            intervalValue?: number;
+            /**
+             * @example month
+             * @enum {string}
+             */
+            intervalUnit?: "day" | "week" | "month" | "year";
         };
         DashboardResponse: {
             /**
