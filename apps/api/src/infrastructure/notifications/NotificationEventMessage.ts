@@ -3,6 +3,7 @@ import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/MaintenanceTaskAdvanced.ts";
 import type { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import type { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
+import type { MaintenanceTaskUpdated } from "../../domain/maintenance/events/MaintenanceTaskUpdated.ts";
 
 export const NOTIFICATION_EVENTS_CONSUMER = "notification_events";
 export const NOTIFICATION_EVENTS_QUEUE_NAME = "pineapple-notification-events";
@@ -10,6 +11,7 @@ export const NOTIFICATION_EVENTS_DLQ_NAME = "pineapple-notification-events-dlq";
 
 type NotificationDomainEvent =
   | MaintenanceTaskCreated
+  | MaintenanceTaskUpdated
   | MaintenanceTaskAdvanced
   | MaintenanceTaskDeleted;
 
@@ -33,6 +35,11 @@ export type MaintenanceTaskCreatedNotificationMessage =
     nextDue: string;
   };
 
+export type MaintenanceTaskUpdatedNotificationMessage =
+  NotificationEventCommon<"MaintenanceTaskUpdated"> & {
+    nextDue: string;
+  };
+
 export type MaintenanceTaskAdvancedNotificationMessage =
   NotificationEventCommon<"MaintenanceTaskAdvanced"> & {
     nextDue: string;
@@ -45,6 +52,7 @@ export type MaintenanceTaskDeletedNotificationMessage =
 
 export type NotificationEventMessage =
   | MaintenanceTaskCreatedNotificationMessage
+  | MaintenanceTaskUpdatedNotificationMessage
   | MaintenanceTaskAdvancedNotificationMessage
   | MaintenanceTaskDeletedNotificationMessage;
 
@@ -60,12 +68,14 @@ type ValidatorMap = {
 
 const FACTORIES = {
   MaintenanceTaskCreated: fromCreated,
+  MaintenanceTaskUpdated: fromUpdated,
   MaintenanceTaskAdvanced: fromAdvanced,
   MaintenanceTaskDeleted: fromDeleted,
 } satisfies FactoryMap;
 
 const VALIDATORS = {
   MaintenanceTaskCreated: (value) => isString(value.nextDue),
+  MaintenanceTaskUpdated: (value) => isString(value.nextDue),
   MaintenanceTaskAdvanced: (value) =>
     isString(value.nextDue) && isString(value.maintenanceRecordId) && isString(value.performedAt),
   MaintenanceTaskDeleted: () => true,
@@ -106,6 +116,10 @@ function common<Type extends NotificationDomainEventType>(
 }
 
 function fromCreated(event: MaintenanceTaskCreated): MaintenanceTaskCreatedNotificationMessage {
+  return { ...common(event), nextDue: event.nextDue };
+}
+
+function fromUpdated(event: MaintenanceTaskUpdated): MaintenanceTaskUpdatedNotificationMessage {
   return { ...common(event), nextDue: event.nextDue };
 }
 
