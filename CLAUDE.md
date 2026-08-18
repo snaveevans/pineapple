@@ -66,6 +66,11 @@ deploy` does NOT create them — it binds to existing queues and fails if one
   extensions (e.g. `import { User } from "./User.ts"`). Keep that convention.
 - **pnpm workspaces**: `packages/*`, `apps/*`. Package manager pinned via
   `packageManager` in `package.json` (pnpm 10).
+- **Node version pinned via `.tool-versions`** (asdf), matching CI's
+  `node-version: 22`. A `node` earlier on `PATH` than the asdf shim (e.g. a
+  Homebrew install) silently shadows the pin — `apps/web`'s Cloudflare Vite
+  plugin has failed to start under a newer major before, so if `pnpm -r test`
+  fails only locally, check `node --version` first.
 
 ## Architecture — layers & dependency rules (ADR-0003)
 
