@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost } from "./client.ts";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client.ts";
 import type { components } from "./schema.ts";
 
 export type IntervalUnit = components["schemas"]["MaintenanceTask"]["intervalUnit"];
@@ -6,6 +6,7 @@ export type TaskUrgencyStatus = components["schemas"]["MaintenanceTask"]["status
 export type MaintenanceTask = components["schemas"]["MaintenanceTask"];
 export type MaintenanceTaskListResponse = components["schemas"]["MaintenanceTaskListResponse"];
 export type CreateMaintenanceTaskBody = components["schemas"]["CreateMaintenanceTaskBody"];
+export type UpdateMaintenanceTaskBody = components["schemas"]["UpdateMaintenanceTaskBody"];
 
 export const maintenanceTasksQueryKey = (assetId: string) => ["maintenanceTasks", assetId] as const;
 
@@ -23,5 +24,16 @@ export function createMaintenanceTask(
 export function deleteMaintenanceTask(assetId: string, taskId: string): Promise<void> {
   return apiDelete("/api/assets/{assetId}/maintenance-tasks/{taskId}", {
     path: { assetId, taskId },
+  });
+}
+
+export function updateMaintenanceTask(
+  assetId: string,
+  taskId: string,
+  body: UpdateMaintenanceTaskBody,
+): Promise<MaintenanceTask> {
+  return apiPatch("/api/assets/{assetId}/maintenance-tasks/{taskId}", {
+    path: { assetId, taskId },
+    body,
   });
 }
