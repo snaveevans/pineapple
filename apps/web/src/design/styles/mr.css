@@ -13,21 +13,7 @@
 .mr-scroll::-webkit-scrollbar { width: 10px; }
 .mr-scroll::-webkit-scrollbar-thumb { background: var(--hf-line); border-radius: var(--hf-r-sm); border: 3px solid transparent; background-clip: content-box; }
 
-/* ============ buttons (local, FieldOps flavour) ============ */
-.mr-btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 9px 14px; border-radius: 9px;
-  font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em;
-  border: 1px solid var(--hf-line); background: var(--hf-surface); color: var(--hf-ink);
-  transition: background 100ms, border-color 100ms, box-shadow 100ms; white-space: nowrap;
-}
-.mr-btn:hover { background: var(--hf-surface-2); }
-.mr-btn-primary { background: var(--hf-brand); color: #fff; border-color: var(--hf-brand); box-shadow: 0 1px 2px rgba(20,18,14,0.12); }
-.mr-btn-primary:hover { background: var(--hf-brand-2); border-color: var(--hf-brand-2); }
-.mr-btn-secondary { background: var(--hf-surface); }
-.mr-btn-ghost { background: transparent; border-color: transparent; color: var(--hf-ink-soft); }
-.mr-btn-ghost:hover { background: var(--hf-surface-2); color: var(--hf-ink); }
-.mr-btn:disabled { opacity: 0.6; cursor: default; }
+/* Buttons → design/Button + primitives.css (.hf-btn*). Brand CTAs use variant="brand". */
 
 /* ============ layout scaffolds ============ */
 .mr-main { flex: 1; min-height: 0; }
@@ -242,12 +228,7 @@
 .mr-td-dim { color: var(--hf-ink-faint); }
 .mr-td-logged { font-family: var(--hf-mono); font-size: 11.5px; color: var(--hf-ink-faint); }
 
-/* ============ EMPTY ============ */
-.mr-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 13px; padding: 56px 24px; }
-.mr-empty-art { width: 72px; height: 72px; border-radius: 20px; background: var(--hf-brand-bg); display: flex; align-items: center; justify-content: center; }
-.mr-empty-title { font-size: 19px; font-weight: 700; color: var(--hf-ink); letter-spacing: -0.02em; }
-.mr-empty-sub { font-size: 14px; color: var(--hf-ink-soft); line-height: 1.55; max-width: 320px; }
-.mr-empty .mr-btn { margin-top: 4px; }
+/* Empty → design/EmptyState + primitives.css */
 
 /* ============ ERROR / 403 / 404 ============ */
 .mr-error { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 11px; padding: 52px 24px; }
@@ -255,7 +236,7 @@
 .mr-error-error .mr-error-art, .mr-error-forbidden .mr-error-art { background: var(--hf-bad-bg); border-color: oklch(88% 0.045 28); color: var(--hf-bad); }
 .mr-error-title { font-size: 18px; font-weight: 700; color: var(--hf-ink); letter-spacing: -0.02em; }
 .mr-error-sub { font-size: 13.5px; color: var(--hf-ink-soft); line-height: 1.55; max-width: 340px; }
-.mr-error .mr-btn { margin-top: 4px; }
+.mr-error .hf-btn { margin-top: 4px; }
 
 /* ============ LOADING SKELETON ============ */
 @keyframes mr-shimmer { 0% { background-position: -200px 0; } 100% { background-position: 320px 0; } }
@@ -283,23 +264,50 @@
 
 .mr-banner { display: flex; align-items: center; gap: 9px; padding: 10px 12px; border-radius: var(--hf-r); background: var(--hf-bad-bg); border: 1px solid oklch(88% 0.045 28); color: var(--hf-bad); font-size: 13px; font-weight: 500; }
 
+/* Field component inside MR forms keeps former label weight */
+.mr-form .hf-field-label,
+.mr-form-body .hf-field-label {
+  font-weight: 600;
+}
+
+/* MR form controls — exact former metrics (not hf-input geometry). */
 .mr-field { display: flex; flex-direction: column; gap: 6px; }
 .mr-field-top { display: flex; align-items: baseline; justify-content: space-between; }
 .mr-field-label { font-size: 12.5px; font-weight: 600; color: var(--hf-ink); }
 .mr-req { color: var(--hf-bad); }
 .mr-field-count { font-family: var(--hf-mono); font-size: 10.5px; color: var(--hf-ink-faint); }
 .mr-field-count.over { color: var(--hf-bad); }
-.mr-input { width: 100%; background: var(--hf-surface); border: 1px solid var(--hf-line); border-radius: var(--hf-r); padding: 11px 13px; font-family: var(--hf-sans); font-size: 15px; color: var(--hf-ink); letter-spacing: -0.01em; outline: none; transition: border-color 100ms, box-shadow 100ms; }
+.mr-input {
+  width: 100%;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r);
+  padding: 11px 13px;
+  font-family: var(--hf-sans);
+  font-size: 15px;
+  color: var(--hf-ink);
+  letter-spacing: -0.01em;
+  outline: none;
+  transition: border-color 100ms, box-shadow 100ms;
+}
 .mr-input:focus { border-color: var(--hf-brand); box-shadow: 0 0 0 3px var(--hf-brand-bg); }
 .mr-input::placeholder { color: var(--hf-ink-faint); }
-.mr-input.err { border-color: var(--hf-bad); }
-.mr-input.err:focus { box-shadow: 0 0 0 3px var(--hf-bad-bg); }
+.mr-input.err,
+.mr-input.is-invalid { border-color: var(--hf-bad); }
+.mr-input.err:focus,
+.mr-input.is-invalid:focus { box-shadow: 0 0 0 3px var(--hf-bad-bg); }
 .mr-input-date { font-family: var(--hf-mono); font-size: 14px; }
 .mr-textarea { min-height: 88px; line-height: 1.5; resize: vertical; }
 .mr-field-hint { font-size: 11.5px; color: var(--hf-ink-faint); line-height: 1.4; }
 .mr-field-err { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--hf-bad); font-weight: 500; }
-
-.mr-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.4); border-top-color: #fff; animation: mr-spin 0.7s linear infinite; }
+.mr-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: mr-spin 0.7s linear infinite;
+}
 @keyframes mr-spin { to { transform: rotate(360deg); } }
 
 /* inline form (two-pane side) */
@@ -570,7 +578,7 @@
   .mr-addbar { display: block; }
 
   .mr-hist-head { gap: 8px; }
-  .mr-empty { padding: 40px 20px; }
+  .mr-root .hf-empty { padding: 40px 20px; min-height: 0; }
 }
 
 /* honour reduced motion */

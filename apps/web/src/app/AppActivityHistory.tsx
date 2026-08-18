@@ -11,7 +11,10 @@ import {
   type ActivityTypeFilter,
 } from "../api/activity.ts";
 import { ApiError } from "../api/client.ts";
+import { Button } from "../design/Button.tsx";
+import { EmptyState } from "../design/EmptyState.tsx";
 import { Icon, type IconName } from "../design/Icon.tsx";
+import { Toolbar } from "../design/Toolbar.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { paths } from "../routes.ts";
 import { HFBottomNav, HFTopBar } from "./AppChrome.tsx";
@@ -263,7 +266,38 @@ function ActivityFiltersToolbar({
   onSearchChange: (query: string) => void;
 }) {
   return (
-    <div className="hh-toolbar">
+    <Toolbar
+      end={
+        <>
+          <label className="hh-search">
+            <Icon name="search" size={14} />
+            <input
+              type="search"
+              placeholder="Search loaded history..."
+              value={searchQuery}
+              onChange={(event) => onSearchChange(event.currentTarget.value)}
+            />
+          </label>
+          <select
+            className="hh-select"
+            aria-label="Filter by asset"
+            value={activeAssetId ?? "all"}
+            onChange={(event) =>
+              onAssetChange(
+                event.currentTarget.value === "all" ? undefined : event.currentTarget.value,
+              )
+            }
+          >
+            <option value="all">All assets</option>
+            {assetFilters.map((filter) => (
+              <option key={filter.asset.id} value={filter.asset.id}>
+                {filter.asset.name} ({filter.count})
+              </option>
+            ))}
+          </select>
+        </>
+      }
+    >
       <div className="hf-filter-chips" role="group" aria-label="Filter history by activity type">
         <button
           type="button"
@@ -287,64 +321,7 @@ function ActivityFiltersToolbar({
           </button>
         ))}
       </div>
-      <div className="hh-toolbar-end">
-        <label className="hh-search">
-          <Icon name="search" size={14} />
-          <input
-            type="search"
-            placeholder="Search loaded history..."
-            value={searchQuery}
-            onChange={(event) => onSearchChange(event.currentTarget.value)}
-          />
-        </label>
-        <select
-          className="hh-select"
-          aria-label="Filter by asset"
-          value={activeAssetId ?? "all"}
-          onChange={(event) =>
-            onAssetChange(
-              event.currentTarget.value === "all" ? undefined : event.currentTarget.value,
-            )
-          }
-        >
-          <option value="all">All assets</option>
-          {assetFilters.map((filter) => (
-            <option key={filter.asset.id} value={filter.asset.id}>
-              {filter.asset.name} ({filter.count})
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
-}
-
-function ActivityState({
-  icon,
-  title,
-  description,
-  action,
-  spinner = false,
-}: {
-  icon?: IconName;
-  title: string;
-  description?: string;
-  action?: ReactNode;
-  spinner?: boolean;
-}) {
-  return (
-    <div className="hh-state">
-      {spinner ? (
-        <span className="hh-spinner" />
-      ) : (
-        <div className="hh-state-icon">
-          <Icon name={icon ?? "clock"} size={24} stroke={1.8} />
-        </div>
-      )}
-      <div className="hh-state-title">{title}</div>
-      {description !== undefined && <div className="hh-state-sub">{description}</div>}
-      {action}
-    </div>
+    </Toolbar>
   );
 }
 
@@ -645,10 +622,11 @@ export function AppActivityHistory() {
 
   let body: ReactNode;
   if (activityQuery.isPending) {
-    body = <ActivityState spinner title="Loading your history..." />;
+    body = <EmptyState surface="history" spinner title="Loading your history..." />;
   } else if (isUnauthorized) {
     body = (
-      <ActivityState
+      <EmptyState
+        surface="history"
         icon="lock"
         title="Redirecting to sign in"
         description="Your session is no longer active."
@@ -656,25 +634,24 @@ export function AppActivityHistory() {
     );
   } else if (activityQuery.isError) {
     body = (
-      <ActivityState
+      <EmptyState
+        surface="history"
         icon="alert"
+        iconTone="bad"
         title="History could not be loaded"
         description="Something went wrong on our end. Check your connection and try again."
         action={
-          <button
-            type="button"
-            className="hf-btn hf-btn-primary"
-            onClick={() => void activityQuery.refetch()}
-          >
+          <Button variant="primary" onClick={() => void activityQuery.refetch()}>
             <Icon name="repeat" size={14} stroke={2} />
             Try again
-          </button>
+          </Button>
         }
       />
     );
   } else if (!hasActivity) {
     body = (
-      <ActivityState
+      <EmptyState
+        surface="history"
         icon="clock"
         title="Nothing here yet"
         description="As you add assets and log maintenance, every action shows up here as a running history."
@@ -682,17 +659,20 @@ export function AppActivityHistory() {
     );
   } else if (shownEntries.length === 0) {
     body = (
-      <ActivityState
+      <EmptyState
+        surface="history"
         icon={searchQuery.trim() ? "search" : "filter"}
         title="No matching activity"
         description="No history matches your current filters. Try clearing the search or switching back to All."
-        action={
-          hasActiveFilter ? (
-            <button type="button" className="hf-btn hf-btn-primary" onClick={clearFilters}>
-              Clear filters
-            </button>
-          ) : undefined
-        }
+        {...(hasActiveFilter
+          ? {
+              action: (
+                <Button variant="primary" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ),
+            }
+          : {})}
       />
     );
   } else {

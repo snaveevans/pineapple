@@ -5,6 +5,8 @@
    Consumes the --hf-* tokens declared once in tokens.css (imported globally
    via index.css) rather than declaring its own copy. */
 
+@import "./primitives.css";
+
 .hf {
   background: var(--hf-bg);
   color: var(--hf-ink);
@@ -455,57 +457,7 @@
   flex-wrap: wrap;
   align-items: center;
 }
-.hf-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 13px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  border: 1px solid var(--hf-line);
-  background: var(--hf-surface);
-  color: var(--hf-ink);
-  text-decoration: none;
-  transition:
-    background 100ms,
-    border-color 100ms;
-}
-.hf-btn:hover {
-  background: var(--hf-surface-2);
-}
-.hf-btn:disabled {
-  cursor: wait;
-  opacity: 0.65;
-}
-.hf-btn-primary {
-  background: var(--hf-ink);
-  color: var(--hf-surface);
-  border-color: var(--hf-ink);
-}
-.hf-btn-primary:hover {
-  background: oklch(28% 0.015 70);
-}
-.hf-btn-secondary {
-  background: var(--hf-surface);
-  border-color: var(--hf-line);
-}
-.hf-btn-ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--hf-ink-soft);
-}
-.hf-btn-ghost:hover {
-  background: var(--hf-surface-2);
-  color: var(--hf-ink);
-}
-.hf-btn-end {
-  margin-left: auto;
-}
-.hf-btn-sm {
-  padding: 6px 10px;
-  font-size: 12.5px;
-}
+/* Button, EmptyState, Field, Toolbar, Card → primitives.css */
 
 /* ============ QUEUE ============ */
 .hf-queue {

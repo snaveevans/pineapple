@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import { assetsQueryKey, createAsset, type AssetType } from "../api/assets";
 import { ApiError } from "../api/client";
+import { Button } from "../design/Button";
+import { Field, FieldReqMark, FieldRow } from "../design/Field";
 import { Icon, type IconName } from "../design/Icon";
 import { paths } from "../routes";
 import { HFTopBar } from "./AppChrome";
@@ -32,40 +34,6 @@ function focusFirstInvalid(scrollEl?: HTMLElement | null) {
   }, 0);
 }
 
-function HFField({
-  label,
-  required,
-  optional,
-  hint,
-  error,
-  children,
-}: {
-  label: string;
-  required?: boolean | undefined;
-  optional?: boolean | undefined;
-  hint?: string | undefined;
-  error?: string | undefined;
-  children: ReactNode;
-}) {
-  return (
-    <div className={`hf-field${error ? " has-error" : ""}`}>
-      <label className="hf-field-label">
-        {label}
-        {required && <span className="hf-field-req">*</span>}
-        {optional && <span className="hf-field-opt">optional</span>}
-        {hint && <span className="hf-field-hint">{hint}</span>}
-      </label>
-      {children}
-      {error && (
-        <span className="hf-field-error" role="alert">
-          <Icon name="alert" size={12} stroke={2} />
-          {error}
-        </span>
-      )}
-    </div>
-  );
-}
-
 function HFTextField({
   label,
   required,
@@ -80,28 +48,25 @@ function HFTextField({
   maxLength,
 }: {
   label: string;
-  required?: boolean | undefined;
-  optional?: boolean | undefined;
-  hint?: string | undefined;
-  placeholder?: string | undefined;
-  mono?: boolean | undefined;
+  required?: boolean;
+  optional?: boolean;
+  hint?: string;
+  placeholder?: string;
+  mono?: boolean;
   value: string;
   onChange: (ev: { target: HTMLInputElement }) => void;
-  error?: string | undefined;
-  inputMode?:
-    | "none"
-    | "text"
-    | "tel"
-    | "url"
-    | "email"
-    | "numeric"
-    | "decimal"
-    | "search"
-    | undefined;
-  maxLength?: number | undefined;
+  error?: string;
+  inputMode?: "none" | "text" | "tel" | "url" | "email" | "numeric" | "decimal" | "search";
+  maxLength?: number;
 }) {
   return (
-    <HFField label={label} required={required} optional={optional} hint={hint} error={error}>
+    <Field
+      label={label}
+      {...(required ? { required: true } : {})}
+      {...(optional ? { optional: true } : {})}
+      {...(hint !== undefined ? { hint } : {})}
+      {...(error ? { error } : {})}
+    >
       <input
         className={`hf-input${mono ? " hf-mono-input" : ""}${error ? " is-invalid" : ""}`}
         placeholder={placeholder}
@@ -111,7 +76,7 @@ function HFTextField({
         inputMode={inputMode}
         maxLength={maxLength}
       />
-    </HFField>
+    </Field>
   );
 }
 
@@ -124,14 +89,14 @@ function HFSelectField({
   error,
 }: {
   label: string;
-  required?: boolean | undefined;
+  required?: boolean;
   options: string[];
   value: string;
   onChange: (ev: { target: HTMLSelectElement }) => void;
-  error?: string | undefined;
+  error?: string;
 }) {
   return (
-    <HFField label={label} required={required} error={error}>
+    <Field label={label} {...(required ? { required: true } : {})} {...(error ? { error } : {})}>
       <select
         className={`hf-select${error ? " is-invalid" : ""}`}
         value={value}
@@ -144,7 +109,7 @@ function HFSelectField({
           </option>
         ))}
       </select>
-    </HFField>
+    </Field>
   );
 }
 
@@ -208,14 +173,14 @@ function HFVehicleFields({
       <div className="hf-aa-section-head">
         <span className="hf-aa-section-title">Vehicle details</span>
       </div>
-      <div className="hf-field-row">
+      <FieldRow>
         <HFTextField
           label="Make"
           required
           placeholder="Ford"
           value={form.make}
           onChange={setField("make")}
-          error={errors.make}
+          {...(errors.make ? { error: errors.make } : {})}
         />
         <HFTextField
           label="Model"
@@ -223,7 +188,7 @@ function HFVehicleFields({
           placeholder="F-150"
           value={form.model}
           onChange={setField("model")}
-          error={errors.model}
+          {...(errors.model ? { error: errors.model } : {})}
         />
         <HFTextField
           label="Year"
@@ -235,9 +200,9 @@ function HFVehicleFields({
           maxLength={4}
           value={form.year}
           onChange={setField("year")}
-          error={errors.year}
+          {...(errors.year ? { error: errors.year } : {})}
         />
-      </div>
+      </FieldRow>
       <HFTextField
         label="VIN"
         optional
@@ -247,7 +212,7 @@ function HFVehicleFields({
         maxLength={17}
         value={form.vin}
         onChange={setField("vin")}
-        error={errors.vin}
+        {...(errors.vin ? { error: errors.vin } : {})}
       />
     </div>
   );
@@ -281,16 +246,16 @@ function HFPropertyFields({
         placeholder="12 Oak St, Apt 4"
         value={form.street}
         onChange={setField("street")}
-        error={errors.street}
+        {...(errors.street ? { error: errors.street } : {})}
       />
-      <div className="hf-field-row">
+      <FieldRow>
         <HFTextField
           label="City"
           required
           placeholder="Portland"
           value={form.city}
           onChange={setField("city")}
-          error={errors.city}
+          {...(errors.city ? { error: errors.city } : {})}
         />
         <HFTextField
           label="State"
@@ -298,7 +263,7 @@ function HFPropertyFields({
           placeholder="OR, BC, Jalisco"
           value={form.state}
           onChange={setField("state")}
-          error={errors.state}
+          {...(errors.state ? { error: errors.state } : {})}
         />
         <HFTextField
           label="Postal"
@@ -307,16 +272,16 @@ function HFPropertyFields({
           mono
           value={form.postal}
           onChange={setField("postal")}
-          error={errors.postal}
+          {...(errors.postal ? { error: errors.postal } : {})}
         />
-      </div>
+      </FieldRow>
       <HFSelectField
         label="Country"
         required
         options={["United States", "Canada", "Mexico"]}
         value={form.country}
         onChange={setField("country")}
-        error={errors.country}
+        {...(errors.country ? { error: errors.country } : {})}
       />
     </div>
   );
@@ -329,7 +294,7 @@ function HFEquipmentFields({ form, setField }: { form: AssetForm; setField: SetF
         <span className="hf-aa-section-title">Equipment details</span>
         <span className="hf-aa-section-hint">fill in what you know</span>
       </div>
-      <div className="hf-field-row">
+      <FieldRow>
         <HFTextField
           label="Manufacturer"
           optional
@@ -345,7 +310,7 @@ function HFEquipmentFields({ form, setField }: { form: AssetForm; setField: SetF
           value={form.modelNumber}
           onChange={setField("modelNumber")}
         />
-      </div>
+      </FieldRow>
       <HFTextField
         label="Serial number"
         optional
@@ -475,9 +440,9 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
           {banner && <HFValidationBanner title={banner.title} description={banner.description} />}
 
           <div className="hf-aa-section">
-            <HFField label="Asset type" required>
+            <Field label="Asset type" required>
               <HFTypePicker value={type} onChange={selectType} />
-            </HFField>
+            </Field>
           </div>
 
           <HFTextField
@@ -487,7 +452,7 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
             placeholder={namePlaceholder(type)}
             value={form.name}
             onChange={setField("name")}
-            error={errors.name}
+            {...(errors.name ? { error: errors.name } : {})}
           />
 
           <div className="hf-aa-rule" />
@@ -515,25 +480,18 @@ export function AppAddAsset({ initialType = "vehicle" }: { initialType?: AssetTy
             </span>
           ) : (
             <>
-              Fields marked <span className="hf-field-req">*</span> are required
+              Fields marked <FieldReqMark /> are required
             </>
           )}
         </div>
         <div className="hf-aa-footer-actions">
-          <button
-            className="hf-btn hf-btn-secondary hf-btn-lg"
-            onClick={() => navigate(paths.assets)}
-          >
+          <Button variant="secondary" size="lg" onClick={() => navigate(paths.assets)}>
             Cancel
-          </button>
-          <button
-            className="hf-btn hf-btn-primary hf-btn-lg"
-            onClick={save}
-            disabled={mutation.isPending}
-          >
+          </Button>
+          <Button variant="primary" size="lg" onClick={save} disabled={mutation.isPending}>
             <Icon name="check" size={15} stroke={2.2} />
             {mutation.isPending ? "Saving..." : "Save asset"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

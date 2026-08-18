@@ -6,6 +6,8 @@ import {
   createMaintenanceTask,
   type MaintenanceTask,
 } from "../api/maintenanceTasks.ts";
+import { Button, ButtonSpinner } from "../design/Button.tsx";
+import { Field } from "../design/Field.tsx";
 import { Icon } from "../design/Icon.tsx";
 import { HFAssetIcon } from "../design/hf.tsx";
 import { paths } from "../routes.ts";
@@ -181,11 +183,7 @@ export function AddServiceModal({
               </div>
             )}
 
-            <div className="hf-field">
-              <label className="hf-field-label">
-                Asset <span className="hf-field-req">*</span>
-                <span className="hf-field-hint">what needs servicing</span>
-              </label>
+            <Field label="Asset" required hint="what needs servicing">
               {pickingAsset ? (
                 <div className="hf-svc-picker" role="listbox" aria-label="Choose an asset">
                   {assets.map((item) => (
@@ -238,15 +236,15 @@ export function AddServiceModal({
                   </span>
                 </button>
               )}
-            </div>
+            </Field>
 
-            <div className="hf-field">
-              <label className="hf-field-label" htmlFor="hf-svc-title">
-                Service <span className="hf-field-req">*</span>
-                <span className="hf-field-hint">
-                  {values.title.length}/{TASK_TITLE_MAX}
-                </span>
-              </label>
+            <Field
+              label="Service"
+              htmlFor="hf-svc-title"
+              required
+              hint={`${values.title.length}/${TASK_TITLE_MAX}`}
+              {...(errors.title ? { error: errors.title } : {})}
+            >
               <input
                 id="hf-svc-title"
                 ref={titleRef}
@@ -258,18 +256,13 @@ export function AddServiceModal({
                 disabled={formDisabled}
                 onChange={(event) => updateValue("title", event.target.value)}
               />
-              {errors.title && (
-                <span className="hf-svc-field-err">
-                  <Icon name="alert" size={12} stroke={2} />
-                  {errors.title}
-                </span>
-              )}
-            </div>
+            </Field>
 
-            <div className="hf-field">
-              <label className="hf-field-label">
-                Repeat every <span className="hf-field-req">*</span>
-              </label>
+            <Field
+              label="Repeat every"
+              required
+              {...(errors.intervalValue ? { error: errors.intervalValue } : {})}
+            >
               <div className="hf-svc-interval">
                 <input
                   type="number"
@@ -294,18 +287,16 @@ export function AddServiceModal({
                   ))}
                 </div>
               </div>
-              {errors.intervalValue && (
-                <span className="hf-svc-field-err">
-                  <Icon name="alert" size={12} stroke={2} />
-                  {errors.intervalValue}
-                </span>
-              )}
-            </div>
+            </Field>
 
-            <div className="hf-field">
-              <label className="hf-field-label" htmlFor="hf-svc-last">
-                Last completed <span className="hf-field-opt">optional</span>
-              </label>
+            <Field
+              label="Last completed"
+              htmlFor="hf-svc-last"
+              optional
+              {...(errors.lastCompletedDate
+                ? { error: errors.lastCompletedDate }
+                : { sub: "Leave blank to start counting from today." })}
+            >
               <input
                 id="hf-svc-last"
                 type="date"
@@ -315,15 +306,7 @@ export function AddServiceModal({
                 disabled={formDisabled}
                 onChange={(event) => updateValue("lastCompletedDate", event.target.value)}
               />
-              {errors.lastCompletedDate ? (
-                <span className="hf-svc-field-err">
-                  <Icon name="alert" size={12} stroke={2} />
-                  {errors.lastCompletedDate}
-                </span>
-              ) : (
-                <span className="hf-svc-hint">Leave blank to start counting from today.</span>
-              )}
-            </div>
+            </Field>
 
             {nextDue && (
               <div className="hf-svc-preview">
@@ -338,26 +321,18 @@ export function AddServiceModal({
 
         <div className="hf-svc-foot">
           {savedTask ? (
-            <button className="hf-btn hf-btn-primary" onClick={onClose}>
+            <Button variant="primary" onClick={onClose}>
               Done
-            </button>
+            </Button>
           ) : (
             <>
-              <button
-                className="hf-btn hf-btn-ghost"
-                onClick={onClose}
-                disabled={formDisabled}
-              >
+              <Button variant="ghost" onClick={onClose} disabled={formDisabled}>
                 Cancel
-              </button>
-              <button
-                className="hf-btn hf-btn-primary"
-                onClick={submit}
-                disabled={formDisabled || !asset}
-              >
+              </Button>
+              <Button variant="primary" onClick={submit} disabled={formDisabled || !asset}>
                 {mutation.isPending ? (
                   <>
-                    <span className="hf-svc-spinner" />
+                    <ButtonSpinner />
                     Saving…
                   </>
                 ) : (
@@ -366,7 +341,7 @@ export function AddServiceModal({
                     Save service
                   </>
                 )}
-              </button>
+              </Button>
             </>
           )}
         </div>

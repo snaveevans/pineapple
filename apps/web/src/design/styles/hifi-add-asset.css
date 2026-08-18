@@ -109,115 +109,7 @@
 }
 
 /* ============ field group ============ */
-.hf-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.hf-field-label {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 12.5px;
-  font-weight: 500;
-  color: var(--hf-ink);
-}
-.hf-field-req {
-  color: var(--hf-bad);
-  font-weight: 600;
-}
-.hf-field-opt {
-  font-family: var(--hf-mono);
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--hf-ink-faint);
-}
-.hf-field-hint {
-  font-size: 11.5px;
-  color: var(--hf-ink-faint);
-  margin-left: auto;
-}
-
-.hf-input,
-.hf-select {
-  width: 100%;
-  height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--hf-line);
-  border-radius: 8px;
-  background: var(--hf-surface);
-  color: var(--hf-ink);
-  font: inherit;
-  font-size: 14px;
-  outline: 0;
-  transition:
-    border-color 100ms,
-    box-shadow 100ms;
-}
-.hf-input::placeholder {
-  color: var(--hf-ink-faint);
-}
-.hf-input:hover,
-.hf-select:hover {
-  border-color: oklch(85% 0.008 80);
-}
-.hf-input:focus,
-.hf-select:focus {
-  border-color: var(--hf-brand);
-  box-shadow: 0 0 0 3px var(--hf-brand-bg);
-}
-.hf-input.hf-mono-input {
-  font-family: var(--hf-mono);
-  font-size: 13px;
-  letter-spacing: 0.01em;
-}
-
-.hf-select {
-  appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239a958c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M6 9l6 6 6-6'/></svg>");
-  background-repeat: no-repeat;
-  background-position: right 12px center;
-  padding-right: 34px;
-  cursor: pointer;
-}
-
-.hf-field-row {
-  display: flex;
-  gap: 12px;
-}
-.hf-field-row > .hf-field {
-  flex: 1;
-}
-
-/* ---- error states ---- */
-.hf-input.is-invalid,
-.hf-select.is-invalid {
-  border-color: var(--hf-bad);
-  background: var(--hf-bad-bg);
-}
-.hf-input.is-invalid:hover,
-.hf-select.is-invalid:hover {
-  border-color: var(--hf-bad);
-}
-.hf-input.is-invalid:focus,
-.hf-select.is-invalid:focus {
-  border-color: var(--hf-bad);
-  box-shadow: 0 0 0 3px oklch(52% 0.18 28 / 0.16);
-}
-.hf-field-error {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  line-height: 1.3;
-  font-weight: 500;
-  color: var(--hf-bad);
-}
-.hf-field-error svg {
-  flex-shrink: 0;
-}
+/* Field / input base styles → primitives.css */
 
 /* ---- validation summary banner ---- */
 .hf-aa-banner {
@@ -545,11 +437,7 @@
   display: flex;
   gap: 8px;
 }
-.hf-btn-lg {
-  height: 40px;
-  padding: 0 18px;
-  font-size: 13.5px;
-}
+/* .hf-btn-lg → primitives.css */
 
 /* ===================================================================
    MOBILE — bottom-sheet shell
