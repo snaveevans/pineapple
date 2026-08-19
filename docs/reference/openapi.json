@@ -701,6 +701,32 @@
           "maintenanceTasks"
         ]
       },
+      "UpdateMaintenanceTaskBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Replace furnace filter"
+          },
+          "intervalValue": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 3
+          },
+          "intervalUnit": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "year"
+            ],
+            "example": "month"
+          }
+        }
+      },
       "DashboardResponse": {
         "type": "object",
         "properties": {
@@ -2199,6 +2225,102 @@
           },
           "404": {
             "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Edit a maintenance task",
+        "description": "Updates title and/or interval. At least one field is required. lastCompletedDate and nextDue cannot be set directly here — nextDue is recomputed from the task's existing lastCompletedDate (or today) whenever intervalValue/intervalUnit changes. A request that would not change any stored value is a no-op: 200 with the unchanged task, no event published.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "required": true,
+            "name": "taskId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMaintenanceTaskBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated maintenance task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceTask"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The task's asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
             "content": {
               "application/json": {
                 "schema": {

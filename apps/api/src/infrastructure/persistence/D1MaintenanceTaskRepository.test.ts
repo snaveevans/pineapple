@@ -1,6 +1,10 @@
-import { UserId } from "@snaveevans/pineapple-shared";
+import { AssetId, MaintenanceTaskId, UserId } from "@snaveevans/pineapple-shared";
 import { describe, expect, it, vi } from "vitest";
-import { D1MaintenanceTaskRepository } from "./D1MaintenanceTaskRepository.ts";
+import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
+import {
+  D1MaintenanceTaskRepository,
+  prepareMaintenanceTaskSave,
+} from "./D1MaintenanceTaskRepository.ts";
 
 type BoundStatement = {
   query: string;
@@ -37,5 +41,29 @@ describe("D1MaintenanceTaskRepository", () => {
     expect(query).toContain("a.archived_at IS NULL");
     expect(query).toContain("shared_team_id");
     expect(statements[0]?.values).toEqual([ownerId, ownerId]);
+  });
+
+  it("prepareMaintenanceTaskSave upserts title, interval, and schedule fields on conflict", () => {
+    const { db, statements } = createDatabaseHarness();
+    const task = MaintenanceTask.reconstitute({
+      id: MaintenanceTaskId.generate(),
+      assetId: AssetId.generate(),
+      ownerId: UserId.generate(),
+      title: "Replace furnace filter",
+      intervalValue: 3,
+      intervalUnit: "month",
+      lastCompletedDate: "2026-04-11",
+      nextDue: "2026-07-11",
+      createdAt: new Date(),
+    });
+
+    prepareMaintenanceTaskSave(db, task);
+
+    const query = statements[0]?.query ?? "";
+    expect(query).toContain("title = excluded.title");
+    expect(query).toContain("interval_value = excluded.interval_value");
+    expect(query).toContain("interval_unit = excluded.interval_unit");
+    expect(query).toContain("last_completed_date = excluded.last_completed_date");
+    expect(query).toContain("next_due = excluded.next_due");
   });
 });

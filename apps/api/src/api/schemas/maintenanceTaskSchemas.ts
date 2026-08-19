@@ -48,6 +48,34 @@ export const CreateMaintenanceTaskBodySchema = z
   })
   .openapi("CreateMaintenanceTaskBody");
 
+export const UpdateMaintenanceTaskBodySchema = z
+  .object({
+    title: z
+      .string()
+      .trim()
+      .min(1, "Title is required")
+      .max(100, "Title must be 100 characters or fewer")
+      .optional()
+      .openapi({ example: "Replace furnace filter" }),
+    intervalValue: z
+      .number()
+      .int("Interval value must be an integer")
+      .min(1, "Interval value must be at least 1")
+      .optional()
+      .openapi({ example: 3 }),
+    intervalUnit: IntervalUnitSchema.optional(),
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.intervalValue !== undefined ||
+      body.intervalUnit !== undefined,
+    {
+      message: "At least one of title, intervalValue, or intervalUnit is required",
+    },
+  )
+  .openapi("UpdateMaintenanceTaskBody");
+
 export const MaintenanceTaskResponseSchema = z
   .object({
     id: z.string().uuid().openapi({ example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }),
