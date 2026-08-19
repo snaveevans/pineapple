@@ -22,11 +22,13 @@ import {
 import {
   listMaintenanceTasks,
   createMaintenanceTask,
+  updateMaintenanceTask,
   deleteMaintenanceTask,
   maintenanceTasksQueryKey,
   type MaintenanceTask,
   type MaintenanceTaskListResponse,
   type CreateMaintenanceTaskBody,
+  type UpdateMaintenanceTaskBody,
 } from "../api/maintenanceTasks.ts";
 import { Button, ButtonSpinner } from "../design/Button.tsx";
 import { EmptyState } from "../design/EmptyState.tsx";
@@ -38,10 +40,12 @@ import { toAssetPresentation, type AssetPresentation } from "./assetPresentation
 import {
   EMPTY_MAINTENANCE_TASK_FORM,
   formatIntervalPhrase,
+  maintenanceTaskFormValuesFromTask,
   TASK_TITLE_MAX,
   TASK_UNITS,
   todayDateOnly,
   toCreateMaintenanceTaskBody,
+  toUpdateMaintenanceTaskBody,
   validateMaintenanceTaskForm,
   type MaintenanceTaskFormValues,
 } from "./maintenanceTaskForm.ts";
@@ -368,7 +372,17 @@ function MRRecentActivity({ records, onViewAll }: { records: MaintenanceRecord[]
   );
 }
 
-function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (id: string) => void; onDelete: (id: string) => void }) {
+function MRTaskCard({
+  task,
+  onLog,
+  onEdit,
+  onDelete,
+}: {
+  task: MaintenanceTask;
+  onLog: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const [confirming, setConfirming] = useState(false);
   const s = task.status;
   return (
@@ -407,6 +421,9 @@ function MRTaskCard({ task, onLog, onDelete }: { task: MaintenanceTask; onLog: (
               <Icon name="check" size={13} stroke={2.3} />
               Log
             </Button>
+            <button className="mr-task-edit-btn" onClick={() => onEdit(task.id)} aria-label="Edit task">
+              <Icon name="edit" size={14} stroke={1.8} />
+            </button>
             <button className="mr-task-del-btn" onClick={() => setConfirming(true)} aria-label="Delete task">
               <Icon name="x" size={14} stroke={2.1} />
             </button>
@@ -445,12 +462,14 @@ function MRScheduleSection({
   tasks,
   isLoading,
   onLog,
+  onEdit,
   onDelete,
   onAdd,
 }: {
   tasks: MaintenanceTask[];
   isLoading: boolean;
   onLog: (id: string) => void;
+  onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
 }) {
@@ -477,7 +496,7 @@ function MRScheduleSection({
       {!isLoading && sorted.length > 0 && (
         <div className="mr-task-list">
           {sorted.map((t) => (
-            <MRTaskCard key={t.id} task={t} onLog={onLog} onDelete={onDelete} />
+            <MRTaskCard key={t.id} task={t} onLog={onLog} onEdit={onEdit} onDelete={onDelete} />
           ))}
         </div>
       )}
@@ -490,6 +509,7 @@ function MROverviewTab({
   records,
   tasksLoading,
   onLogFromTask,
+  onEditTask,
   onDeleteTask,
   onAddTask,
   onViewAll,
@@ -498,6 +518,7 @@ function MROverviewTab({
   records: MaintenanceRecord[];
   tasksLoading: boolean;
   onLogFromTask: (id: string) => void;
+  onEditTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: () => void;
   onViewAll: () => void;
@@ -509,6 +530,7 @@ function MROverviewTab({
         tasks={tasks}
         isLoading={tasksLoading}
         onLog={onLogFromTask}
+        onEdit={onEditTask}
         onDelete={onDeleteTask}
         onAdd={onAddTask}
       />
@@ -677,6 +699,156 @@ function MRCreateTaskForm({ asset, todayUtc, variant, onClose, onCreated }: MRCr
             <>
               <Icon name="check" size={15} stroke={2.4} />
               Save task
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Task edit form (title/interval only — lastCompletedDate is not editable here) ──
+
+interface MREditTaskFormProps {
+  asset: AssetPresentation;
+  task: MaintenanceTask;
+  variant: "drawer" | "sheet";
+  onClose: () => void;
+  onSaved: (task: MaintenanceTask) => void;
+}
+
+function MREditTaskForm({ asset, task, variant, onClose, onSaved }: MREditTaskFormProps) {
+  const [values, setValues] = useState<MaintenanceTaskFormValues>(() =>
+    maintenanceTaskFormValuesFromTask(task),
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [banner, setBanner] = useState<string | null>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { titleRef.current?.focus(); }, []);
+
+  const mutation = useMutation({
+    mutationFn: (body: UpdateMaintenanceTaskBody) =>
+      updateMaintenanceTask(asset.id, task.id, body),
+    onSuccess: (updated) => onSaved(updated),
+    onError: (err) => setBanner(err instanceof Error ? err.message : "Failed to save task."),
+  });
+
+  const submit = () => {
+    if (mutation.isPending) return;
+    const nextErrors = validateMaintenanceTaskForm(values);
+    const mappedErrors: Record<string, string> = {};
+    if (nextErrors.title) mappedErrors.title = nextErrors.title;
+    if (nextErrors.intervalValue) mappedErrors.iv = nextErrors.intervalValue;
+    setErrors(mappedErrors);
+    if (Object.keys(mappedErrors).length) {
+      setBanner("Please fix the highlighted fields before saving.");
+      return;
+    }
+    setBanner(null);
+    mutation.mutate(toUpdateMaintenanceTaskBody(values));
+  };
+
+  const clear = (field: string) =>
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+
+  const updateValue = <K extends keyof MaintenanceTaskFormValues>(
+    field: K,
+    value: MaintenanceTaskFormValues[K],
+  ) => {
+    setValues((prev) => ({ ...prev, [field]: value }));
+    clear(field === "intervalValue" ? "iv" : field);
+    if (banner) setBanner(null);
+  };
+
+  return (
+    <div className={`mr-form mr-form-${variant}`}>
+      {variant === "sheet" && <div className="mr-sheet-grab" />}
+      <div className="mr-form-head">
+        <div className="mr-form-head-txt">
+          <div className="mr-form-title">Edit task</div>
+          <div className="mr-form-sub">{asset.name}</div>
+        </div>
+        <button className="mr-form-close" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={15} stroke={2.2} />
+        </button>
+      </div>
+      <div className="mr-form-body">
+        {banner && (
+          <div className="mr-banner" role="alert">
+            <Icon name="alert" size={15} stroke={2} /><span>{banner}</span>
+          </div>
+        )}
+        <Field
+          label="Title"
+          htmlFor="met-title"
+          required
+          hint={
+            <span className={`mr-field-count ${values.title.length > TASK_TITLE_MAX ? "over" : ""}`}>
+              {values.title.length}/{TASK_TITLE_MAX}
+            </span>
+          }
+          {...(errors.title ? { error: errors.title } : {})}
+        >
+          <input
+            id="met-title"
+            ref={titleRef}
+            type="text"
+            className={`mr-input${errors.title ? " is-invalid" : ""}`}
+            placeholder='e.g. "Replace furnace filter"'
+            maxLength={TASK_TITLE_MAX + 20}
+            value={values.title}
+            onChange={(e) => updateValue("title", e.target.value)}
+          />
+        </Field>
+        <Field
+          label="Repeat every"
+          required
+          {...(errors.iv ? { error: errors.iv } : {})}
+        >
+          <div className="mr-interval-row">
+            <input
+              id="met-iv"
+              type="number"
+              min="1"
+              step="1"
+              className={`mr-input mr-interval-num${errors.iv ? " is-invalid" : ""}`}
+              value={values.intervalValue}
+              onChange={(e) => updateValue("intervalValue", e.target.value)}
+            />
+            <div className="mr-unit-seg" role="group" aria-label="Interval unit">
+              {TASK_UNITS.map((u) => (
+                <button
+                  key={u.value}
+                  type="button"
+                  className={`mr-unit-btn ${values.intervalUnit === u.value ? "active" : ""}`}
+                  onClick={() => updateValue("intervalUnit", u.value)}
+                >
+                  {u.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Field>
+      </div>
+      <div className="mr-form-actions">
+        <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+          Cancel
+        </Button>
+        <Button variant="brand" className="mr-btn-save" onClick={submit} disabled={mutation.isPending}>
+          {mutation.isPending ? (
+            <>
+              <ButtonSpinner />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Icon name="check" size={15} stroke={2.4} />
+              Save changes
             </>
           )}
         </Button>
@@ -1064,6 +1236,7 @@ export function AppMaintenanceRecords() {
   const [formOpen, setFormOpen] = useState(false);
   const [logFromTaskId, setLogFromTaskId] = useState<string | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"overview" | "maintenance">("overview");
@@ -1210,6 +1383,16 @@ export function AppMaintenanceRecords() {
     setTaskFormOpen(false);
   };
 
+  const handleTaskUpdated = (task: MaintenanceTask) => {
+    queryClient.setQueryData<MaintenanceTaskListResponse>(
+      maintenanceTasksQueryKey(assetId),
+      (old) => ({
+        maintenanceTasks: (old?.maintenanceTasks ?? []).map((t) => (t.id === task.id ? task : t)),
+      }),
+    );
+    setEditingTaskId(null);
+  };
+
   const handleTaskDeleted = async (taskId: string) => {
     setTaskDeleteError(null);
     try {
@@ -1317,6 +1500,7 @@ export function AppMaintenanceRecords() {
       records={sorted}
       tasksLoading={tasksQuery.isPending}
       onLogFromTask={(tid) => openLogForm(tid)}
+      onEditTask={(tid) => setEditingTaskId(tid)}
       onDeleteTask={handleTaskDeleted}
       onAddTask={() => setTaskFormOpen(true)}
       onViewAll={() => setActiveTab("maintenance")}
@@ -1329,8 +1513,11 @@ export function AppMaintenanceRecords() {
     !assetQuery.isError &&
     (activeTab === "maintenance" ? (recordsQuery.isSuccess && sorted.length > 0) : true) &&
     !taskFormOpen &&
+    !editingTaskId &&
     !formOpen &&
     !shareOpen;
+
+  const editingTask = editingTaskId ? (tasks.find((t) => t.id === editingTaskId) ?? null) : null;
 
   const openShareSheet = () => {
     setShareError(null);
@@ -1555,6 +1742,21 @@ export function AppMaintenanceRecords() {
               variant={overlayVariant}
               onClose={() => setTaskFormOpen(false)}
               onCreated={handleTaskCreated}
+            />
+          </div>
+        </div>
+      )}
+
+      {editingTask && asset && (
+        <div className={`mr-overlay mr-overlay-${overlayVariant}`}>
+          <div className="mr-scrim" onClick={() => setEditingTaskId(null)} />
+          <div className={`mr-overlay-panel-${overlayVariant}`}>
+            <MREditTaskForm
+              asset={asset}
+              task={editingTask}
+              variant={overlayVariant}
+              onClose={() => setEditingTaskId(null)}
+              onSaved={handleTaskUpdated}
             />
           </div>
         </div>

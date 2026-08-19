@@ -91,6 +91,9 @@
   --hf-evt-completed: oklch(50% 0.09 196);
   --hf-evt-completed-bg: oklch(95% 0.03 196);
   --hf-evt-deleted: oklch(54% 0.13 28);
+  --hf-evt-updated: oklch(48% 0.12 55);
+  --hf-evt-updated-bg: oklch(95% 0.03 55);
+  --hf-evt-updated-border: oklch(88% 0.04 55);
   --hf-evt-added-border: oklch(88% 0.04 292);
   --hf-evt-scheduled-border: oklch(88% 0.04 252);
   --hf-evt-completed-border: oklch(88% 0.04 196);

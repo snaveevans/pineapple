@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   addIntervalDate,
   formatIntervalPhrase,
+  maintenanceTaskFormValuesFromTask,
   previewNextDueDate,
   resolveAssetId,
   toCreateMaintenanceTaskBody,
+  toUpdateMaintenanceTaskBody,
   validateMaintenanceTaskForm,
 } from "./maintenanceTaskForm.ts";
 
@@ -98,6 +100,39 @@ describe("toCreateMaintenanceTaskBody", () => {
     ).toEqual({
       title: "Filter change",
       intervalValue: 6,
+      intervalUnit: "month",
+    });
+  });
+});
+
+describe("maintenanceTaskFormValuesFromTask", () => {
+  it("seeds form values from a task and leaves lastCompletedDate blank", () => {
+    expect(
+      maintenanceTaskFormValuesFromTask({
+        title: "Replace furnace filter",
+        intervalValue: 2,
+        intervalUnit: "month",
+      }),
+    ).toEqual({
+      title: "Replace furnace filter",
+      intervalValue: "2",
+      intervalUnit: "month",
+      lastCompletedDate: "",
+    });
+  });
+});
+
+describe("toUpdateMaintenanceTaskBody", () => {
+  it("builds a full PATCH body from form values", () => {
+    expect(
+      toUpdateMaintenanceTaskBody({
+        title: "  Replace filter  ",
+        intervalValue: "3",
+        intervalUnit: "month",
+      }),
+    ).toEqual({
+      title: "Replace filter",
+      intervalValue: 3,
       intervalUnit: "month",
     });
   });

@@ -418,6 +418,7 @@ Success is a navigate-away transition (updates the asset query cache, invalidate
 
 - `pending` (create record) — inline or modal form validates date and description; submits to API
 - `pending` (create task) — inline form validates title and due date
+- `pending` (edit task) — drawer/sheet form (title + interval only, no last-completed-date field) opened from an edit button on the task card; submits `PATCH` and updates the task in place
 - `pending` (share/unshare, owner only) — sheet/drawer to share the asset to the caller's team or unshare it back to personal
 - `error` — inline field errors; 401 redirects to `/login`
 
@@ -437,6 +438,7 @@ Success is a navigate-away transition (updates the asset query cache, invalidate
 - Sharing uses the asset's server-computed `sharing` descriptor (`scope`, `isOwner`, optional `ownerDisplayName`); only the asset owner can change sharing
 - Share/unshare are idempotent on the API; the sheet closes on success and refreshes the asset query
 - An edit button (owner only, gated on `sharing.isOwner` like the share control) links to `/app/assets/:id/edit` — see [Edit Asset](#edit-asset)
+- Task edit does not offer a last-completed-date field — that value only ever changes by logging a maintenance record against the task; editing lets the user correct the title or interval without losing it (unlike the old delete-and-recreate workaround)
 
 **Spec:** [`docs/specs/features/maintenance-record.md`](../specs/features/maintenance-record.md), [`docs/specs/features/maintenance-task.md`](../specs/features/maintenance-task.md), [`docs/specs/features/teams-foundation.md`](../specs/features/teams-foundation.md)
 
