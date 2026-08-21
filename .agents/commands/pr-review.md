@@ -12,4 +12,4 @@ When the target is a PR, the review posts its verdict — approved or changes re
 as a comment on that PR. Add "don't post" to the invocation to keep it in-session.
 
 This file is a slash-command shortcut only. The review procedure itself lives in
-`.claude/skills/pr-review/SKILL.md` — edit that, not this.
+`.agents/skills/pr-review/SKILL.md` — edit that, not this.

@@ -41,7 +41,7 @@ hold, stop and say why — and do not post. Skip this step for a branch diff —
 branch is always eligible.
 
 A verdict comment already on the PR from a previous run is **not** a stop condition,
-whatever SHA it names. Eligibility governs whether the review *runs*; whether it *posts*
+whatever SHA it names. Eligibility governs whether the review _runs_; whether it _posts_
 is step 7's call. Someone re-running the skill on unchanged commits — with "don't post",
 or after these review criteria changed — still wants the findings.
 
@@ -220,7 +220,7 @@ update them. Check before assuming an edit path exists. Where none does:
   marker comment. An unchanged verdict adds nothing; post nothing and say so in-session.
 - Open it with `Supersedes the verdict on <old head SHA>.` and link that comment.
 - Accept one verdict per round of substantive change. That is the cost of no edit path,
-  and it is why the SHA line is mandatory and why this section reads the *most recent*
+  and it is why the SHA line is mandatory and why this section reads the _most recent_
   marker comment rather than assuming a unique one.
 
 Report in-session what you posted and where — including when you deliberately posted

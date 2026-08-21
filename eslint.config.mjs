@@ -45,15 +45,16 @@ const BLOCKED_IMPORTS = BLOCKED_NODE_BUILTINS.flatMap((name) => [
 export default tseslint.config(
   // ── Global ignores ───────────────────────────────────────────────────────
   // scripts/ are Node tooling (build-time), outside the Workers tsconfig.
-  // .claude/ holds git worktrees the Claude Code harness creates; their
-  // duplicated source has no linked node_modules, so type-aware linting there
-  // fails to resolve workspace packages. Ignore them like other build output.
+  // Agent-harness worktrees contain duplicated source with no linked node_modules,
+  // so type-aware linting there fails to resolve workspace packages. Ignore them
+  // like other build output. Keep the legacy .claude/ path for older checkouts.
   {
     ignores: [
       "**/dist/**",
       "**/node_modules/**",
       "**/.wrangler/**",
       "**/scripts/**",
+      "**/.agents/worktrees/**",
       "**/.claude/**",
       // .swarm/ is a mutation-testing scratch dir (~62k duplicated .ts files);
       // type-aware linting there OOMs locally. Mirrors the .claude/ precedent.

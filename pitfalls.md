@@ -2,6 +2,73 @@
 
 This file is a running log of small-but-annoying issues we've hit, plus the fix that worked.
 
+## 2026-08-21 — lint-staged cannot stash through a symlinked `.claude`
+
+### Symptom
+
+The pre-commit hook failed with `'.claude/commands/pr-respond.md' is beyond a
+symbolic link` while committing the move from `.claude` to `.agents`.
+
+### Cause
+
+lint-staged's default backup uses `git stash create`, which cannot process the
+old tracked `.claude/...` paths after `.claude` becomes a directory symlink.
+
+### Fix
+
+Committed the move in two phases: first moved and removed the old `.claude` paths,
+then added the `.claude -> .agents` symlink in a follow-up commit.
+
+### How to avoid next time
+
+When migrating a tracked directory to a symlink, commit the target-directory move
+before adding the symlink so Git can complete the hook's normal stash backup.
+
+## 2026-08-21 — `path` loop variable overwrote zsh `PATH`
+
+### Symptom
+
+A verification loop reported `git: command not found` after its first iteration,
+even though Git was available before the loop.
+
+### Cause
+
+In zsh, the special `path` array is tied to the `PATH` environment variable. The
+loop assigned file names to `path`, replacing the shell command search path.
+
+### Fix
+
+Reran the loop with `item` as the variable name.
+
+### How to avoid next time
+
+Do not use `path` as a shell variable in zsh scripts or one-off loops; use names
+such as `item` or `file_path` instead.
+
+## 2026-08-21 — Partial install hid the stylelint binary
+
+### Symptom
+
+`pnpm lint` completed ESLint but failed during the CSS phase with
+`stylelint: command not found`, even though `stylelint` was declared in the root
+manifest and lockfile.
+
+### Cause
+
+The workspace `node_modules` directory was incomplete and did not contain the
+locked dev dependency.
+
+### Fix
+
+Ran `pnpm install --frozen-lockfile --ignore-scripts` to restore the locked
+workspace dependencies without changing `pnpm-lock.yaml`.
+
+### How to avoid next time
+
+After switching worktrees or restoring a partial workspace, run the frozen
+install before treating a missing declared binary as a code or configuration
+failure.
+
 ## 2026-08-06 — Assumed Dependabot config key from training data (auto-merge)
 
 ### Symptom
