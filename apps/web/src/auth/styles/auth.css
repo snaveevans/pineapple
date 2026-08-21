@@ -328,7 +328,7 @@
 .au-spinner {
   position: absolute;
   inset: -9px;
-  border-radius: var(--hf-r-xl);
+  border-radius: var(--hf-r-full);
   border: 2.5px solid var(--hf-brand-bg);
   border-top-color: var(--hf-brand);
   animation: au-spin 0.8s linear infinite;

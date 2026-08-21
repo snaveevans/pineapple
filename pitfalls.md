@@ -2,6 +2,28 @@
 
 This file is a running log of small-but-annoying issues we've hit, plus the fix that worked.
 
+## 2026-08-21 — Vitest `?raw` CSS imports are empty
+
+### Symptom
+
+A web stylesheet regression test imported `auth.css?raw`, but Vitest supplied an
+empty string, so the assertion failed without reading the stylesheet.
+
+### Cause
+
+The current Vitest/Vite test configuration does not transform CSS `?raw` imports
+into their source text.
+
+### Fix
+
+Read the stylesheet with `readFileSync(new URL("./styles/auth.css", import.meta.url), "utf8")`
+from the test instead.
+
+### How to avoid next time
+
+Use a module URL and `node:fs` for source-level CSS assertions unless the test
+configuration explicitly enables raw CSS handling.
+
 ## 2026-08-21 — lint-staged cannot stash through a symlinked `.claude`
 
 ### Symptom
