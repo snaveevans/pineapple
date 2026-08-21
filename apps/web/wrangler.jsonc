@@ -3,13 +3,14 @@
   "name": "pineapple-web",
   "main": "worker/index.ts",
   "compatibility_date": "2026-05-21",
-  // Production routes: the SPA owns the catch-all on both shared hostnames.
+  // Production routing: the SPA owns the catch-all on both shared hostnames.
   // /api/* (and the API's docs/health paths) are claimed more specifically by
-  // pineapple-api, so they take precedence on either host. Requires both zones
-  // in this account + proxied DNS records for both hostnames.
+  // pineapple-api, so they take precedence on either host. The primary hostname
+  // uses a route; the alternate hostname uses a Custom Domain so Cloudflare
+  // provisions its DNS record and certificate automatically.
   "routes": [
     { "pattern": "pineapple.tylerevans.co/*", "zone_name": "tylerevans.co" },
-    { "pattern": "pineapple.txe.app/*", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app", "custom_domain": true },
   ],
   // Static assets (the built SPA) are served first; unmatched routes fall
   // through to index.html so client-side routing works.

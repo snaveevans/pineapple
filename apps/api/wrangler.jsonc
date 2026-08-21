@@ -10,9 +10,9 @@
   // (non-/api) docs + health endpoints; the web Worker (pineapple-web) owns the
   // catch-all /* for the SPA. Cloudflare matches the most specific route, so
   // /api/* and the explicit paths below win over the SPA's /* on either host.
-  // Requires both zones in this Cloudflare account and proxied DNS records for
-  // pineapple.tylerevans.co and pineapple.txe.app. Routes are ignored by
-  // `wrangler dev`.
+  // Requires both zones in this Cloudflare account. The primary hostname needs
+  // a proxied DNS record; the alternate hostname's record is provisioned by the
+  // web Worker's Custom Domain. Routes are ignored by `wrangler dev`.
   "routes": [
     { "pattern": "pineapple.tylerevans.co/api/*", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.tylerevans.co/openapi.json", "zone_name": "tylerevans.co" },
