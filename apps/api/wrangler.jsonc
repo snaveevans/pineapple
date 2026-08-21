@@ -6,17 +6,22 @@
   // Better Auth relies on Node APIs (crypto, etc.) on the Workers runtime.
   "compatibility_flags": ["nodejs_compat"],
 
-  // Production routes on the shared hostname. The API owns /api/* plus its
+  // Production routes on the shared hostnames. The API owns /api/* plus its
   // (non-/api) docs + health endpoints; the web Worker (pineapple-web) owns the
   // catch-all /* for the SPA. Cloudflare matches the most specific route, so
-  // /api/* and the explicit paths below win over the SPA's /*.
-  // Requires the tylerevans.co zone in this Cloudflare account and a proxied DNS
-  // record for pineapple.tylerevans.co. Routes are ignored by `wrangler dev`.
+  // /api/* and the explicit paths below win over the SPA's /* on either host.
+  // Requires both zones in this Cloudflare account and proxied DNS records for
+  // pineapple.tylerevans.co and pineapple.txe.app. Routes are ignored by
+  // `wrangler dev`.
   "routes": [
     { "pattern": "pineapple.tylerevans.co/api/*", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.tylerevans.co/openapi.json", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.tylerevans.co/reference", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.tylerevans.co/health", "zone_name": "tylerevans.co" },
+    { "pattern": "pineapple.txe.app/api/*", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/openapi.json", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/reference", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/health", "zone_name": "txe.app" },
   ],
 
   "vars": {
