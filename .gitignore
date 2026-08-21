@@ -15,3 +15,5 @@ tmp
 .playwright-mcp
 .swarm
 .lavish
+.agents/settings.local.json
+.agents/worktrees/

@@ -9,4 +9,4 @@ Use the `pr-respond` skill to address the feedback on $ARGUMENTS.
 If no argument was given, find the open PR whose head branch is the current branch.
 
 This file is a slash-command shortcut only. The procedure itself lives in
-`.claude/skills/pr-respond/SKILL.md` — edit that, not this.
+`.agents/skills/pr-respond/SKILL.md` — edit that, not this.
