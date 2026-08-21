@@ -28,7 +28,7 @@
     "ENVIRONMENT": "production",
     // Outbound transactional email sender (ADR-0012). The from domain must be
     // onboarded to Cloudflare Email Sending first — see docs/reference/email-sending.md.
-    "EMAIL_FROM_ADDRESS": "noreply@pineapple.tylerevans.co",
+    "EMAIL_FROM_ADDRESS": "noreply@pineapple.txe.app",
     "EMAIL_FROM_NAME": "Pineapple",
   },
 
@@ -78,7 +78,7 @@
 
   // Cloudflare Email Sending binding (ADR-0012). `wrangler deploy` binds to this;
   // the from domain must be onboarded once via
-  //   wrangler email sending enable pineapple.tylerevans.co
+  //   wrangler email sending enable pineapple.txe.app
   // See docs/reference/email-sending.md. For local sends, add `remote: true`.
   "send_email": [{ "name": "EMAIL" }],
 

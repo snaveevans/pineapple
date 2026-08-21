@@ -14,6 +14,7 @@ behind the application `TransactionalEmailSender` port; the Cloudflare adapter i
 - `"send_email": [{ "name": "EMAIL" }]` — the Worker binding used to send.
 - `EMAIL_FROM_ADDRESS` / `EMAIL_FROM_NAME` vars — the sender identity. The
   address's domain must be onboarded (below).
+- Production sender: `noreply@pineapple.txe.app`.
 
 At runtime `worker.ts` builds a `CloudflareEmailSender` only when both `EMAIL`
 and `EMAIL_FROM_ADDRESS` are present; otherwise it falls back to a no-op sender
@@ -26,7 +27,7 @@ failure is recorded (retryable vs permanent) and the user can resend.
 The `from` domain must be onboarded to Email Sending before the first send:
 
 ```bash
-npx wrangler email sending enable pineapple.tylerevans.co
+npx wrangler email sending enable pineapple.txe.app
 # list onboarded domains:
 npx wrangler email sending list
 ```
@@ -43,7 +44,7 @@ Onboarding auto-provisions the DNS authentication records in the Cloudflare zone
   policy:
 
   ```
-  _dmarc.pineapple.tylerevans.co  TXT  "v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@tylerevans.co"
+  _dmarc.pineapple.txe.app  TXT  "v=DMARC1; p=quarantine; rua=mailto:dmarc-reports@txe.app"
   ```
 
 Cloudflare additionally manages IP reputation, soft-bounce retries, hard-bounce
