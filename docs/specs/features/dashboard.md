@@ -16,7 +16,7 @@ metadata:
 
 ## Summary
 
-The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. "Its assets" means every active asset the caller can access — those they **own** and those a teammate has **shared with their team** ([teams-foundation.md](./teams-foundation.md)) — so totals, health, and the queue reflect everything the operator helps maintain, with shared assets marked. It can launch existing maintenance flows, mark a time-based task complete through the maintenance-record endpoint, and reschedule the current task cycle through the dedicated maintenance-task action; snoozing, reminders, and richer service-task metadata remain separate concerns.
+The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. "Its assets" means every active asset the caller can access — those they **own** and those a teammate has **shared with their team** ([teams-foundation.md](./teams-foundation.md)) — so totals, health, and the queue reflect everything the operator helps maintain, with shared assets marked. It can launch existing maintenance flows and mark a time-based task complete through the maintenance-record endpoint. The defined `S5` slice will add a dedicated action to reschedule the current task cycle; snoozing, reminders, and richer service-task metadata remain separate concerns.
 
 ## Implementation Notes
 
@@ -25,7 +25,7 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 - The dashboard needs one protected read model instead of browser-side fan-out across `GET /api/assets` and per-asset task endpoints.
 - The supported asset categories remain `vehicle`, `equipment`, and `property`; the mock's `lawn` / `Grounds` category is not part of this spec.
 - The current maintenance-task model supports time-based schedules only. Meter readings, mileage/hour recurrence, estimated time, location, assignee, and task notes are future task-model work.
-- `Mark complete` uses the existing linked maintenance-record flow. `Reschedule` uses the maintenance-task feature's dedicated one-cycle override; `Snooze` and dashboard-level task creation remain separate concerns.
+- `Mark complete` uses the existing linked maintenance-record flow. `S5` will make `Reschedule` use the maintenance-task feature's dedicated one-cycle override; `Snooze` and dashboard-level task creation remain separate concerns.
 
 ## User Stories
 
@@ -128,7 +128,7 @@ _Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery P
 
 **Request telemetry:** `GET /api/dashboard` maps to the `GetDashboard` operation via `createTechnicalTelemetryMiddleware`. Implementing the endpoint requires adding this route to the operation-name mapping and updating [telemetry.md](../cross-cutting/telemetry.md).
 
-**Domain events:** None for the dashboard read model. Reads do not publish domain events. Completing a task from the dashboard uses the existing `CreateMaintenanceRecord` operation and may publish the existing `MaintenanceRecordCreated` and `MaintenanceTaskAdvanced` domain events. Rescheduling uses `RescheduleMaintenanceTask` and publishes `MaintenanceTaskRescheduled` as defined in [maintenance-task.md](./maintenance-task.md).
+**Domain events:** None for the dashboard read model. Reads do not publish domain events. Completing a task from the dashboard uses the existing `CreateMaintenanceRecord` operation and may publish the existing `MaintenanceRecordCreated` and `MaintenanceTaskAdvanced` domain events. When implemented, `S5` rescheduling will use `RescheduleMaintenanceTask` and publish `MaintenanceTaskRescheduled` as defined in [maintenance-task.md](./maintenance-task.md).
 
 ## Flags
 

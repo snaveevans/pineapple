@@ -106,20 +106,23 @@ defines the API capability and behavior.
 
 ## What Counts as Activity
 
-Each tracked action becomes exactly one history entry. The following nine entry types are
-exhaustive for v1, and the table defines the existing domain event that drives each one:
+Each tracked action becomes exactly one history entry. The following eight entry types are
+exhaustive for the current API, and the table defines the existing domain event that drives each
+one:
 
-| Entry type                   | User action                                 | Source domain event(s)                                                                                                                      |
-| ---------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `asset_added`                | Added an asset                              | `AssetCreated`                                                                                                                              |
-| `maintenance_logged`         | Logged maintenance with no task advancement | `MaintenanceRecordCreated` whose producer-owned `activityEntryType` is `maintenance_logged`                                                 |
-| `maintenance_record_updated` | Corrected a maintenance record              | `MaintenanceRecordUpdated`; carries the current record snapshot and the prior values needed to explain the correction                       |
-| `maintenance_record_deleted` | Deleted a maintenance record                | `MaintenanceRecordDeleted`; carries the deleted record snapshot so the row renders after hard deletion                                      |
-| `task_completed`             | Completed a scheduled task by logging work  | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries `activityEntryType: null`, so the pair is one entry, not two       |
-| `task_scheduled`             | Scheduled a maintenance task                | `MaintenanceTaskCreated`                                                                                                                    |
-| `task_updated`               | Edited a scheduled task's title or interval | `MaintenanceTaskUpdated`; published only when the edit changes a stored value ([maintenance-task.md](./maintenance-task.md))                |
-| `task_rescheduled`           | Rescheduled a task's current due cycle      | `MaintenanceTaskRescheduled`; published only when the target changes the effective `nextDue` ([maintenance-task.md](./maintenance-task.md)) |
-| `task_deleted`               | Removed a maintenance task                  | `MaintenanceTaskDeleted`                                                                                                                    |
+| Entry type                   | User action                                 | Source domain event(s)                                                                                                                |
+| ---------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `asset_added`                | Added an asset                              | `AssetCreated`                                                                                                                        |
+| `maintenance_logged`         | Logged maintenance with no task advancement | `MaintenanceRecordCreated` whose producer-owned `activityEntryType` is `maintenance_logged`                                           |
+| `maintenance_record_updated` | Corrected a maintenance record              | `MaintenanceRecordUpdated`; carries the current record snapshot and the prior values needed to explain the correction                 |
+| `maintenance_record_deleted` | Deleted a maintenance record                | `MaintenanceRecordDeleted`; carries the deleted record snapshot so the row renders after hard deletion                                |
+| `task_completed`             | Completed a scheduled task by logging work  | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries `activityEntryType: null`, so the pair is one entry, not two |
+| `task_scheduled`             | Scheduled a maintenance task                | `MaintenanceTaskCreated`                                                                                                              |
+| `task_updated`               | Edited a scheduled task's title or interval | `MaintenanceTaskUpdated`; published only when the edit changes a stored value ([maintenance-task.md](./maintenance-task.md))          |
+| `task_deleted`               | Removed a maintenance task                  | `MaintenanceTaskDeleted`                                                                                                              |
+
+Maintenance-task `S5` will add `task_rescheduled`, sourced from `MaintenanceTaskRescheduled`, to
+the response type and filter enum when its queue consumer and generated OpenAPI contract ship.
 
 Not tracked in v1: asset archive/unarchive (no domain event exists), profile/account
 changes, and sign-in events. See Out of Scope.
@@ -193,11 +196,7 @@ _Each criterion below carries exactly one slice tag (`S1` through `S5`) from the
       access, nor raw `ownerId` or auth-provider identifiers
 - [ ] `S1` Entries are returned newest first by `occurredAt`, with a stable secondary
       tiebreak (e.g. entry id) so equal timestamps have a deterministic order
-- [ ] `S1` Each entry includes: a stable `id`, an entry `type` (one of `asset_added`,
-      `maintenance_logged`, `maintenance_record_updated`, `maintenance_record_deleted`,
-      `task_completed`, `task_scheduled`, `task_updated`, `task_deleted`),
-      `occurredAt`, and an asset snapshot (`id`, `name`, `type`) sufficient to render
-      the row without an additional lookup
+- [ ] `S1` Each entry includes: a stable `id`, an entry `type` defined by [What Counts as Activity](#what-counts-as-activity), `occurredAt`, and an asset snapshot (`id`, `name`, `type`) sufficient to render the row without an additional lookup
 - [x] `S2` Each entry additionally carries an **actor** attribution (a stable acting-user
       id and a display name) identifying who performed the action
 - [x] `S2` The actor attribution lets the client mark an entry as the caller's own versus
@@ -290,7 +289,8 @@ write-side ownership or 403-on-modify path.
 **Validation (Zod HTTP edge, per ADR-0007):** Query parameters are validated at the
 HTTP edge and drive the generated OpenAPI contract:
 
-- `type` — optional; must be one of the nine entry-type enum values
+- `type` — optional; must be one of the eight current entry-type enum values; `S5` adds
+  `task_rescheduled` when implemented
 - `assetId` — optional; must be a UUID
 - `cursor` — optional; opaque string
 - `limit` — optional; integer within the supported range, with a default applied when
@@ -324,7 +324,7 @@ only and does not order the feed.
 | Logging ad-hoc maintenance (no `taskId`)                      | One `maintenance_logged` entry                                                                                                |
 | A maintenance record is edited                                | One `maintenance_record_updated` entry with the current record snapshot; the original entry remains immutable                 |
 | A maintenance record is hard-deleted                          | One `maintenance_record_deleted` entry with the deleted record snapshot; the record is still renderable in History            |
-| A task is rescheduled                                         | One `task_rescheduled` entry; no maintenance record or `task_completed` entry is created                                      |
+| `S5` task is rescheduled                                      | One `task_rescheduled` entry; no maintenance record or `task_completed` entry is created                                      |
 | A task referenced by an entry is later deleted                | The entry remains and renders from its snapshot                                                                               |
 | An asset referenced by entries is later archived              | Entries remain; the asset still appears in the asset filter facet                                                             |
 | Two actions share the same `occurredAt`                       | Deterministic order via the secondary tiebreak; no flicker or duplication across pages                                        |
@@ -346,10 +346,11 @@ telemetry (telemetry.md anti-pattern), so the mapping must land with the route.
 produce events, and the feature emits nothing. It **consumes** the existing events
 (`AssetCreated`, `MaintenanceRecordCreated`, `MaintenanceRecordUpdated`,
 `MaintenanceRecordDeleted`, `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`,
-`MaintenanceTaskRescheduled`, `MaintenanceTaskAdvanced`, `MaintenanceTaskDeleted`), persisting one entry per action to
+`MaintenanceTaskAdvanced`, `MaintenanceTaskDeleted`), persisting one entry per action to
 its own durable store. Those events are enriched per
 [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md) so the consumer
-projects each entry without reading D1.
+projects each entry without reading D1. Maintenance-task `S5` adds `MaintenanceTaskRescheduled`
+under the same delivery and enrichment rules.
 
 Delivery is durable, not best-effort (see Flags, per
 [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)): History
@@ -395,7 +396,7 @@ action, and there is no silent-gap trade-off. Built this way from the start — 
 interim.
 
 **DECISION — Smart Events; History is a pure projection ([ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)):**
-The nine tracked events are enriched to carry the state and producer-owned conclusions a
+The eight current tracked events are enriched to carry the state and producer-owned conclusions a
 durable consumer needs, and the History consumer writes each entry **directly from the
 event** — no read-back to D1:
 
@@ -404,7 +405,7 @@ event** — no read-back to D1:
   when the event is published; it is never read inside an aggregate (ADR-0003).
 - Each maintenance event carries its own descriptive `title`
   (`MaintenanceRecordCreated`, `MaintenanceRecordUpdated`, `MaintenanceRecordDeleted`,
-  `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`, `MaintenanceTaskRescheduled`, `MaintenanceTaskAdvanced`,
+  `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`,
   `MaintenanceTaskDeleted`). Carrying `title` on
   `MaintenanceTaskDeleted` is what lets a `task_deleted` entry render after the task row
   is gone (`DELETE FROM maintenance_tasks`).
@@ -431,7 +432,9 @@ event** — no read-back to D1:
 This holds ADR-0009's line: events carry domain state and conclusions, never presentation
 copy — the client still formats relative dates and labels.
 
-`MaintenanceTaskReconciled` is explicitly not one of the nine History events. It is a notification
+Maintenance-task `S5` adds `MaintenanceTaskRescheduled` with the same title, asset, actor, and
+`activityEntryType` enrichment as the existing task events. `MaintenanceTaskReconciled` is
+explicitly not one of the eight current History events. It is a notification
 and scheduling conclusion only and never creates a History row.
 
 Telemetry handlers stay **thin selective readers**: the enriched fields are not added to
@@ -454,7 +457,7 @@ below. This resolves the previously reserved actor-vs-owner field.
 **FOLLOW-UP — Reference docs at implementation time:** Adding the durable store
 introduces a new table and a new branded id (an activity-entry id). Update
 [data-model.md](../../reference/data-model.md) (storage mapping, branded value
-objects, the consumer, the enriched event payloads (all nine tracked events per
+objects, the consumer, the enriched event payloads (all eight current tracked events per
 ADR-0010), and the currently stale domain-events table) and add the web screen to
 [`docs/web/FEATURES.md`](../../web/FEATURES.md) when built. Regenerate the OpenAPI
 document from the new Zod route spec.

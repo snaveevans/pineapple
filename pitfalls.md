@@ -2,46 +2,6 @@
 
 This file is a running log of small-but-annoying issues we've hit, plus the fix that worked.
 
-## 2026-08-21 — zsh expands Markdown backticks in `gh --body` arguments
-
-### Symptom
-
-A GitHub issue comment passed to `gh issue comment --body` in double quotes executed inline
-Markdown code spans as shell commands and posted corrupted content.
-
-### Cause
-
-zsh performs command substitution for backticks inside double-quoted shell strings before `gh`
-receives the argument.
-
-### Fix
-
-Deleted the malformed comment and reposted the content with a single-quoted `--body` argument.
-
-### How to avoid next time
-
-Use a single-quoted argument or a file-based body whenever a GitHub CLI body includes Markdown
-backticks.
-
-## 2026-08-21 — Spec edits need targeted Prettier formatting
-
-### Symptom
-
-`pnpm exec prettier --check` reported formatting issues after editing Markdown specs.
-
-### Cause
-
-The edited Markdown did not match the repository's Prettier wrapping and table formatting.
-
-### Fix
-
-Run `pnpm exec prettier --write` on the changed documentation files, then rerun the targeted
-`--check` command and `git diff --check`.
-
-### How to avoid next time
-
-Format changed Markdown specs before final review instead of relying on manual table alignment.
-
 ## 2026-08-21 — Vitest `?raw` CSS imports are empty
 
 ### Symptom

@@ -223,44 +223,43 @@ These limits apply to every data point written and must be respected when design
 
 Every API route maps to a named operation used as the `indexes[0]` value in request telemetry. The current mapping:
 
-| Route                                                              | Operation                   |
-| ------------------------------------------------------------------ | --------------------------- |
-| `POST /api/auth/sign-in/social`                                    | `SignIn`                    |
-| `GET /api/auth/callback/google`                                    | `OAuthCallback`             |
-| `GET /api/auth/get-session`                                        | `SessionCheck`              |
-| `POST /api/auth/sign-out`                                          | `SignOut`                   |
-| `/api/auth/*` (other)                                              | `Auth`                      |
-| `POST /api/assets`                                                 | `CreateAsset`               |
-| `GET /api/assets`                                                  | `ListAssets`                |
-| `GET /api/assets/{id}`                                             | `GetAsset`                  |
-| `PATCH /api/assets/{id}`                                           | `EditAsset`                 |
-| `GET /api/activity`                                                | `ListActivity`              |
-| `GET /api/dashboard`                                               | `GetDashboard`              |
-| `GET /api/search`                                                  | `SearchAssets`              |
-| `GET /api/users/me`                                                | `GetUserProfile`            |
-| `PATCH /api/users/me`                                              | `UpdateUserProfile`         |
-| `PUT /api/users/me/notification-email`                             | `SetNotificationEmail`      |
-| `DELETE /api/users/me/notification-email`                          | `RemoveNotificationEmail`   |
-| `POST /api/users/me/notification-email/verification`               | `RequestEmailVerification`  |
-| `POST /api/verify-email`                                           | `ConfirmEmailVerification`  |
-| `GET /api/notifications`                                           | `ListNotifications`         |
-| `POST /api/notifications/{notificationId}/read`                    | `MarkNotificationRead`      |
-| `POST /api/notifications/read-all`                                 | `MarkAllNotificationsRead`  |
-| `POST /api/assets/{assetId}/maintenance-records`                   | `CreateMaintenanceRecord`   |
-| `GET /api/assets/{assetId}/maintenance-records`                    | `ListMaintenanceRecords`    |
-| `POST /api/assets/{assetId}/maintenance-tasks`                     | `CreateMaintenanceTask`     |
-| `GET /api/assets/{assetId}/maintenance-tasks`                      | `ListMaintenanceTasks`      |
-| `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}`          | `DeleteMaintenanceTask`     |
-| `PATCH /api/assets/{assetId}/maintenance-tasks/{taskId}`           | `UpdateMaintenanceTask`     |
-| `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` | `RescheduleMaintenanceTask` |
-| `POST /api/teams`                                                  | `CreateTeam`                |
-| `GET /api/teams/me`                                                | `GetMyTeam`                 |
-| `POST /api/assets/{assetId}/share`                                 | `ShareAsset`                |
-| `DELETE /api/assets/{assetId}/share`                               | `UnshareAsset`              |
-| `GET /health`                                                      | `Health`                    |
-| `GET /openapi.json`                                                | `OpenApiDocument`           |
-| `GET /reference`                                                   | `ApiReference`              |
-| (anything else)                                                    | `Unknown`                   |
+| Route                                                     | Operation                  |
+| --------------------------------------------------------- | -------------------------- |
+| `POST /api/auth/sign-in/social`                           | `SignIn`                   |
+| `GET /api/auth/callback/google`                           | `OAuthCallback`            |
+| `GET /api/auth/get-session`                               | `SessionCheck`             |
+| `POST /api/auth/sign-out`                                 | `SignOut`                  |
+| `/api/auth/*` (other)                                     | `Auth`                     |
+| `POST /api/assets`                                        | `CreateAsset`              |
+| `GET /api/assets`                                         | `ListAssets`               |
+| `GET /api/assets/{id}`                                    | `GetAsset`                 |
+| `PATCH /api/assets/{id}`                                  | `EditAsset`                |
+| `GET /api/activity`                                       | `ListActivity`             |
+| `GET /api/dashboard`                                      | `GetDashboard`             |
+| `GET /api/search`                                         | `SearchAssets`             |
+| `GET /api/users/me`                                       | `GetUserProfile`           |
+| `PATCH /api/users/me`                                     | `UpdateUserProfile`        |
+| `PUT /api/users/me/notification-email`                    | `SetNotificationEmail`     |
+| `DELETE /api/users/me/notification-email`                 | `RemoveNotificationEmail`  |
+| `POST /api/users/me/notification-email/verification`      | `RequestEmailVerification` |
+| `POST /api/verify-email`                                  | `ConfirmEmailVerification` |
+| `GET /api/notifications`                                  | `ListNotifications`        |
+| `POST /api/notifications/{notificationId}/read`           | `MarkNotificationRead`     |
+| `POST /api/notifications/read-all`                        | `MarkAllNotificationsRead` |
+| `POST /api/assets/{assetId}/maintenance-records`          | `CreateMaintenanceRecord`  |
+| `GET /api/assets/{assetId}/maintenance-records`           | `ListMaintenanceRecords`   |
+| `POST /api/assets/{assetId}/maintenance-tasks`            | `CreateMaintenanceTask`    |
+| `GET /api/assets/{assetId}/maintenance-tasks`             | `ListMaintenanceTasks`     |
+| `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}` | `DeleteMaintenanceTask`    |
+| `PATCH /api/assets/{assetId}/maintenance-tasks/{taskId}`  | `UpdateMaintenanceTask`    |
+| `POST /api/teams`                                         | `CreateTeam`               |
+| `GET /api/teams/me`                                       | `GetMyTeam`                |
+| `POST /api/assets/{assetId}/share`                        | `ShareAsset`               |
+| `DELETE /api/assets/{assetId}/share`                      | `UnshareAsset`             |
+| `GET /health`                                             | `Health`                   |
+| `GET /openapi.json`                                       | `OpenApiDocument`          |
+| `GET /reference`                                          | `ApiReference`             |
+| (anything else)                                           | `Unknown`                  |
 
 ### Failure Policy
 
