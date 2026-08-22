@@ -62,8 +62,9 @@ the requester to match that field.
 `asset.ownerId === requesterId`. A team member who can see a shared asset but
 does not own it receives 403 when attempting to change sharing.
 
-Note: the 403 vs 404 response for exists-but-forbidden access has not been
-explicitly decided. See Known Issues. This app currently returns 403.
+This is the canonical behavior for direct single-resource requests. A feature may
+define a narrower 404 exception for a foreign-reference validation inside another
+request, but it must document that exception explicitly.
 
 ---
 
@@ -84,8 +85,9 @@ Every feature spec must document:
 
 ## Exceptions
 
-| Feature | Deviation | Reason |
-| ------- | --------- | ------ |
+| Feature                                                                     | Deviation                          | Reason                                                                                                                                                |
+| --------------------------------------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Maintenance-record creation with an inaccessible `taskId` foreign reference | 404 instead of direct-resource 403 | The task id is validated as a nested foreign reference without revealing whether the task exists on another asset; direct task requests still use 403 |
 
 ---
 
@@ -107,18 +109,19 @@ Every feature spec must document:
 
 ## Known Issues
 
-- **403 vs 404 on wrong-owner single-resource access has not been decided.** The
-  current code returns 403, which reveals that the entity exists but the
-  requester cannot access it. An alternative is to return 404 unconditionally to
-  avoid leaking existence. **Planned:** make a deliberate call, document the
-  rationale here, and update the Canonical Behavior section accordingly. Tracked
-  in [#52](https://github.com/snaveevans/pineapple/issues/52).
+- **403 vs 404 on wrong-owner single-resource access is settled for the current
+  contract:** direct requests return 403, while only explicitly documented nested
+  foreign-reference checks may return 404. Broader callers that still need a
+  different privacy policy remain tracked in [#52](https://github.com/snaveevans/pineapple/issues/52),
+  but must not reintroduce ambiguity into feature specs.
 - **Different enforcement mechanisms for collections vs single resources.**
   Collections filter at the repo-query level; single resources check post-fetch
   at the use-case level. Both enforce the same invariant but in different places.
 - **Asset deletion is not yet implemented.** When added, it should remain
   asset-owner-only (team members may edit shared assets but not delete them).
-- **Archived resource visibility is inconsistent.** Collection queries filter out
-  archived assets, but single-resource access by ID does not exclude archived
-  entities. **Planned:** define the access policy for archived resources and
-  apply it consistently.
+- **Archived resource visibility is operation-specific.** Collections and reads
+  may include archived assets where a feature needs historical data; each feature
+  must explicitly define whether create, edit, and delete are allowed. Maintenance
+  tasks allow edits/deletes of existing tasks but reject new tasks, while
+  maintenance records allow edits/deletes on active accessible assets and reject
+  edits/deletes and new records on archived assets with 409.

@@ -9,7 +9,7 @@ metadata:
 
 **Status:** active
 **Owner:** product and engineering
-**Last Updated:** 2026-07-02
+**Last Updated:** 2026-08-21
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-task.md](./maintenance-task.md), [activity-history.md](./activity-history.md), [dashboard.md](./dashboard.md), [user-profile.md](./user-profile.md), [email-verification.md](./email-verification.md)
 
 ---
@@ -26,7 +26,7 @@ email** ([email-verification.md](./email-verification.md)) — also by email.
 This is the **durable scheduler** consumer from
 [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md), and it is built the way
 that ADR intends: **event-driven, not by polling the source**. When a task's next-due becomes
-known — a task is created, or a completion advances it — the maintenance-task feature publishes
+known — a task is created, a completion advances it, or a record correction recomputes it — the maintenance-task feature publishes
 an **enriched (Smart) event** carrying the producer-owned conclusion (`nextDue`) plus the asset
 snapshot and task title. Notifications **consumes** those events and records its **own**
 cancelable "scheduled reminder" state, keyed by the source task. The maintenance-task feature
@@ -39,7 +39,7 @@ Two behaviors are load-bearing and called out here because they shape the whole 
 
 - **Reminders reschedule and cancel from later events, not from re-reading the task.** A new
   completion supersedes the pending reminder with one for the new cycle; a task deletion cancels
-  it. The scheduler resolves these by event time/version, tolerating out-of-order and duplicated
+  it. The scheduler resolves these by `(taskRevision, kind, lowercase(eventId))`, tolerating out-of-order and duplicated
   delivery ([ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)).
 - **Email is aggregated per user.** If a single scheduler sweep produces more than one reminder
   for the same owner, they receive **one** email listing all of them — never one email per task.
@@ -108,6 +108,8 @@ capability and behavior.
   can track and clear what needs my attention**
 - As **DIYer Dale who completes or deletes a task before its reminder**, I **don't receive a stale
   reminder** so that **notifications stay trustworthy and relevant**
+- As **DIYer Dale who corrects or deletes a linked maintenance record**, I **don't receive a
+  reminder for the superseded schedule** so that **notifications follow the corrected task state**
 - As a **sys admin**, I can **know whether a reminder email actually went out or failed** so that
   **a silently undelivered reminder is detectable** (the ADR-0012 deliverability concern)
 
@@ -117,29 +119,61 @@ Notifications builds its schedule by **consuming enriched maintenance-task event
 its own cancelable state. It does not poll, sweep, or read the maintenance-task tables — the
 event payload carries everything it needs (Smart Events, ADR-0010).
 
-| Consumed event                                         | Scheduler action                                                                                                         |
-| ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `MaintenanceTaskCreated` (carries resulting `nextDue`) | Schedule a pending reminder for `(task, nextDue)`, fireAt = `nextDue − lead`, storing the asset/title/`nextDue` snapshot |
-| `MaintenanceTaskAdvanced` (carries new `nextDue`)      | **Reschedule**: supersede the task's prior pending reminder and schedule a new one for the new `nextDue`                 |
-| `MaintenanceTaskDeleted`                               | **Cancel** the task's pending reminder                                                                                   |
+| Consumed event                                            | Scheduler action                                                                                                         |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `MaintenanceTaskCreated` (carries resulting `nextDue`)    | Schedule a pending reminder for `(task, nextDue)`, fireAt = `nextDue − lead`, storing the asset/title/`nextDue` snapshot |
+| `MaintenanceTaskAdvanced` (carries new `nextDue`)         | **Reschedule**: supersede the task's prior pending reminder and schedule a new one for the new `nextDue`                 |
+| `MaintenanceTaskUpdated` (carries resulting `nextDue`)    | Refresh the pending snapshot; if `nextDue` changed, supersede the prior cycle and schedule the new one                   |
+| `MaintenanceTaskReconciled` (carries resulting `nextDue`) | **Reschedule**: supersede the task's prior pending reminder after a linked record correction changes the schedule        |
+| `MaintenanceTaskDeleted`                                  | **Cancel** the task's pending reminder                                                                                   |
 
 _Asset archive/unarchive would later add "cancel on suspend / reschedule on reactivate" on these
 same handler paths, but that is **out of scope** for this spec and parked in
 [archive-asset.md (backlog)](../backlog/archive-asset.md)._
 
 - **Requires `nextDue` on the event.** For the scheduler to work without reading back,
-  `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` must carry the resulting `nextDue` as a
+  `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`, and
+  `MaintenanceTaskReconciled` must carry the resulting `nextDue` as a
   producer-owned conclusion, alongside the asset snapshot and title they already carry. ADR-0010
   already sanctions `nextDue` as an on-event domain date; the payloads must include it.
 - **Own cancelable state, keyed by task.** Notifications keeps one pending scheduled reminder per
   task, with the snapshot, `nextDue`, computed `fireAt`, a status (`pending` / `fired` /
   `canceled` / `superseded`), and the ordering marker below. This is the "mutable, cancelable
   state keyed by the source entity" of the ADR-0010 durable scheduler.
+- **Task heads are terminal and orderable.** A `notification_task_heads` row stores the latest
+  accepted `(taskRevision, kind, lowercase(eventId))`, `currentNextDue`, and an `active`/`deleted` terminal state for each task. A
+  delete advances the head and marks it `deleted`; this marker remains even when every scheduled
+  cycle row is canceled, so an older or duplicated event cannot recreate a reminder. Maintenance
+  task ids are never reused, so a terminal head cannot be confused with a later task.
+- **Revision and bootstrap ordering.** A new task starts at `taskRevision = 0`; the launch bootstrap
+  writes a marker with `kind = bootstrap` and the deterministic id
+  `bootstrap:<lowercase-taskId>:<nextDue>` at revision 0 only when no newer marker exists. A real
+  event has `kind = real` and always outranks a bootstrap marker at revision 0. Otherwise compare
+  `(taskRevision, kind, lowercase(eventId))` lexicographically: higher revision wins, `real` wins
+  over `bootstrap` at a tie, and the higher canonical event id wins among equal kinds. An equal id
+  is a duplicate and is ignored. An incoming event with a lower revision than the stored task head
+  is stale and is ignored. `MaintenanceTaskDeleted` is a terminal marker, not merely another kind:
+  a real delete uses its incremented revision, while a legacy delete lacking a revision is accepted
+  at revision 0 when no higher-revision head exists and outranks legacy/bootstrap revision-0
+  markers. Once a delete head is accepted, no later event may reactivate that task, including a
+  late real revision-0 marker. A legacy delete never overrides an already accepted higher-revision
+  head.
+- **Legacy message cutover.** A queued pre-cutover message that lacks `taskRevision` or `kind` is
+  normalized to `taskRevision = 0`, `kind = legacy`, and its canonical lowercase event id. A
+  legacy non-delete message has precedence `legacy < bootstrap < real`, so it cannot overwrite a
+  bootstrap head while a real revision-0 event can. A legacy `MaintenanceTaskDeleted` follows the
+  terminal-delete rule above instead of that ordinary kind precedence. This keeps the queue live
+  during deployment; no manual queue drain is required.
 - **Idempotent and order-tolerant** ([ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)):
   each event is deduped on its stable event id (redelivery is a no-op), and schedule-vs-cancel is
-  resolved by **event time/version**, not arrival order — a late-arriving older event never
-  overrides a newer one (e.g. a delete that occurred after an advance always wins, whatever order
-  they are received in).
+  resolved by `(taskRevision, kind, lowercase(eventId))` lexicographically, not arrival order — a late-arriving older
+  event never overrides a newer one (e.g. a delete that occurred after an advance always wins,
+  whatever order they are received in). `taskRevision` is incremented atomically by every
+  task-affecting mutation and is carried on the task event.
+- **Atomic ingestion:** The consumer compares the incoming marker with the task head and updates
+  the head, cycle statuses, and target cycle in one D1 transaction. A losing marker makes no cycle
+  change; a winning marker is committed before the message is acknowledged. The event-id dedupe
+  row and cycle transition are part of that same transaction.
 - **The reminder sweep is notifications' own cron.** Per
   [ADR-0013](../../decisions/0013-reminder-scheduler-via-cron-sweeps.md), a scheduled sweep scans **notifications'
   scheduled-reminder state** for `pending` reminders whose `fireAt` has arrived
@@ -154,6 +188,21 @@ same handler paths, but that is **out of scope** for this spec and parked in
   event, both the scheduled-reminder row and the resulting notification render on their own — even
   after the task is deleted or the asset archived — exactly like
   [activity-history.md](./activity-history.md).
+
+- **Cycle transitions are explicit.** The cycle key is `(taskId, nextDue)`. A new `nextDue`
+  supersedes the current active cycle and creates or reuses one pending row for the new cycle. The
+  current active cycle is the `currentNextDue` stored on the task head. If an accepted event's
+  `nextDue` equals it, the cycle keeps its current status; a winning event replaces the snapshot
+  only when that status is `pending`, and leaves `fired`, `superseded`, and `canceled` rows unchanged.
+  If it differs, the old pending cycle becomes `superseded` and the target cycle is created or
+  reused. A
+  previously seen cycle whose reminder has not fired (`pending` or `superseded`) is reused or
+  reactivated instead of inserted again. Only `superseded` cycles can reactivate; `canceled` means
+  task deletion and is terminal. A cycle whose reminder already fired remains `fired`; it cannot
+  create another in-app notification or email. An event with the current `nextDue` does not create
+  a new cycle or change its fire status. If the current cycle is `pending`, the winning event
+  replaces its asset/title/task snapshot in the same transaction; if the cycle is `fired`,
+  `superseded`, or `canceled`, the cycle row and its historical snapshot are unchanged.
 - **Bootstrapping the existing fleet (one-time backfill).** The scheduler learns tasks from
   events, so at launch a **one-time bootstrap** seeds the scheduled-reminder state from the tasks
   that already exist (tasks on active assets, keyed and deduped the same `(taskId, nextDue)` way).
@@ -214,17 +263,25 @@ same handler paths, but that is **out of scope** for this spec and parked in
       `nextDue` snapshot copied from the scheduled-reminder state, so the inbox row is
       self-contained
 - [ ] A reminder whose task was canceled (`MaintenanceTaskDeleted`) or superseded
-      (`MaintenanceTaskAdvanced`) before the sweep is **not** fired
+      (`MaintenanceTaskAdvanced` or `MaintenanceTaskReconciled`) before the sweep is **not** fired
+- [ ] A `MaintenanceTaskReconciled` event whose `nextDue` is unchanged creates no new reminder cycle or fire-status change; if it wins `(taskRevision, kind, lowercase(eventId))` ordering, it replaces the pending snapshot and marker, while fired/superseded/canceled cycle rows remain unchanged
+- [ ] A reconciliation to a previously seen cycle updates or reactivates an unfired scheduled-reminder row; a cycle that already fired remains fired and never creates a duplicate in-app notification or email
+- [ ] Reconciliation, task-update, advance, and delete ingestion is idempotent by source event id and task cycle, and resolves duplicate or out-of-order delivery using `(taskRevision, kind, lowercase(eventId))` ordering
 - [ ] The lead time is a single shared constant with the dashboard `soon` threshold
       ([dashboard.md](./dashboard.md)); the two are defined once, not independently
 
 ### Email delivery (aggregated per user)
 
-- [ ] When a sweep fires one or more reminders for the same owner, that owner receives **at most
-      one** email covering all of them — **never one email per notification**
+- [ ] When a sweep fires one or more reminders for the same owner, that owner receives **one
+      logical email batch** covering all of them — **never one logical email per notification**;
+      `email_batches` contains one logical batch row and only one send attempt is in flight at a
+      time
 - [ ] The aggregation unit is **a single sweep per owner**: reminders fired in the same sweep are
       combined; reminders fired in different sweeps (e.g. tasks due on different dates) are separate
-      emails
+      emails. Each scheduled invocation derives the canonical string
+      `sweepRunId = "maintenance-reminders:" + cronName + ":" + String(scheduledTimeEpochMs)`;
+      due reminders are claimed for that run in the same transaction, and the unique key
+      `(sweepRunId, ownerId)` guarantees one logical batch even if the invocation is retried.
 - [ ] Aggregation applies to **email only** — the in-app inbox still receives one notification per
       task
 - [ ] The aggregated email is sent only when the owner has a **verified** contact email
@@ -238,13 +295,45 @@ same handler paths, but that is **out of scope** for this spec and parked in
 - [ ] Email delivery is **at-least-once and decoupled** via the notifications queue + DLQ, on the
       same reliability pattern as [activity-history.md](./activity-history.md)
       ([ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md)): the
-      aggregated send job is enqueued atomically with the reminders it covers, the consumer is
-      **idempotent on the batch id** so a redelivery cannot re-send, transient failures retry with
-      backoff, and a permanently failing send is dead-lettered and durably persisted rather than
-      left to expire
-- [ ] The **outcome** of every aggregated send (`sent`, `suppressed`, `failed`) and the number of
-      notifications it covered are recorded and observable, so a silently undelivered reminder is
-      detectable — the deliverability requirement
+      aggregated send outbox row is committed atomically with the reminders it covers; publication
+      to the outbound queue is eventual and idempotent, and the consumer is
+      **idempotent on the batch id** so queue redelivery or concurrent consumers cannot claim two
+      sends at once. The consumer atomically claims `pending -> sending` with a lease; a confirmed
+      pre-acceptance transient failure releases it to `pending` for exponential backoff, up to
+      three additional attempts, while
+      a confirmed provider acceptance becomes `sent`, a permanent rejection becomes `failed`, and
+      a timeout/unknown outcome becomes `unknown` and is never retried. A `sending` claim has a
+      five-minute lease; if it expires without a confirmed provider result, the next consumer
+      atomically marks the batch `unknown` and never retries it. A provider acceptance followed by
+      a Worker crash can still produce a physical duplicate in v1; this edge is observable as one
+      batch id and is not retried deliberately.
+- [ ] Email state transitions are fenced by a claim token: `pending -> sending` stores a unique
+      token and a five-minute lease; confirmed pre-acceptance transient failures move back to
+      `pending` with retry delays of 1, 2, and 4 minutes for retries 1, 2, and 3; a fourth such
+      failure moves to `failed` and a durable DLQ record; confirmed acceptance moves to `sent`;
+      permanent rejection moves to `failed`; timeout or unknown outcome moves to terminal
+      `unknown`. A scheduled lease reaper atomically changes expired `sending` rows to `unknown`.
+      A late provider result whose claim token no longer matches, or whose row is terminal, is
+      recorded as an observation only and cannot change state or trigger another send. Every
+      provider-result update is conditional on `status = 'sending'`, the matching claim token,
+      and `lease_expires_at > now`; a result that arrives after lease expiry cannot mark the batch
+      `sent`. The lease reaper is the only recovery path for an abandoned claim and marks it
+      terminal `unknown`.
+- [ ] The durable email transition table is:
+      `pending -> sending` only when `next_attempt_at` is null or due, storing a fresh token and
+      `lease_expires_at = now + 5 minutes`; `sending -> pending` only for the worker holding that
+      token after a confirmed pre-acceptance transient failure, incrementing `retry_count` and
+      setting `next_attempt_at` to `now + 1/2/4 minutes` for retries 1/2/3; the same failure when
+      `retry_count = 3` becomes terminal `failed` and writes a durable DLQ row; `sending -> sent`
+      and `sending -> failed` for provider results require the same token and an unexpired lease;
+      the lease reaper alone performs `sending -> unknown` after expiry; `pending -> suppressed`
+      is used when send-time contact-email verification fails. `sent`, `suppressed`, `failed`, and
+      `unknown` are terminal and all terminal transitions clear the token, lease, and retry time.
+- [ ] The **outcome** of every aggregated send (`sent`, `suppressed`, `failed`, `unknown`) and the number of
+      notifications it covered are recorded in the durable `email_batches` row and emit exactly one
+      `ReminderEmailDispatched` observation after the terminal transition. Operators can query the
+      internal row and telemetry observation; no public email-delivery endpoint is required in v1,
+      so a silently undelivered reminder is still detectable — the deliverability requirement
       [ADR-0012](../../decisions/0012-transactional-email-via-cloudflare-email-sending.md) makes a
       condition of running the open-beta email provider
 
@@ -278,31 +367,34 @@ arithmetic, not timestamp subtraction.
 
 ## Edge Cases & Error States
 
-| Scenario                                                    | Expected Behavior                                                                                                                                                 |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| No valid session on inbox/mark-read                         | 401; client redirects to `/login`                                                                                                                                 |
-| Caller has no notifications                                 | Empty list, unread count 0; client shows an empty inbox state                                                                                                     |
-| `MaintenanceTaskCreated` received, `nextDue` > 7 days out   | A pending reminder is scheduled; nothing fires until its `fireAt` arrives                                                                                         |
-| `MaintenanceTaskCreated` received already inside the window | Pending reminder with `fireAt` in the past; the next sweep fires it (no retroactive firing before the event)                                                      |
-| Reminder `fireAt` arrives                                   | One `maintenance_due_soon` notification created for that cycle                                                                                                    |
-| Sweep runs again before the task advances                   | No duplicate — creation idempotent on (taskId, nextDue)                                                                                                           |
-| `MaintenanceTaskAdvanced` received                          | Prior pending reminder superseded; a new one scheduled for the new `nextDue`; no reminder for the old cycle                                                       |
-| `MaintenanceTaskDeleted` received before the reminder fires | Pending reminder canceled; nothing fires for that task                                                                                                            |
-| Advance and delete events arrive out of order               | Resolved by event time/version — the later-occurring event wins regardless of arrival order                                                                       |
-| A maintenance event is redelivered                          | No-op — deduped on the event id                                                                                                                                   |
-| Several of one owner's reminders fire in the same sweep     | One aggregated email listing all of them; one inbox notification per task                                                                                         |
-| Owner has a **verified** contact email                      | Aggregated email dispatched to that address                                                                                                                       |
-| Owner has **no**/**unverified** contact email               | Per-task notifications created; **no email**; batch recorded `suppressed`; UI prompts to verify an email                                                          |
-| Owner verifies an email after some suppressed reminders     | Future reminders email; already-suppressed past notifications are not retroactively emailed (v1)                                                                  |
-| Aggregated email send transiently fails                     | Retried with backoff via the queue; not lost                                                                                                                      |
-| Aggregated email send permanently fails                     | Dead-lettered and durably persisted; outcome recorded as `failed`; detectable, not silently dropped                                                               |
-| Redelivery of the same aggregated send job                  | Idempotent on the batch id — the email is not sent twice                                                                                                          |
-| Task on an asset that was archived                          | Until archive is a live action, a reminder may still fire — accepted, currently-unreachable gap; deferred design parked in [backlog](../backlog/archive-asset.md) |
-| Mark-read on an already-read notification                   | Idempotent success                                                                                                                                                |
-| Mark-read on a foreign or unknown `notificationId`          | 404; existence not revealed                                                                                                                                       |
-| New notification arrives while the user views the inbox     | Appears on the next fetch/refresh; the inbox is not real-time                                                                                                     |
-| `limit`/`cursor` out of range or malformed                  | 422 validation error                                                                                                                                              |
-| Non-401 API error on the inbox (e.g. 500)                   | Client shows an inbox-level error state with retry                                                                                                                |
+| Scenario                                                    | Expected Behavior                                                                                                                                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| No valid session on inbox/mark-read                         | 401; client redirects to `/login`                                                                                                                                                          |
+| Caller has no notifications                                 | Empty list, unread count 0; client shows an empty inbox state                                                                                                                              |
+| `MaintenanceTaskCreated` received, `nextDue` > 7 days out   | A pending reminder is scheduled; nothing fires until its `fireAt` arrives                                                                                                                  |
+| `MaintenanceTaskCreated` received already inside the window | Pending reminder with `fireAt` in the past; the next sweep fires it (no retroactive firing before the event)                                                                               |
+| Reminder `fireAt` arrives                                   | One `maintenance_due_soon` notification created for that cycle                                                                                                                             |
+| Sweep runs again before the task advances                   | No duplicate — creation idempotent on (taskId, nextDue)                                                                                                                                    |
+| `MaintenanceTaskAdvanced` received                          | Prior pending reminder superseded; a new one scheduled for the new `nextDue`; no reminder for the old cycle                                                                                |
+| `MaintenanceTaskDeleted` received before the reminder fires | Pending reminder canceled; nothing fires for that task                                                                                                                                     |
+| Advance and delete events arrive out of order               | Resolved by `(taskRevision, kind, lowercase(eventId))` — the higher task revision wins regardless of arrival order                                                                         |
+| A maintenance event is redelivered                          | No-op — deduped on the event id                                                                                                                                                            |
+| Several of one owner's reminders fire in the same sweep     | One aggregated email listing all of them; one inbox notification per task                                                                                                                  |
+| Two cron invocations share a scheduled timestamp            | Unique `(cronName, scheduledTimeEpochMs)` reuses one `sweepRunId`; reminder claims, notifications, batches, and outbox rows are not duplicated                                             |
+| Sweep crashes before its D1 transaction commits             | No reminder is marked fired; the next invocation reuses the run/items and performs the complete transaction                                                                                |
+| Sweep crashes after its D1 transaction commits              | Fired reminders, sweep items, notifications, email batch, and outbox row are durable; only queue relay remains to retry                                                                    |
+| Owner has a **verified** contact email                      | Aggregated email dispatched to that address                                                                                                                                                |
+| Owner has **no**/**unverified** contact email               | Per-task notifications created; **no email**; batch recorded `suppressed`; UI prompts to verify an email                                                                                   |
+| Owner verifies an email after some suppressed reminders     | Future reminders email; already-suppressed past notifications are not retroactively emailed (v1)                                                                                           |
+| Aggregated email send transiently fails                     | Retried with backoff via the queue; not lost                                                                                                                                               |
+| Aggregated email send permanently fails                     | Dead-lettered and durably persisted; outcome recorded as `failed`; detectable, not silently dropped                                                                                        |
+| Redelivery of the same aggregated send job                  | Idempotent on the batch id — no second in-flight claim; only confirmed pre-acceptance transient failures are retried; provider crash-after-accept duplicates remain the documented v1 edge |
+| Task on an asset that was archived                          | An existing scheduled reminder fires in v1; archiving does not cancel a task or reminder in this slice, and archive suspension remains deferred to [backlog](../backlog/archive-asset.md)  |
+| Mark-read on an already-read notification                   | Idempotent success                                                                                                                                                                         |
+| Mark-read on a foreign or unknown `notificationId`          | 404; existence not revealed                                                                                                                                                                |
+| New notification arrives while the user views the inbox     | Appears on the next fetch/refresh; the inbox is not real-time                                                                                                                              |
+| `limit`/`cursor` out of range or malformed                  | 422 validation error                                                                                                                                                                       |
+| Non-401 API error on the inbox (e.g. 500)                   | Client shows an inbox-level error state with retry                                                                                                                                         |
 
 ## Telemetry
 
@@ -320,7 +412,8 @@ scheduler, the sweep, and email delivery run outside the HTTP request path, so t
 as the domain events below, not request telemetry.
 
 **Domain events consumed:** Notifications is a durable consumer of the existing enriched
-`MaintenanceTaskCreated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskDeleted` events
+`MaintenanceTaskCreated`, `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`,
+`MaintenanceTaskReconciled`, and `MaintenanceTaskDeleted` events
 ([maintenance-task.md](./maintenance-task.md)). Delivery is durable (its own queue), idempotent on
 the event id, and order-tolerant — the same posture as [activity-history.md](./activity-history.md).
 Those events must carry `nextDue` for this consumer.
@@ -357,29 +450,104 @@ One per notification (per task/cycle).
 One per aggregated send (per owner per sweep). Records the outcome and how many notifications the
 email covered — this is the deliverability signal ADR-0012 requires.
 
-| Field        | Name                 | Value                                             |
-| ------------ | -------------------- | ------------------------------------------------- |
-| `indexes[0]` | —                    | `owner_id`                                        |
-| `blobs[0]`   | `event_type`         | `"ReminderEmailDispatched"`                       |
-| `blobs[1]`   | `aggregate_type`     | `"Notification"`                                  |
-| `blobs[2]`   | `email_batch_id`     | Aggregated-send UUID (idempotency key)            |
-| `blobs[3]`   | `owner_id`           | Owner UUID                                        |
-| `blobs[4]`   | `schema_version`     | `"v1"`                                            |
-| `blobs[5]`   | `result`             | `"sent"`, `"suppressed"`, or `"failed"`           |
-| `blobs[6]`   | `suppress_reason`    | `"no_contact_email"`, `"unverified"`, or `"none"` |
-| `doubles[0]` | `count`              | Always `1`                                        |
-| `doubles[1]` | `event_time_ms`      | Event timestamp (ms since epoch)                  |
-| `doubles[2]` | `notification_count` | Number of notifications covered by this email     |
+| Field        | Name                 | Value                                                |
+| ------------ | -------------------- | ---------------------------------------------------- |
+| `indexes[0]` | —                    | `owner_id`                                           |
+| `blobs[0]`   | `event_type`         | `"ReminderEmailDispatched"`                          |
+| `blobs[1]`   | `aggregate_type`     | `"Notification"`                                     |
+| `blobs[2]`   | `email_batch_id`     | Aggregated-send UUID (idempotency key)               |
+| `blobs[3]`   | `owner_id`           | Owner UUID                                           |
+| `blobs[4]`   | `schema_version`     | `"v1"`                                               |
+| `blobs[5]`   | `result`             | `"sent"`, `"suppressed"`, `"failed"`, or `"unknown"` |
+| `blobs[6]`   | `suppress_reason`    | `"no_contact_email"`, `"unverified"`, or `"none"`    |
+| `doubles[0]` | `count`              | Always `1`                                           |
+| `doubles[1]` | `event_time_ms`      | Event timestamp (ms since epoch)                     |
+| `doubles[2]` | `notification_count` | Number of notifications covered by this email        |
 
 ## Implementation Requirements
 
-- Populate `nextDue` on the enriched `MaintenanceTaskCreated` and `MaintenanceTaskAdvanced` event
-  payloads where they are constructed in the application layer. The thin telemetry blobs stay
-  PII-free and unchanged.
+- Populate `nextDue` and `taskRevision` on every enriched `MaintenanceTaskCreated`,
+  `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskReconciled` event
+  payload where it is constructed in the application layer. The thin telemetry blobs stay PII-free
+  and unchanged.
 - Add two dedicated queues, each with its own DLQ: one inbound queue for the `MaintenanceTask*`
   notification consumer, and one outbound queue for aggregated email delivery. The split provides
   per-role isolation per [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md):
   a stuck email send cannot block event ingestion.
+- The email provider port returns one of `accepted`, `permanent_rejection`,
+  `pre_acceptance_transient_failure`, or `unknown`. The Cloudflare adapter must distinguish a
+  confirmed rejection before provider acceptance from a timeout/transport result whose acceptance
+  is unknown; the former becomes `failed` and the latter becomes terminal `unknown`.
+  `ReminderEmailDispatched` and its telemetry result union include `unknown` as a first-class
+  outcome, while the stored claim transition still requires the token/lease CAS above.
+- Every queue DLQ write uses the provider/queue message's stable `message.id` as its idempotency key
+  (`queue`, `message.id` unique); it never generates a random persistence id as the dedupe key. If
+  D1 is unavailable while persisting an exhausted message, the consumer throws so the queue retry
+  remains available; once D1 accepts the row, later redelivery is an insert-or-ignore observation.
+- `notification_email_outbox` is a separate relay state machine: `pending -> sending -> sent` on a
+  confirmed `Queue.send`, with a claim token/lease and at most three pre-publication retries.
+  Exhausted confirmed pre-publication failures become a durable DLQ row, terminal `failed` outbox
+  state, terminal `failed` `email_batches` state, and exactly one `ReminderEmailDispatched`
+  observation. A queue publication whose result is unknown leaves the claim to the lease reaper;
+  the reaper records the relay failure durably, marks the outbox `failed`, marks the batch terminal
+  `unknown`, and emits the same single terminal observation. The outbound consumer remains
+  idempotent on `batchId` and ignores a message that arrives after a terminal batch state.
+- If queue publication succeeds but the outbox `sending -> sent` update fails, the queue message is
+  allowed to redeliver and the relay lease can later record a duplicate publication; the outbound
+  consumer dedupes on `batchId`, so the provider-facing batch claim still permits only one logical
+  send. If D1 cannot persist the terminal relay/DLQ row, the relay throws and retains the message for
+  retry rather than acknowledging it. A pre-publication relay DLQ has no Cloudflare queue message
+  id, so it uses stable `queue_message_id = "outbox:" + outboxId`; after publication it uses the
+  actual queue `message.id`.
+- Migration `0020_notification_heads_email_claims.sql` adds nullable `queue_message_id` to
+  `notification_dead_letters`, backfills existing rows to deterministic `legacy:<id>` values, and
+  adds a unique `(queue, queue_message_id)` index. It also rebuilds `notification_email_outbox` so
+  its status check permits `pending | sending | sent | failed`, copies every existing row, preserves
+  `batch_id` uniqueness and claimable indexes, and aborts on any count/key/index mismatch. Existing
+  `sending` rows from the pre-claim schema are normalized to `pending` with a null token/lease and
+  an immediately due retry; `sent` rows remain terminal. New queue
+  consumers persist the actual stable Cloudflare `message.id`; the old generated `id` remains only
+  the row identity.
+- Add `notification_task_heads` and backfill it from existing `scheduled_reminders` in a new
+  idempotent migration; existing heads start at revision `0` with the deterministic bootstrap
+  marker, and the task row's current `nextDue` is authoritative for every active task. Before
+  selecting the target, mark every pending historical cycle with a different `nextDue` as
+  `superseded` so it cannot fire or block the pending-task unique index. A stale pending cycle is
+  never silently dropped: its status transition is recorded before the target is selected. Ensure the
+  `(taskId, task.nextDue)` cycle exists: reuse it when pending, reactivate it only when superseded,
+  preserve it as fired when already fired, and never reactivate a canceled cycle. Historical cycles
+  with a different `nextDue` never determine `currentNextDue`; canceled rows are preserved as
+  terminal history and never deleted or reactivated. If an active task
+  has no candidate row, create/reuse the target pending cycle and point the active head at it. For
+  an active task whose target cycle is already canceled, preserve the terminal row and record a
+  migration anomaly instead of creating a duplicate or silently reactivating it; the bootstrap
+  migration must fail closed with the task id and the blocking validation must surface that anomaly
+  for repair. For
+  a task row that no longer exists, mark the head `deleted`, set `currentNextDue` to the greatest
+  existing row's `nextDue` or `null` when no cycle exists, and cancel every non-fired cycle. Existing
+  `scheduled_reminders.last_event_id` values beginning with `bootstrap:` become `kind = bootstrap`;
+  all other existing messages/rows without a marker kind are `legacy`; a legacy delete source is
+  marked terminal rather than being ranked below bootstrap. The migration must not rely
+  on editing the already-applied `0011_bootstrap_scheduled_reminders.sql`.
+- `notification_task_heads` is the sole authority for event ordering, task terminal deletion, and
+  `(taskRevision, kind, lowercase(eventId))` acceptance. `scheduled_reminders.last_event_id` and
+  `last_task_revision` are retained only as cycle provenance/debug snapshots and are never used to
+  accept or reject an event. `notification_migration_anomalies` stores unresolved bootstrap repair
+  rows (`task_id`, anomaly code, details, `resolved_at`); any unresolved row blocks deployment.
+- Add `sweep_run_id` to `email_batches` and a unique index on `(sweep_run_id, owner_id)`. The sweep
+  writes a single durable `notification_sweep_runs` row per derived `sweepRunId`; a rerun of the
+  same scheduled timestamp reuses that row and cannot claim the same fired reminders into a second
+  batch.
+- `notification_sweep_runs` has `id` (the canonical `sweepRunId`), `cron_name`,
+  `scheduled_time_epoch_ms`, `status` (`running` / `completed`), `created_at`, and `completed_at`,
+  with a unique `(cron_name, scheduled_time_epoch_ms)`. `notification_sweep_items` has
+  `(sweep_run_id, reminder_id)` as its primary key, `owner_id`, `claimed_at`, and `email_batch_id`;
+  the sweep inserts/reuses one item per due reminder, creates the in-app notification, marks the
+  reminder `fired`, and creates/links the owner batch and email outbox row in one D1 transaction.
+  Concurrent invocations use `INSERT ... ON CONFLICT (cron_name, scheduled_time_epoch_ms) DO
+NOTHING` and then read the existing run; a concurrent or retried invocation first reuses the
+  existing run and items, so a crash cannot
+  leave a fired reminder without its batch/outbox or claim it into a second batch.
 - Add both queue bindings/consumers to `apps/api/wrangler.jsonc` and the matching idempotent queue
   creation entries to `.github/workflows/deploy.yml`, then regenerate the Worker binding types
   (`cf-typegen`) and give each producer binding its message type in `BindingOverrides` in
@@ -431,9 +599,8 @@ email covered — this is the deliverability signal ADR-0012 requires.
 - **Channels other than in-app + email** — no SMS, push, or webhooks
 - **Real-time/live inbox updates** — the inbox refreshes on fetch, not via push
 - **Retroactively emailing suppressed past reminders** after a later verification
-- **Cancel-on-archive** — archive is currently a dormant field with no action or event. Until
-  archive becomes a real action, a reminder for a task on an out-of-band archived asset may still
-  fire; the worked-out cascade is parked in [archive-asset.md](../backlog/archive-asset.md).
+- **Cancel-on-archive** — existing scheduled reminders for archived assets fire in v1; archive
+  cancellation and the worked-out cascade are parked in [archive-asset.md](../backlog/archive-asset.md).
 - **The contact-email value, its endpoints, and the verification flow** — owned by
   [user-profile.md](./user-profile.md) and [email-verification.md](./email-verification.md)
 - **Cross-user or team-wide notifications** — single-owner scope in v1
@@ -442,8 +609,6 @@ email covered — this is the deliverability signal ADR-0012 requires.
 
 - Team/delegate notifications. v1 records `actorId` (`"system"`) separately from `ownerId` for
   future attribution, but does not display an actor or support cross-user inboxes.
-- Harden reminder-email dispatch with an atomic claim step before calling the email provider. v1
-  accepts the at-least-once queue edge for aggregated reminder emails; a future pass could add a
-  `pending` -> `sending` transition on `email_batches` so concurrent redeliveries do not both send.
-  This reduces duplicate sends but does not fully eliminate the crash-after-send edge without
-  provider-level idempotency.
+- Add provider-level idempotency keyed by `emailBatchId` if the selected email provider offers it;
+  until then, the documented v1 crash-after-accept edge remains the only path to a physical
+  duplicate, and no application retry intentionally repeats a claimed batch.

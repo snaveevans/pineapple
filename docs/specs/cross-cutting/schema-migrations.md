@@ -161,8 +161,9 @@ Every feature that changes the database must:
 
 ## Exceptions
 
-| Feature | Deviation | Reason |
-| ------- | --------- | ------ |
+| Feature                                                                                  | Deviation                                                                                 | Reason                                                                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Activity History type-constraint widening (`0019_activity_history_correction_types.sql`) | Rebuilds `activity_entries` and drops only the copied old table inside the same migration | SQLite cannot alter a `CHECK` constraint in place; the rebuild is an expand-safe constraint widening only when every column, row, foreign key, unique constraint, and index is copied and pre/post counts are validated. It does not remove an old shape or contract an unused field. |
 
 ## Anti-Patterns
 
