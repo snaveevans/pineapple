@@ -60,6 +60,18 @@ const TYPE_CONFIG: Record<ActivityEntryType, ActivityTypeConfig> = {
     label: "Maintenance logged",
     color: "var(--hh-maint)",
   },
+  maintenance_record_updated: {
+    icon: "edit",
+    verb: "Edited maintenance",
+    label: "Maintenance edited",
+    color: "var(--hh-updated)",
+  },
+  maintenance_record_deleted: {
+    icon: "x",
+    verb: "Removed maintenance",
+    label: "Maintenance removed",
+    color: "var(--hh-deleted)",
+  },
   task_completed: {
     icon: "check",
     verb: "Completed task",
@@ -104,6 +116,8 @@ function emptyTypeCounts(): TypeCounts {
   return {
     asset_added: 0,
     maintenance_logged: 0,
+    maintenance_record_updated: 0,
+    maintenance_record_deleted: 0,
     task_completed: 0,
     task_scheduled: 0,
     task_updated: 0,
@@ -495,12 +509,7 @@ function ActivityTimeline({
             </span>
           </div>
           {group.entries.map((entry) => (
-            <ActivityEventCard
-              key={entry.id}
-              entry={entry}
-              now={now}
-              viewerUserId={viewerUserId}
-            />
+            <ActivityEventCard key={entry.id} entry={entry} now={now} viewerUserId={viewerUserId} />
           ))}
         </section>
       ))}

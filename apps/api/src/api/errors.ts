@@ -7,6 +7,7 @@ import {
   ConflictError,
   TooManyRequestsError,
   UnauthorizedError,
+  ServiceUnavailableError,
 } from "@snaveevans/pineapple-shared";
 
 /**
@@ -27,11 +28,16 @@ export function toHttpError(c: Context, error: DomainError): Response {
               ? 409
               : error instanceof TooManyRequestsError
                 ? 429
-                : 500;
+                : error instanceof ServiceUnavailableError
+                  ? 503
+                  : 500;
 
   const body: Record<string, unknown> = { error: error.message };
   if (error instanceof ValidationError && error.field) {
     body["field"] = error.field;
+  }
+  if (error instanceof ServiceUnavailableError && error.code) {
+    body["code"] = error.code;
   }
   return c.json(body, status);
 }

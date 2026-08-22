@@ -18,6 +18,16 @@ export class UnauthorizedError extends DomainError {}
 /** A domain invariant was violated — indicates a programming error, not a user error. */
 export class InvariantError extends DomainError {}
 
+/** A service or write gate is temporarily unavailable/frozen. */
+export class ServiceUnavailableError extends DomainError {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
+    super(message);
+  }
+}
+
 export class ValidationError extends DomainError {
   constructor(
     message: string,

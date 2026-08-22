@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
 import {
   CreateMaintenanceRecordBodySchema,
   MaintenanceAssetIdParamSchema,
+  MaintenanceRecordIdParamSchema,
   MaintenanceRecordResponseSchema,
+  UpdateMaintenanceRecordBodySchema,
 } from "./maintenanceRecordSchemas.ts";
 
 describe("maintenance record schemas", () => {
@@ -37,6 +38,35 @@ describe("maintenance record schemas", () => {
 
   it("rejects malformed asset ids", () => {
     expect(MaintenanceAssetIdParamSchema.safeParse({ assetId: "not-a-uuid" }).success).toBe(false);
+    expect(
+      MaintenanceRecordIdParamSchema.safeParse({
+        assetId: "not-a-uuid",
+        recordId: "e914b960-772f-46a7-b6fb-f333dcfc7fc9",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts valid partial updates in UpdateMaintenanceRecordBodySchema", () => {
+    expect(
+      UpdateMaintenanceRecordBodySchema.parse({
+        title: "Updated Oil",
+        notes: null,
+      }),
+    ).toEqual({ title: "Updated Oil", notes: null });
+  });
+
+  it("rejects unknown/forbidden keys in UpdateMaintenanceRecordBodySchema with strict mode", () => {
+    expect(
+      UpdateMaintenanceRecordBodySchema.safeParse({
+        title: "Oil Change",
+        taskId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      }).success,
+    ).toBe(false);
+    expect(
+      UpdateMaintenanceRecordBodySchema.safeParse({
+        id: "e914b960-772f-46a7-b6fb-f333dcfc7fc9",
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts the documented response shape with nullable notes", () => {

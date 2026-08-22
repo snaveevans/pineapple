@@ -66,6 +66,14 @@ class MaintenanceRecordWriterFake implements MaintenanceRecordWriter {
     this.savedEvents = events;
     return Promise.resolve();
   }
+
+  update(): Promise<boolean> {
+    return Promise.resolve(true);
+  }
+
+  delete(): Promise<boolean> {
+    return Promise.resolve(true);
+  }
 }
 
 class MaintenanceTaskRepositoryFake implements MaintenanceTaskRepository {

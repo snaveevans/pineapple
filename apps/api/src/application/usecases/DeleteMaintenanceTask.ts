@@ -6,6 +6,7 @@ import {
   type MaintenanceTaskId,
   NotFoundError,
   type Result,
+  ServiceUnavailableError,
   type UserId,
   err,
   ok,
@@ -14,6 +15,7 @@ import type { MaintenanceTaskRepository } from "../../domain/maintenance/Mainten
 import type { AssetRepository } from "../../domain/asset/AssetRepository.ts";
 import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import type { EventBus } from "../ports/EventBus.ts";
+import type { MaintenanceWriteGate } from "../ports/MaintenanceWriteGate.ts";
 import { canAccessAsset } from "./assetAccess.ts";
 
 export type DeleteMaintenanceTaskCommand = {
@@ -28,10 +30,17 @@ export class DeleteMaintenanceTask {
     private readonly teams: TeamRepository,
     private readonly tasks: MaintenanceTaskRepository,
     private readonly eventBus: EventBus,
+    private readonly writeGate?: MaintenanceWriteGate,
   ) {}
 
   async execute(command: DeleteMaintenanceTaskCommand): Promise<Result<void, DomainError>> {
     try {
+      if (this.writeGate && !(await this.writeGate.isWritable())) {
+        return err(
+          new ServiceUnavailableError("Changes are temporarily paused", "maintenance_write_frozen"),
+        );
+      }
+
       const task = await this.tasks.findById(command.taskId);
       if (!task) return err(new NotFoundError("Maintenance task not found"));
       if (task.assetId !== command.assetId) {

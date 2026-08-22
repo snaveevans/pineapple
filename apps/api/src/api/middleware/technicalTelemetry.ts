@@ -3,6 +3,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  ServiceUnavailableError,
   TooManyRequestsError,
   UnauthorizedError,
   ValidationError,
@@ -211,6 +212,18 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
       routePattern: "/api/assets/{assetId}/maintenance-records",
     };
   }
+  if (/^\/api\/assets\/[^/]+\/maintenance-records\/[^/]+$/.test(pathname) && method === "PATCH") {
+    return {
+      operation: "UpdateMaintenanceRecord",
+      routePattern: "/api/assets/{assetId}/maintenance-records/{recordId}",
+    };
+  }
+  if (/^\/api\/assets\/[^/]+\/maintenance-records\/[^/]+$/.test(pathname) && method === "DELETE") {
+    return {
+      operation: "DeleteMaintenanceRecord",
+      routePattern: "/api/assets/{assetId}/maintenance-records/{recordId}",
+    };
+  }
   if (/^\/api\/assets\/[^/]+\/maintenance-tasks$/.test(pathname) && method === "POST") {
     return {
       operation: "CreateMaintenanceTask",
@@ -260,6 +273,7 @@ export function statusFromError(error: unknown): number {
   if (error instanceof ValidationError) return 422;
   if (error instanceof ConflictError) return 409;
   if (error instanceof TooManyRequestsError) return 429;
+  if (error instanceof ServiceUnavailableError) return 503;
   return 500;
 }
 

@@ -92,8 +92,119 @@ describe("MaintenanceRecord", () => {
       notes: original.notes,
       taskId: null,
       createdAt: original.createdAt,
+      revision: 2,
     });
 
     expect(record.pullEvents()).toEqual([]);
+    expect(record.revision).toBe(2);
+  });
+
+  describe("update", () => {
+    it("updates title, performedAt, notes, increments revision, and emits MaintenanceRecordUpdated", () => {
+      const record = create({ title: "Old Title", performedAt: "2026-06-01", notes: "Old notes" });
+      record.pullEvents();
+
+      const actorId = UserId.generate();
+      const updated = record.update(
+        {
+          title: "  New Title  ",
+          performedAt: "2026-06-05",
+          notes: "  New notes  ",
+          todayUtc: "2026-06-09",
+        },
+        actorId,
+        { assetName: "Truck", assetType: "vehicle" },
+      );
+
+      expect(updated).toBe(true);
+      expect(record.title).toBe("New Title");
+      expect(record.performedAt).toBe("2026-06-05");
+      expect(record.notes).toBe("New notes");
+      expect(record.revision).toBe(1);
+
+      const events = record.pullEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        type: "MaintenanceRecordUpdated",
+        maintenanceRecordId: record.id,
+        assetId,
+        ownerId,
+        actorId,
+        assetName,
+        assetType,
+        recordRevision: 1,
+        before: { title: "Old Title", performedAt: "2026-06-01", notes: "Old notes" },
+        after: { title: "New Title", performedAt: "2026-06-05", notes: "New notes" },
+        activityEntryType: "maintenance_record_updated",
+      });
+    });
+
+    it("clears notes when given explicit null or whitespace", () => {
+      const record = create({ notes: "Some notes" });
+      record.pullEvents();
+
+      record.update({ notes: "   ", todayUtc: "2026-06-09" }, ownerId, { assetName, assetType });
+      expect(record.notes).toBeNull();
+    });
+
+    it("returns false and emits no event when values are unchanged (no-op)", () => {
+      const record = create({ title: "Same", performedAt: "2026-06-01", notes: "Same" });
+      record.pullEvents();
+
+      const updated = record.update(
+        { title: "Same", performedAt: "2026-06-01", notes: "Same", todayUtc: "2026-06-09" },
+        ownerId,
+        { assetName, assetType },
+      );
+
+      expect(updated).toBe(false);
+      expect(record.revision).toBe(0);
+      expect(record.pullEvents()).toHaveLength(0);
+    });
+
+    it.each([
+      [{ title: "   " }, "title"],
+      [{ title: "t".repeat(101) }, "title"],
+      [{ notes: "n".repeat(1001) }, "notes"],
+      [{ performedAt: "2026-6-09" }, "performedAt"],
+      [{ performedAt: "2026-06-10" }, "performedAt"],
+    ])("rejects invalid update input %o", (overrides, field) => {
+      const record = create();
+      record.pullEvents();
+
+      try {
+        record.update({ todayUtc: "2026-06-09", ...overrides }, ownerId, { assetName, assetType });
+        expect.fail("Expected validation to fail");
+      } catch (error) {
+        expect(error).toBeInstanceOf(ValidationError);
+        expect((error as ValidationError).field).toBe(field);
+      }
+    });
+  });
+
+  describe("delete", () => {
+    it("increments revision and emits MaintenanceRecordDeleted with snapshot", () => {
+      const record = create({ title: "To Delete", performedAt: "2026-06-01", notes: "Note" });
+      record.pullEvents();
+
+      const actorId = UserId.generate();
+      record.delete(actorId, { assetName, assetType });
+
+      expect(record.revision).toBe(1);
+      const events = record.pullEvents();
+      expect(events).toHaveLength(1);
+      expect(events[0]).toMatchObject({
+        type: "MaintenanceRecordDeleted",
+        maintenanceRecordId: record.id,
+        assetId,
+        ownerId,
+        actorId,
+        assetName,
+        assetType,
+        recordRevision: 1,
+        deleted: { title: "To Delete", performedAt: "2026-06-01", notes: "Note" },
+        activityEntryType: "maintenance_record_deleted",
+      });
+    });
   });
 });

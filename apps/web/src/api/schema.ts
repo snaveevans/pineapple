@@ -479,6 +479,175 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assets/{assetId}/maintenance-records/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a maintenance record
+         * @description Permanently deletes the maintenance record. If linked to a task, the task schedule is reconciled to the surviving records or initial baseline.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    assetId: string;
+                    recordId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Maintenance record deleted */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The asset belongs to another user */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No such record or asset */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The asset is archived or concurrent conflict exceeded retries */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Maintenance writes are temporarily frozen */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * Edit a maintenance record
+         * @description Updates title, performedAt, and/or notes. Empty string notes clears the notes. If the record is linked to a task, the task schedule is reconciled. CAS concurrency check retries on conflict. A no-op edit returns 200 with the unchanged record.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    assetId: string;
+                    recordId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateMaintenanceRecordBody"];
+                };
+            };
+            responses: {
+                /** @description Updated maintenance record */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MaintenanceRecord"];
+                    };
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The asset belongs to another user */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No such record or asset */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The asset is archived or concurrent conflict exceeded retries */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Validation failed */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Maintenance writes are temporarily frozen */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/assets/{assetId}/maintenance-tasks": {
         parameters: {
             query?: never;
@@ -813,7 +982,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    type?: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
+                    type?: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
                     assetId?: string;
                     cursor?: string;
                     limit?: number;
@@ -1809,6 +1978,17 @@ export interface components {
         MaintenanceRecordListResponse: {
             maintenanceRecords: components["schemas"]["MaintenanceRecord"][];
         };
+        UpdateMaintenanceRecordBody: {
+            /** @example Changed synthetic oil */
+            title?: string;
+            /**
+             * Format: date
+             * @example 2026-06-09
+             */
+            performedAt?: string;
+            /** @example Used 7 quarts of 5W-20 synthetic oil. */
+            notes?: string | null;
+        };
         MaintenanceTask: {
             /**
              * Format: uuid
@@ -2010,7 +2190,7 @@ export interface components {
              * @example maintenance_logged
              * @enum {string}
              */
-            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
+            type: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
             /**
              * Format: date-time
              * @example 2026-06-09T18:25:24.887Z
@@ -2062,7 +2242,7 @@ export interface components {
              * @example maintenance_logged
              * @enum {string}
              */
-            type: "asset_added" | "maintenance_logged" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
+            type: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
             /** @example 4 */
             count: number;
         };

@@ -4,6 +4,8 @@ import type { AssetType } from "../asset/AssetType.ts";
 export const ACTIVITY_ENTRY_TYPES = [
   "asset_added",
   "maintenance_logged",
+  "maintenance_record_updated",
+  "maintenance_record_deleted",
   "task_completed",
   "task_scheduled",
   "task_updated",
