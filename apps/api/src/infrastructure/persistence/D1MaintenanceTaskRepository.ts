@@ -16,31 +16,32 @@ type MaintenanceTaskRow = {
   last_completed_date: string | null;
   next_due: string;
   created_at: string;
+  schedule_seed_date?: string | null;
+  initial_last_completed_date?: string | null;
+  revision?: number | null;
 };
 
 const SELECT_COLUMNS =
-  "id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at";
+  "id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision";
 
 export function prepareMaintenanceTaskSave(
   db: D1Database,
   task: MaintenanceTask,
 ): D1PreparedStatement {
-  // ON CONFLICT updates every mutable field. advance() only ever changes
-  // last_completed_date/next_due (title/interval pass through unchanged), and
-  // update() only ever changes title/interval_value/interval_unit/next_due
-  // (last_completed_date passes through unchanged) — so a single upsert covers
-  // both callers safely.
   return db
     .prepare(
       `INSERT INTO maintenance_tasks
-         (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          interval_value = excluded.interval_value,
          interval_unit = excluded.interval_unit,
          last_completed_date = excluded.last_completed_date,
-         next_due = excluded.next_due`,
+         next_due = excluded.next_due,
+         schedule_seed_date = excluded.schedule_seed_date,
+         initial_last_completed_date = excluded.initial_last_completed_date,
+         revision = excluded.revision`,
     )
     .bind(
       task.id,
@@ -52,6 +53,9 @@ export function prepareMaintenanceTaskSave(
       task.lastCompletedDate,
       task.nextDue,
       task.createdAt.toISOString(),
+      task.scheduleSeedDate,
+      task.initialLastCompletedDate,
+      task.revision,
     );
 }
 
@@ -75,7 +79,8 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
     const result = await this.db
       .prepare(
         `SELECT t.id, t.asset_id, t.owner_id, t.title, t.interval_value, t.interval_unit,
-                t.last_completed_date, t.next_due, t.created_at
+                t.last_completed_date, t.next_due, t.created_at, t.schedule_seed_date,
+                t.initial_last_completed_date, t.revision
          FROM maintenance_tasks t
          INNER JOIN assets a ON a.id = t.asset_id
          WHERE a.archived_at IS NULL
@@ -113,18 +118,31 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
   }
 
   async delete(taskId: MaintenanceTaskId, events: readonly DomainEvent[] = []): Promise<void> {
+    const unlinkStatement = this.db
+      .prepare(
+        "UPDATE maintenance_records SET task_id = NULL, revision = revision + 1 WHERE task_id = ?",
+      )
+      .bind(taskId);
+
+    const deleteStatement = this.db
+      .prepare("DELETE FROM maintenance_tasks WHERE id = ?")
+      .bind(taskId);
+
     const outboxStatements = prepareOutboxInserts(this.db, events);
 
-    await this.db.batch([
-      this.db
-        .prepare("UPDATE maintenance_records SET task_id = NULL WHERE task_id = ?")
-        .bind(taskId),
-      this.db.prepare("DELETE FROM maintenance_tasks WHERE id = ?").bind(taskId),
-      ...outboxStatements,
-    ]);
+    await this.db.batch([unlinkStatement, deleteStatement, ...outboxStatements]);
   }
 
   #rowToTask(row: MaintenanceTaskRow): MaintenanceTask {
+    if (row.schedule_seed_date === null || row.schedule_seed_date === undefined) {
+      throw new Error(
+        `Invariant violation: task ${row.id} has null schedule_seed_date after rollout`,
+      );
+    }
+    if (row.revision === null || row.revision === undefined) {
+      throw new Error(`Invariant violation: task ${row.id} has null revision after rollout`);
+    }
+
     return MaintenanceTask.reconstitute({
       id: MaintenanceTaskId.from(row.id),
       assetId: AssetId.from(row.asset_id),
@@ -135,6 +153,9 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
       lastCompletedDate: row.last_completed_date,
       nextDue: row.next_due,
       createdAt: new Date(row.created_at),
+      scheduleSeedDate: row.schedule_seed_date,
+      initialLastCompletedDate: row.initial_last_completed_date ?? null,
+      revision: row.revision,
     });
   }
 }

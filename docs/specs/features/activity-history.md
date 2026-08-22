@@ -100,20 +100,24 @@ defines the API capability and behavior.
   that **I know whether a teammate or I logged it**
 - As a **user whose shared asset is later unshared**, I **stop seeing that asset's
   activity in my feed** so that **the feed only ever shows assets I can currently access**
+- As a **user who corrects a maintenance record**, I can **see the correction as a new immutable entry** so that **History never rewrites the original action**
+- As a **user who deletes a maintenance record**, I can **see that deletion in History even though the record is gone from maintenance history** so that **the action trail remains complete**
 
 ## What Counts as Activity
 
-Each tracked action becomes exactly one history entry. The six entry types and the
-existing domain events that drive them:
+Each tracked action becomes exactly one history entry. The following eight entry types are
+exhaustive for v1, and the table defines the existing domain event that drives each one:
 
-| Entry type           | User action                                 | Source domain event(s)                                                                                                                |
-| -------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `asset_added`        | Added an asset                              | `AssetCreated`                                                                                                                        |
-| `maintenance_logged` | Logged maintenance with no task advancement | `MaintenanceRecordCreated` whose producer-owned `activityEntryType` is `maintenance_logged`                                           |
-| `task_completed`     | Completed a scheduled task by logging work  | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries `activityEntryType: null`, so the pair is one entry, not two |
-| `task_scheduled`     | Scheduled a maintenance task                | `MaintenanceTaskCreated`                                                                                                              |
-| `task_updated`       | Edited a scheduled task's title or interval | `MaintenanceTaskUpdated`; published only when the edit changes a stored value ([maintenance-task.md](./maintenance-task.md))          |
-| `task_deleted`       | Removed a maintenance task                  | `MaintenanceTaskDeleted`                                                                                                              |
+| Entry type                   | User action                                 | Source domain event(s)                                                                                                                |
+| ---------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `asset_added`                | Added an asset                              | `AssetCreated`                                                                                                                        |
+| `maintenance_logged`         | Logged maintenance with no task advancement | `MaintenanceRecordCreated` whose producer-owned `activityEntryType` is `maintenance_logged`                                           |
+| `maintenance_record_updated` | Corrected a maintenance record              | `MaintenanceRecordUpdated`; carries the current record snapshot and the prior values needed to explain the correction                 |
+| `maintenance_record_deleted` | Deleted a maintenance record                | `MaintenanceRecordDeleted`; carries the deleted record snapshot so the row renders after hard deletion                                |
+| `task_completed`             | Completed a scheduled task by logging work  | `MaintenanceTaskAdvanced`; the paired `MaintenanceRecordCreated` carries `activityEntryType: null`, so the pair is one entry, not two |
+| `task_scheduled`             | Scheduled a maintenance task                | `MaintenanceTaskCreated`                                                                                                              |
+| `task_updated`               | Edited a scheduled task's title or interval | `MaintenanceTaskUpdated`; published only when the edit changes a stored value ([maintenance-task.md](./maintenance-task.md))          |
+| `task_deleted`               | Removed a maintenance task                  | `MaintenanceTaskDeleted`                                                                                                              |
 
 Not tracked in v1: asset archive/unarchive (no domain event exists), profile/account
 changes, and sign-in events. See Out of Scope.
@@ -158,15 +162,16 @@ These are behavioral guarantees, not storage prescriptions:
 
 ## Delivery Plan
 
-| Slice | Scope                                                                                                                                                                                                          | Issue                                                    | Depends on                  |
-| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | --------------------------- |
-| `S1`  | Base activity history — durable log + queue consumer, `GET /api/activity`, entries, server-side filtering, cursor pagination, the `/app/history` page. Shipped on `main` (see Flags: `S1` box reconciliation). | —                                                        | —                           |
-| `S2`  | Shared-asset activity + actor attribution — feed spans owned + team-shared assets, entries expose the acting user, full shared-asset history. Delivers teams-foundation `S3`.                                  | [#73](https://github.com/snaveevans/pineapple/issues/73) | `S1`, teams-foundation `S2` |
-| `S3`  | `task_updated` entry type — a maintenance task edit produces a History entry. Delivers maintenance-task `S2`.                                                                                                  | #180                                                     | `S1`                        |
+| Slice | Scope                                                                                                                                                                                                          | Issue                                                      | Depends on                  |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------- |
+| `S1`  | Base activity history — durable log + queue consumer, `GET /api/activity`, entries, server-side filtering, cursor pagination, the `/app/history` page. Shipped on `main` (see Flags: `S1` box reconciliation). | —                                                          | —                           |
+| `S2`  | Shared-asset activity + actor attribution — feed spans owned + team-shared assets, entries expose the acting user, full shared-asset history. Delivers teams-foundation `S3`.                                  | [#73](https://github.com/snaveevans/pineapple/issues/73)   | `S1`, teams-foundation `S2` |
+| `S3`  | `task_updated` entry type — a maintenance task edit produces a History entry. Delivers maintenance-task `S2`.                                                                                                  | #180                                                       | `S1`                        |
+| `S4`  | `maintenance_record_updated` and `maintenance_record_deleted` entries from immutable correction events.                                                                                                        | [#181](https://github.com/snaveevans/pineapple/issues/181) | `S1`                        |
 
 ## API Requirements
 
-_Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Delivery Plan above._
+_Each criterion below carries exactly one slice tag (`S1` through `S4`) from the Delivery Plan above._
 
 ### Read model
 
@@ -186,7 +191,8 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
 - [ ] `S1` Entries are returned newest first by `occurredAt`, with a stable secondary
       tiebreak (e.g. entry id) so equal timestamps have a deterministic order
 - [ ] `S1` Each entry includes: a stable `id`, an entry `type` (one of `asset_added`,
-      `maintenance_logged`, `task_completed`, `task_scheduled`, `task_deleted`),
+      `maintenance_logged`, `maintenance_record_updated`, `maintenance_record_deleted`,
+      `task_completed`, `task_scheduled`, `task_updated`, `task_deleted`),
       `occurredAt`, and an asset snapshot (`id`, `name`, `type`) sufficient to render
       the row without an additional lookup
 - [x] `S2` Each entry additionally carries an **actor** attribution (a stable acting-user
@@ -195,9 +201,11 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       a teammate's (e.g. render "you" when the actor is the caller, otherwise the
       actor's display name); it exposes a display name and a stable id only — never
       the actor's email or auth-provider identifiers
-- [ ] `S1` Maintenance-related entries (`maintenance_logged`, `task_completed`,
-      `task_scheduled`, `task_deleted`) include the relevant title snapshot, and
-      `maintenance_logged` / `task_completed` include the `performedAt` date
+- [ ] `S1` Maintenance-related entries (`maintenance_logged`, `maintenance_record_updated`,
+      `maintenance_record_deleted`, `task_completed`, `task_scheduled`, `task_updated`,
+      `task_deleted`) include
+      the relevant title snapshot, and `maintenance_logged` / `maintenance_record_updated` /
+      `maintenance_record_deleted` / `task_completed` include the `performedAt` date
 - [ ] `S1` Completing a scheduled task by logging work produces exactly one
       `task_completed` entry; it never also produces a separate `maintenance_logged`
       entry for the same record
@@ -208,6 +216,9 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
 - [x] `S3` `task_updated` is a valid entry `type`, sourced from `MaintenanceTaskUpdated`;
       an entry includes the task's post-edit title snapshot and follows the same entry
       shape as the other maintenance entry types
+- [ ] `S4` `maintenance_record_updated` is a valid entry `type`, sourced from `MaintenanceRecordUpdated`, and carries the current record title and performed date; its durable projection also retains `auditSnapshot = { recordId, taskId, createdAt, before: { title, performedAt, notes }, after: { title, performedAt, notes } }`, where `createdAt` is the original record creation timestamp and blank notes are `null`
+- [ ] `S4` `maintenance_record_deleted` is a valid entry `type`, sourced from `MaintenanceRecordDeleted`, and carries the deleted record title and performed date; its durable projection also retains `auditSnapshot = { recordId, taskId, createdAt, deleted: { title, performedAt, notes } }`, where `createdAt` is the original record creation timestamp and blank notes are `null`
+- [ ] `S4` `auditSnapshot` is internal nullable storage only; `GET /api/activity` never returns it, `taskId`, notes, or before/after/deleted values
 - [x] `S2` For a shared asset, the caller sees its **entire** activity history — including
       entries recorded before the asset was shared or before the caller joined the team
       — matching how a shared asset's maintenance records follow the asset. Sharing
@@ -237,7 +248,7 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       error and not a leak of existence)
 - [ ] `S1` v1 supports a single value per filter dimension (one type and/or one asset);
       multi-select and date ranges are out of scope
-- [ ] `S1` The web UI may narrow the already-loaded entries by title or asset name for
+- [ ] `S1` The web UI narrows the already-loaded entries by title or asset name for
       quick scanning, but this is not an API filter and does not search unloaded pages
 
 ### Pagination
@@ -246,11 +257,11 @@ _Each criterion below carries exactly one slice tag (`S1` or `S2`) from the Deli
       entries exist and a null/absent cursor when the caller has reached the end
 - [ ] `S1` The client requests the next page by passing the returned cursor; the cursor is
       opaque to the client
-- [ ] `S1` Cursor-page responses may return empty `availableFilters`; the client preserves
+- [ ] `S1` Cursor-page responses return empty `availableFilters`; the client preserves
       the first page's facets while loading older entries
 - [ ] `S1` A bounded page size applies (default and maximum defined at the Zod edge; the
-      maximum keeps a single response within Analytics Engine / Worker limits and a
-      reasonable payload size)
+      default is **20** and the maximum is **50**; values outside `1..50` return 422. The maximum
+      keeps a single response within Analytics Engine / Worker limits and a reasonable payload size
 - [ ] `S1` Active filters are preserved across pages (the cursor is valid only within the
       same filter set, or the filter params are re-sent alongside the cursor)
 
@@ -274,7 +285,7 @@ write-side ownership or 403-on-modify path.
 **Validation (Zod HTTP edge, per ADR-0007):** Query parameters are validated at the
 HTTP edge and drive the generated OpenAPI contract:
 
-- `type` — optional; must be one of the six entry-type enum values
+- `type` — optional; must be one of the eight entry-type enum values
 - `assetId` — optional; must be a UUID
 - `cursor` — optional; opaque string
 - `limit` — optional; integer within the supported range, with a default applied when
@@ -306,6 +317,8 @@ only and does not order the feed.
 | `cursor` is malformed or no longer valid for the filter set   | 422 validation error                                                                                                          |
 | Completing a scheduled task by logging work                   | Exactly one `task_completed` entry; never a duplicate `maintenance_logged` entry for the same record                          |
 | Logging ad-hoc maintenance (no `taskId`)                      | One `maintenance_logged` entry                                                                                                |
+| A maintenance record is edited                                | One `maintenance_record_updated` entry with the current record snapshot; the original entry remains immutable                 |
+| A maintenance record is hard-deleted                          | One `maintenance_record_deleted` entry with the deleted record snapshot; the record is still renderable in History            |
 | A task referenced by an entry is later deleted                | The entry remains and renders from its snapshot                                                                               |
 | An asset referenced by entries is later archived              | Entries remain; the asset still appears in the asset filter facet                                                             |
 | Two actions share the same `occurredAt`                       | Deterministic order via the secondary tiebreak; no flicker or duplication across pages                                        |
@@ -325,7 +338,8 @@ telemetry (telemetry.md anti-pattern), so the mapping must land with the route.
 
 **Domain events:** None new. History does not publish a domain event — reads do not
 produce events, and the feature emits nothing. It **consumes** the existing events
-(`AssetCreated`, `MaintenanceRecordCreated`, `MaintenanceTaskCreated`,
+(`AssetCreated`, `MaintenanceRecordCreated`, `MaintenanceRecordUpdated`,
+`MaintenanceRecordDeleted`, `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`,
 `MaintenanceTaskAdvanced`, `MaintenanceTaskDeleted`), persisting one entry per action to
 its own durable store. Those events are enriched per
 [ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md) so the consumer
@@ -366,13 +380,16 @@ is **idempotent**: it writes each entry under a unique constraint on the source 
 (insert-or-ignore), so an at-least-once redelivery can never create a duplicate. A message
 that exhausts its retries lands in the queue's dead-letter queue and is persisted durably (a
 `dead_letters` record) rather than left to expire, so a poison event is captured for manual,
-idempotent-safe replay — not silently lost. Net effect:
+idempotent-safe replay — not silently lost. The dead-letter row is keyed by the queue name and the
+stable Cloudflare queue `message.id`; persistence uses insert-or-ignore on that pair and never
+uses a newly generated random id as the dedupe key. If D1 is unavailable, the consumer throws and
+leaves the message eligible for another queue delivery. Net effect:
 every action appears in History exactly once, capture never blocks or fails the user's
 action, and there is no silent-gap trade-off. Built this way from the start — no best-effort
 interim.
 
 **DECISION — Smart Events; History is a pure projection ([ADR-0010](../../decisions/0010-smart-events-for-durable-consumers.md)):**
-The six tracked events are enriched to carry the state and producer-owned conclusions a
+The eight tracked events are enriched to carry the state and producer-owned conclusions a
 durable consumer needs, and the History consumer writes each entry **directly from the
 event** — no read-back to D1:
 
@@ -380,10 +397,19 @@ event** — no read-back to D1:
   name is cross-aggregate, so the use case — which already loads the asset — supplies it
   when the event is published; it is never read inside an aggregate (ADR-0003).
 - Each maintenance event carries its own descriptive `title`
-  (`MaintenanceRecordCreated`, `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`,
-  `MaintenanceTaskAdvanced`, `MaintenanceTaskDeleted`). Carrying `title` on
+  (`MaintenanceRecordCreated`, `MaintenanceRecordUpdated`, `MaintenanceRecordDeleted`,
+  `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`,
+  `MaintenanceTaskDeleted`). Carrying `title` on
   `MaintenanceTaskDeleted` is what lets a `task_deleted` entry render after the task row
   is gone (`DELETE FROM maintenance_tasks`).
+- `MaintenanceRecordUpdated` and `MaintenanceRecordDeleted` also carry the asset snapshot,
+  actor display-name snapshot, immutable record identity, and the complete normalized audit
+  snapshot described in the S4 requirements. The projection writes the compact title/date fields
+  used by the History API plus the private audit snapshot; it never reads the record back.
+- Asset and actor snapshots are captured from the successfully authorized mutation context at the
+  commit that creates the event. If the actor has no profile display name, the event carries the
+  deterministic display-name fallback `"Unknown"`; later asset renames or actor-name changes never
+  rewrite the entry.
 - Each tracked event carries a producer-owned `activityEntryType` conclusion. For
   static one-to-one mappings this is the event's fixed activity type; for
   `MaintenanceRecordCreated` it is `maintenance_logged` when the record itself should
@@ -398,6 +424,9 @@ event** — no read-back to D1:
 
 This holds ADR-0009's line: events carry domain state and conclusions, never presentation
 copy — the client still formats relative dates and labels.
+
+`MaintenanceTaskReconciled` is explicitly not one of the eight History events. It is a notification
+and scheduling conclusion only and never creates a History row.
 
 Telemetry handlers stay **thin selective readers**: the enriched fields are not added to
 their Analytics Engine writes, so the telemetry data-point contracts and their `v1` schema
@@ -419,10 +448,46 @@ below. This resolves the previously reserved actor-vs-owner field.
 **FOLLOW-UP — Reference docs at implementation time:** Adding the durable store
 introduces a new table and a new branded id (an activity-entry id). Update
 [data-model.md](../../reference/data-model.md) (storage mapping, branded value
-objects, the consumer, the enriched event payloads (all six tracked events per
+objects, the consumer, the enriched event payloads (all eight tracked events per
 ADR-0010), and the currently stale domain-events table) and add the web screen to
 [`docs/web/FEATURES.md`](../../web/FEATURES.md) when built. Regenerate the OpenAPI
 document from the new Zod route spec.
+
+The #181 migration is the planned `0019_activity_history_correction_types.sql`. Because SQLite
+stores the allowed type list in a table `CHECK`, this migration creates `activity_entries_new` with
+the complete eight-value type list and nullable `audit_snapshot_json TEXT`, copies every existing
+column and row unchanged, verifies equal row counts and preserved `source_event_id` uniqueness,
+foreign keys, and all three owner/type/asset indexes, then swaps the tables in one migration
+transaction. If any copy, count, uniqueness, foreign-key, or index preservation check fails, the
+migration aborts and the table swap rolls back; it does not record a warning and continue. Existing entries retain `audit_snapshot_json = NULL`; only correction entries
+populate it. The JSON is exactly one of:
+
+```json
+{
+  "recordId": "...",
+  "taskId": "...",
+  "createdAt": "...",
+  "before": { "title": "...", "performedAt": "YYYY-MM-DD", "notes": null },
+  "after": { "title": "...", "performedAt": "YYYY-MM-DD", "notes": null }
+}
+```
+
+or:
+
+```json
+{
+  "recordId": "...",
+  "taskId": null,
+  "createdAt": "...",
+  "deleted": { "title": "...", "performedAt": "YYYY-MM-DD", "notes": null }
+}
+```
+
+The formal shape is `taskId: string | null`; the updated form shows a linked record and the deleted
+form shows the valid unlinked case. The projection requires `json_valid(audit_snapshot_json) = 1`,
+validates the exact per-type object shape (no additional keys), stores no snapshot for any other
+type, and uses the record's current nullable link at event time. The API schema never selects this
+column.
 
 ## Out of Scope
 
@@ -448,7 +513,5 @@ document from the new Zod route spec.
 
 ## Open Questions
 
-- [ ] Exact page size (default and maximum) and cursor encoding — implementer's call
-      within the bounds above — engineering — resolve during implementation
 - [ ] Whether the asset filter facet should visually distinguish archived assets from
       active ones — design — resolve during web design

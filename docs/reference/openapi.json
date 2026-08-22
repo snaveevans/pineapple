@@ -572,6 +572,30 @@
           "maintenanceRecords"
         ]
       },
+      "UpdateMaintenanceRecordBody": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "example": "Changed synthetic oil"
+          },
+          "performedAt": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-09"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 1000,
+            "example": "Used 7 quarts of 5W-20 synthetic oil."
+          }
+        },
+        "additionalProperties": false
+      },
       "MaintenanceTask": {
         "type": "object",
         "properties": {
@@ -1002,6 +1026,8 @@
             "enum": [
               "asset_added",
               "maintenance_logged",
+              "maintenance_record_updated",
+              "maintenance_record_deleted",
               "task_completed",
               "task_scheduled",
               "task_updated",
@@ -1116,6 +1142,8 @@
             "enum": [
               "asset_added",
               "maintenance_logged",
+              "maintenance_record_updated",
+              "maintenance_record_deleted",
               "task_completed",
               "task_scheduled",
               "task_updated",
@@ -2002,6 +2030,213 @@
         }
       }
     },
+    "/api/assets/{assetId}/maintenance-records/{recordId}": {
+      "patch": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Edit a maintenance record",
+        "description": "Updates title, performedAt, and/or notes. Empty string notes clears the notes. If the record is linked to a task, the task schedule is reconciled. CAS concurrency check retries on conflict. A no-op edit returns 200 with the unchanged record.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "e914b960-772f-46a7-b6fb-f333dcfc7fc9"
+            },
+            "required": true,
+            "name": "recordId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMaintenanceRecordBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated maintenance record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceRecord"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record or asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset is archived or concurrent conflict exceeded retries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Maintenance writes are temporarily frozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Delete a maintenance record",
+        "description": "Permanently deletes the maintenance record. If linked to a task, the task schedule is reconciled to the surviving records or initial baseline.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "e914b960-772f-46a7-b6fb-f333dcfc7fc9"
+            },
+            "required": true,
+            "name": "recordId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Maintenance record deleted"
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record or asset",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The asset is archived or concurrent conflict exceeded retries",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Maintenance writes are temporarily frozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/assets/{assetId}/maintenance-tasks": {
       "post": {
         "tags": [
@@ -2387,6 +2622,8 @@
               "enum": [
                 "asset_added",
                 "maintenance_logged",
+                "maintenance_record_updated",
+                "maintenance_record_deleted",
                 "task_completed",
                 "task_scheduled",
                 "task_updated",

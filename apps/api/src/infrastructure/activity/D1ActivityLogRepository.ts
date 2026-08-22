@@ -110,8 +110,8 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
       .prepare(
         `INSERT INTO activity_entries
            (id, source_event_id, owner_id, actor_id, actor_display_name, type, occurred_at,
-            asset_id, asset_name, asset_type, title, performed_at, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            asset_id, asset_name, asset_type, title, performed_at, created_at, audit_snapshot_json)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(source_event_id) DO NOTHING`,
       )
       .bind(
@@ -128,6 +128,7 @@ export class D1ActivityLogRepository implements ActivityLogRepository {
         entry.title,
         entry.performedAt,
         new Date().toISOString(),
+        entry.auditSnapshotJson,
       );
   }
 
@@ -232,6 +233,7 @@ function entryFromEvent(event: ActivityEventMessage): {
   assetType: AssetType;
   title: string | null;
   performedAt: string | null;
+  auditSnapshotJson: string | null;
 } | null {
   if (event.activityEntryType === null) return null;
 
@@ -245,13 +247,47 @@ function entryFromEvent(event: ActivityEventMessage): {
 
   switch (event.type) {
     case "AssetCreated":
-      return { ...base, type: event.activityEntryType, title: null, performedAt: null };
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: null,
+        performedAt: null,
+        auditSnapshotJson: null,
+      };
     case "MaintenanceRecordCreated":
       return {
         ...base,
         type: event.activityEntryType,
         title: event.title,
         performedAt: event.performedAt,
+        auditSnapshotJson: null,
+      };
+    case "MaintenanceRecordUpdated":
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: event.title,
+        performedAt: event.performedAt,
+        auditSnapshotJson: JSON.stringify({
+          recordId: event.maintenanceRecordId,
+          taskId: event.taskId,
+          createdAt: event.createdAt,
+          before: event.before,
+          after: event.after,
+        }),
+      };
+    case "MaintenanceRecordDeleted":
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: event.title,
+        performedAt: event.performedAt,
+        auditSnapshotJson: JSON.stringify({
+          recordId: event.maintenanceRecordId,
+          taskId: event.taskId,
+          createdAt: event.createdAt,
+          deleted: event.deleted,
+        }),
       };
     case "MaintenanceTaskAdvanced":
       return {
@@ -259,13 +295,32 @@ function entryFromEvent(event: ActivityEventMessage): {
         type: event.activityEntryType,
         title: event.title,
         performedAt: event.performedAt,
+        auditSnapshotJson: null,
       };
     case "MaintenanceTaskCreated":
-      return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: event.title,
+        performedAt: null,
+        auditSnapshotJson: null,
+      };
     case "MaintenanceTaskUpdated":
-      return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: event.title,
+        performedAt: null,
+        auditSnapshotJson: null,
+      };
     case "MaintenanceTaskDeleted":
-      return { ...base, type: event.activityEntryType, title: event.title, performedAt: null };
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: event.title,
+        performedAt: null,
+        auditSnapshotJson: null,
+      };
   }
 }
 

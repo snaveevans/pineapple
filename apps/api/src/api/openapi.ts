@@ -13,8 +13,10 @@ import {
 import {
   CreateMaintenanceRecordBodySchema,
   MaintenanceAssetIdParamSchema,
+  MaintenanceRecordIdParamSchema,
   MaintenanceRecordListResponseSchema,
   MaintenanceRecordResponseSchema,
+  UpdateMaintenanceRecordBodySchema,
 } from "./schemas/maintenanceRecordSchemas.ts";
 import {
   CreateMaintenanceTaskBodySchema,
@@ -341,6 +343,87 @@ export const listMaintenanceRecordsRoute = createRoute({
     },
     404: {
       description: "No such asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const updateMaintenanceRecordRoute = createRoute({
+  method: "patch",
+  path: "/api/assets/{assetId}/maintenance-records/{recordId}",
+  tags: ["Maintenance"],
+  summary: "Edit a maintenance record",
+  description:
+    "Updates title, performedAt, and/or notes. Empty string notes clears the notes. If the record is linked to a task, the task schedule is reconciled. CAS concurrency check retries on conflict. A no-op edit returns 200 with the unchanged record.",
+  security: [cookieAuth],
+  request: {
+    params: MaintenanceRecordIdParamSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: UpdateMaintenanceRecordBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Updated maintenance record",
+      content: { "application/json": { schema: MaintenanceRecordResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such record or asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "The asset is archived or concurrent conflict exceeded retries",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    503: {
+      description: "Maintenance writes are temporarily frozen",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+export const deleteMaintenanceRecordRoute = createRoute({
+  method: "delete",
+  path: "/api/assets/{assetId}/maintenance-records/{recordId}",
+  tags: ["Maintenance"],
+  summary: "Delete a maintenance record",
+  description:
+    "Permanently deletes the maintenance record. If linked to a task, the task schedule is reconciled to the surviving records or initial baseline.",
+  security: [cookieAuth],
+  request: { params: MaintenanceRecordIdParamSchema },
+  responses: {
+    204: { description: "Maintenance record deleted" },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such record or asset",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "The asset is archived or concurrent conflict exceeded retries",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    503: {
+      description: "Maintenance writes are temporarily frozen",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
@@ -905,6 +988,8 @@ export function getApiDocument() {
   doc.openapi(searchAssetsRoute, stub);
   doc.openapi(createMaintenanceRecordRoute, stub);
   doc.openapi(listMaintenanceRecordsRoute, stub);
+  doc.openapi(updateMaintenanceRecordRoute, stub);
+  doc.openapi(deleteMaintenanceRecordRoute, stub);
   doc.openapi(createMaintenanceTaskRoute, stub);
   doc.openapi(listMaintenanceTasksRoute, stub);
   doc.openapi(deleteMaintenanceTaskRoute, stub);

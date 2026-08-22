@@ -76,6 +76,7 @@ describe("D1ActivityLogRepository", () => {
       event.title,
       event.performedAt,
       expect.any(String),
+      null,
     ]);
   });
 
@@ -134,6 +135,7 @@ describe("D1ActivityLogRepository", () => {
       "Backdated oil change",
       "2026-05-09",
       expect.any(String),
+      null,
     ]);
   });
 
@@ -162,6 +164,105 @@ describe("D1ActivityLogRepository", () => {
       "Replace furnace filter",
       null,
       expect.any(String),
+      null,
+    ]);
+  });
+
+  it("projects a record edit as a maintenance_record_updated activity entry with audit snapshot", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const event: ActivityEventMessage = {
+      id: "e2d3cf94-3779-43ea-b595-dac35dcba45a",
+      type: "MaintenanceRecordUpdated",
+      activityEntryType: "maintenance_record_updated",
+      occurredAt: "2026-06-09T18:25:24.887Z",
+      assetId: AssetId.from("195d0ef0-47f5-439f-abfd-29f892c9a040"),
+      ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+      actorId: UserId.from("71afbc20-f2e0-4fc8-a989-278437cf792c"),
+      actorDisplayName: "Pat Rivera",
+      assetName: "Truck",
+      assetType: "vehicle",
+      maintenanceRecordId: MaintenanceRecordId.from("e914b960-772f-46a7-b6fb-f333dcfc7fc9"),
+      title: "New Title",
+      performedAt: "2026-05-02",
+      createdAt: "2026-05-01T12:00:00.000Z",
+      recordRevision: 2,
+      taskId: null,
+      before: { title: "Old Title", performedAt: "2026-05-01", notes: "Old Notes" },
+      after: { title: "New Title", performedAt: "2026-05-02", notes: "New Notes" },
+    };
+
+    await new D1ActivityLogRepository(db).recordEvent(event);
+
+    expect(statements).toHaveLength(1);
+    expect(statements[0]?.values).toEqual([
+      event.id,
+      event.id,
+      event.ownerId,
+      event.actorId,
+      "Pat Rivera",
+      "maintenance_record_updated",
+      event.occurredAt,
+      event.assetId,
+      event.assetName,
+      event.assetType,
+      "New Title",
+      "2026-05-02",
+      expect.any(String),
+      JSON.stringify({
+        recordId: "e914b960-772f-46a7-b6fb-f333dcfc7fc9",
+        taskId: null,
+        createdAt: "2026-05-01T12:00:00.000Z",
+        before: { title: "Old Title", performedAt: "2026-05-01", notes: "Old Notes" },
+        after: { title: "New Title", performedAt: "2026-05-02", notes: "New Notes" },
+      }),
+    ]);
+  });
+
+  it("projects a record deletion as a maintenance_record_deleted activity entry with audit snapshot", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const event: ActivityEventMessage = {
+      id: "e2d3cf94-3779-43ea-b595-dac35dcba45a",
+      type: "MaintenanceRecordDeleted",
+      activityEntryType: "maintenance_record_deleted",
+      occurredAt: "2026-06-09T18:25:24.887Z",
+      assetId: AssetId.from("195d0ef0-47f5-439f-abfd-29f892c9a040"),
+      ownerId: UserId.from("7d914909-c903-41a4-a13a-82cbd0f61851"),
+      actorId: UserId.from("71afbc20-f2e0-4fc8-a989-278437cf792c"),
+      actorDisplayName: "Pat Rivera",
+      assetName: "Truck",
+      assetType: "vehicle",
+      maintenanceRecordId: MaintenanceRecordId.from("e914b960-772f-46a7-b6fb-f333dcfc7fc9"),
+      title: "Deleted Record",
+      performedAt: "2026-05-01",
+      createdAt: "2026-05-01T12:00:00.000Z",
+      recordRevision: 1,
+      taskId: null,
+      deleted: { title: "Deleted Record", performedAt: "2026-05-01", notes: null },
+    };
+
+    await new D1ActivityLogRepository(db).recordEvent(event);
+
+    expect(statements).toHaveLength(1);
+    expect(statements[0]?.values).toEqual([
+      event.id,
+      event.id,
+      event.ownerId,
+      event.actorId,
+      "Pat Rivera",
+      "maintenance_record_deleted",
+      event.occurredAt,
+      event.assetId,
+      event.assetName,
+      event.assetType,
+      "Deleted Record",
+      "2026-05-01",
+      expect.any(String),
+      JSON.stringify({
+        recordId: "e914b960-772f-46a7-b6fb-f333dcfc7fc9",
+        taskId: null,
+        createdAt: "2026-05-01T12:00:00.000Z",
+        deleted: { title: "Deleted Record", performedAt: "2026-05-01", notes: null },
+      }),
     ]);
   });
 

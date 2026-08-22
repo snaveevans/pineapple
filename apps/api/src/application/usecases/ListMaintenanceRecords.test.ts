@@ -48,6 +48,14 @@ class MaintenanceRecordRepositoryFake implements MaintenanceRecordRepository {
     return Promise.resolve(this.records);
   }
 
+  findById(id: string): Promise<MaintenanceRecord | null> {
+    return Promise.resolve(this.records.find((r) => r.id === id) ?? null);
+  }
+
+  findByTask(taskId: string): Promise<MaintenanceRecord[]> {
+    return Promise.resolve(this.records.filter((r) => r.taskId === taskId));
+  }
+
   save(): Promise<void> {
     return Promise.resolve();
   }

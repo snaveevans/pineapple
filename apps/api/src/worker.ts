@@ -9,6 +9,7 @@ import {
   DomainError,
   Email,
   MAINTENANCE_DUE_SOON_LEAD_DAYS,
+  MaintenanceRecordId,
   MaintenanceTaskId,
   NotificationId,
 } from "@snaveevans/pineapple-shared";
@@ -64,10 +65,13 @@ import { GetAsset } from "./application/usecases/GetAsset.ts";
 import { ListAssets } from "./application/usecases/ListAssets.ts";
 import { CreateMaintenanceRecord } from "./application/usecases/CreateMaintenanceRecord.ts";
 import { ListMaintenanceRecords } from "./application/usecases/ListMaintenanceRecords.ts";
+import { UpdateMaintenanceRecord } from "./application/usecases/UpdateMaintenanceRecord.ts";
+import { DeleteMaintenanceRecord } from "./application/usecases/DeleteMaintenanceRecord.ts";
 import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceTask.ts";
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { UpdateMaintenanceTask } from "./application/usecases/UpdateMaintenanceTask.ts";
+import { D1MaintenanceWriteGate } from "./infrastructure/persistence/D1MaintenanceWriteGate.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
 import { SearchAssets } from "./application/usecases/SearchAssets.ts";
@@ -103,6 +107,8 @@ import { createMutatingRequestOutboxRelayMiddleware } from "./api/middleware/mut
 import {
   createAssetRoute,
   createMaintenanceRecordRoute,
+  updateMaintenanceRecordRoute,
+  deleteMaintenanceRecordRoute,
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
   updateMaintenanceTaskRoute,
@@ -856,6 +862,7 @@ app.openapi(createMaintenanceRecordRoute, async (c) => {
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
     new SystemUtcDateProvider(),
+    new D1MaintenanceWriteGate(c.env.DB),
   ).execute({
     assetId: AssetId.from(assetId),
     requesterId: user.id,
@@ -866,6 +873,51 @@ app.openapi(createMaintenanceRecordRoute, async (c) => {
   });
   if (!result.ok) throw result.error;
   return c.json(serializeMaintenanceRecord(result.value), 201);
+});
+
+app.openapi(updateMaintenanceRecordRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, recordId } = c.req.valid("param");
+  const { title, performedAt, notes } = c.req.valid("json");
+  const result = await new UpdateMaintenanceRecord(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    new D1MaintenanceRecordRepository(c.env.DB),
+    new D1MaintenanceRecordRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+    c.get("eventBus"),
+    new SystemUtcDateProvider(),
+    new D1MaintenanceWriteGate(c.env.DB),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    recordId: MaintenanceRecordId.from(recordId),
+    requesterId: user.id,
+    ...(title !== undefined ? { title } : {}),
+    ...(performedAt !== undefined ? { performedAt } : {}),
+    ...(notes !== undefined ? { notes } : {}),
+  });
+  if (!result.ok) throw result.error;
+  return c.json(serializeMaintenanceRecord(result.value), 200);
+});
+
+app.openapi(deleteMaintenanceRecordRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, recordId } = c.req.valid("param");
+  const result = await new DeleteMaintenanceRecord(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    new D1MaintenanceRecordRepository(c.env.DB),
+    new D1MaintenanceRecordRepository(c.env.DB),
+    new D1MaintenanceTaskRepository(c.env.DB),
+    c.get("eventBus"),
+    new D1MaintenanceWriteGate(c.env.DB),
+  ).execute({
+    assetId: AssetId.from(assetId),
+    recordId: MaintenanceRecordId.from(recordId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.body(null, 204);
 });
 
 app.openapi(listMaintenanceRecordsRoute, async (c) => {
@@ -895,6 +947,7 @@ app.openapi(createMaintenanceTaskRoute, async (c) => {
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
     new SystemUtcDateProvider(),
+    new D1MaintenanceWriteGate(c.env.DB),
   ).execute({
     assetId: AssetId.from(assetId),
     requesterId: user.id,
@@ -935,6 +988,7 @@ app.openapi(deleteMaintenanceTaskRoute, async (c) => {
     new D1TeamRepository(c.env.DB),
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
+    new D1MaintenanceWriteGate(c.env.DB),
   ).execute({
     taskId: MaintenanceTaskId.from(taskId),
     assetId: AssetId.from(assetId),
@@ -954,6 +1008,7 @@ app.openapi(updateMaintenanceTaskRoute, async (c) => {
     new D1MaintenanceTaskRepository(c.env.DB),
     c.get("eventBus"),
     new SystemUtcDateProvider(),
+    new D1MaintenanceWriteGate(c.env.DB),
   ).execute({
     taskId: MaintenanceTaskId.from(taskId),
     assetId: AssetId.from(assetId),

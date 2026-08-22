@@ -419,12 +419,19 @@ Success is a navigate-away transition (updates the asset query cache, invalidate
 - `pending` (create record) — inline or modal form validates date and description; submits to API
 - `pending` (create task) — inline form validates title and due date
 - `pending` (edit task) — drawer/sheet form (title + interval only, no last-completed-date field) opened from an edit button on the task card; submits `PATCH` and updates the task in place
+- `pending` (edit record) — prefilled title/date/notes form on a record; submits `PATCH` and refreshes the record list and linked task
+- `pending` (delete record) — confirmation dialog, then a disabled/pending delete action; success removes the record and refreshes any linked task
 - `pending` (share/unshare, owner only) — sheet/drawer to share the asset to the caller's team or unshare it back to personal
-- `error` — inline field errors; 401 redirects to `/login`
+- `error` — inline field errors; mutation errors distinguish 401, 403, 404, 409, and 503; 401 redirects to `/login`
+- `frozen-write` (503 `maintenance_write_frozen`) — preserves the current form and displayed data,
+  shows "Changes are temporarily paused" with a retry action, and never treats the mutation as
+  successful
 
 **Local UI states (not async):**
 
 - Delete-task confirm — local "Delete task?" confirm dialog with Delete/Cancel buttons, distinct from any mutation `isPending` (the deletion is a direct async call, not a `useMutation`)
+- Edit-record form — local form prefilled from the selected record; `taskId` is not editable
+- Delete-record confirm — local "Delete maintenance record?" confirm dialog with Delete/Cancel buttons; archived assets hide or disable correction controls
 
 **Content stress:** long asset name in header; long record description; long task title; long owner display name in sharing badge
 
@@ -439,6 +446,9 @@ Success is a navigate-away transition (updates the asset query cache, invalidate
 - Share/unshare are idempotent on the API; the sheet closes on success and refreshes the asset query
 - An edit button (owner only, gated on `sharing.isOwner` like the share control) links to `/app/assets/:id/edit` — see [Edit Asset](#edit-asset)
 - Task edit does not offer a last-completed-date field — that value only ever changes by logging a maintenance record against the task; editing lets the user correct the title or interval without losing it (unlike the old delete-and-recreate workaround)
+- Record edit changes only title, performed date, or notes; changing the performed date refreshes the linked task from the server-computed schedule, and the client never recomputes `lastCompletedDate` or `nextDue`
+- Record deletion is a hard delete from the maintenance list but leaves an immutable correction entry in Activity History; the UI does not attempt to remove or rewrite History entries
+- Corrections are available to users with the same active-asset access as record creation, including shared teammates; archived assets remain readable but correction controls are hidden or disabled
 
 **Spec:** [`docs/specs/features/maintenance-record.md`](../specs/features/maintenance-record.md), [`docs/specs/features/maintenance-task.md`](../specs/features/maintenance-task.md), [`docs/specs/features/teams-foundation.md`](../specs/features/teams-foundation.md)
 

@@ -9,4 +9,22 @@ export interface MaintenanceRecordWriter {
     advancedTask: MaintenanceTask | null,
     events?: readonly DomainEvent[],
   ): Promise<void>;
+
+  /** Updates the record and optional reconciled task atomically with CAS on revisions. Returns false on conflict. */
+  update(
+    record: MaintenanceRecord,
+    expectedRecordRevision: number,
+    reconciledTask: MaintenanceTask | null,
+    expectedTaskRevision?: number,
+    events?: readonly DomainEvent[],
+  ): Promise<boolean>;
+
+  /** Deletes the record and updates optional reconciled task atomically with CAS on revisions. Returns false on conflict. */
+  delete(
+    record: MaintenanceRecord,
+    expectedRecordRevision: number,
+    reconciledTask: MaintenanceTask | null,
+    expectedTaskRevision?: number,
+    events?: readonly DomainEvent[],
+  ): Promise<boolean>;
 }

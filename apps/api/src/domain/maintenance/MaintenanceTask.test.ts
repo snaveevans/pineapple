@@ -291,7 +291,7 @@ describe("MaintenanceTask.update", () => {
     expect(task.nextDue).toBe("2026-07-11");
   });
 
-  it("recomputes nextDue from todayUtc when there is no lastCompletedDate", () => {
+  it("recomputes nextDue from scheduleSeedDate when there is no lastCompletedDate", () => {
     const task = makeTask({ intervalValue: 2, intervalUnit: "month" });
     task.pullEvents();
 
@@ -301,7 +301,7 @@ describe("MaintenanceTask.update", () => {
     });
 
     expect(result).toBe(true);
-    expect(task.nextDue).toBe("2026-08-01");
+    expect(task.nextDue).toBe("2026-07-11");
   });
 
   it("emits MaintenanceTaskUpdated when a value actually changes", () => {
@@ -441,5 +441,113 @@ describe("addInterval calendar arithmetic", () => {
       todayUtc: "2024-02-29",
     });
     expect(task.nextDue).toBe("2025-02-28");
+  });
+});
+
+describe("MaintenanceTask.reconcile", () => {
+  it("rewinds to previous latest record when latest record is removed", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-01-01",
+      intervalValue: 1,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+
+    const recordId = MaintenanceRecordId.generate();
+    // Simulate advance from a 2026-03-01 record
+    task.advance("2026-03-01", recordId, actorId, { assetName, assetType });
+    expect(task.lastCompletedDate).toBe("2026-03-01");
+    expect(task.nextDue).toBe("2026-04-01");
+    task.pullEvents();
+
+    // Reconcile with only an intermediate record at 2026-02-01 surviving
+    const sourceRecordId = MaintenanceRecordId.generate();
+    const changed = task.reconcile([{ performedAt: "2026-02-01" }], sourceRecordId, actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(changed).toBe(true);
+    expect(task.lastCompletedDate).toBe("2026-02-01");
+    expect(task.nextDue).toBe("2026-03-01");
+
+    const events = task.pullEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskReconciled",
+      maintenanceTaskId: task.id,
+      lastCompletedDate: "2026-02-01",
+      nextDue: "2026-03-01",
+      sourceRecordId,
+      activityEntryType: null,
+    });
+  });
+
+  it("rewinds to initial seed when all surviving records are deleted on seeded task", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-01-01",
+      intervalValue: 1,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+
+    task.advance("2026-03-01", MaintenanceRecordId.generate(), actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const changed = task.reconcile([], MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
+    expect(changed).toBe(true);
+    expect(task.lastCompletedDate).toBe("2026-01-01");
+    expect(task.nextDue).toBe("2026-02-01");
+  });
+
+  it("becomes null and uses scheduleSeedDate when all records deleted on unseeded task", () => {
+    const task = makeTask({
+      intervalValue: 1,
+      intervalUnit: "month",
+      todayUtc: "2026-06-01",
+    });
+    task.pullEvents();
+
+    expect(task.scheduleSeedDate).toBe("2026-06-01");
+    expect(task.initialLastCompletedDate).toBeNull();
+
+    task.advance("2026-06-15", MaintenanceRecordId.generate(), actorId, { assetName, assetType });
+    expect(task.lastCompletedDate).toBe("2026-06-15");
+    expect(task.nextDue).toBe("2026-07-15");
+    task.pullEvents();
+
+    const changed = task.reconcile([], MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
+    expect(changed).toBe(true);
+    expect(task.lastCompletedDate).toBeNull();
+    expect(task.nextDue).toBe("2026-07-01"); // 2026-06-01 + 1 month
+  });
+
+  it("returns false and emits no event when surviving records produce same lastCompletedDate and nextDue", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-01-01",
+      intervalValue: 1,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+
+    task.advance("2026-03-01", MaintenanceRecordId.generate(), actorId, { assetName, assetType });
+    task.pullEvents();
+
+    // Reconcile where latest surviving is still 2026-03-01
+    const changed = task.reconcile(
+      [{ performedAt: "2026-02-01" }, { performedAt: "2026-03-01" }],
+      MaintenanceRecordId.generate(),
+      actorId,
+      { assetName, assetType },
+    );
+
+    expect(changed).toBe(false);
+    expect(task.pullEvents()).toHaveLength(0);
   });
 });

@@ -24,6 +24,7 @@ export {
   TooManyRequestsError,
   UnauthorizedError,
   InvariantError,
+  ServiceUnavailableError,
   ValidationError,
 } from "./errors.ts";
 export {

@@ -40,8 +40,8 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [dashboard.md](./features/dashboard.md)                       | Home          | in-progress |
 | [activity-history.md](./features/activity-history.md)         | History       | in-progress |
 | [notifications.md](./features/notifications.md)               | Notifications | active      |
-| [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | draft       |
-| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | active      |
+| [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | in-progress |
+| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | in-progress |
 | [marketing-home.md](./features/marketing-home.md)             | Marketing     | active      |
 | [user-profile.md](./features/user-profile.md)                 | Identity      | active      |
 | [email-verification.md](./features/email-verification.md)     | Identity      | active      |

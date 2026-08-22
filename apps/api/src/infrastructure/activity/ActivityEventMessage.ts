@@ -7,6 +7,8 @@ import type { AssetType } from "../../domain/asset/AssetType.ts";
 import type { AssetCreated } from "../../domain/asset/events/AssetCreated.ts";
 import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { MaintenanceRecordCreated } from "../../domain/maintenance/events/MaintenanceRecordCreated.ts";
+import type { MaintenanceRecordDeleted } from "../../domain/maintenance/events/MaintenanceRecordDeleted.ts";
+import type { MaintenanceRecordUpdated } from "../../domain/maintenance/events/MaintenanceRecordUpdated.ts";
 import type { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/MaintenanceTaskAdvanced.ts";
 import type { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import type { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
@@ -19,6 +21,8 @@ export const ACTIVITY_HISTORY_DLQ_NAME = "pineapple-activity-history-dlq";
 type ActivityDomainEvent =
   | AssetCreated
   | MaintenanceRecordCreated
+  | MaintenanceRecordUpdated
+  | MaintenanceRecordDeleted
   | MaintenanceTaskCreated
   | MaintenanceTaskUpdated
   | MaintenanceTaskAdvanced
@@ -60,6 +64,33 @@ export type MaintenanceRecordCreatedActivityEventMessage = ActivityEventCommon<
   taskId: MaintenanceTaskId | null;
 };
 
+export type MaintenanceRecordUpdatedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceRecordUpdated",
+  "maintenance_record_updated"
+> & {
+  maintenanceRecordId: MaintenanceRecordId;
+  title: string;
+  performedAt: string;
+  createdAt: string;
+  recordRevision: number;
+  taskId: MaintenanceTaskId | null;
+  before: { title: string; performedAt: string; notes: string | null };
+  after: { title: string; performedAt: string; notes: string | null };
+};
+
+export type MaintenanceRecordDeletedActivityEventMessage = ActivityEventCommon<
+  "MaintenanceRecordDeleted",
+  "maintenance_record_deleted"
+> & {
+  maintenanceRecordId: MaintenanceRecordId;
+  title: string;
+  performedAt: string;
+  createdAt: string;
+  recordRevision: number;
+  taskId: MaintenanceTaskId | null;
+  deleted: { title: string; performedAt: string; notes: string | null };
+};
+
 export type MaintenanceTaskCreatedActivityEventMessage = ActivityEventCommon<
   "MaintenanceTaskCreated",
   "task_scheduled"
@@ -97,6 +128,8 @@ export type MaintenanceTaskDeletedActivityEventMessage = ActivityEventCommon<
 export type ActivityEventMessage =
   | AssetCreatedActivityEventMessage
   | MaintenanceRecordCreatedActivityEventMessage
+  | MaintenanceRecordUpdatedActivityEventMessage
+  | MaintenanceRecordDeletedActivityEventMessage
   | MaintenanceTaskCreatedActivityEventMessage
   | MaintenanceTaskUpdatedActivityEventMessage
   | MaintenanceTaskAdvancedActivityEventMessage
@@ -115,6 +148,8 @@ type ActivityMessageValidatorMap = {
 const ACTIVITY_EVENT_MESSAGE_FACTORIES = {
   AssetCreated: fromAssetCreated,
   MaintenanceRecordCreated: fromMaintenanceRecordCreated,
+  MaintenanceRecordUpdated: fromMaintenanceRecordUpdated,
+  MaintenanceRecordDeleted: fromMaintenanceRecordDeleted,
   MaintenanceTaskCreated: fromMaintenanceTaskCreated,
   MaintenanceTaskUpdated: fromMaintenanceTaskUpdated,
   MaintenanceTaskAdvanced: fromMaintenanceTaskAdvanced,
@@ -129,6 +164,21 @@ const ACTIVITY_EVENT_MESSAGE_VALIDATORS = {
     isString(value.performedAt) &&
     (value.taskId === null || isString(value.taskId)) &&
     (value.activityEntryType === "maintenance_logged" || value.activityEntryType === null),
+  MaintenanceRecordUpdated: (value) =>
+    isString(value.maintenanceRecordId) &&
+    isString(value.title) &&
+    isString(value.performedAt) &&
+    (value.taskId === null || isString(value.taskId)) &&
+    value.activityEntryType === "maintenance_record_updated" &&
+    isRecord(value.before) &&
+    isRecord(value.after),
+  MaintenanceRecordDeleted: (value) =>
+    isString(value.maintenanceRecordId) &&
+    isString(value.title) &&
+    isString(value.performedAt) &&
+    (value.taskId === null || isString(value.taskId)) &&
+    value.activityEntryType === "maintenance_record_deleted" &&
+    isRecord(value.deleted),
   MaintenanceTaskCreated: (value) =>
     isString(value.maintenanceTaskId) &&
     isString(value.title) &&
@@ -198,6 +248,37 @@ function fromMaintenanceRecordCreated(
     title: event.title,
     performedAt: event.performedAt,
     taskId: event.taskId,
+  };
+}
+
+function fromMaintenanceRecordUpdated(
+  event: MaintenanceRecordUpdated,
+): MaintenanceRecordUpdatedActivityEventMessage {
+  return {
+    ...common(event, event.activityEntryType),
+    maintenanceRecordId: event.maintenanceRecordId,
+    title: event.after.title,
+    performedAt: event.after.performedAt,
+    createdAt: event.createdAt.toISOString(),
+    recordRevision: event.recordRevision,
+    taskId: event.taskId,
+    before: event.before,
+    after: event.after,
+  };
+}
+
+function fromMaintenanceRecordDeleted(
+  event: MaintenanceRecordDeleted,
+): MaintenanceRecordDeletedActivityEventMessage {
+  return {
+    ...common(event, event.activityEntryType),
+    maintenanceRecordId: event.maintenanceRecordId,
+    title: event.deleted.title,
+    performedAt: event.deleted.performedAt,
+    createdAt: event.createdAt.toISOString(),
+    recordRevision: event.recordRevision,
+    taskId: event.taskId,
+    deleted: event.deleted,
   };
 }
 

@@ -89,4 +89,42 @@ describe("D1MaintenanceRecordRepository", () => {
     expect(statements).toHaveLength(1);
     expect(statements[0]?.run).toHaveBeenCalledOnce();
   });
+
+  it("prepends mutation_guards CAS check in update batch and returns true on success", async () => {
+    const { db, batch, statements } = createDatabaseHarness();
+    batch.mockResolvedValue([
+      { meta: { changes: 1 } }, // mutation_guards
+      { meta: { changes: 1 } }, // maintenance_records
+      { meta: { changes: 1 } }, // maintenance_tasks
+    ]);
+    const { record, task } = createEntities();
+
+    const result = await new D1MaintenanceRecordRepository(db).update(record, 1, task, 2);
+
+    expect(result).toBe(true);
+    expect(statements).toHaveLength(3);
+    expect(statements[0]?.query).toContain("INSERT INTO mutation_guards");
+    expect(statements[1]?.query).toContain("UPDATE maintenance_records");
+    expect(statements[2]?.query).toContain("UPDATE maintenance_tasks");
+  });
+
+  it("returns false on update when batch throws a CHECK constraint failure", async () => {
+    const { db, batch } = createDatabaseHarness();
+    batch.mockRejectedValue(new Error("D1_ERROR: CHECK constraint failed: assertion = 1"));
+    const { record, task } = createEntities();
+
+    const result = await new D1MaintenanceRecordRepository(db).update(record, 1, task, 2);
+
+    expect(result).toBe(false);
+  });
+
+  it("returns false on delete when batch throws a CHECK constraint failure", async () => {
+    const { db, batch } = createDatabaseHarness();
+    batch.mockRejectedValue(new Error("D1_ERROR: CHECK constraint failed: assertion = 1"));
+    const { record } = createEntities();
+
+    const result = await new D1MaintenanceRecordRepository(db).delete(record, 1);
+
+    expect(result).toBe(false);
+  });
 });

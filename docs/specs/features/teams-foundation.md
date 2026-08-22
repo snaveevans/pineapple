@@ -74,10 +74,11 @@ _Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery P
 **Member access to shared assets (full parity)**
 
 - [x] `S2` A team member can read an asset shared with their team and its **maintenance tasks and records** (the activity feed is `S3`, below)
-- [x] `S2` A team member can perform the same **write** actions on a shared asset that its owner can — the maintenance actions that exist today: adding and deleting maintenance tasks, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
+- [x] `S2` A team member can perform the same **maintenance write** actions on a shared asset that its owner can — creating, editing, and deleting maintenance tasks and records, and logging maintenance records — with the sole exceptions of changing its sharing and deleting the asset itself, which remain asset-owner-only
 - [x] `S2` Access to a shared asset's dependent records **follows the asset**: authorization for maintenance task and record operations is determined by whether the requester can access the parent asset (owns it, or is a member of the team it is shared with), replacing the direct `ownerId === requesterId` check on those operations
+- [x] `S2` Shared-member access does not bypass feature validation: archived assets remain readable but reject new records/tasks and record corrections with the same 409 rules as for the asset owner; editing or deleting an existing task remains permitted for both owner and member, while editing or deleting a record remains blocked; sharing grants access, not an archive override
 - [x] `S3` Access to the **activity feed** for shared assets follows the asset the same way — specified in [activity-history.md](./activity-history.md) (team visibility of shared-asset activity, with actor attribution)
-- [x] `S2` When an asset is unshared, or a member's access otherwise ends, subsequent requests by that member for the asset or its records behave as if the asset does not exist for them
+- [x] `S2` When an asset is unshared, or a member's access otherwise ends, subsequent collection requests omit the asset and its records; a direct request for an existing but inaccessible asset or child returns 403 under the current canonical error rule
 
 **Read-path integration**
 
@@ -104,23 +105,25 @@ _Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery P
 
 ## Edge Cases & Error States
 
-| Scenario                                                      | Expected Behavior                                                                              |
-| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Create team while already in a team (owner or member)         | 409 Conflict; no team created                                                                  |
-| Create team with empty/whitespace name                        | 422 Validation error mapped to the name field                                                  |
-| Create team with an over-length name                          | 422 Validation error mapped to the name field                                                  |
-| Read "my team" when the user has no team                      | 200 with an explicit "no team" result; client shows create-team prompt                         |
-| Share an asset the requester does not own                     | 403 Forbidden (owner-only), or 404 if the asset is not visible to the requester at all         |
-| Share an asset when the requester has no team                 | 409 Conflict (nothing to share into)                                                           |
-| Share an asset already shared to the caller's team            | Idempotent success (no duplicate)                                                              |
-| Unshare an asset that is already personal                     | Idempotent success                                                                             |
-| Non-owner member tries to unshare a shared asset              | 403 Forbidden (only the asset owner controls sharing)                                          |
-| Member reads/edits an asset shared with their team            | Succeeds; changes are visible to the owner and other members                                   |
-| Member deletes a maintenance task on a shared asset           | Succeeds (full parity)                                                                         |
-| Member tries to delete the shared asset itself                | Not permitted — asset deletion is asset-owner-only (and asset deletion is not yet implemented) |
-| Request an asset shared to a team the requester is **not** in | Treated as not visible (see Flags: 403-vs-404 inherits the permissions.md known issue)         |
-| Asset is unshared while a member has it open                  | The member's next request behaves as if the asset does not exist for them                      |
-| Unauthenticated request to any endpoint here                  | 401 Unauthorized → client redirects to `/login`                                                |
+| Scenario                                                                 | Expected Behavior                                                                              |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Create team while already in a team (owner or member)                    | 409 Conflict; no team created                                                                  |
+| Create team with empty/whitespace name                                   | 422 Validation error mapped to the name field                                                  |
+| Create team with an over-length name                                     | 422 Validation error mapped to the name field                                                  |
+| Read "my team" when the user has no team                                 | 200 with an explicit "no team" result; client shows create-team prompt                         |
+| Share an asset the requester does not own                                | 403 Forbidden (owner-only), or 404 if the asset is not visible to the requester at all         |
+| Share an asset when the requester has no team                            | 409 Conflict (nothing to share into)                                                           |
+| Share an asset already shared to the caller's team                       | Idempotent success (no duplicate)                                                              |
+| Unshare an asset that is already personal                                | Idempotent success                                                                             |
+| Non-owner member tries to unshare a shared asset                         | 403 Forbidden (only the asset owner controls sharing)                                          |
+| Member reads/edits an asset shared with their team                       | Succeeds; changes are visible to the owner and other members                                   |
+| Member creates or edits a maintenance task on a shared asset             | Succeeds (full maintenance parity)                                                             |
+| Member deletes a maintenance task on a shared asset                      | Succeeds (full maintenance parity)                                                             |
+| Member creates, edits, or deletes a maintenance record on a shared asset | Succeeds; the asset owner remains the record owner and the member is the actor                 |
+| Member tries to delete the shared asset itself                           | Not permitted — asset deletion is asset-owner-only (and asset deletion is not yet implemented) |
+| Request an asset shared to a team the requester is **not** in            | Direct resource request returns 403; collection requests omit it (the current canonical rule)  |
+| Asset is unshared while a member has it open                             | The member's next request behaves as if the asset does not exist for them                      |
+| Unauthenticated request to any endpoint here                             | 401 Unauthorized → client redirects to `/login`                                                |
 
 ## API Shape (design target)
 

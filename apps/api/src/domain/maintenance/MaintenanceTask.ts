@@ -13,6 +13,7 @@ import { type IntervalUnit, INTERVAL_UNITS, addInterval } from "./IntervalUnit.t
 import { MaintenanceTaskAdvanced } from "./events/MaintenanceTaskAdvanced.ts";
 import { MaintenanceTaskCreated } from "./events/MaintenanceTaskCreated.ts";
 import { MaintenanceTaskDeleted } from "./events/MaintenanceTaskDeleted.ts";
+import { MaintenanceTaskReconciled } from "./events/MaintenanceTaskReconciled.ts";
 import { MaintenanceTaskUpdated } from "./events/MaintenanceTaskUpdated.ts";
 
 export class MaintenanceTask {
@@ -22,6 +23,9 @@ export class MaintenanceTask {
   private _intervalUnit: IntervalUnit;
   private _lastCompletedDate: string | null;
   private _nextDue: string;
+  private _scheduleSeedDate: string;
+  private _initialLastCompletedDate: string | null;
+  private _revision: number;
 
   private constructor(
     readonly id: MaintenanceTaskId,
@@ -33,12 +37,18 @@ export class MaintenanceTask {
     lastCompletedDate: string | null,
     nextDue: string,
     readonly createdAt: Date,
+    scheduleSeedDate: string,
+    initialLastCompletedDate: string | null,
+    revision: number = 0,
   ) {
     this._title = title;
     this._intervalValue = intervalValue;
     this._intervalUnit = intervalUnit;
     this._lastCompletedDate = lastCompletedDate;
     this._nextDue = nextDue;
+    this._scheduleSeedDate = scheduleSeedDate;
+    this._initialLastCompletedDate = initialLastCompletedDate;
+    this._revision = revision;
   }
 
   get title(): string {
@@ -59,6 +69,18 @@ export class MaintenanceTask {
 
   get nextDue(): string {
     return this._nextDue;
+  }
+
+  get scheduleSeedDate(): string {
+    return this._scheduleSeedDate;
+  }
+
+  get initialLastCompletedDate(): string | null {
+    return this._initialLastCompletedDate;
+  }
+
+  get revision(): number {
+    return this._revision;
   }
 
   willAdvance(performedAt: string): boolean {
@@ -109,6 +131,8 @@ export class MaintenanceTask {
       lastCompletedDate = props.lastCompletedDate;
     }
 
+    const scheduleSeedDate = lastCompletedDate ?? props.todayUtc;
+    const initialLastCompletedDate = lastCompletedDate;
     const baseline = lastCompletedDate ?? props.todayUtc;
     const nextDue = addInterval(baseline, props.intervalValue, props.intervalUnit);
 
@@ -122,6 +146,9 @@ export class MaintenanceTask {
       lastCompletedDate,
       nextDue,
       new Date(),
+      scheduleSeedDate,
+      initialLastCompletedDate,
+      0,
     );
     task._domainEvents.push(
       MaintenanceTaskCreated({
@@ -152,6 +179,7 @@ export class MaintenanceTask {
     }
     this._lastCompletedDate = performedAt;
     this._nextDue = addInterval(performedAt, this.intervalValue, this.intervalUnit);
+    this._revision += 1;
     this._domainEvents.push(
       MaintenanceTaskAdvanced({
         maintenanceTaskId: this.id,
@@ -171,7 +199,7 @@ export class MaintenanceTask {
 
   /**
    * Applies a partial edit of title/interval. Recomputes nextDue from
-   * lastCompletedDate (or todayUtc when absent) only when the resulting
+   * lastCompletedDate (or scheduleSeedDate when absent) only when the resulting
    * intervalValue/intervalUnit actually differ from what's stored — resending
    * the current interval alongside a title change never touches lastCompletedDate
    * or nextDue. Publishes no event and returns false when the resulting values
@@ -211,12 +239,7 @@ export class MaintenanceTask {
       nextIntervalValue !== this._intervalValue || nextIntervalUnit !== this._intervalUnit;
     let nextDue = this._nextDue;
     if (intervalChanged) {
-      try {
-        validateDateOnly(props.todayUtc);
-      } catch {
-        throw new InvariantError("UTC date provider returned an invalid date");
-      }
-      const baseline = this._lastCompletedDate ?? props.todayUtc;
+      const baseline = this._lastCompletedDate ?? this._scheduleSeedDate;
       nextDue = addInterval(baseline, nextIntervalValue, nextIntervalUnit);
     }
 
@@ -230,6 +253,7 @@ export class MaintenanceTask {
     this._intervalValue = nextIntervalValue;
     this._intervalUnit = nextIntervalUnit;
     this._nextDue = nextDue;
+    this._revision += 1;
 
     this._domainEvents.push(
       MaintenanceTaskUpdated({
@@ -248,7 +272,61 @@ export class MaintenanceTask {
     return true;
   }
 
+  /**
+   * Reconciles task lastCompletedDate and nextDue against remaining linked records and initial seed.
+   * Returns true and emits MaintenanceTaskReconciled if and only if lastCompletedDate or nextDue changed.
+   */
+  reconcile(
+    survivingRecords: { performedAt: string }[],
+    sourceRecordId: MaintenanceRecordId,
+    actorId: UserId,
+    assetSnapshot: { assetName: string; assetType: AssetType },
+  ): boolean {
+    const candidateDates: string[] = [];
+    if (this._initialLastCompletedDate !== null) {
+      candidateDates.push(this._initialLastCompletedDate);
+    }
+    for (const r of survivingRecords) {
+      candidateDates.push(r.performedAt);
+    }
+
+    let newLastCompletedDate: string | null = null;
+    if (candidateDates.length > 0) {
+      candidateDates.sort();
+      newLastCompletedDate = candidateDates[candidateDates.length - 1] ?? null;
+    }
+
+    const baseline = newLastCompletedDate ?? this._scheduleSeedDate;
+    const newNextDue = addInterval(baseline, this._intervalValue, this._intervalUnit);
+
+    const changed =
+      newLastCompletedDate !== this._lastCompletedDate || newNextDue !== this._nextDue;
+    if (!changed) return false;
+
+    this._lastCompletedDate = newLastCompletedDate;
+    this._nextDue = newNextDue;
+    this._revision += 1;
+
+    this._domainEvents.push(
+      MaintenanceTaskReconciled({
+        maintenanceTaskId: this.id,
+        assetId: this.assetId,
+        ownerId: this.ownerId,
+        actorId,
+        assetName: assetSnapshot.assetName,
+        assetType: assetSnapshot.assetType,
+        title: this._title,
+        lastCompletedDate: this._lastCompletedDate,
+        nextDue: this._nextDue,
+        sourceRecordId,
+        taskRevision: this._revision,
+      }),
+    );
+    return true;
+  }
+
   remove(actorId: UserId, assetSnapshot: { assetName: string; assetType: AssetType }): void {
+    this._revision += 1;
     this._domainEvents.push(
       MaintenanceTaskDeleted({
         maintenanceTaskId: this.id,
@@ -272,7 +350,18 @@ export class MaintenanceTask {
     lastCompletedDate: string | null;
     nextDue: string;
     createdAt: Date;
+    scheduleSeedDate?: string;
+    initialLastCompletedDate?: string | null;
+    revision?: number;
   }): MaintenanceTask {
+    const scheduleSeedDate =
+      props.scheduleSeedDate ??
+      props.lastCompletedDate ??
+      props.createdAt.toISOString().slice(0, 10);
+    const initialLastCompletedDate =
+      props.initialLastCompletedDate !== undefined
+        ? props.initialLastCompletedDate
+        : props.lastCompletedDate;
     return new MaintenanceTask(
       props.id,
       props.assetId,
@@ -283,6 +372,9 @@ export class MaintenanceTask {
       props.lastCompletedDate,
       props.nextDue,
       props.createdAt,
+      scheduleSeedDate,
+      initialLastCompletedDate,
+      props.revision ?? 0,
     );
   }
 
