@@ -97,16 +97,22 @@ The public shape and validation rules live in the [OpenAPI spec](openapi.json)
 ## Maintenance Task
 
 The public shape and validation rules live in the [OpenAPI spec](openapi.json)
-(`MaintenanceTask`, `CreateMaintenanceTaskBody`, `UpdateMaintenanceTaskBody`). Domain-only details:
+(`MaintenanceTask`, `CreateMaintenanceTaskBody`, `UpdateMaintenanceTaskBody`,
+`RescheduleMaintenanceTaskBody`). Domain-only details:
 
 - **`scheduleSeedDate`** is an immutable date-only creation baseline. It is the supplied
   `lastCompletedDate` or the UTC calendar date at creation when no completion was supplied; it is
   never exposed in API responses or replaced by the current date during a later edit.
 - **`initialLastCompletedDate`** preserves the nullable completion value supplied at creation so
   record deletion can restore the original uncompleted state. It is not exposed in API responses.
+- **`nextDueOverride`** is a nullable, future-only one-cycle target set by the dedicated
+  reschedule action. It makes the public `nextDue` equal the target without changing completion
+  evidence or the immutable schedule seed. A changed interval or a successful task advance clears
+  it; record correction retains it while reconciling `lastCompletedDate`. It is not exposed in API
+  responses.
 - **`revision`** is an internal per-task optimistic-concurrency counter. Task edits, record
-  corrections that change derived task state, and task deletion increment it atomically and carry
-  the resulting value on their task events.
+  corrections that change derived task state, reschedules, and task deletion increment it atomically
+  and carry the resulting value on their task events.
 
 ## Activity Entry
 
@@ -160,6 +166,7 @@ Aggregates raise events when something significant happens. Today:
 | `MaintenanceRecordDeleted`   | a maintenance record is hard-deleted                | event id, record/asset/owner/actor snapshots, `createdAt`, deleted-event `recordRevision`, immutable linked task id, normalized deleted title/date/notes snapshot, and History `activityEntryType` conclusion |
 | `MaintenanceTaskCreated`     | a maintenance task is scheduled                     | event id, task/asset/owner/actor, asset snapshot, title, interval, resulting **`nextDue`**, and History `activityEntryType` conclusion                                                                        |
 | `MaintenanceTaskUpdated`     | a task's title or interval is edited                | event id, task/asset/owner/actor, asset snapshot, title, interval, resulting **`nextDue`**, and History `activityEntryType` conclusion; published only when the edit changes a stored value                   |
+| `MaintenanceTaskRescheduled` | a task's current due cycle is rescheduled           | event id, task/asset/owner/actor, asset snapshot, title, resulting **`nextDue`**, task revision, and `task_rescheduled` History conclusion; never carries a false completion                                  |
 | `MaintenanceTaskAdvanced`    | a task is completed by a record                     | event id, task/record/asset/owner/actor, asset snapshot, title, performed date, resulting **`nextDue`**, and History `activityEntryType` conclusion                                                           |
 | `MaintenanceTaskReconciled`  | a linked record correction changes task schedule    | event id, task/record/asset/owner/actor, asset snapshot, title, resulting `lastCompletedDate`/`nextDue`, and no duplicate completion History conclusion                                                       |
 | `MaintenanceTaskDeleted`     | a maintenance task is removed                       | event id, task/asset/owner/actor, asset snapshot, title, and History `activityEntryType` conclusion                                                                                                           |
@@ -173,8 +180,8 @@ Aggregates raise events when something significant happens. Today:
 | `AssetUnsharedFromTeam`      | an asset is returned to personal                    | event id, asset/owner/actor, asset name, team id + name (of the team it left)                                                                                                                                 |
 | `AssetEdited`                | an asset's name and/or metadata is edited           | event id, asset/owner/actor, new and previous name, asset type, and `nameChanged`/`metadataChanged` flags                                                                                                     |
 
-`MaintenanceTaskCreated` carries `taskRevision = 0`. Every later task mutation carries the
-resulting revision after incrementing the prior value; `MaintenanceTaskDeleted` carries
+`MaintenanceTaskCreated` carries `taskRevision = 0`. Every later task mutation, including a
+reschedule, carries the resulting revision after incrementing the prior value; `MaintenanceTaskDeleted` carries
 `priorRevision + 1` immediately before deleting the task row. `MaintenanceTaskReconciled` carries
 the resulting task revision but is not an Activity History event.
 

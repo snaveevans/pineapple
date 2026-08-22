@@ -16,7 +16,7 @@ metadata:
 
 ## Summary
 
-The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. "Its assets" means every active asset the caller can access — those they **own** and those a teammate has **shared with their team** ([teams-foundation.md](./teams-foundation.md)) — so totals, health, and the queue reflect everything the operator helps maintain, with shared assets marked. The first API-backed version is read-oriented: it can launch existing maintenance flows and can mark a time-based task complete through the existing maintenance-record creation endpoint, but rescheduling, snoozing, reminders, and richer service-task metadata are future work.
+The Dashboard is the authenticated home screen at `/app`. It gives the operator an at-a-glance view of fleet size, asset categories, fleet maintenance health, and the most urgent scheduled maintenance across all active assets. "Its assets" means every active asset the caller can access — those they **own** and those a teammate has **shared with their team** ([teams-foundation.md](./teams-foundation.md)) — so totals, health, and the queue reflect everything the operator helps maintain, with shared assets marked. It can launch existing maintenance flows, mark a time-based task complete through the maintenance-record endpoint, and reschedule the current task cycle through the dedicated maintenance-task action; snoozing, reminders, and richer service-task metadata remain separate concerns.
 
 ## Implementation Notes
 
@@ -25,7 +25,7 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 - The dashboard needs one protected read model instead of browser-side fan-out across `GET /api/assets` and per-asset task endpoints.
 - The supported asset categories remain `vehicle`, `equipment`, and `property`; the mock's `lawn` / `Grounds` category is not part of this spec.
 - The current maintenance-task model supports time-based schedules only. Meter readings, mileage/hour recurrence, estimated time, location, assignee, and task notes are future task-model work.
-- `Mark complete` can use the existing linked maintenance-record flow. `Reschedule`, `Snooze`, and dashboard-level task creation need future specs before they become live actions.
+- `Mark complete` uses the existing linked maintenance-record flow. `Reschedule` uses the maintenance-task feature's dedicated one-cycle override; `Snooze` and dashboard-level task creation remain separate concerns.
 
 ## User Stories
 
@@ -34,11 +34,12 @@ The Dashboard is the authenticated home screen at `/app`. It gives the operator 
 - As an **authenticated owner-operator**, I can **see overdue and upcoming maintenance tasks across all active assets in urgency order** so that **I can act on the right task first**
 - As an **authenticated owner-operator with no assets or no scheduled tasks**, I can **see an explicit empty state** so that **I know whether to add an asset or add maintenance tasks**
 - As an **authenticated owner-operator**, I can **start completion for a due task from the dashboard** so that **completed work advances the existing maintenance schedule**
+- As an **authenticated user**, I can **reschedule a task from the dashboard without logging maintenance** so that **a changed plan updates the current due date without falsely recording work**
 - As a **team member**, I can **see maintenance for assets shared with my team on the dashboard, marked as shared** so that **I know what needs attention across everything I help maintain and whose it is**
 
 ## API Requirements
 
-_Each criterion carries exactly one slice tag (`S1`…`S4`) from the [Delivery Plan](#delivery-plan)._
+_Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery Plan](#delivery-plan)._
 
 ### Dashboard read model
 
@@ -75,16 +76,20 @@ _Each criterion carries exactly one slice tag (`S1`…`S4`) from the [Delivery P
 - [ ] `S1` Category filtering is frontend state for the first API-backed version; the dashboard response must contain category and count data needed to filter the returned queue without a new request
 - [ ] `S1` `Mark complete` for a time-based task uses `POST /api/assets/{assetId}/maintenance-records` with the selected `taskId`, as defined in [maintenance-record.md](./maintenance-record.md) and [maintenance-task.md](./maintenance-task.md)
 - [ ] `S1` After successful completion, the frontend invalidates the dashboard read model and the affected asset's maintenance records/tasks
-- [ ] `S1` `Reschedule`, `Snooze`, dashboard-level `Add service`, and richer task-detail editing remain placeholders until the maintenance-task API is extended
+- [ ] `S5` `Reschedule` opens a future-date form for the selected task and submits `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` as defined in [maintenance-task.md](./maintenance-task.md); it never creates a maintenance record
+- [ ] `S5` While a reschedule is pending, only its submitting action is disabled; on 422 the future-date field shows the server error, and on 403/404/503 the current dashboard data remains visible with the shared error/retry treatment
+- [ ] `S5` A successful reschedule updates the selected queue item and invalidates the dashboard read model plus the affected asset's maintenance-task list; status and due copy always come from the returned/refetched API data
+- [ ] `S1` `Snooze`, dashboard-level `Add service`, and richer task-detail editing remain placeholders until their own specs extend the task or notification APIs
 
 ## Delivery Plan
 
-| Slice | Scope                                                                                                                                                 | Issue                                                    | Depends on |
-| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------- |
-| `S1`  | Base dashboard — `GET /api/dashboard` read model, status calculation, queue, actions, `/app` page. Shipped on `main` (see Flags: box reconciliation). | —                                                        | —          |
-| `S2`  | Visible-set scoping — totals/health/queue span owned + team-shared assets, delivered by teams-foundation `S2`. Shipped on `main` (see Flags).         | [#58](https://github.com/snaveevans/pineapple/issues/58) | `S1`       |
-| `S3`  | `sharing` descriptor on the dashboard read model — the dashboard's share of teams-foundation `S4`.                                                    | [#74](https://github.com/snaveevans/pineapple/issues/74) | `S2`       |
-| `S4`  | Web shared indicators on queue rows — the dashboard's share of teams-foundation `S5`.                                                                 | [#59](https://github.com/snaveevans/pineapple/issues/59) | `S3`       |
+| Slice | Scope                                                                                                                                                 | Issue                                                      | Depends on            |
+| ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------- |
+| `S1`  | Base dashboard — `GET /api/dashboard` read model, status calculation, queue, actions, `/app` page. Shipped on `main` (see Flags: box reconciliation). | —                                                          | —                     |
+| `S2`  | Visible-set scoping — totals/health/queue span owned + team-shared assets, delivered by teams-foundation `S2`. Shipped on `main` (see Flags).         | [#58](https://github.com/snaveevans/pineapple/issues/58)   | `S1`                  |
+| `S3`  | `sharing` descriptor on the dashboard read model — the dashboard's share of teams-foundation `S4`.                                                    | [#74](https://github.com/snaveevans/pineapple/issues/74)   | `S2`                  |
+| `S4`  | Web shared indicators on queue rows — the dashboard's share of teams-foundation `S5`.                                                                 | [#59](https://github.com/snaveevans/pineapple/issues/59)   | `S3`                  |
+| `S5`  | Reschedule action: future-date form, error/pending states, and dashboard/task-list cache updates.                                                     | [#235](https://github.com/snaveevans/pineapple/issues/235) | maintenance-task `S5` |
 
 ## Validation & Ownership
 
@@ -115,12 +120,15 @@ _Each criterion carries exactly one slice tag (`S1`…`S4`) from the [Delivery P
 | Queue becomes empty after filtering                           | Frontend shows a filtered-empty state; this is not an API error                                                                                |
 | Linked task completion succeeds                               | New maintenance record appears in asset history; task advances per [maintenance-task.md](./maintenance-task.md); dashboard is refetched        |
 | Linked task completion returns 409 because asset was archived | Completion error is shown and dashboard is refetched so archived data disappears                                                               |
+| Reschedule target is today, past, or malformed                | API returns 422; the form remains open with an inline `nextDue` error and no queue item changes                                                |
+| Reschedule succeeds                                           | No maintenance record is created; the selected item renders the returned/refetched effective `nextDue` and its recomputed urgency              |
+| Reschedule is forbidden, missing, or writes are frozen        | Current dashboard data remains visible; the action shows the shared 403/404/503 error and a retry when applicable                              |
 
 ## Telemetry
 
 **Request telemetry:** `GET /api/dashboard` maps to the `GetDashboard` operation via `createTechnicalTelemetryMiddleware`. Implementing the endpoint requires adding this route to the operation-name mapping and updating [telemetry.md](../cross-cutting/telemetry.md).
 
-**Domain events:** None for the dashboard read model. Reads do not publish domain events. Completing a task from the dashboard uses the existing `CreateMaintenanceRecord` operation and may publish the existing `MaintenanceRecordCreated` and `MaintenanceTaskAdvanced` domain events.
+**Domain events:** None for the dashboard read model. Reads do not publish domain events. Completing a task from the dashboard uses the existing `CreateMaintenanceRecord` operation and may publish the existing `MaintenanceRecordCreated` and `MaintenanceTaskAdvanced` domain events. Rescheduling uses `RescheduleMaintenanceTask` and publishes `MaintenanceTaskRescheduled` as defined in [maintenance-task.md](./maintenance-task.md).
 
 ## Flags
 
@@ -140,7 +148,7 @@ left at `review`. Owner: engineering.
 
 **FOLLOW-UP NEEDED — Distance/hour-based schedules:** The prototype includes mile/hour readings and recurrence. This remains phase 2 and must follow the discriminator guidance in [maintenance-task.md](./maintenance-task.md), not an ad hoc `"mile"` or `"hour"` addition to the time interval enum.
 
-**FOLLOW-UP NEEDED — Reschedule and snooze:** The prototype includes these actions, but no task mutation semantics exist. A future spec should define whether these are task updates, one-off overrides, or separate scheduled exceptions.
+**FOLLOW-UP NEEDED — Snooze:** The prototype includes snooze, but reminder-level mutation semantics remain separate from task rescheduling and are tracked in [#236](https://github.com/snaveevans/pineapple/issues/236).
 
 **FOLLOW-UP NEEDED — Dashboard-level task creation:** The prototype's "Add service" button needs a concrete entry path, target asset selection behavior, and field set before it becomes an API-backed workflow.
 
@@ -149,7 +157,7 @@ left at `review`. Owner: engineering.
 - Adding a fourth `lawn` / `grounds` asset type
 - Mileage/hour meter tracking and distance-based maintenance schedules
 - Reminder delivery through notifications, email, or background jobs
-- Reschedule, snooze, or bulk task management
+- Snooze or bulk task management
 - Editing task detail fields from the dashboard
 - Assigning or delegating tasks to specific teammates, and any per-member views — shared-asset **visibility** is in scope (shared assets appear and are marked), but task assignment/delegation is not
 - Frontend interaction telemetry
