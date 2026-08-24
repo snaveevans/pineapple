@@ -14,7 +14,7 @@
     "cf-typegen": "wrangler types --strict-vars=false --env-file .env.typegen"
   },
   "dependencies": {
-    "@hono/zod-openapi": "^1.5.3",
+    "@hono/zod-openapi": "^1.6.0",
     "@scalar/hono-api-reference": "^0.11.14",
     "@snaveevans/pineapple-shared": "workspace:*",
     "better-auth": "^1.6.28",
