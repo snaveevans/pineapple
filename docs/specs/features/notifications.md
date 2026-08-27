@@ -106,7 +106,7 @@ capability and behavior.
   them by email**
 - As **DIYer Dale**, I can **open a notifications inbox and mark notifications read** so that **I
   can track and clear what needs my attention**
-- As **DIYer Dale who completes or deletes a task before its reminder**, I **don't receive a stale
+- As **DIYer Dale who completes, reschedules, or deletes a task before its reminder**, I **don't receive a stale
   reminder** so that **notifications stay trustworthy and relevant**
 - As **DIYer Dale who corrects or deletes a linked maintenance record**, I **don't receive a
   reminder for the superseded schedule** so that **notifications follow the corrected task state**
@@ -127,6 +127,10 @@ event payload carries everything it needs (Smart Events, ADR-0010).
 | `MaintenanceTaskReconciled` (carries resulting `nextDue`) | **Reschedule**: supersede the task's prior pending reminder after a linked record correction changes the schedule        |
 | `MaintenanceTaskDeleted`                                  | **Cancel** the task's pending reminder                                                                                   |
 
+Maintenance-task `S5` ([#235](https://github.com/snaveevans/pineapple/issues/235)) will add
+`MaintenanceTaskRescheduled` to this consumer. It carries the resulting `nextDue` and follows the
+same supersede transition as `MaintenanceTaskAdvanced`, without maintenance-task storage read-back.
+
 _Asset archive/unarchive would later add "cancel on suspend / reschedule on reactivate" on these
 same handler paths, but that is **out of scope** for this spec and parked in
 [archive-asset.md (backlog)](../backlog/archive-asset.md)._
@@ -135,7 +139,8 @@ same handler paths, but that is **out of scope** for this spec and parked in
   `MaintenanceTaskCreated`, `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`, and
   `MaintenanceTaskReconciled` must carry the resulting `nextDue` as a
   producer-owned conclusion, alongside the asset snapshot and title they already carry. ADR-0010
-  already sanctions `nextDue` as an on-event domain date; the payloads must include it.
+  already sanctions `nextDue` as an on-event domain date; the payloads must include it. `S5` adds
+  the same payload requirement to `MaintenanceTaskRescheduled`.
 - **Own cancelable state, keyed by task.** Notifications keeps one pending scheduled reminder per
   task, with the snapshot, `nextDue`, computed `fireAt`, a status (`pending` / `fired` /
   `canceled` / `superseded`), and the ordering marker below. This is the "mutable, cancelable
@@ -263,10 +268,10 @@ same handler paths, but that is **out of scope** for this spec and parked in
       `nextDue` snapshot copied from the scheduled-reminder state, so the inbox row is
       self-contained
 - [ ] A reminder whose task was canceled (`MaintenanceTaskDeleted`) or superseded
-      (`MaintenanceTaskAdvanced` or `MaintenanceTaskReconciled`) before the sweep is **not** fired
+      (`MaintenanceTaskAdvanced`, `MaintenanceTaskRescheduled`, or `MaintenanceTaskReconciled`) before the sweep is **not** fired
 - [ ] A `MaintenanceTaskReconciled` event whose `nextDue` is unchanged creates no new reminder cycle or fire-status change; if it wins `(taskRevision, kind, lowercase(eventId))` ordering, it replaces the pending snapshot and marker, while fired/superseded/canceled cycle rows remain unchanged
 - [ ] A reconciliation to a previously seen cycle updates or reactivates an unfired scheduled-reminder row; a cycle that already fired remains fired and never creates a duplicate in-app notification or email
-- [ ] Reconciliation, task-update, advance, and delete ingestion is idempotent by source event id and task cycle, and resolves duplicate or out-of-order delivery using `(taskRevision, kind, lowercase(eventId))` ordering
+- [ ] Reconciliation, task-update, reschedule, advance, and delete ingestion is idempotent by source event id and task cycle, and resolves duplicate or out-of-order delivery using `(taskRevision, kind, lowercase(eventId))` ordering
 - [ ] The lead time is a single shared constant with the dashboard `soon` threshold
       ([dashboard.md](./dashboard.md)); the two are defined once, not independently
 
@@ -376,6 +381,8 @@ arithmetic, not timestamp subtraction.
 | Reminder `fireAt` arrives                                   | One `maintenance_due_soon` notification created for that cycle                                                                                                                             |
 | Sweep runs again before the task advances                   | No duplicate — creation idempotent on (taskId, nextDue)                                                                                                                                    |
 | `MaintenanceTaskAdvanced` received                          | Prior pending reminder superseded; a new one scheduled for the new `nextDue`; no reminder for the old cycle                                                                                |
+| `S5` `MaintenanceTaskRescheduled` received                  | Prior pending reminder superseded; a new one is scheduled for the user-selected future `nextDue`; no maintenance-task read-back occurs                                                     |
+| `S5` reschedule arrives after the prior cycle fired         | The fired reminder remains historical; the new future cycle is scheduled normally and does not duplicate the already-fired notification                                                    |
 | `MaintenanceTaskDeleted` received before the reminder fires | Pending reminder canceled; nothing fires for that task                                                                                                                                     |
 | Advance and delete events arrive out of order               | Resolved by `(taskRevision, kind, lowercase(eventId))` — the higher task revision wins regardless of arrival order                                                                         |
 | A maintenance event is redelivered                          | No-op — deduped on the event id                                                                                                                                                            |
@@ -416,7 +423,8 @@ as the domain events below, not request telemetry.
 `MaintenanceTaskReconciled`, and `MaintenanceTaskDeleted` events
 ([maintenance-task.md](./maintenance-task.md)). Delivery is durable (its own queue), idempotent on
 the event id, and order-tolerant — the same posture as [activity-history.md](./activity-history.md).
-Those events must carry `nextDue` for this consumer.
+Those events must carry `nextDue` for this consumer. Maintenance-task `S5` adds
+`MaintenanceTaskRescheduled` with the same delivery and payload requirements.
 
 **Domain events produced:** Two events on a new dataset `pineapple_notification_domain_events`
 (binding `NOTIFICATION_DOMAIN_TELEMETRY`). Telemetry handlers stay **thin selective readers**: they
@@ -469,7 +477,7 @@ email covered — this is the deliverability signal ADR-0012 requires.
 - Populate `nextDue` and `taskRevision` on every enriched `MaintenanceTaskCreated`,
   `MaintenanceTaskUpdated`, `MaintenanceTaskAdvanced`, and `MaintenanceTaskReconciled` event
   payload where it is constructed in the application layer. The thin telemetry blobs stay PII-free
-  and unchanged.
+  and unchanged. `S5` must do the same for `MaintenanceTaskRescheduled`.
 - Add two dedicated queues, each with its own DLQ: one inbound queue for the `MaintenanceTask*`
   notification consumer, and one outbound queue for aggregated email delivery. The split provides
   per-role isolation per [ADR-0011](../../decisions/0011-reliable-event-delivery-via-cloudflare-queues.md):
@@ -592,7 +600,7 @@ NOTHING` and then read the existing run; a concurrent or retried invocation firs
 - **Auto-resolving a notification when its task is later completed** — completing a task does not
   retroactively clear or mark read an already-created reminder in v1 (a superseding
   `MaintenanceTaskAdvanced` only prevents the _old cycle's_ reminder from firing; it does not touch
-  a reminder already fired)
+  a reminder already fired). `S5` rescheduling follows the same rule when it ships.
 - **Snooze, dismiss/delete, or muting** a notification — v1 supports read / mark-all-read only
 - **Auto-pruning / expiring notifications** — v1 keeps a durable inbox with no auto-deletion; a
   retention window (prune read/old entries) is future work
