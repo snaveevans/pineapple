@@ -19,7 +19,7 @@
     "@snaveevans/pineapple-shared": "workspace:*",
     "better-auth": "^1.7.1",
     "better-auth-cloudflare": "^0.3.1",
-    "hono": "^4.13.3",
+    "hono": "^4.13.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
