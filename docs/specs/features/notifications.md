@@ -1,15 +1,15 @@
 ---
 name: notifications
-description: An event-driven durable scheduler that turns enriched MaintenanceTask events into "maintenance due soon" reminders ~7 days before nextDue — one in-app notification per task, and a single aggregated email per user when they have a verified contact email
+description: An event-driven durable scheduler that turns enriched MaintenanceTask events into "maintenance due soon" reminders ~7 days before nextDue — one in-app notification per task, and a single aggregated email per user when they have a verified contact email; reminders can be snoozed one day at a time from the dashboard without changing the task schedule
 metadata:
   type: feature
 ---
 
 # Notifications
 
-**Status:** active
+**Status:** in-progress
 **Owner:** product and engineering
-**Last Updated:** 2026-08-21
+**Last Updated:** 2026-09-03
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-task.md](./maintenance-task.md), [activity-history.md](./activity-history.md), [dashboard.md](./dashboard.md), [user-profile.md](./user-profile.md), [email-verification.md](./email-verification.md)
 
 ---
@@ -52,6 +52,15 @@ next 7 calendar days). A reminder is, in effect, a **push of the moment a task e
 `soon` bucket**; the two must share one lead-time constant so the inbox and the dashboard never
 disagree.
 
+A reminder can also be **snoozed from the dashboard for one day at a time**
+([dashboard.md](./dashboard.md) `S6`). Snooze is **reminder-level state owned by this feature**,
+stored on the task's current reminder cycle: it defers when the reminder next fires — and
+re-arms a reminder that already fired so it fires again after expiry — while the task's
+`nextDue`, recurrence, urgency, and completion evidence are untouched
+([maintenance-task.md](./maintenance-task.md) owns those). Snooze is therefore distinct from
+rescheduling a task, and per-entry inbox actions (dismiss/mute) stay out of scope
+([#186](https://github.com/snaveevans/pineapple/issues/186)).
+
 Notifications is distinct from its neighbors: the [dashboard](./dashboard.md) is a **pull** view
 of everything due now; [activity-history](./activity-history.md) is a backward-looking record of
 what you **did**; Notifications is a forward-looking, **push** nudge about what needs attention,
@@ -78,6 +87,8 @@ capability and behavior.
   reminder for work already done or a task that no longer exists.
 - **Owner-operator reviewing the inbox** — reads notifications and marks them read to clear the
   unread badge.
+- **Owner-operator who can't act on a reminder yet** — snoozes it from the dashboard for one day
+  at a time so the nudging stops without pretending the work is done or moving the due date.
 - **New owner-operator with no tasks** — sees an empty inbox.
 - **System: durable scheduler** — consumes enriched `MaintenanceTask*` events and maintains
   notifications' own cancelable scheduled-reminder state keyed by task; idempotent and
@@ -106,6 +117,9 @@ capability and behavior.
   them by email**
 - As **DIYer Dale**, I can **open a notifications inbox and mark notifications read** so that **I
   can track and clear what needs my attention**
+- As **DIYer Dale who isn't ready for a task the app reminded him about**, I can **snooze the
+  reminder for one day** so that **it stops nudging me today and comes back tomorrow, while the
+  task stays genuinely due on its real date**
 - As **DIYer Dale who completes, reschedules, or deletes a task before its reminder**, I **don't receive a stale
   reminder** so that **notifications stay trustworthy and relevant**
 - As **DIYer Dale who corrects or deletes a linked maintenance record**, I **don't receive a
@@ -142,7 +156,8 @@ same handler paths, but that is **out of scope** for this spec and parked in
   already sanctions `nextDue` as an on-event domain date; the payloads must include it. `S5` adds
   the same payload requirement to `MaintenanceTaskRescheduled`.
 - **Own cancelable state, keyed by task.** Notifications keeps one pending scheduled reminder per
-  task, with the snapshot, `nextDue`, computed `fireAt`, a status (`pending` / `fired` /
+  task, with the snapshot, `nextDue`, computed `fireAt`, an optional `snoozedUntil` snooze date
+  (see [Snoozing a reminder](#snoozing-a-reminder)), a status (`pending` / `fired` /
   `canceled` / `superseded`), and the ordering marker below. This is the "mutable, cancelable
   state keyed by the source entity" of the ADR-0010 durable scheduler.
 - **Task heads are terminal and orderable.** A `notification_task_heads` row stores the latest
@@ -181,14 +196,29 @@ same handler paths, but that is **out of scope** for this spec and parked in
   row and cycle transition are part of that same transaction.
 - **The reminder sweep is notifications' own cron.** Per
   [ADR-0013](../../decisions/0013-reminder-scheduler-via-cron-sweeps.md), a scheduled sweep scans **notifications'
-  scheduled-reminder state** for `pending` reminders whose `fireAt` has arrived
-  (`fireAt ≤ today`, date-only), and for each: creates the in-app notification (idempotent on
-  `(taskId, nextDue)`) and marks the reminder `fired`. A reminder fires on the **first sweep on or
-  after its `fireAt` date**. The sweep then aggregates per owner (below) and touches only
-  notifications' own tables.
+  scheduled-reminder state** for `pending` reminders whose **effective fire date** has arrived
+  (`max(fireAt, snoozedUntil) ≤ today`, date-only), and for each: creates the in-app notification
+  for the cycle (the first fire inserts it; a snooze re-fire re-activates the existing row, see
+  below) and marks the reminder `fired`, clearing any `snoozedUntil`. A reminder fires on the
+  **first sweep on or after its effective fire date**. The sweep then aggregates per owner
+  (below) and touches only notifications' own tables.
 - **A reminder already inside the window when scheduled** — a task created or advanced with
   `nextDue ≤ 7 days` out (including already overdue) has `fireAt` in the past, so the **next**
   sweep fires it; there is no retroactive firing before the event was received.
+- **Snooze defers the reminder, never the schedule.** `snoozedUntil` is a timezone-free
+  `YYYY-MM-DD` date computed server-side as `todayUtc + 1` calendar day at snooze time — the
+  client never supplies a date. The effective fire date is `max(fireAt, snoozedUntil)`, so a
+  snooze can only postpone, never accelerate: snoozing a reminder whose natural `fireAt` is
+  still in the future is permitted but inert until that date. Re-snoozing replaces the stored
+  `snoozedUntil` (one snooze per cycle); there is **no un-snooze in v1** — expiry or a cycle
+  transition is the only way out.
+- **Snoozing a fired cycle re-arms it.** Snooze is the **only** sanctioned `fired → pending`
+  transition: the cycle returns to `pending` with its stored `fireAt` unchanged (already in the
+  past), so the first sweep on or after `snoozedUntil` fires it again. A re-fire **re-activates
+  the cycle's existing inbox row** — clearing `readAt` and refreshing `createdAt` so the entry
+  re-surfaces at the top of the inbox — and never inserts a duplicate row: the
+  `(taskId, nextDue)` uniqueness holds. The aggregated email re-sends through the normal sweep
+  path.
 - **Self-contained, no read-back ever (steady state).** Because the snapshot rides in from the
   event, both the scheduled-reminder row and the resulting notification render on their own — even
   after the task is deleted or the asset archived — exactly like
@@ -203,11 +233,17 @@ same handler paths, but that is **out of scope** for this spec and parked in
   reused. A
   previously seen cycle whose reminder has not fired (`pending` or `superseded`) is reused or
   reactivated instead of inserted again. Only `superseded` cycles can reactivate; `canceled` means
-  task deletion and is terminal. A cycle whose reminder already fired remains `fired`; it cannot
+  task deletion and is terminal. A cycle whose reminder already fired remains `fired` — snooze is
+  the only exception (see "Snoozing a fired cycle re-arms it" above) — and it cannot
   create another in-app notification or email. An event with the current `nextDue` does not create
   a new cycle or change its fire status. If the current cycle is `pending`, the winning event
   replaces its asset/title/task snapshot in the same transaction; if the cycle is `fired`,
   `superseded`, or `canceled`, the cycle row and its historical snapshot are unchanged.
+  `snoozedUntil` is part of this state machine: it is set only by a snooze and **cleared by every
+  other winning transition** — a supersede drops it, and reusing or reactivating a previously seen
+  cycle clears any stale snooze stored on that row, so a reactivated cycle never resurrects an old
+  snooze. Only a cycle-preserving event (a title-only edit, or a reconciliation whose `nextDue` is
+  unchanged) keeps a snooze in place.
 - **Bootstrapping the existing fleet (one-time backfill).** The scheduler learns tasks from
   events, so at launch a **one-time bootstrap** seeds the scheduled-reminder state from the tasks
   that already exist (tasks on active assets, keyed and deduped the same `(taskId, nextDue)` way).
@@ -253,6 +289,46 @@ same handler paths, but that is **out of scope** for this spec and parked in
 - [ ] There is no create, edit-content, or delete endpoint — notifications are system-generated
       and, in v1, are only read or marked read (see Out of Scope)
 
+### Snoozing a reminder
+
+- [ ] `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze` accepts exactly
+      `{ durationDays: 1 }` and returns `{ taskId, snoozedUntil }` with status 200;
+      `durationDays` is the literal `1` in v1 — a missing or different value, or any unknown
+      field, returns 422 (future duration options widen this schema without changing its shape)
+- [ ] `snoozedUntil = todayUtc + 1` calendar day, computed server-side as a timezone-free
+      `YYYY-MM-DD` date; the client never supplies a date and the snooze is one day by definition
+- [ ] The worker's route handler performs the shared task-then-asset-then-access check (same
+      order as task edit/reschedule); the snooze use case then resolves the task's current cycle
+      from `notification_task_heads.currentNextDue` — notifications' own state — and never reads
+      maintenance-task storage. This is the HTTP authorization path, not a durable-consumer
+      read-back; ADR-0010's no-read-back rule governs the scheduler and consumers
+- [ ] Snoozing a `pending` cycle defers its next fire to `snoozedUntil`; snoozing an
+      already-`fired` cycle re-arms it (status back to `pending`, `fireAt` unchanged) so the
+      first sweep on or after `snoozedUntil` fires it again; the effective fire date is always
+      `max(fireAt, snoozedUntil)` — a snooze never accelerates
+- [ ] A re-fire re-activates the cycle's existing inbox notification — clearing `readAt` and
+      refreshing `createdAt` so the entry re-surfaces — and never inserts a second notification
+      for the same `(taskId, nextDue)`; the aggregated email re-sends through the normal sweep
+      path
+- [ ] Snooze is available to any authenticated user with access to the task (owner or
+      team-shared, same as task edit/reschedule); the reminder itself remains keyed to the
+      task's owner
+- [ ] The snooze write is conditional on the head's current cycle (status `pending` or `fired`
+      and `nextDue = currentNextDue`); a race with a cycle transition retries against fresh
+      head state, mirroring task-mutation concurrency, and returns 409 after retries are
+      exhausted
+- [ ] A task with no reminder state (no task head, or no row for the current cycle) returns 404
+      and is logged as an anomaly; a current cycle whose status is neither `pending` nor `fired`
+      fails closed as an invariant violation; the operation never fabricates a reminder row
+- [ ] A deleted task's head is terminal: snoozing it returns 404, and the existing delete-cancel
+      path drops the snooze with the canceled cycle
+- [ ] Snooze is a notifications-side mutation: it never changes the task's `nextDue`,
+      `lastCompletedDate`, recurrence, urgency, or completion evidence, publishes no
+      `MaintenanceTask*` event, writes no activity-history entry, and never creates a
+      maintenance record
+- [ ] The maintenance write gate (`503 maintenance_write_frozen`) does **not** apply to snooze —
+      it guards maintenance-task storage, and snooze writes notifications-owned state only
+
 ### Reminder creation (the notifications sweep)
 
 - [ ] A one-time launch **bootstrap** seeds the scheduled-reminder state from existing tasks on
@@ -261,16 +337,17 @@ same handler paths, but that is **out of scope** for this spec and parked in
       steady-state scheduling stays event-driven
 - [ ] Reminders are created only from notifications' own scheduled-reminder state; the sweep never
       reads maintenance-task or asset tables
-- [ ] Each `pending` reminder whose `fireAt` has arrived produces exactly one
-      `maintenance_due_soon` notification; creation is idempotent on `(taskId, nextDue)` so a
-      repeated sweep never duplicates a reminder for the same cycle
+- [ ] Each `pending` reminder whose effective fire date (`max(fireAt, snoozedUntil)`) has arrived
+      produces exactly one `maintenance_due_soon` notification; creation is idempotent on
+      `(taskId, nextDue)` so a repeated sweep never duplicates a reminder for the same cycle —
+      a snooze re-fire re-activates the existing row instead of inserting a duplicate
 - [ ] Each created notification carries the asset (`id`, `name`, `type`), task `title`, and
       `nextDue` snapshot copied from the scheduled-reminder state, so the inbox row is
       self-contained
 - [ ] A reminder whose task was canceled (`MaintenanceTaskDeleted`) or superseded
       (`MaintenanceTaskAdvanced`, `MaintenanceTaskRescheduled`, or `MaintenanceTaskReconciled`) before the sweep is **not** fired
 - [ ] A `MaintenanceTaskReconciled` event whose `nextDue` is unchanged creates no new reminder cycle or fire-status change; if it wins `(taskRevision, kind, lowercase(eventId))` ordering, it replaces the pending snapshot and marker, while fired/superseded/canceled cycle rows remain unchanged
-- [ ] A reconciliation to a previously seen cycle updates or reactivates an unfired scheduled-reminder row; a cycle that already fired remains fired and never creates a duplicate in-app notification or email
+- [ ] A reconciliation to a previously seen cycle updates or reactivates an unfired scheduled-reminder row; a cycle that already fired remains fired (snooze aside) and never creates a duplicate in-app notification or email; reactivating a previously seen cycle clears any stale snooze stored on it
 - [ ] Reconciliation, task-update, reschedule, advance, and delete ingestion is idempotent by source event id and task cycle, and resolves duplicate or out-of-order delivery using `(taskRevision, kind, lowercase(eventId))` ordering
 - [ ] The lead time is a single shared constant with the dashboard `soon` threshold
       ([dashboard.md](./dashboard.md)); the two are defined once, not independently
@@ -353,7 +430,9 @@ and never trust client input.
 **Permissions:** Notifications are scoped entirely by the resolved `User.id`. Queries filter by
 owner; the response never exposes another user's notifications, `ownerId`, or auth identifiers.
 Marking read is owner-scoped; a foreign or unknown `notificationId` returns 404 (no existence
-leak). There is no cross-user or team-wide visibility in v1.
+leak). Snoozing follows the task-access model — any user who can edit or reschedule the task
+(owner or team-shared) may snooze its reminder — while the reminder state remains keyed to the
+task's owner. There is no cross-user or team-wide visibility in v1.
 
 **Validation (Zod HTTP edge, per [ADR-0007](../../decisions/0007-api-validation-boundary.md)):**
 
@@ -364,6 +443,12 @@ leak). There is no cross-user or team-wide visibility in v1.
 - `POST /api/notifications/{notificationId}/read`: `notificationId` must be a valid UUID (422
   otherwise); no body.
 - `POST /api/notifications/read-all`: no body.
+- `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze`: body is exactly
+  `{ durationDays: 1 }` — `durationDays` required and literally `1`; a different value, a
+  missing field, or an unknown field returns 422. A request body that is valid JSON but not an
+  object returns 422 with the shared pinned message `Request body must be a JSON object.`;
+  missing/non-`application/json` Content-Type or malformed JSON returns 400 (cross-cutting,
+  unpinned). No query parameters.
 
 **Date handling:** `createdAt`/`readAt` are UTC timestamps (instants). `nextDue` and the derived
 `fireAt` are timezone-free `YYYY-MM-DD` calendar dates, consistent with
@@ -372,48 +457,63 @@ arithmetic, not timestamp subtraction.
 
 ## Edge Cases & Error States
 
-| Scenario                                                    | Expected Behavior                                                                                                                                                                          |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| No valid session on inbox/mark-read                         | 401; client redirects to `/login`                                                                                                                                                          |
-| Caller has no notifications                                 | Empty list, unread count 0; client shows an empty inbox state                                                                                                                              |
-| `MaintenanceTaskCreated` received, `nextDue` > 7 days out   | A pending reminder is scheduled; nothing fires until its `fireAt` arrives                                                                                                                  |
-| `MaintenanceTaskCreated` received already inside the window | Pending reminder with `fireAt` in the past; the next sweep fires it (no retroactive firing before the event)                                                                               |
-| Reminder `fireAt` arrives                                   | One `maintenance_due_soon` notification created for that cycle                                                                                                                             |
-| Sweep runs again before the task advances                   | No duplicate — creation idempotent on (taskId, nextDue)                                                                                                                                    |
-| `MaintenanceTaskAdvanced` received                          | Prior pending reminder superseded; a new one scheduled for the new `nextDue`; no reminder for the old cycle                                                                                |
-| `S5` `MaintenanceTaskRescheduled` received                  | Prior pending reminder superseded; a new one is scheduled for the user-selected future `nextDue`; no maintenance-task read-back occurs                                                     |
-| `S5` reschedule arrives after the prior cycle fired         | The fired reminder remains historical; the new future cycle is scheduled normally and does not duplicate the already-fired notification                                                    |
-| `MaintenanceTaskDeleted` received before the reminder fires | Pending reminder canceled; nothing fires for that task                                                                                                                                     |
-| Advance and delete events arrive out of order               | Resolved by `(taskRevision, kind, lowercase(eventId))` — the higher task revision wins regardless of arrival order                                                                         |
-| A maintenance event is redelivered                          | No-op — deduped on the event id                                                                                                                                                            |
-| Several of one owner's reminders fire in the same sweep     | One aggregated email listing all of them; one inbox notification per task                                                                                                                  |
-| Two cron invocations share a scheduled timestamp            | Unique `(cronName, scheduledTimeEpochMs)` reuses one `sweepRunId`; reminder claims, notifications, batches, and outbox rows are not duplicated                                             |
-| Sweep crashes before its D1 transaction commits             | No reminder is marked fired; the next invocation reuses the run/items and performs the complete transaction                                                                                |
-| Sweep crashes after its D1 transaction commits              | Fired reminders, sweep items, notifications, email batch, and outbox row are durable; only queue relay remains to retry                                                                    |
-| Owner has a **verified** contact email                      | Aggregated email dispatched to that address                                                                                                                                                |
-| Owner has **no**/**unverified** contact email               | Per-task notifications created; **no email**; batch recorded `suppressed`; UI prompts to verify an email                                                                                   |
-| Owner verifies an email after some suppressed reminders     | Future reminders email; already-suppressed past notifications are not retroactively emailed (v1)                                                                                           |
-| Aggregated email send transiently fails                     | Retried with backoff via the queue; not lost                                                                                                                                               |
-| Aggregated email send permanently fails                     | Dead-lettered and durably persisted; outcome recorded as `failed`; detectable, not silently dropped                                                                                        |
-| Redelivery of the same aggregated send job                  | Idempotent on the batch id — no second in-flight claim; only confirmed pre-acceptance transient failures are retried; provider crash-after-accept duplicates remain the documented v1 edge |
-| Task on an asset that was archived                          | An existing scheduled reminder fires in v1; archiving does not cancel a task or reminder in this slice, and archive suspension remains deferred to [backlog](../backlog/archive-asset.md)  |
-| Mark-read on an already-read notification                   | Idempotent success                                                                                                                                                                         |
-| Mark-read on a foreign or unknown `notificationId`          | 404; existence not revealed                                                                                                                                                                |
-| New notification arrives while the user views the inbox     | Appears on the next fetch/refresh; the inbox is not real-time                                                                                                                              |
-| `limit`/`cursor` out of range or malformed                  | 422 validation error                                                                                                                                                                       |
-| Non-401 API error on the inbox (e.g. 500)                   | Client shows an inbox-level error state with retry                                                                                                                                         |
+| Scenario                                                                        | Expected Behavior                                                                                                                                                                          |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| No valid session on inbox/mark-read                                             | 401; client redirects to `/login`                                                                                                                                                          |
+| Caller has no notifications                                                     | Empty list, unread count 0; client shows an empty inbox state                                                                                                                              |
+| `MaintenanceTaskCreated` received, `nextDue` > 7 days out                       | A pending reminder is scheduled; nothing fires until its `fireAt` arrives                                                                                                                  |
+| `MaintenanceTaskCreated` received already inside the window                     | Pending reminder with `fireAt` in the past; the next sweep fires it (no retroactive firing before the event)                                                                               |
+| Reminder `fireAt` arrives                                                       | One `maintenance_due_soon` notification created for that cycle                                                                                                                             |
+| Sweep runs again before the task advances                                       | No duplicate — creation idempotent on (taskId, nextDue)                                                                                                                                    |
+| `MaintenanceTaskAdvanced` received                                              | Prior pending reminder superseded; a new one scheduled for the new `nextDue`; no reminder for the old cycle                                                                                |
+| `S5` `MaintenanceTaskRescheduled` received                                      | Prior pending reminder superseded; a new one is scheduled for the user-selected future `nextDue`; no maintenance-task read-back occurs                                                     |
+| `S5` reschedule arrives after the prior cycle fired                             | The fired reminder remains historical; the new future cycle is scheduled normally and does not duplicate the already-fired notification                                                    |
+| `MaintenanceTaskDeleted` received before the reminder fires                     | Pending reminder canceled; nothing fires for that task                                                                                                                                     |
+| Advance and delete events arrive out of order                                   | Resolved by `(taskRevision, kind, lowercase(eventId))` — the higher task revision wins regardless of arrival order                                                                         |
+| A maintenance event is redelivered                                              | No-op — deduped on the event id                                                                                                                                                            |
+| Several of one owner's reminders fire in the same sweep                         | One aggregated email listing all of them; one inbox notification per task                                                                                                                  |
+| Two cron invocations share a scheduled timestamp                                | Unique `(cronName, scheduledTimeEpochMs)` reuses one `sweepRunId`; reminder claims, notifications, batches, and outbox rows are not duplicated                                             |
+| Sweep crashes before its D1 transaction commits                                 | No reminder is marked fired; the next invocation reuses the run/items and performs the complete transaction                                                                                |
+| Sweep crashes after its D1 transaction commits                                  | Fired reminders, sweep items, notifications, email batch, and outbox row are durable; only queue relay remains to retry                                                                    |
+| Owner has a **verified** contact email                                          | Aggregated email dispatched to that address                                                                                                                                                |
+| Owner has **no**/**unverified** contact email                                   | Per-task notifications created; **no email**; batch recorded `suppressed`; UI prompts to verify an email                                                                                   |
+| Owner verifies an email after some suppressed reminders                         | Future reminders email; already-suppressed past notifications are not retroactively emailed (v1)                                                                                           |
+| Aggregated email send transiently fails                                         | Retried with backoff via the queue; not lost                                                                                                                                               |
+| Aggregated email send permanently fails                                         | Dead-lettered and durably persisted; outcome recorded as `failed`; detectable, not silently dropped                                                                                        |
+| Redelivery of the same aggregated send job                                      | Idempotent on the batch id — no second in-flight claim; only confirmed pre-acceptance transient failures are retried; provider crash-after-accept duplicates remain the documented v1 edge |
+| Task on an asset that was archived                                              | An existing scheduled reminder fires in v1; archiving does not cancel a task or reminder in this slice, and archive suspension remains deferred to [backlog](../backlog/archive-asset.md)  |
+| Mark-read on an already-read notification                                       | Idempotent success                                                                                                                                                                         |
+| Mark-read on a foreign or unknown `notificationId`                              | 404; existence not revealed                                                                                                                                                                |
+| Snooze a `pending` reminder whose natural `fireAt` is in the future             | Permitted but inert until `fireAt` — effective fire date is `max(fireAt, snoozedUntil)`; a snooze never accelerates                                                                        |
+| Snooze a `pending` reminder whose `fireAt` has arrived (pre-sweep window)       | Today's sweep does not fire it; the first sweep on or after `snoozedUntil` does                                                                                                            |
+| Snooze an already-`fired` cycle                                                 | Re-arms to `pending`; re-fires on the first sweep on or after `snoozedUntil`; the inbox row is re-activated (unread, re-dated), not duplicated, and the email re-sends                     |
+| Re-snooze before expiry                                                         | `snoozedUntil` replaced (server-computed `todayUtc + 1`); still one snooze per cycle; no un-snooze in v1                                                                                   |
+| Task completed, rescheduled, or interval-edited while snoozed                   | Cycle superseded; snooze dropped; the new cycle starts unsnoozed with its own `fireAt`                                                                                                     |
+| Title-only edit or same-`nextDue` reconciliation while snoozed                  | Cycle preserved; snooze kept                                                                                                                                                               |
+| Reconciliation rewinds `nextDue` to a previously seen cycle                     | The reactivated cycle's stored snooze is cleared — a stale snooze never resurrects                                                                                                         |
+| Task deleted while snoozed                                                      | Existing cancel path wins; the snooze is gone with the canceled cycle; snoozing the deleted task returns 404                                                                               |
+| Snooze on a task with no reminder state (no head/current-cycle row)             | 404, logged as an anomaly; state is never fabricated                                                                                                                                       |
+| Snooze body invalid (missing/non-`1` `durationDays`, unknown field, non-object) | 422; non-object JSON body uses the shared pinned message                                                                                                                                   |
+| Snooze on a task whose asset is inaccessible                                    | 403 (same task-then-asset-then-access order as task edit)                                                                                                                                  |
+| Snooze on a task of an archived asset                                           | Permitted via API (matches task edit/reschedule); unreachable from the dashboard, which excludes archived-asset tasks                                                                      |
+| Snooze races a cycle transition                                                 | Conditional update on the head's current cycle; retried against fresh head state; 409 after retries exhausted                                                                              |
+| Maintenance write gate is frozen (`maintenance_write_frozen`)                   | Snooze still works — the 503 gate guards maintenance-task storage, not notifications state                                                                                                 |
+| New notification arrives while the user views the inbox                         | Appears on the next fetch/refresh; the inbox is not real-time                                                                                                                              |
+| `limit`/`cursor` out of range or malformed                                      | 422 validation error                                                                                                                                                                       |
+| Non-401 API error on the inbox (e.g. 500)                                       | Client shows an inbox-level error state with retry                                                                                                                                         |
 
 ## Telemetry
 
 **Request telemetry:**
 
-| Route                                           | Operation                  |
-| ----------------------------------------------- | -------------------------- |
-| `GET /api/notifications`                        | `ListNotifications`        |
-| `POST /api/notifications/{notificationId}/read` | `MarkNotificationRead`     |
-| `POST /api/notifications/read-all`              | `MarkAllNotificationsRead` |
+| Route                                                          | Operation                   |
+| -------------------------------------------------------------- | --------------------------- |
+| `GET /api/notifications`                                       | `ListNotifications`         |
+| `POST /api/notifications/{notificationId}/read`                | `MarkNotificationRead`      |
+| `POST /api/notifications/read-all`                             | `MarkAllNotificationsRead`  |
+| `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze` | `SnoozeMaintenanceReminder` |
 
-All three route patterns must be added to the operation-name mapping in `technicalTelemetry.ts`
+All four route patterns must be added to the operation-name mapping in `technicalTelemetry.ts`
 and the Operation Name Mapping table in [telemetry.md](../cross-cutting/telemetry.md). The
 scheduler, the sweep, and email delivery run outside the HTTP request path, so they are captured
 as the domain events below, not request telemetry.
@@ -426,15 +526,17 @@ the event id, and order-tolerant — the same posture as [activity-history.md](.
 Those events must carry `nextDue` for this consumer. Maintenance-task `S5` adds
 `MaintenanceTaskRescheduled` with the same delivery and payload requirements.
 
-**Domain events produced:** Two events on a new dataset `pineapple_notification_domain_events`
+**Domain events produced:** Three events on a new dataset `pineapple_notification_domain_events`
 (binding `NOTIFICATION_DOMAIN_TELEMETRY`). Telemetry handlers stay **thin selective readers**: they
-record ids, enums, and outcomes only — **never** the email address, asset name, or task title, per
-the [telemetry.md](../cross-cutting/telemetry.md) PII anti-pattern. The user-facing snapshot/title
-fields ride in the notification store and the queue message, not in Analytics Engine.
+record ids, enums, dates, and outcomes only — **never** the email address, asset name, or task
+title, per the [telemetry.md](../cross-cutting/telemetry.md) PII anti-pattern. The user-facing
+snapshot/title fields ride in the notification store and the queue message, not in Analytics
+Engine.
 
-### `MaintenanceReminderCreated` — when the sweep creates a reminder (index: `owner_id`)
+### `MaintenanceReminderCreated` — per reminder fire (index: `owner_id`)
 
-One per notification (per task/cycle).
+One per fire: the first fire of a cycle creates the inbox row; a snooze re-fire re-activates
+that same row and emits another event carrying the same notification id.
 
 | Field        | Name                  | Value                                              |
 | ------------ | --------------------- | -------------------------------------------------- |
@@ -452,6 +554,28 @@ One per notification (per task/cycle).
 | `doubles[0]` | `count`               | Always `1`                                         |
 | `doubles[1]` | `event_time_ms`       | Event timestamp (ms since epoch)                   |
 | `doubles[2]` | `lead_days`           | Whole calendar days between creation and `nextDue` |
+
+### `MaintenanceReminderSnoozed` — on each accepted snooze (index: `owner_id`)
+
+One per accepted snooze (per task/cycle). Emitted by the snooze use case through the
+notification domain-event outbox; the mutating-request middleware relays it after the
+successful `POST`, like other HTTP-path mutations.
+
+| Field        | Name                    | Value                             |
+| ------------ | ----------------------- | --------------------------------- |
+| `indexes[0]` | —                       | `owner_id`                        |
+| `blobs[0]`   | `event_type`            | `"MaintenanceReminderSnoozed"`    |
+| `blobs[1]`   | `aggregate_type`        | `"Notification"`                  |
+| `blobs[2]`   | `maintenance_task_id`   | Task UUID                         |
+| `blobs[3]`   | `scheduled_reminder_id` | Scheduled-reminder (cycle) UUID   |
+| `blobs[4]`   | `asset_id`              | Asset UUID                        |
+| `blobs[5]`   | `owner_id`              | Owner UUID                        |
+| `blobs[6]`   | `actor_id`              | UUID of the snoozing user         |
+| `blobs[7]`   | `snoozed_until`         | Snooze expiry date (`YYYY-MM-DD`) |
+| `blobs[8]`   | `schema_version`        | `"v1"`                            |
+| `blobs[9]`   | `result`                | `"success"`                       |
+| `doubles[0]` | `count`                 | Always `1`                        |
+| `doubles[1]` | `event_time_ms`         | Event timestamp (ms since epoch)  |
 
 ### `ReminderEmailDispatched` — per aggregated email decision (index: `owner_id`)
 
@@ -564,6 +688,19 @@ NOTHING` and then read the existing run; a concurrent or retried invocation firs
 - Add the email-sending application port, the Cloudflare Email Sending infrastructure adapter, the
   Worker binding/`wrangler` config, and the sending domain's SPF/DKIM/DMARC in Cloudflare DNS.
   Domain and application code stay provider-agnostic.
+- Snooze state is an **expand migration** adding a nullable `snoozed_until` date column to
+  `scheduled_reminders` (per
+  [schema-migrations.md](../cross-cutting/schema-migrations.md)); `null` means never snoozed, so
+  no backfill is needed. Add a `SnoozeReminder` application use case whose D1 transition
+  conditionally updates the current cycle (`status` `pending`→`pending` with a new
+  `snoozedUntil`, or `fired`→`pending` re-arm) against `notification_task_heads.currentNextDue`,
+  with the same bounded-retry concurrency as task mutations. The sweep's fire condition becomes
+  `max(fireAt, snoozedUntil)`, and its fire write upsert-revives an existing inbox row on
+  re-fire. The dashboard consumes this state through its queue-item `snoozedUntil` descriptor
+  ([dashboard.md](./dashboard.md) `S6`), computed in the application layer.
+- The snooze endpoint's Zod route spec lives with the other task-action schemas; regenerate
+  `docs/reference/openapi.json` and `apps/web/src/api/schema.ts` per the standard contract-change
+  flow, and add the `SnoozeMaintenanceReminder` operation mapping.
 - Adding the scheduler and inbox introduces new tables such as `scheduled_reminders` and
   `notifications`, plus new branded ids such as `NotificationId` and a scheduled-reminder id.
   Update [data-model.md](../../reference/data-model.md), add the inbox and "verify an email to
@@ -591,17 +728,22 @@ NOTHING` and then read the existing run; a concurrent or retried invocation firs
   are built to extend (registration renewals, inspections), but v1 ships the one due-soon reminder
 - **Configurable or per-task lead times** — 7 days is fixed for v1 (a consumer-owned policy per
   ADR-0010); per-user/per-task lead-time preferences are future work
-- **Preferred local send hour** — v1 sends on the first sweep on or after `fireAt`; a preferred
-  local send hour such as 8am needs a stored user timezone and is future work
+- **Preferred local send hour** — v1 sends on the first sweep on or after the effective fire date;
+  a preferred local send hour such as 8am needs a stored user timezone and is future work
 - **Overdue escalation / repeat reminders** — v1 sends a single reminder per due-cycle; on-due and
-  overdue re-nudges are future work
+  overdue re-nudges are future work. A snooze re-fire is user-initiated, not an automatic
+  re-nudge, and does not change this
 - **A scheduled daily/weekly digest across sweeps** — v1 aggregates per sweep only; a fixed-time
   summary email is future work
 - **Auto-resolving a notification when its task is later completed** — completing a task does not
   retroactively clear or mark read an already-created reminder in v1 (a superseding
   `MaintenanceTaskAdvanced` only prevents the _old cycle's_ reminder from firing; it does not touch
   a reminder already fired). `S5` rescheduling follows the same rule when it ships.
-- **Snooze, dismiss/delete, or muting** a notification — v1 supports read / mark-all-read only
+- **Per-entry dismiss/delete or muting** of inbox notifications — v1 supports read /
+  mark-all-read, plus the task-level reminder snooze above; entry-level actions are tracked in
+  [#186](https://github.com/snaveevans/pineapple/issues/186) and are expected to carry their own
+  state on the notification row rather than reuse reminder `snoozedUntil` (a snooze changes when
+  a reminder fires; a mute would only hide one inbox entry)
 - **Auto-pruning / expiring notifications** — v1 keeps a durable inbox with no auto-deletion; a
   retention window (prune read/old entries) is future work
 - **Channels other than in-app + email** — no SMS, push, or webhooks

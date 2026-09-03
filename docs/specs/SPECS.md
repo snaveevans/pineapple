@@ -39,7 +39,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | [app-search.md](./features/app-search.md)                     | Assets        | in-progress |
 | [dashboard.md](./features/dashboard.md)                       | Home          | in-progress |
 | [activity-history.md](./features/activity-history.md)         | History       | in-progress |
-| [notifications.md](./features/notifications.md)               | Notifications | active      |
+| [notifications.md](./features/notifications.md)               | Notifications | in-progress |
 | [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | in-progress |
 | [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | in-progress |
 | [marketing-home.md](./features/marketing-home.md)             | Marketing     | active      |
