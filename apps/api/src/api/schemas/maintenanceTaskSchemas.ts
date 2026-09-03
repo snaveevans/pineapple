@@ -76,6 +76,16 @@ export const UpdateMaintenanceTaskBodySchema = z
   )
   .openapi("UpdateMaintenanceTaskBody");
 
+export const RescheduleMaintenanceTaskBodySchema = z
+  .object({
+    nextDue: DateOnlySchema.openapi({
+      example: "2026-09-15",
+      description: "New due date for the current cycle; must be strictly after today (UTC)",
+    }),
+  })
+  .strict()
+  .openapi("RescheduleMaintenanceTaskBody");
+
 export const MaintenanceTaskResponseSchema = z
   .object({
     id: z.string().uuid().openapi({ example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }),

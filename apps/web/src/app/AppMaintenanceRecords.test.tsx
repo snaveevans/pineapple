@@ -12,7 +12,11 @@ import {
   deleteMaintenanceRecord,
   type MaintenanceRecord,
 } from "../api/maintenanceRecords.ts";
-import { listMaintenanceTasks } from "../api/maintenanceTasks.ts";
+import {
+  listMaintenanceTasks,
+  rescheduleMaintenanceTask,
+  type MaintenanceTask,
+} from "../api/maintenanceTasks.ts";
 import { AppMaintenanceRecords } from "./AppMaintenanceRecords.tsx";
 
 declare global {
@@ -56,6 +60,7 @@ vi.mock("../api/maintenanceTasks.ts", () => ({
   listMaintenanceTasks: vi.fn(),
   createMaintenanceTask: vi.fn(),
   updateMaintenanceTask: vi.fn(),
+  rescheduleMaintenanceTask: vi.fn(),
   deleteMaintenanceTask: vi.fn(),
   maintenanceTasksQueryKey: (id: string) => ["maintenanceTasks", id],
 }));
@@ -75,6 +80,7 @@ const listMaintenanceRecordsMock = vi.mocked(listMaintenanceRecords);
 const updateMaintenanceRecordMock = vi.mocked(updateMaintenanceRecord);
 const deleteMaintenanceRecordMock = vi.mocked(deleteMaintenanceRecord);
 const listMaintenanceTasksMock = vi.mocked(listMaintenanceTasks);
+const rescheduleMaintenanceTaskMock = vi.mocked(rescheduleMaintenanceTask);
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -103,6 +109,22 @@ function mockRecord(overrides: Partial<MaintenanceRecord> = {}): MaintenanceReco
     notes: "5W-30 synthetic",
     taskId: null,
     createdAt: "2026-05-01T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function mockTask(overrides: Partial<MaintenanceTask> = {}): MaintenanceTask {
+  return {
+    id: "task-1",
+    assetId: "asset-1",
+    title: "Replace furnace filter",
+    intervalValue: 2,
+    intervalUnit: "month",
+    lastCompletedDate: "2026-05-11",
+    nextDue: "2026-07-11",
+    status: "soon",
+    daysDue: 32,
+    createdAt: "2026-05-11T12:00:00.000Z",
     ...overrides,
   };
 }
@@ -301,5 +323,165 @@ describe("AppMaintenanceRecords edit and delete", () => {
     expect(container?.querySelector(".mr-banner")?.textContent).toContain(
       "Maintenance changes are temporarily paused",
     );
+  });
+});
+
+describe("AppMaintenanceRecords task reschedule", () => {
+  function switchToOverview() {
+    // Overview is the default tab; task cards live in the schedule section.
+  }
+
+  it("exposes a reschedule action on each task card and opens the future-date form", async () => {
+    listMaintenanceTasksMock.mockResolvedValue({ maintenanceTasks: [mockTask()] });
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".mr-task-card")));
+    switchToOverview();
+
+    const reschedBtn = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reschedule task"]',
+    );
+    expect(reschedBtn).not.toBeNull();
+    await act(async () => {
+      reschedBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector("#mrt-resched-date")));
+    expect(container?.querySelector(".mr-form-title")?.textContent).toContain("Reschedule");
+    // todayUtc comes from the dashboard read model (2026-06-09); min is the day after.
+    await waitFor(() => container?.querySelector<HTMLInputElement>("#mrt-resched-date")?.min === "2026-06-10");
+    expect(container?.querySelector<HTMLInputElement>("#mrt-resched-date")?.min).toBe("2026-06-10");
+  });
+
+  it("submits the reschedule endpoint and updates the task in place", async () => {
+    listMaintenanceTasksMock.mockResolvedValue({ maintenanceTasks: [mockTask()] });
+    rescheduleMaintenanceTaskMock.mockResolvedValue(mockTask({ nextDue: "2026-09-15" }));
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".mr-task-card")));
+
+    const reschedBtn = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reschedule task"]',
+    );
+    await act(async () => {
+      reschedBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector("#mrt-resched-date")));
+    const dateInput = container?.querySelector<HTMLInputElement>("#mrt-resched-date");
+    await act(async () => {
+      if (dateInput) setInputValue(dateInput, "2026-09-15");
+    });
+
+    const submitBtn = container?.querySelector<HTMLButtonElement>(".mr-btn-save");
+    await act(async () => {
+      submitBtn?.click();
+    });
+
+    expect(rescheduleMaintenanceTaskMock).toHaveBeenCalledWith("asset-1", "task-1", {
+      nextDue: "2026-09-15",
+    });
+    await waitFor(() => container?.querySelector("#mrt-resched-date") === null);
+    // The task card's due badge shows the returned effective nextDue.
+    await waitFor(() =>
+      Boolean(container?.querySelector(".mr-task-card")?.textContent?.includes("Sep 15")),
+    );
+  });
+
+  it("shows the server 422 error on the date field and keeps the form open", async () => {
+    listMaintenanceTasksMock.mockResolvedValue({ maintenanceTasks: [mockTask()] });
+    rescheduleMaintenanceTaskMock.mockRejectedValue(
+      new ApiError(422, { error: "Next due date must be after today", field: "nextDue" }),
+    );
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".mr-task-card")));
+
+    const reschedBtn = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reschedule task"]',
+    );
+    await act(async () => {
+      reschedBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector("#mrt-resched-date")));
+    const dateInput = container?.querySelector<HTMLInputElement>("#mrt-resched-date");
+    await act(async () => {
+      if (dateInput) setInputValue(dateInput, "2026-09-15");
+    });
+
+    const submitBtn = container?.querySelector<HTMLButtonElement>(".mr-btn-save");
+    await act(async () => {
+      submitBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector(".hf-field-error")));
+    expect(container?.querySelector(".hf-field-error")?.textContent).toContain(
+      "Next due date must be after today",
+    );
+    // Current task data is intact: the form is still open with the task title.
+    expect(container?.querySelector(".mr-form-sub")?.textContent).toContain(
+      "Replace furnace filter",
+    );
+  });
+
+  it("shows the 503 frozen-write banner and preserves the current task data", async () => {
+    listMaintenanceTasksMock.mockResolvedValue({ maintenanceTasks: [mockTask()] });
+    rescheduleMaintenanceTaskMock.mockRejectedValue(
+      new ApiError(503, { error: "Changes are temporarily paused" }),
+    );
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".mr-task-card")));
+
+    const reschedBtn = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reschedule task"]',
+    );
+    await act(async () => {
+      reschedBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector("#mrt-resched-date")));
+    const dateInput = container?.querySelector<HTMLInputElement>("#mrt-resched-date");
+    await act(async () => {
+      if (dateInput) setInputValue(dateInput, "2026-09-15");
+    });
+
+    const submitBtn = container?.querySelector<HTMLButtonElement>(".mr-btn-save");
+    await act(async () => {
+      submitBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector(".mr-banner")));
+    expect(container?.querySelector(".mr-banner")?.textContent).toContain(
+      "Changes are temporarily paused",
+    );
+    // The task list below still shows the unchanged task.
+    expect(container?.querySelector(".mr-task-card")?.textContent).toContain(
+      "Replace furnace filter",
+    );
+  });
+
+  it("rejects a past or today target client-side without calling the API", async () => {
+    listMaintenanceTasksMock.mockResolvedValue({ maintenanceTasks: [mockTask()] });
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".mr-task-card")));
+
+    const reschedBtn = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Reschedule task"]',
+    );
+    await act(async () => {
+      reschedBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector("#mrt-resched-date")));
+    const dateInput = container?.querySelector<HTMLInputElement>("#mrt-resched-date");
+    await act(async () => {
+      if (dateInput) setInputValue(dateInput, "2026-06-09"); // equals todayUtc
+    });
+
+    const submitBtn = container?.querySelector<HTMLButtonElement>(".mr-btn-save");
+    await act(async () => {
+      submitBtn?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector(".is-invalid")));
+    expect(rescheduleMaintenanceTaskMock).not.toHaveBeenCalled();
   });
 });

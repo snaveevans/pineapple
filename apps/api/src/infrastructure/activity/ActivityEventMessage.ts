@@ -12,6 +12,7 @@ import type { MaintenanceRecordUpdated } from "../../domain/maintenance/events/M
 import type { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/MaintenanceTaskAdvanced.ts";
 import type { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import type { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
+import type { MaintenanceTaskRescheduled } from "../../domain/maintenance/events/MaintenanceTaskRescheduled.ts";
 import type { MaintenanceTaskUpdated } from "../../domain/maintenance/events/MaintenanceTaskUpdated.ts";
 
 export const ACTIVITY_HISTORY_CONSUMER = "activity_history";
@@ -25,6 +26,7 @@ type ActivityDomainEvent =
   | MaintenanceRecordDeleted
   | MaintenanceTaskCreated
   | MaintenanceTaskUpdated
+  | MaintenanceTaskRescheduled
   | MaintenanceTaskAdvanced
   | MaintenanceTaskDeleted;
 
@@ -107,6 +109,15 @@ export type MaintenanceTaskUpdatedActivityEventMessage = ActivityEventCommon<
   title: string;
 };
 
+export type MaintenanceTaskRescheduledActivityEventMessage = ActivityEventCommon<
+  "MaintenanceTaskRescheduled",
+  "task_rescheduled"
+> & {
+  maintenanceTaskId: MaintenanceTaskId;
+  title: string;
+  nextDue: string;
+};
+
 export type MaintenanceTaskAdvancedActivityEventMessage = ActivityEventCommon<
   "MaintenanceTaskAdvanced",
   "task_completed"
@@ -132,6 +143,7 @@ export type ActivityEventMessage =
   | MaintenanceRecordDeletedActivityEventMessage
   | MaintenanceTaskCreatedActivityEventMessage
   | MaintenanceTaskUpdatedActivityEventMessage
+  | MaintenanceTaskRescheduledActivityEventMessage
   | MaintenanceTaskAdvancedActivityEventMessage
   | MaintenanceTaskDeletedActivityEventMessage;
 
@@ -152,6 +164,7 @@ const ACTIVITY_EVENT_MESSAGE_FACTORIES = {
   MaintenanceRecordDeleted: fromMaintenanceRecordDeleted,
   MaintenanceTaskCreated: fromMaintenanceTaskCreated,
   MaintenanceTaskUpdated: fromMaintenanceTaskUpdated,
+  MaintenanceTaskRescheduled: fromMaintenanceTaskRescheduled,
   MaintenanceTaskAdvanced: fromMaintenanceTaskAdvanced,
   MaintenanceTaskDeleted: fromMaintenanceTaskDeleted,
 } satisfies ActivityMessageFactoryMap;
@@ -187,6 +200,11 @@ const ACTIVITY_EVENT_MESSAGE_VALIDATORS = {
     isString(value.maintenanceTaskId) &&
     isString(value.title) &&
     value.activityEntryType === "task_updated",
+  MaintenanceTaskRescheduled: (value) =>
+    isString(value.maintenanceTaskId) &&
+    isString(value.title) &&
+    isString(value.nextDue) &&
+    value.activityEntryType === "task_rescheduled",
   MaintenanceTaskAdvanced: (value) =>
     isString(value.maintenanceTaskId) &&
     isString(value.maintenanceRecordId) &&
@@ -299,6 +317,17 @@ function fromMaintenanceTaskUpdated(
     ...common(event, event.activityEntryType),
     maintenanceTaskId: event.maintenanceTaskId,
     title: event.title,
+  };
+}
+
+function fromMaintenanceTaskRescheduled(
+  event: MaintenanceTaskRescheduled,
+): MaintenanceTaskRescheduledActivityEventMessage {
+  return {
+    ...common(event, event.activityEntryType),
+    maintenanceTaskId: event.maintenanceTaskId,
+    title: event.title,
+    nextDue: event.nextDue,
   };
 }
 

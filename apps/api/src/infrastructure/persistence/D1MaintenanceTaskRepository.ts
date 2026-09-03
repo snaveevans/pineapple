@@ -3,6 +3,7 @@ import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import type { IntervalUnit } from "../../domain/maintenance/IntervalUnit.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
+import type { MaintenanceTaskWriter } from "../../application/ports/MaintenanceTaskWriter.ts";
 import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
 import { prepareNotificationOutboxInsert } from "../notifications/D1NotificationOutboxRepository.ts";
 
@@ -19,10 +20,11 @@ type MaintenanceTaskRow = {
   schedule_seed_date?: string | null;
   initial_last_completed_date?: string | null;
   revision?: number | null;
+  next_due_override?: string | null;
 };
 
 const SELECT_COLUMNS =
-  "id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision";
+  "id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision, next_due_override";
 
 export function prepareMaintenanceTaskSave(
   db: D1Database,
@@ -31,8 +33,8 @@ export function prepareMaintenanceTaskSave(
   return db
     .prepare(
       `INSERT INTO maintenance_tasks
-         (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision, next_due_override)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          title = excluded.title,
          interval_value = excluded.interval_value,
@@ -41,7 +43,8 @@ export function prepareMaintenanceTaskSave(
          next_due = excluded.next_due,
          schedule_seed_date = excluded.schedule_seed_date,
          initial_last_completed_date = excluded.initial_last_completed_date,
-         revision = excluded.revision`,
+         revision = excluded.revision,
+         next_due_override = excluded.next_due_override`,
     )
     .bind(
       task.id,
@@ -56,10 +59,13 @@ export function prepareMaintenanceTaskSave(
       task.scheduleSeedDate,
       task.initialLastCompletedDate,
       task.revision,
+      task.nextDueOverride,
     );
 }
 
-export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
+export class D1MaintenanceTaskRepository
+  implements MaintenanceTaskRepository, MaintenanceTaskWriter
+{
   constructor(private readonly db: D1Database) {}
 
   async findByAsset(assetId: AssetId): Promise<MaintenanceTask[]> {
@@ -80,7 +86,7 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
       .prepare(
         `SELECT t.id, t.asset_id, t.owner_id, t.title, t.interval_value, t.interval_unit,
                 t.last_completed_date, t.next_due, t.created_at, t.schedule_seed_date,
-                t.initial_last_completed_date, t.revision
+                t.initial_last_completed_date, t.revision, t.next_due_override
          FROM maintenance_tasks t
          INNER JOIN assets a ON a.id = t.asset_id
          WHERE a.archived_at IS NULL
@@ -133,6 +139,72 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
     await this.db.batch([unlinkStatement, deleteStatement, ...outboxStatements]);
   }
 
+  async updateWithRevision(
+    task: MaintenanceTask,
+    expectedTaskRevision: number,
+    events: readonly DomainEvent[] = [],
+  ): Promise<boolean> {
+    const guardStatement = this.db
+      .prepare(
+        `INSERT INTO mutation_guards (name, assertion)
+         VALUES (
+           'cas_guard',
+           (
+             SELECT CASE
+               WHEN (SELECT revision FROM maintenance_tasks WHERE id = ?) = ?
+               THEN 1
+               ELSE 0
+             END
+           )
+         )
+         ON CONFLICT(name) DO UPDATE SET assertion = excluded.assertion`,
+      )
+      .bind(task.id, expectedTaskRevision);
+
+    const taskStatement = this.db
+      .prepare(
+        `UPDATE maintenance_tasks
+         SET title = ?, interval_value = ?, interval_unit = ?, last_completed_date = ?,
+             next_due = ?, schedule_seed_date = ?, initial_last_completed_date = ?,
+             revision = ?, next_due_override = ?
+         WHERE id = ? AND revision = ?`,
+      )
+      .bind(
+        task.title,
+        task.intervalValue,
+        task.intervalUnit,
+        task.lastCompletedDate,
+        task.nextDue,
+        task.scheduleSeedDate,
+        task.initialLastCompletedDate,
+        task.revision,
+        task.nextDueOverride,
+        task.id,
+        expectedTaskRevision,
+      );
+
+    const outboxStatements = prepareOutboxInserts(this.db, events);
+
+    try {
+      const results = await this.db.batch([guardStatement, taskStatement, ...outboxStatements]);
+      const taskResult = results[1];
+      if (!taskResult || taskResult.meta.changes !== 1) {
+        return false;
+      }
+      return true;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        (error.message.includes("CHECK constraint failed") ||
+          error.message.includes("assertion = 1") ||
+          error.message.includes("D1_ERROR"))
+      ) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
   #rowToTask(row: MaintenanceTaskRow): MaintenanceTask {
     if (row.schedule_seed_date === null || row.schedule_seed_date === undefined) {
       throw new Error(
@@ -156,6 +228,7 @@ export class D1MaintenanceTaskRepository implements MaintenanceTaskRepository {
       scheduleSeedDate: row.schedule_seed_date,
       initialLastCompletedDate: row.initial_last_completed_date ?? null,
       revision: row.revision,
+      nextDueOverride: row.next_due_override ?? null,
     });
   }
 }

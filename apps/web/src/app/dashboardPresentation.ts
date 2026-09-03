@@ -40,6 +40,7 @@ export type DashboardQueuePresentation = {
   category: AssetCategory;
   icon: IconName;
   service: string;
+  nextDue: string;
   due: string;
   status: AssetStatus;
   last: string;
@@ -114,6 +115,7 @@ export function toQueuePresentation(item: DashboardQueueItem): DashboardQueuePre
     category: item.assetType,
     icon: iconForAssetType(item.assetType),
     service: item.taskTitle,
+    nextDue: item.nextDue,
     due: formatDueLabel(item.daysDue),
     status: item.status,
     last: formatLastService(item.lastCompletedDate),

@@ -313,6 +313,14 @@ function entryFromEvent(event: ActivityEventMessage): {
         performedAt: null,
         auditSnapshotJson: null,
       };
+    case "MaintenanceTaskRescheduled":
+      return {
+        ...base,
+        type: event.activityEntryType,
+        title: event.title,
+        performedAt: null,
+        auditSnapshotJson: null,
+      };
     case "MaintenanceTaskDeleted":
       return {
         ...base,

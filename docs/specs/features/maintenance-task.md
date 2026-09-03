@@ -9,7 +9,7 @@ metadata:
 
 **Status:** in-progress
 **Owner:** product and engineering
-**Last Updated:** 2026-08-21
+**Last Updated:** 2026-09-03
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [maintenance-record.md](./maintenance-record.md), [dashboard.md](./dashboard.md), [activity-history.md](./activity-history.md)
 
 ---
@@ -94,17 +94,17 @@ tagged boxes are all `[x]`." See docs/specs/SPECS.md. -->
 
 ### Task reschedule
 
-- [ ] `S5` `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` accepts exactly `{ nextDue }` and returns the full rescheduled task with status 200
-- [ ] `S5` The reschedule body is strict: `nextDue` must be a valid date-only `YYYY-MM-DD` value strictly after the server's `todayUtc`; today, past dates, and unknown fields return 422
-- [ ] `S5` Rescheduling sets an internal nullable `nextDueOverride` to the requested target and makes the public `nextDue` equal that target; `lastCompletedDate`, `scheduleSeedDate`, and `initialLastCompletedDate` remain unchanged
-- [ ] `S5` A request whose target already equals the current `nextDue` is a no-op: it returns the unchanged task with status 200 and neither creates an override nor publishes an event
-- [ ] `S5` The next successful linked-record task advance clears `nextDueOverride` and derives `nextDue` from that record's `performedAt` plus the current interval; linking an older record that does not advance the task leaves the override intact
-- [ ] `S5` An interval edit clears `nextDueOverride` and derives `nextDue` from `lastCompletedDate ?? scheduleSeedDate` plus the resulting interval; a title-only edit leaves the override and effective `nextDue` unchanged
-- [ ] `S5` Record correction continues to recompute `lastCompletedDate` from evidence, but leaves a current `nextDueOverride` intact; the effective `nextDue` remains the override until it is cleared by interval edit or a successful task advance
-- [ ] `S5` Rescheduling an existing task on an archived asset is permitted, matching task edit and deletion; new task and maintenance-record creation remain blocked on archived assets
-- [ ] `S5` Rescheduling a missing task, a task under a different path asset, or a task on an inaccessible asset follows the same 404/404/403 semantics and task-then-asset-then-access ordering as task edit
-- [ ] `S5` A successful reschedule increments the task revision and publishes a `MaintenanceTaskRescheduled` Smart Event carrying the resulting `nextDue`, task/asset snapshots, actor, and `task_rescheduled` History conclusion; durable consumers do not read task storage back
-- [ ] `S5` The dashboard and asset maintenance page both expose a reschedule action with a future-date form; pending, 422, 403, 404, and 503 states preserve current task data, and success updates/invalidate both task-list and dashboard read models
+- [x] `S5` `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` accepts exactly `{ nextDue }` and returns the full rescheduled task with status 200
+- [x] `S5` The reschedule body is strict: `nextDue` must be a valid date-only `YYYY-MM-DD` value strictly after the server's `todayUtc`; today, past dates, and unknown fields return 422
+- [x] `S5` Rescheduling sets an internal nullable `nextDueOverride` to the requested target and makes the public `nextDue` equal that target; `lastCompletedDate`, `scheduleSeedDate`, and `initialLastCompletedDate` remain unchanged
+- [x] `S5` A request whose target already equals the current `nextDue` is a no-op: it returns the unchanged task with status 200 and neither creates an override nor publishes an event
+- [x] `S5` The next successful linked-record task advance clears `nextDueOverride` and derives `nextDue` from that record's `performedAt` plus the current interval; linking an older record that does not advance the task leaves the override intact
+- [x] `S5` An interval edit clears `nextDueOverride` and derives `nextDue` from `lastCompletedDate ?? scheduleSeedDate` plus the resulting interval; a title-only edit leaves the override and effective `nextDue` unchanged
+- [x] `S5` Record correction continues to recompute `lastCompletedDate` from evidence, but leaves a current `nextDueOverride` intact; the effective `nextDue` remains the override until it is cleared by interval edit or a successful task advance
+- [x] `S5` Rescheduling an existing task on an archived asset is permitted, matching task edit and deletion; new task and maintenance-record creation remain blocked on archived assets
+- [x] `S5` Rescheduling a missing task, a task under a different path asset, or a task on an inaccessible asset follows the same 404/404/403 semantics and task-then-asset-then-access ordering as task edit
+- [x] `S5` A successful reschedule increments the task revision and publishes a `MaintenanceTaskRescheduled` Smart Event carrying the resulting `nextDue`, task/asset snapshots, actor, and `task_rescheduled` History conclusion; durable consumers do not read task storage back
+- [x] `S5` The dashboard and asset maintenance page both expose a reschedule action with a future-date form; pending, 422, 403, 404, and 503 states preserve current task data, and success updates/invalidate both task-list and dashboard read models
 
 ### Record-task linking (change to existing maintenance-record endpoint)
 

@@ -20,6 +20,7 @@ import {
 } from "./dashboardPresentation.ts";
 import { toAssetPresentation } from "./assetPresentation.ts";
 import { AddServiceModal } from "./AddServiceModal.tsx";
+import { RescheduleTaskModal } from "./RescheduleTaskModal.tsx";
 import { formatDashboardGreeting as formatGreeting } from "./profilePresentation.ts";
 import { paths } from "../routes.ts";
 
@@ -32,6 +33,8 @@ function HFDetailBody({
   onMarkComplete,
   completing = false,
   completeError,
+  onReschedule,
+  rescheduling = false,
 }: {
   item: DashboardQueuePresentation;
   compact?: boolean;
@@ -39,6 +42,8 @@ function HFDetailBody({
   onMarkComplete: () => void;
   completing?: boolean;
   completeError?: string | null;
+  onReschedule: () => void;
+  rescheduling?: boolean;
 }) {
   return (
     <div className="hf-detail-body" data-compact={compact}>
@@ -101,9 +106,9 @@ function HFDetailBody({
           <Icon name="check" size={14} stroke={2.2} />
           {completing ? "Saving…" : "Mark complete"}
         </Button>
-        <Button variant="secondary" disabled title="Coming soon">
+        <Button variant="secondary" onClick={onReschedule} disabled={rescheduling}>
           <Icon name="calendar" size={14} />
-          Reschedule
+          {rescheduling ? "Rescheduling…" : "Reschedule"}
         </Button>
         <Button variant="ghost" disabled title="Coming soon">
           <Icon name="snooze" size={14} />
@@ -172,6 +177,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     taskId: string;
     message: string;
   } | null>(null);
+  const [rescheduleItem, setRescheduleItem] = useState<DashboardQueuePresentation | null>(null);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
 
   const dashboardQuery = useQuery({
@@ -282,6 +288,18 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     if (failed) {
       throw failed.reason;
     }
+  };
+
+  const handleRescheduleSaved = async (task: { assetId: string }) => {
+    const results = await Promise.allSettled([
+      queryClient.invalidateQueries({ queryKey: dashboardQueryKey }),
+      queryClient.invalidateQueries({ queryKey: maintenanceTasksQueryKey(task.assetId) }),
+    ]);
+    const failed = results.find((result) => result.status === "rejected");
+    if (failed) {
+      throw failed.reason;
+    }
+    setRescheduleItem(null);
   };
 
   if (dashboardQuery.isPending) {
@@ -415,6 +433,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                 onMarkComplete={() => completeMutation.mutate(selected)}
                 completing={completingTaskId === selected.taskId}
                 completeError={completeErrorFor(selected.taskId)}
+                onReschedule={() => setRescheduleItem(selected)}
               />
             </section>
 
@@ -467,6 +486,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                             onMarkComplete={() => completeMutation.mutate(item)}
                             completing={completingTaskId === item.taskId}
                             completeError={completeErrorFor(item.taskId)}
+                            onReschedule={() => setRescheduleItem(item)}
                           />
                         </div>
                       )}
@@ -479,6 +499,18 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
         )}
       </main>
       <HFBottomNav />
+
+      {rescheduleItem && dashboardQuery.data && (
+        <RescheduleTaskModal
+          taskId={rescheduleItem.taskId}
+          assetId={rescheduleItem.assetId}
+          taskTitle={rescheduleItem.service}
+          currentNextDue={rescheduleItem.nextDue}
+          todayUtc={dashboardQuery.data.todayUtc}
+          onClose={() => setRescheduleItem(null)}
+          onSaved={handleRescheduleSaved}
+        />
+      )}
 
       {addServiceOpen && dashboardQuery.data && (
         assetsQuery.isPending ? (

@@ -551,3 +551,251 @@ describe("MaintenanceTask.reconcile", () => {
     expect(task.pullEvents()).toHaveLength(0);
   });
 });
+
+describe("MaintenanceTask.reschedule", () => {
+  it("sets the override as the effective nextDue and leaves completion evidence unchanged", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-01-01",
+      intervalValue: 1,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+
+    const changed = task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+
+    expect(changed).toBe(true);
+    expect(task.nextDue).toBe("2026-09-15");
+    expect(task.nextDueOverride).toBe("2026-09-15");
+    expect(task.lastCompletedDate).toBe("2026-01-01");
+    expect(task.scheduleSeedDate).toBe("2026-01-01");
+    expect(task.initialLastCompletedDate).toBe("2026-01-01");
+    expect(task.revision).toBe(1);
+  });
+
+  it("emits MaintenanceTaskRescheduled with snapshots, resulting nextDue, and taskRevision", () => {
+    const task = makeTask();
+    task.pullEvents();
+
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+
+    const events = task.pullEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskRescheduled",
+      maintenanceTaskId: task.id,
+      assetId,
+      ownerId,
+      actorId,
+      assetName,
+      assetType,
+      title: "Replace furnace filter",
+      nextDue: "2026-09-15",
+      taskRevision: 1,
+      activityEntryType: "task_rescheduled",
+    });
+  });
+
+  it("throws ValidationError for a past target", () => {
+    const task = makeTask();
+    task.pullEvents();
+    expect(() => task.reschedule("2026-06-10", today, actorId, { assetName, assetType })).toThrow(
+      ValidationError,
+    );
+    try {
+      task.reschedule("2026-06-10", today, actorId, { assetName, assetType });
+    } catch (error) {
+      expect((error as ValidationError).field).toBe("nextDue");
+    }
+  });
+
+  it("throws ValidationError for a target equal to today", () => {
+    const task = makeTask();
+    task.pullEvents();
+    expect(() => task.reschedule("2026-06-11", today, actorId, { assetName, assetType })).toThrow(
+      ValidationError,
+    );
+  });
+
+  it("throws ValidationError for a malformed target", () => {
+    const task = makeTask();
+    task.pullEvents();
+    expect(() => task.reschedule("2026-13-45", today, actorId, { assetName, assetType })).toThrow(
+      ValidationError,
+    );
+    expect(() => task.reschedule("not-a-date", today, actorId, { assetName, assetType })).toThrow(
+      ValidationError,
+    );
+  });
+
+  it("is a no-op when the target equals the current effective nextDue", () => {
+    const task = makeTask({ lastCompletedDate: "2026-05-11" });
+    task.pullEvents();
+    expect(task.nextDue).toBe("2026-07-11");
+
+    const changed = task.reschedule("2026-07-11", today, actorId, { assetName, assetType });
+
+    expect(changed).toBe(false);
+    expect(task.nextDueOverride).toBeNull();
+    expect(task.revision).toBe(0);
+    expect(task.pullEvents()).toHaveLength(0);
+  });
+
+  it("replacing an existing override is not a no-op", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const changed = task.reschedule("2026-10-01", today, actorId, { assetName, assetType });
+
+    expect(changed).toBe(true);
+    expect(task.nextDueOverride).toBe("2026-10-01");
+    expect(task.revision).toBe(2);
+    expect(task.pullEvents()).toHaveLength(1);
+  });
+
+  it("an interval edit clears the override and recomputes from the completion baseline", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const changed = task.update({ intervalValue: 3, todayUtc: today }, actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(changed).toBe(true);
+    expect(task.nextDueOverride).toBeNull();
+    expect(task.nextDue).toBe("2026-07-11"); // 2026-04-11 + 3 months
+    expect(task.revision).toBe(2);
+  });
+
+  it("a title-only edit leaves the override and effective nextDue unchanged", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const changed = task.update({ title: "New title", todayUtc: today }, actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(changed).toBe(true);
+    expect(task.nextDueOverride).toBe("2026-09-15");
+    expect(task.nextDue).toBe("2026-09-15");
+  });
+
+  it("a successful advance clears the override and derives nextDue from performedAt", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const advanced = task.advance("2026-06-20", MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(advanced).toBe(true);
+    expect(task.nextDueOverride).toBeNull();
+    expect(task.lastCompletedDate).toBe("2026-06-20");
+    expect(task.nextDue).toBe("2026-08-20"); // 2026-06-20 + 2 months
+  });
+
+  it("linking an older record that does not advance leaves the override intact", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const advanced = task.advance("2026-03-01", MaintenanceRecordId.generate(), actorId, {
+      assetName,
+      assetType,
+    });
+
+    expect(advanced).toBe(false);
+    expect(task.nextDueOverride).toBe("2026-09-15");
+    expect(task.nextDue).toBe("2026-09-15");
+    expect(task.pullEvents()).toHaveLength(0);
+  });
+
+  it("record correction recomputes completion but keeps the override as effective nextDue", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-01-01",
+      intervalValue: 1,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const changed = task.reconcile(
+      [{ performedAt: "2026-03-01" }],
+      MaintenanceRecordId.generate(),
+      actorId,
+      { assetName, assetType },
+    );
+
+    expect(changed).toBe(true);
+    expect(task.lastCompletedDate).toBe("2026-03-01");
+    expect(task.nextDueOverride).toBe("2026-09-15");
+    expect(task.nextDue).toBe("2026-09-15");
+
+    const events = task.pullEvents();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: "MaintenanceTaskReconciled",
+      lastCompletedDate: "2026-03-01",
+      nextDue: "2026-09-15",
+    });
+  });
+
+  it("reconcile does not publish when the override already equals the derived schedule", () => {
+    const task = makeTask({
+      lastCompletedDate: "2026-06-01",
+      intervalValue: 1,
+      intervalUnit: "month",
+    });
+    task.pullEvents();
+    // Derived nextDue is 2026-07-01; override to exactly that date
+    task.reschedule("2026-07-01", today, actorId, { assetName, assetType });
+    task.pullEvents();
+
+    const changed = task.reconcile(
+      [{ performedAt: "2026-06-01" }],
+      MaintenanceRecordId.generate(),
+      actorId,
+      { assetName, assetType },
+    );
+
+    expect(changed).toBe(false);
+    expect(task.pullEvents()).toHaveLength(0);
+  });
+
+  it("reconstitute round-trips the override", () => {
+    const task = makeTask({ lastCompletedDate: "2026-04-11" });
+    task.pullEvents();
+    task.reschedule("2026-09-15", today, actorId, { assetName, assetType });
+
+    const restored = MaintenanceTask.reconstitute({
+      id: task.id,
+      assetId: task.assetId,
+      ownerId: task.ownerId,
+      title: task.title,
+      intervalValue: task.intervalValue,
+      intervalUnit: task.intervalUnit,
+      lastCompletedDate: task.lastCompletedDate,
+      nextDue: task.nextDue,
+      createdAt: task.createdAt,
+      scheduleSeedDate: task.scheduleSeedDate,
+      initialLastCompletedDate: task.initialLastCompletedDate,
+      revision: task.revision,
+      nextDueOverride: task.nextDueOverride,
+    });
+
+    expect(restored.nextDueOverride).toBe("2026-09-15");
+    expect(restored.nextDue).toBe("2026-09-15");
+  });
+});

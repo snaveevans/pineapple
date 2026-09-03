@@ -76,9 +76,9 @@ _Each criterion carries exactly one slice tag (`S1`…`S5`) from the [Delivery P
 - [ ] `S1` Category filtering is frontend state for the first API-backed version; the dashboard response must contain category and count data needed to filter the returned queue without a new request
 - [ ] `S1` `Mark complete` for a time-based task uses `POST /api/assets/{assetId}/maintenance-records` with the selected `taskId`, as defined in [maintenance-record.md](./maintenance-record.md) and [maintenance-task.md](./maintenance-task.md)
 - [ ] `S1` After successful completion, the frontend invalidates the dashboard read model and the affected asset's maintenance records/tasks
-- [ ] `S5` `Reschedule` opens a future-date form for the selected task and submits `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` as defined in [maintenance-task.md](./maintenance-task.md); it never creates a maintenance record
-- [ ] `S5` While a reschedule is pending, only its submitting action is disabled; on 422 the future-date field shows the server error, and on 403/404/503 the current dashboard data remains visible with the shared error/retry treatment
-- [ ] `S5` A successful reschedule updates the selected queue item and invalidates the dashboard read model plus the affected asset's maintenance-task list; status and due copy always come from the returned/refetched API data
+- [x] `S5` `Reschedule` opens a future-date form for the selected task and submits `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` as defined in [maintenance-task.md](./maintenance-task.md); it never creates a maintenance record
+- [x] `S5` While a reschedule is pending, only its submitting action is disabled; on 422 the future-date field shows the server error, and on 403/404/503 the current dashboard data remains visible with the shared error/retry treatment
+- [x] `S5` A successful reschedule updates the selected queue item and invalidates the dashboard read model plus the affected asset's maintenance-task list; status and due copy always come from the returned/refetched API data
 - [ ] `S1` `Snooze`, dashboard-level `Add service`, and richer task-detail editing remain placeholders until their own specs extend the task or notification APIs
 
 ## Delivery Plan

@@ -32,6 +32,7 @@ const TYPE_ORDER: ActivityEntryType[] = [
   "task_completed",
   "task_scheduled",
   "task_updated",
+  "task_rescheduled",
   "asset_added",
   "task_deleted",
 ];
@@ -90,6 +91,12 @@ const TYPE_CONFIG: Record<ActivityEntryType, ActivityTypeConfig> = {
     label: "Tasks edited",
     color: "var(--hh-updated)",
   },
+  task_rescheduled: {
+    icon: "calendar",
+    verb: "Rescheduled task",
+    label: "Tasks rescheduled",
+    color: "var(--hh-scheduled)",
+  },
   asset_added: {
     icon: "plus",
     verb: "Added asset",
@@ -121,6 +128,7 @@ function emptyTypeCounts(): TypeCounts {
     task_completed: 0,
     task_scheduled: 0,
     task_updated: 0,
+    task_rescheduled: 0,
     task_deleted: 0,
   };
 }

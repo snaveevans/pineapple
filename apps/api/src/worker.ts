@@ -71,6 +71,7 @@ import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceT
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { UpdateMaintenanceTask } from "./application/usecases/UpdateMaintenanceTask.ts";
+import { RescheduleMaintenanceTask } from "./application/usecases/RescheduleMaintenanceTask.ts";
 import { D1MaintenanceWriteGate } from "./infrastructure/persistence/D1MaintenanceWriteGate.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
@@ -112,6 +113,7 @@ import {
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
   updateMaintenanceTaskRoute,
+  rescheduleMaintenanceTaskRoute,
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
@@ -1016,6 +1018,30 @@ app.openapi(updateMaintenanceTaskRoute, async (c) => {
     ...(title !== undefined ? { title } : {}),
     ...(intervalValue !== undefined ? { intervalValue } : {}),
     ...(intervalUnit !== undefined ? { intervalUnit } : {}),
+  });
+  if (!result.ok) throw result.error;
+  const todayUtc = new SystemUtcDateProvider().today();
+  return c.json(serializeMaintenanceTask(result.value, todayUtc), 200);
+});
+
+app.openapi(rescheduleMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, taskId } = c.req.valid("param");
+  const { nextDue } = c.req.valid("json");
+  const tasks = new D1MaintenanceTaskRepository(c.env.DB);
+  const result = await new RescheduleMaintenanceTask(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    tasks,
+    tasks,
+    c.get("eventBus"),
+    new SystemUtcDateProvider(),
+    new D1MaintenanceWriteGate(c.env.DB),
+  ).execute({
+    taskId: MaintenanceTaskId.from(taskId),
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+    nextDue,
   });
   if (!result.ok) throw result.error;
   const todayUtc = new SystemUtcDateProvider().today();

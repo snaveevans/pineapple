@@ -9,6 +9,7 @@ export const ACTIVITY_ENTRY_TYPES = [
   "task_completed",
   "task_scheduled",
   "task_updated",
+  "task_rescheduled",
   "task_deleted",
 ] as const;
 
