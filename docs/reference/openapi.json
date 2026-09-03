@@ -751,6 +751,22 @@
           }
         }
       },
+      "RescheduleMaintenanceTaskBody": {
+        "type": "object",
+        "properties": {
+          "nextDue": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-09-15",
+            "description": "New due date for the current cycle; must be strictly after today (UTC)"
+          }
+        },
+        "required": [
+          "nextDue"
+        ],
+        "additionalProperties": false
+      },
       "DashboardResponse": {
         "type": "object",
         "properties": {
@@ -1031,6 +1047,7 @@
               "task_completed",
               "task_scheduled",
               "task_updated",
+              "task_rescheduled",
               "task_deleted"
             ],
             "example": "maintenance_logged"
@@ -1147,6 +1164,7 @@
               "task_completed",
               "task_scheduled",
               "task_updated",
+              "task_rescheduled",
               "task_deleted"
             ],
             "example": "maintenance_logged"
@@ -2567,6 +2585,114 @@
         }
       }
     },
+    "/api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule": {
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Reschedule a maintenance task",
+        "description": "Moves the task's current due date without logging maintenance — no maintenance record is created. nextDue must be a valid YYYY-MM-DD date strictly after today (UTC). Completion evidence (lastCompletedDate) is unchanged. A request whose target already equals the current nextDue is a no-op: 200 with the unchanged task, no event published.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "required": true,
+            "name": "taskId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RescheduleMaintenanceTaskBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rescheduled maintenance task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceTask"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The task's asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Maintenance writes are temporarily frozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/dashboard": {
       "get": {
         "tags": [
@@ -2627,6 +2753,7 @@
                 "task_completed",
                 "task_scheduled",
                 "task_updated",
+                "task_rescheduled",
                 "task_deleted"
               ],
               "example": "maintenance_logged"

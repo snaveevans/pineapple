@@ -920,6 +920,97 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reschedule a maintenance task
+         * @description Moves the task's current due date without logging maintenance — no maintenance record is created. nextDue must be a valid YYYY-MM-DD date strictly after today (UTC). Completion evidence (lastCompletedDate) is unchanged. A request whose target already equals the current nextDue is a no-op: 200 with the unchanged task, no event published.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    assetId: string;
+                    taskId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RescheduleMaintenanceTaskBody"];
+                };
+            };
+            responses: {
+                /** @description Rescheduled maintenance task */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MaintenanceTask"];
+                    };
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The task's asset belongs to another user */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No such task */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Validation failed */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Maintenance writes are temporarily frozen */
+                503: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dashboard": {
         parameters: {
             query?: never;
@@ -982,7 +1073,7 @@ export interface paths {
         get: {
             parameters: {
                 query?: {
-                    type?: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
+                    type?: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_rescheduled" | "task_deleted";
                     assetId?: string;
                     cursor?: string;
                     limit?: number;
@@ -2066,6 +2157,14 @@ export interface components {
              */
             intervalUnit?: "day" | "week" | "month" | "year";
         };
+        RescheduleMaintenanceTaskBody: {
+            /**
+             * Format: date
+             * @description New due date for the current cycle; must be strictly after today (UTC)
+             * @example 2026-09-15
+             */
+            nextDue: string;
+        };
         DashboardResponse: {
             /**
              * @description Authenticated user's display name when available
@@ -2190,7 +2289,7 @@ export interface components {
              * @example maintenance_logged
              * @enum {string}
              */
-            type: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
+            type: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_rescheduled" | "task_deleted";
             /**
              * Format: date-time
              * @example 2026-06-09T18:25:24.887Z
@@ -2242,7 +2341,7 @@ export interface components {
              * @example maintenance_logged
              * @enum {string}
              */
-            type: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_deleted";
+            type: "asset_added" | "maintenance_logged" | "maintenance_record_updated" | "maintenance_record_deleted" | "task_completed" | "task_scheduled" | "task_updated" | "task_rescheduled" | "task_deleted";
             /** @example 4 */
             count: number;
         };

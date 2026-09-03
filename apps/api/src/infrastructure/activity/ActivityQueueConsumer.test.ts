@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
+import { AssetId, MaintenanceTaskId, UserId } from "@snaveevans/pineapple-shared";
 import {
   ACTIVITY_HISTORY_DLQ_NAME,
   ACTIVITY_HISTORY_QUEUE_NAME,
   type ActivityEventMessage,
+  isActivityEventMessage,
+  toActivityEventMessage,
 } from "./ActivityEventMessage.ts";
+import { MaintenanceTaskRescheduled } from "../../domain/maintenance/events/MaintenanceTaskRescheduled.ts";
 import { handleActivityQueueBatch } from "./ActivityQueueConsumer.ts";
 
 const activityMessage: ActivityEventMessage = {
@@ -123,5 +127,54 @@ describe("handleActivityQueueBatch", () => {
 
     expect(first.retry).toHaveBeenCalledTimes(1);
     expect(first.ack).not.toHaveBeenCalled();
+  });
+
+  it("projects MaintenanceTaskRescheduled as exactly one task_rescheduled entry, never a completion", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const domainEvent = MaintenanceTaskRescheduled({
+      maintenanceTaskId: MaintenanceTaskId.generate(),
+      assetId: AssetId.generate(),
+      ownerId: UserId.generate(),
+      actorId: UserId.generate(),
+      assetName: "Truck",
+      assetType: "vehicle",
+      title: "Oil change",
+      nextDue: "2026-11-01",
+      taskRevision: 1,
+    });
+    const msg = message("message-resched-1", toActivityEventMessage(domainEvent));
+
+    await handleActivityQueueBatch(batch(ACTIVITY_HISTORY_QUEUE_NAME, [msg]), db);
+
+    expect(msg.ack).toHaveBeenCalledTimes(1);
+    expect(msg.retry).not.toHaveBeenCalled();
+
+    const entryInserts = statements.filter((s) => s.query.includes("INSERT INTO activity_entries"));
+    expect(entryInserts).toHaveLength(1);
+    expect(entryInserts[0]?.values).toContain("task_rescheduled");
+    expect(entryInserts[0]?.values).toContain("Oil change");
+
+    // A reschedule must never produce completion or maintenance-log evidence.
+    expect(entryInserts.some((s) => s.values.includes("task_completed"))).toBe(false);
+    expect(entryInserts.some((s) => s.values.includes("maintenance_logged"))).toBe(false);
+  });
+
+  it("routes a MaintenanceTaskRescheduled activity message through the real factory and validator", () => {
+    const domainEvent = MaintenanceTaskRescheduled({
+      maintenanceTaskId: MaintenanceTaskId.generate(),
+      assetId: AssetId.generate(),
+      ownerId: UserId.generate(),
+      actorId: UserId.generate(),
+      assetName: "Truck",
+      assetType: "vehicle",
+      title: "Oil change",
+      nextDue: "2026-11-01",
+      taskRevision: 2,
+    });
+    const msg = toActivityEventMessage(domainEvent);
+    expect(msg).not.toBeNull();
+    expect(msg?.type).toBe("MaintenanceTaskRescheduled");
+    expect(msg?.activityEntryType).toBe("task_rescheduled");
+    expect(isActivityEventMessage(msg)).toBe(true);
   });
 });

@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/MaintenanceTaskAdvanced.ts";
 import { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
+import { MaintenanceTaskRescheduled } from "../../domain/maintenance/events/MaintenanceTaskRescheduled.ts";
 import { MaintenanceTaskUpdated } from "../../domain/maintenance/events/MaintenanceTaskUpdated.ts";
 import { AssetCreated } from "../../domain/asset/events/AssetCreated.ts";
 import {
@@ -89,6 +90,23 @@ describe("toNotificationEventMessage", () => {
     expect(msg && isNotificationEventMessage(msg)).toBe(true);
   });
 
+  it("converts MaintenanceTaskRescheduled with the resulting nextDue and snapshot", () => {
+    const event = MaintenanceTaskRescheduled({
+      ...base,
+      nextDue: "2026-11-01",
+      taskRevision: 2,
+    });
+    const msg = toNotificationEventMessage(event);
+    expect(msg).toMatchObject({
+      type: "MaintenanceTaskRescheduled",
+      maintenanceTaskId: base.maintenanceTaskId,
+      taskTitle: "Oil change",
+      assetName: "Truck",
+      nextDue: "2026-11-01",
+    });
+    expect(msg && isNotificationEventMessage(msg)).toBe(true);
+  });
+
   it("ignores unrelated domain events", () => {
     const event = AssetCreated({
       assetId: base.assetId,
@@ -122,6 +140,30 @@ describe("isNotificationEventMessage", () => {
       nextDue: "2027-07-01",
       maintenanceRecordId: "r",
     };
+    expect(isNotificationEventMessage(bad)).toBe(false);
+  });
+
+  it("accepts a well-formed MaintenanceTaskRescheduled message", () => {
+    const msg = toNotificationEventMessage(
+      MaintenanceTaskRescheduled({
+        ...base,
+        nextDue: "2026-11-01",
+        taskRevision: 1,
+      }),
+    );
+    expect(isNotificationEventMessage(msg)).toBe(true);
+  });
+
+  it("rejects a MaintenanceTaskRescheduled message missing nextDue", () => {
+    const msg = toNotificationEventMessage(
+      MaintenanceTaskRescheduled({
+        ...base,
+        nextDue: "2026-11-01",
+        taskRevision: 1,
+      }),
+    );
+    const bad = { ...(msg as Record<string, unknown>) };
+    delete bad.nextDue;
     expect(isNotificationEventMessage(bad)).toBe(false);
   });
 

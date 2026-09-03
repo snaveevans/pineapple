@@ -24,6 +24,7 @@ import {
   MaintenanceTaskListResponseSchema,
   MaintenanceTaskParamsSchema,
   MaintenanceTaskResponseSchema,
+  RescheduleMaintenanceTaskBodySchema,
   UpdateMaintenanceTaskBodySchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
 import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
@@ -839,6 +840,52 @@ export const updateMaintenanceTaskRoute = createRoute({
   },
 });
 
+export const rescheduleMaintenanceTaskRoute = createRoute({
+  method: "post",
+  path: "/api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule",
+  tags: ["Maintenance"],
+  summary: "Reschedule a maintenance task",
+  description:
+    "Moves the task's current due date without logging maintenance — no maintenance record is created. " +
+    "nextDue must be a valid YYYY-MM-DD date strictly after today (UTC). Completion evidence " +
+    "(lastCompletedDate) is unchanged. A request whose target already equals the current nextDue is a " +
+    "no-op: 200 with the unchanged task, no event published.",
+  security: [cookieAuth],
+  request: {
+    params: MaintenanceTaskParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: RescheduleMaintenanceTaskBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Rescheduled maintenance task",
+      content: { "application/json": { schema: MaintenanceTaskResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The task's asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such task",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    503: {
+      description: "Maintenance writes are temporarily frozen",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const shareAssetRoute = createRoute({
   method: "post",
   path: "/api/assets/{assetId}/share",
@@ -994,6 +1041,7 @@ export function getApiDocument() {
   doc.openapi(listMaintenanceTasksRoute, stub);
   doc.openapi(deleteMaintenanceTaskRoute, stub);
   doc.openapi(updateMaintenanceTaskRoute, stub);
+  doc.openapi(rescheduleMaintenanceTaskRoute, stub);
   doc.openapi(getDashboardRoute, stub);
   doc.openapi(getActivityRoute, stub);
   doc.openapi(getUserProfileRoute, stub);

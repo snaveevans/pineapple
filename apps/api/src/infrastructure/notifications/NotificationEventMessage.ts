@@ -4,6 +4,7 @@ import type { MaintenanceTaskAdvanced } from "../../domain/maintenance/events/Ma
 import type { MaintenanceTaskCreated } from "../../domain/maintenance/events/MaintenanceTaskCreated.ts";
 import type { MaintenanceTaskDeleted } from "../../domain/maintenance/events/MaintenanceTaskDeleted.ts";
 import type { MaintenanceTaskReconciled } from "../../domain/maintenance/events/MaintenanceTaskReconciled.ts";
+import type { MaintenanceTaskRescheduled } from "../../domain/maintenance/events/MaintenanceTaskRescheduled.ts";
 import type { MaintenanceTaskUpdated } from "../../domain/maintenance/events/MaintenanceTaskUpdated.ts";
 
 export const NOTIFICATION_EVENTS_CONSUMER = "notification_events";
@@ -15,6 +16,7 @@ type NotificationDomainEvent =
   | MaintenanceTaskUpdated
   | MaintenanceTaskAdvanced
   | MaintenanceTaskReconciled
+  | MaintenanceTaskRescheduled
   | MaintenanceTaskDeleted;
 
 type NotificationDomainEventType = NotificationDomainEvent["type"];
@@ -56,6 +58,11 @@ export type MaintenanceTaskReconciledNotificationMessage =
     sourceRecordId: string;
   };
 
+export type MaintenanceTaskRescheduledNotificationMessage =
+  NotificationEventCommon<"MaintenanceTaskRescheduled"> & {
+    nextDue: string;
+  };
+
 export type MaintenanceTaskDeletedNotificationMessage =
   NotificationEventCommon<"MaintenanceTaskDeleted">;
 
@@ -64,6 +71,7 @@ export type NotificationEventMessage =
   | MaintenanceTaskUpdatedNotificationMessage
   | MaintenanceTaskAdvancedNotificationMessage
   | MaintenanceTaskReconciledNotificationMessage
+  | MaintenanceTaskRescheduledNotificationMessage
   | MaintenanceTaskDeletedNotificationMessage;
 
 type FactoryMap = {
@@ -81,6 +89,7 @@ const FACTORIES = {
   MaintenanceTaskUpdated: fromUpdated,
   MaintenanceTaskAdvanced: fromAdvanced,
   MaintenanceTaskReconciled: fromReconciled,
+  MaintenanceTaskRescheduled: fromRescheduled,
   MaintenanceTaskDeleted: fromDeleted,
 } satisfies FactoryMap;
 
@@ -90,6 +99,7 @@ const VALIDATORS = {
   MaintenanceTaskAdvanced: (value) =>
     isString(value.nextDue) && isString(value.maintenanceRecordId) && isString(value.performedAt),
   MaintenanceTaskReconciled: (value) => isString(value.nextDue) && isString(value.sourceRecordId),
+  MaintenanceTaskRescheduled: (value) => isString(value.nextDue),
   MaintenanceTaskDeleted: () => true,
 } satisfies ValidatorMap;
 
@@ -153,6 +163,12 @@ function fromReconciled(
     lastCompletedDate: event.lastCompletedDate,
     sourceRecordId: event.sourceRecordId,
   };
+}
+
+function fromRescheduled(
+  event: MaintenanceTaskRescheduled,
+): MaintenanceTaskRescheduledNotificationMessage {
+  return { ...common(event), nextDue: event.nextDue };
 }
 
 function fromDeleted(event: MaintenanceTaskDeleted): MaintenanceTaskDeletedNotificationMessage {

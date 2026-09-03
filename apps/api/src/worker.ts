@@ -3,12 +3,9 @@ import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import {
-  addCalendarDays,
   AssetId,
-  calendarDaysBetween,
   DomainError,
   Email,
-  MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceRecordId,
   MaintenanceTaskId,
   NotificationId,
@@ -71,6 +68,7 @@ import { CreateMaintenanceTask } from "./application/usecases/CreateMaintenanceT
 import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTasks.ts";
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { UpdateMaintenanceTask } from "./application/usecases/UpdateMaintenanceTask.ts";
+import { RescheduleMaintenanceTask } from "./application/usecases/RescheduleMaintenanceTask.ts";
 import { D1MaintenanceWriteGate } from "./infrastructure/persistence/D1MaintenanceWriteGate.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
@@ -102,6 +100,7 @@ import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
 import { toHttpError } from "./api/errors.ts";
+import { serializeMaintenanceTask } from "./api/serializeMaintenanceTask.ts";
 import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTelemetry.ts";
 import { createMutatingRequestOutboxRelayMiddleware } from "./api/middleware/mutatingRequestOutboxRelay.ts";
 import {
@@ -112,6 +111,7 @@ import {
   createMaintenanceTaskRoute,
   deleteMaintenanceTaskRoute,
   updateMaintenanceTaskRoute,
+  rescheduleMaintenanceTaskRoute,
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
@@ -139,7 +139,6 @@ import {
 import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
-import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
 import type { ActivityEntrySchema } from "./api/schemas/activitySchemas.ts";
 import type {
   MarkAllNotificationsReadResponseSchema,
@@ -148,8 +147,6 @@ import type {
 } from "./api/schemas/notificationSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { TeamResponseSchema } from "./api/schemas/teamSchemas.ts";
-import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
-import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
 
 // Infra bindings (DB, EMAIL, telemetry datasets, queues, and the vars declared
@@ -314,25 +311,6 @@ function serializeMaintenanceRecord(
     notes: record.notes,
     taskId: record.taskId,
     createdAt: record.createdAt.toISOString(),
-  };
-}
-
-function serializeMaintenanceTask(
-  task: MaintenanceTask,
-  todayUtc: string,
-): z.infer<typeof MaintenanceTaskResponseSchema> {
-  const sevenDaysOut = addCalendarDays(todayUtc, MAINTENANCE_DUE_SOON_LEAD_DAYS);
-  return {
-    id: task.id,
-    assetId: task.assetId,
-    title: task.title,
-    intervalValue: task.intervalValue,
-    intervalUnit: task.intervalUnit,
-    lastCompletedDate: task.lastCompletedDate,
-    nextDue: task.nextDue,
-    status: deriveTaskStatus(task.nextDue, todayUtc, sevenDaysOut),
-    daysDue: calendarDaysBetween(todayUtc, task.nextDue),
-    createdAt: task.createdAt.toISOString(),
   };
 }
 
@@ -1016,6 +994,30 @@ app.openapi(updateMaintenanceTaskRoute, async (c) => {
     ...(title !== undefined ? { title } : {}),
     ...(intervalValue !== undefined ? { intervalValue } : {}),
     ...(intervalUnit !== undefined ? { intervalUnit } : {}),
+  });
+  if (!result.ok) throw result.error;
+  const todayUtc = new SystemUtcDateProvider().today();
+  return c.json(serializeMaintenanceTask(result.value, todayUtc), 200);
+});
+
+app.openapi(rescheduleMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, taskId } = c.req.valid("param");
+  const { nextDue } = c.req.valid("json");
+  const tasks = new D1MaintenanceTaskRepository(c.env.DB);
+  const result = await new RescheduleMaintenanceTask(
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    tasks,
+    tasks,
+    c.get("eventBus"),
+    new SystemUtcDateProvider(),
+    new D1MaintenanceWriteGate(c.env.DB),
+  ).execute({
+    taskId: MaintenanceTaskId.from(taskId),
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+    nextDue,
   });
   if (!result.ok) throw result.error;
   const todayUtc = new SystemUtcDateProvider().today();

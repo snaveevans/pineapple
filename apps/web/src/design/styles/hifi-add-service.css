@@ -183,3 +183,8 @@
   color: var(--hf-bad);
   font-size: 12.5px;
 }
+/* Reschedule note (issue #235) — helper copy under the new-due-date field */
+.hf-resched-note {
+  margin: 10px 0 0;
+  line-height: 1.5;
+}

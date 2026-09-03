@@ -14,6 +14,7 @@ import { MaintenanceTaskAdvanced } from "./events/MaintenanceTaskAdvanced.ts";
 import { MaintenanceTaskCreated } from "./events/MaintenanceTaskCreated.ts";
 import { MaintenanceTaskDeleted } from "./events/MaintenanceTaskDeleted.ts";
 import { MaintenanceTaskReconciled } from "./events/MaintenanceTaskReconciled.ts";
+import { MaintenanceTaskRescheduled } from "./events/MaintenanceTaskRescheduled.ts";
 import { MaintenanceTaskUpdated } from "./events/MaintenanceTaskUpdated.ts";
 
 export class MaintenanceTask {
@@ -25,6 +26,7 @@ export class MaintenanceTask {
   private _nextDue: string;
   private _scheduleSeedDate: string;
   private _initialLastCompletedDate: string | null;
+  private _nextDueOverride: string | null;
   private _revision: number;
 
   private constructor(
@@ -40,6 +42,7 @@ export class MaintenanceTask {
     scheduleSeedDate: string,
     initialLastCompletedDate: string | null,
     revision: number = 0,
+    nextDueOverride: string | null = null,
   ) {
     this._title = title;
     this._intervalValue = intervalValue;
@@ -48,6 +51,7 @@ export class MaintenanceTask {
     this._nextDue = nextDue;
     this._scheduleSeedDate = scheduleSeedDate;
     this._initialLastCompletedDate = initialLastCompletedDate;
+    this._nextDueOverride = nextDueOverride;
     this._revision = revision;
   }
 
@@ -77,6 +81,10 @@ export class MaintenanceTask {
 
   get initialLastCompletedDate(): string | null {
     return this._initialLastCompletedDate;
+  }
+
+  get nextDueOverride(): string | null {
+    return this._nextDueOverride;
   }
 
   get revision(): number {
@@ -179,6 +187,9 @@ export class MaintenanceTask {
     }
     this._lastCompletedDate = performedAt;
     this._nextDue = addInterval(performedAt, this.intervalValue, this.intervalUnit);
+    // A successful advance starts a new cycle from real evidence, so a
+    // deliberate one-cycle schedule override from the previous cycle is spent.
+    this._nextDueOverride = null;
     this._revision += 1;
     this._domainEvents.push(
       MaintenanceTaskAdvanced({
@@ -241,6 +252,9 @@ export class MaintenanceTask {
     if (intervalChanged) {
       const baseline = this._lastCompletedDate ?? this._scheduleSeedDate;
       nextDue = addInterval(baseline, nextIntervalValue, nextIntervalUnit);
+      // A changed interval re-anchors the whole schedule; the previous cycle's
+      // one-cycle override no longer describes the new cadence.
+      this._nextDueOverride = null;
     }
 
     const changed =
@@ -296,8 +310,12 @@ export class MaintenanceTask {
       newLastCompletedDate = candidateDates[candidateDates.length - 1] ?? null;
     }
 
+    // A current one-cycle override stays the effective next due date until an
+    // interval edit or a successful task advance clears it; correction only
+    // reconciles the completion evidence beneath it.
     const baseline = newLastCompletedDate ?? this._scheduleSeedDate;
-    const newNextDue = addInterval(baseline, this._intervalValue, this._intervalUnit);
+    const derivedNextDue = addInterval(baseline, this._intervalValue, this._intervalUnit);
+    const newNextDue = this._nextDueOverride ?? derivedNextDue;
 
     const changed =
       newLastCompletedDate !== this._lastCompletedDate || newNextDue !== this._nextDue;
@@ -340,6 +358,52 @@ export class MaintenanceTask {
     );
   }
 
+  /**
+   * Moves the current cycle's due date without logging maintenance. Sets the
+   * one-cycle override as the effective nextDue; completion evidence
+   * (lastCompletedDate, scheduleSeedDate, initialLastCompletedDate) is
+   * untouched. Returns false and changes nothing when the target already
+   * equals the current effective nextDue (no-op reschedule).
+   */
+  reschedule(
+    target: string,
+    todayUtc: string,
+    actorId: UserId,
+    assetSnapshot: { assetName: string; assetType: AssetType },
+  ): boolean {
+    try {
+      validateDateOnly(todayUtc);
+    } catch {
+      throw new InvariantError("UTC date provider returned an invalid date");
+    }
+
+    validateDateOnly(target, "nextDue");
+    if (target <= todayUtc) {
+      throw new ValidationError("Next due date must be after today", "nextDue");
+    }
+
+    if (target === this._nextDue) return false;
+
+    this._nextDueOverride = target;
+    this._nextDue = target;
+    this._revision += 1;
+
+    this._domainEvents.push(
+      MaintenanceTaskRescheduled({
+        maintenanceTaskId: this.id,
+        assetId: this.assetId,
+        ownerId: this.ownerId,
+        actorId,
+        assetName: assetSnapshot.assetName,
+        assetType: assetSnapshot.assetType,
+        title: this._title,
+        nextDue: this._nextDue,
+        taskRevision: this._revision,
+      }),
+    );
+    return true;
+  }
+
   static reconstitute(props: {
     id: MaintenanceTaskId;
     assetId: AssetId;
@@ -353,6 +417,7 @@ export class MaintenanceTask {
     scheduleSeedDate?: string;
     initialLastCompletedDate?: string | null;
     revision?: number;
+    nextDueOverride?: string | null;
   }): MaintenanceTask {
     const scheduleSeedDate =
       props.scheduleSeedDate ??
@@ -375,6 +440,7 @@ export class MaintenanceTask {
       scheduleSeedDate,
       initialLastCompletedDate,
       props.revision ?? 0,
+      props.nextDueOverride ?? null,
     );
   }
 

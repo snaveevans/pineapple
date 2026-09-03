@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { addCalendarDays } from "@snaveevans/pineapple-shared";
 import { ApiError } from "../api/client.ts";
 import {
   getAsset,
@@ -26,11 +27,13 @@ import {
   listMaintenanceTasks,
   createMaintenanceTask,
   updateMaintenanceTask,
+  rescheduleMaintenanceTask,
   deleteMaintenanceTask,
   maintenanceTasksQueryKey,
   type MaintenanceTask,
   type MaintenanceTaskListResponse,
   type CreateMaintenanceTaskBody,
+  type RescheduleMaintenanceTaskBody,
   type UpdateMaintenanceTaskBody,
 } from "../api/maintenanceTasks.ts";
 import { Button, ButtonSpinner } from "../design/Button.tsx";
@@ -465,11 +468,13 @@ function MRTaskCard({
   task,
   onLog,
   onEdit,
+  onReschedule,
   onDelete,
 }: {
   task: MaintenanceTask;
   onLog: (id: string) => void;
   onEdit: (id: string) => void;
+  onReschedule: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
@@ -528,6 +533,13 @@ function MRTaskCard({
               <Icon name="edit" size={14} stroke={1.8} />
             </button>
             <button
+              className="mr-task-edit-btn"
+              onClick={() => onReschedule(task.id)}
+              aria-label="Reschedule task"
+            >
+              <Icon name="calendar" size={14} stroke={1.8} />
+            </button>
+            <button
               className="mr-task-del-btn"
               onClick={() => setConfirming(true)}
               aria-label="Delete task"
@@ -576,6 +588,7 @@ function MRScheduleSection({
   isLoading,
   onLog,
   onEdit,
+  onReschedule,
   onDelete,
   onAdd,
 }: {
@@ -583,6 +596,7 @@ function MRScheduleSection({
   isLoading: boolean;
   onLog: (id: string) => void;
   onEdit: (id: string) => void;
+  onReschedule: (id: string) => void;
   onDelete: (id: string) => void;
   onAdd: () => void;
 }) {
@@ -611,7 +625,14 @@ function MRScheduleSection({
       {!isLoading && sorted.length > 0 && (
         <div className="mr-task-list">
           {sorted.map((t) => (
-            <MRTaskCard key={t.id} task={t} onLog={onLog} onEdit={onEdit} onDelete={onDelete} />
+            <MRTaskCard
+              key={t.id}
+              task={t}
+              onLog={onLog}
+              onEdit={onEdit}
+              onReschedule={onReschedule}
+              onDelete={onDelete}
+            />
           ))}
         </div>
       )}
@@ -625,6 +646,7 @@ function MROverviewTab({
   tasksLoading,
   onLogFromTask,
   onEditTask,
+  onRescheduleTask,
   onDeleteTask,
   onAddTask,
   onViewAll,
@@ -634,6 +656,7 @@ function MROverviewTab({
   tasksLoading: boolean;
   onLogFromTask: (id: string) => void;
   onEditTask: (id: string) => void;
+  onRescheduleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: () => void;
   onViewAll: () => void;
@@ -646,6 +669,7 @@ function MROverviewTab({
         isLoading={tasksLoading}
         onLog={onLogFromTask}
         onEdit={onEditTask}
+        onReschedule={onRescheduleTask}
         onDelete={onDeleteTask}
         onAdd={onAddTask}
       />
@@ -975,6 +999,139 @@ function MREditTaskForm({ asset, task, variant, onClose, onSaved }: MREditTaskFo
             <>
               <Icon name="check" size={15} stroke={2.4} />
               Save changes
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Task reschedule form (future due-date override only — no record is created) ──
+
+interface MRRescheduleTaskFormProps {
+  asset: AssetPresentation;
+  task: MaintenanceTask;
+  todayUtc: string;
+  variant: "drawer" | "sheet";
+  onClose: () => void;
+  onSaved: (task: MaintenanceTask) => void;
+}
+
+function MRRescheduleTaskForm({
+  asset,
+  task,
+  todayUtc,
+  variant,
+  onClose,
+  onSaved,
+}: MRRescheduleTaskFormProps) {
+  const [nextDue, setNextDue] = useState("");
+  const [fieldError, setFieldError] = useState<string | null>(null);
+  const [banner, setBanner] = useState<string | null>(null);
+  const dateRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    dateRef.current?.focus();
+  }, []);
+
+  const mutation = useMutation({
+    mutationFn: (body: RescheduleMaintenanceTaskBody) =>
+      rescheduleMaintenanceTask(asset.id, task.id, body),
+    onSuccess: (updated) => onSaved(updated),
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 422 && err.field === "nextDue") {
+        setFieldError(err.message);
+        return;
+      }
+      setBanner(err instanceof Error ? err.message : "Failed to reschedule task.");
+    },
+  });
+
+  const submit = () => {
+    if (mutation.isPending) return;
+    if (!nextDue) {
+      setFieldError("Choose a new due date.");
+      return;
+    }
+    if (nextDue <= todayUtc) {
+      setFieldError("New due date must be after today.");
+      return;
+    }
+    setBanner(null);
+    setFieldError(null);
+    mutation.mutate({ nextDue });
+  };
+
+  const minDate = addCalendarDays(todayUtc, 1);
+
+  return (
+    <div className={`mr-form mr-form-${variant}`}>
+      {variant === "sheet" && <div className="mr-sheet-grab" />}
+      <div className="mr-form-head">
+        <div className="mr-form-head-txt">
+          <div className="mr-form-title">Reschedule</div>
+          <div className="mr-form-sub">
+            {task.title} · {asset.name}
+          </div>
+        </div>
+        <button className="mr-form-close" onClick={onClose} aria-label="Close">
+          <Icon name="x" size={15} stroke={2.2} />
+        </button>
+      </div>
+      <div className="mr-form-body">
+        {banner && (
+          <div className="mr-banner" role="alert">
+            <Icon name="alert" size={15} stroke={2} />
+            <span>{banner}</span>
+          </div>
+        )}
+        <Field
+          label="New due date"
+          htmlFor="mrt-resched-date"
+          required
+          {...(fieldError
+            ? { error: fieldError }
+            : { hint: <span className="mr-field-count">currently {task.nextDue}</span> })}
+        >
+          <input
+            id="mrt-resched-date"
+            ref={dateRef}
+            type="date"
+            min={minDate}
+            className={`mr-input${fieldError ? " is-invalid" : ""}`}
+            value={nextDue}
+            onChange={(e) => {
+              setNextDue(e.target.value);
+              if (fieldError) setFieldError(null);
+              if (banner) setBanner(null);
+            }}
+          />
+        </Field>
+        <p className="mr-resched-note">
+          Rescheduling moves the current due date only — no maintenance record is created, and
+          completion history stays unchanged.
+        </p>
+      </div>
+      <div className="mr-form-actions">
+        <Button variant="ghost" onClick={onClose} disabled={mutation.isPending}>
+          Cancel
+        </Button>
+        <Button
+          variant="brand"
+          className="mr-btn-save"
+          onClick={submit}
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? (
+            <>
+              <ButtonSpinner />
+              Saving…
+            </>
+          ) : (
+            <>
+              <Icon name="calendar" size={15} stroke={2.2} />
+              Reschedule
             </>
           )}
         </Button>
@@ -1649,6 +1806,7 @@ export function AppMaintenanceRecords() {
   const [logFromTaskId, setLogFromTaskId] = useState<string | null>(null);
   const [taskFormOpen, setTaskFormOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [reschedulingTaskId, setReschedulingTaskId] = useState<string | null>(null);
   const [editingRecord, setEditingRecord] = useState<MaintenanceRecord | null>(null);
   const [deletingRecord, setDeletingRecord] = useState<MaintenanceRecord | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
@@ -1690,7 +1848,7 @@ export function AppMaintenanceRecords() {
   const dashboardTodayQuery = useQuery({
     queryKey: dashboardQueryKey,
     queryFn: getDashboard,
-    enabled: taskFormOpen || !!editingRecord,
+    enabled: taskFormOpen || !!editingRecord || !!reschedulingTaskId,
     staleTime: 60_000,
     select: (data) => data.todayUtc,
   });
@@ -1836,6 +1994,19 @@ export function AppMaintenanceRecords() {
     setEditingTaskId(null);
   };
 
+  const handleTaskRescheduled = async (task: MaintenanceTask) => {
+    queryClient.setQueryData<MaintenanceTaskListResponse>(
+      maintenanceTasksQueryKey(assetId),
+      (old) => ({
+        maintenanceTasks: (old?.maintenanceTasks ?? []).map((t) => (t.id === task.id ? task : t)),
+      }),
+    );
+    setReschedulingTaskId(null);
+    // The dashboard read model derives urgency from nextDue; refresh it so the
+    // queue reflects the moved date.
+    await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+  };
+
   const handleTaskDeleted = async (taskId: string) => {
     setTaskDeleteError(null);
     try {
@@ -1957,6 +2128,7 @@ export function AppMaintenanceRecords() {
       tasksLoading={tasksQuery.isPending}
       onLogFromTask={(tid) => openLogForm(tid)}
       onEditTask={(tid) => setEditingTaskId(tid)}
+      onRescheduleTask={(tid) => setReschedulingTaskId(tid)}
       onDeleteTask={handleTaskDeleted}
       onAddTask={() => setTaskFormOpen(true)}
       onViewAll={() => setActiveTab("maintenance")}
@@ -1970,10 +2142,14 @@ export function AppMaintenanceRecords() {
     (activeTab === "maintenance" ? recordsQuery.isSuccess && sorted.length > 0 : true) &&
     !taskFormOpen &&
     !editingTaskId &&
+    !reschedulingTaskId &&
     !formOpen &&
     !shareOpen;
 
   const editingTask = editingTaskId ? (tasks.find((t) => t.id === editingTaskId) ?? null) : null;
+  const reschedulingTask = reschedulingTaskId
+    ? (tasks.find((t) => t.id === reschedulingTaskId) ?? null)
+    : null;
 
   const openShareSheet = () => {
     setShareError(null);
@@ -2252,6 +2428,22 @@ export function AppMaintenanceRecords() {
               variant={overlayVariant}
               onClose={() => setEditingTaskId(null)}
               onSaved={handleTaskUpdated}
+            />
+          </div>
+        </div>
+      )}
+
+      {reschedulingTask && asset && (
+        <div className={`mr-overlay mr-overlay-${overlayVariant}`}>
+          <div className="mr-scrim" onClick={() => setReschedulingTaskId(null)} />
+          <div className={`mr-overlay-panel-${overlayVariant}`}>
+            <MRRescheduleTaskForm
+              asset={asset}
+              task={reschedulingTask}
+              todayUtc={taskFormTodayUtc}
+              variant={overlayVariant}
+              onClose={() => setReschedulingTaskId(null)}
+              onSaved={handleTaskRescheduled}
             />
           </div>
         </div>

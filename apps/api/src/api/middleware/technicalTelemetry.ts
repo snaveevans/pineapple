@@ -248,6 +248,15 @@ function routeTelemetry(method: string, pathname: string): RouteTelemetry {
       routePattern: "/api/assets/{assetId}/maintenance-tasks/{taskId}",
     };
   }
+  if (
+    /^\/api\/assets\/[^/]+\/maintenance-tasks\/[^/]+\/reschedule$/.test(pathname) &&
+    method === "POST"
+  ) {
+    return {
+      operation: "RescheduleMaintenanceTask",
+      routePattern: "/api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule",
+    };
+  }
   if (pathname === "/api/teams" && method === "POST") {
     return { operation: "CreateTeam", routePattern: "/api/teams" };
   }

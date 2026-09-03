@@ -7,6 +7,7 @@ export type MaintenanceTask = components["schemas"]["MaintenanceTask"];
 export type MaintenanceTaskListResponse = components["schemas"]["MaintenanceTaskListResponse"];
 export type CreateMaintenanceTaskBody = components["schemas"]["CreateMaintenanceTaskBody"];
 export type UpdateMaintenanceTaskBody = components["schemas"]["UpdateMaintenanceTaskBody"];
+export type RescheduleMaintenanceTaskBody = components["schemas"]["RescheduleMaintenanceTaskBody"];
 
 export const maintenanceTasksQueryKey = (assetId: string) => ["maintenanceTasks", assetId] as const;
 
@@ -33,6 +34,17 @@ export function updateMaintenanceTask(
   body: UpdateMaintenanceTaskBody,
 ): Promise<MaintenanceTask> {
   return apiPatch("/api/assets/{assetId}/maintenance-tasks/{taskId}", {
+    path: { assetId, taskId },
+    body,
+  });
+}
+
+export function rescheduleMaintenanceTask(
+  assetId: string,
+  taskId: string,
+  body: RescheduleMaintenanceTaskBody,
+): Promise<MaintenanceTask> {
+  return apiPost("/api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule", {
     path: { assetId, taskId },
     body,
   });
