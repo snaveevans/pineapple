@@ -106,6 +106,8 @@ tagged boxes are all `[x]`." See docs/specs/SPECS.md. -->
 - [x] `S5` A successful reschedule increments the task revision and publishes a `MaintenanceTaskRescheduled` Smart Event carrying the resulting `nextDue`, task/asset snapshots, actor, and `task_rescheduled` History conclusion; durable consumers do not read task storage back
 - [x] `S5` The dashboard and asset maintenance page both expose a reschedule action with a future-date form; pending, 422, 403, 404, and 503 states preserve current task data, and success updates/invalidate both task-list and dashboard read models
 
+_Snooze is a different action, owned by [notifications.md](./notifications.md): `POST .../maintenance-tasks/{taskId}/snooze` postpones the task's reminder for one day without touching `nextDue`, `nextDueOverride`, completion state, recurrence, or any `MaintenanceTask*` event. It appears here only to mark the boundary — its contract and behavior live in the notifications spec._
+
 ### Record-task linking (change to existing maintenance-record endpoint)
 
 - [x] `S1` `POST /api/assets/{assetId}/maintenance-records` accepts an optional `taskId` field in the request body
