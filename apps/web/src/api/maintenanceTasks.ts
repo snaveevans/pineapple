@@ -8,6 +8,9 @@ export type MaintenanceTaskListResponse = components["schemas"]["MaintenanceTask
 export type CreateMaintenanceTaskBody = components["schemas"]["CreateMaintenanceTaskBody"];
 export type UpdateMaintenanceTaskBody = components["schemas"]["UpdateMaintenanceTaskBody"];
 export type RescheduleMaintenanceTaskBody = components["schemas"]["RescheduleMaintenanceTaskBody"];
+export type SnoozeMaintenanceReminderBody = components["schemas"]["SnoozeMaintenanceReminderBody"];
+export type SnoozeMaintenanceReminderResponse =
+  components["schemas"]["SnoozeMaintenanceReminderResponse"];
 
 export const maintenanceTasksQueryKey = (assetId: string) => ["maintenanceTasks", assetId] as const;
 
@@ -45,6 +48,17 @@ export function rescheduleMaintenanceTask(
   body: RescheduleMaintenanceTaskBody,
 ): Promise<MaintenanceTask> {
   return apiPost("/api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule", {
+    path: { assetId, taskId },
+    body,
+  });
+}
+
+export function snoozeMaintenanceTask(
+  assetId: string,
+  taskId: string,
+  body: SnoozeMaintenanceReminderBody,
+): Promise<SnoozeMaintenanceReminderResponse> {
+  return apiPost("/api/assets/{assetId}/maintenance-tasks/{taskId}/snooze", {
     path: { assetId, taskId },
     body,
   });

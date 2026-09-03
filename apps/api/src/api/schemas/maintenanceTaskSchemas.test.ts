@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   RescheduleMaintenanceTaskBodySchema,
+  SnoozeMaintenanceReminderBodySchema,
   UpdateMaintenanceTaskBodySchema,
 } from "./maintenanceTaskSchemas.ts";
+import { REQUEST_BODY_NOT_OBJECT } from "./shared.ts";
 
 describe("UpdateMaintenanceTaskBodySchema", () => {
   it("accepts a title-only body", () => {
@@ -85,4 +87,41 @@ describe("RescheduleMaintenanceTaskBodySchema", () => {
       RescheduleMaintenanceTaskBodySchema.safeParse({ nextDue: "2026-09-15", extra: 1 }).success,
     ).toBe(false);
   });
+});
+
+describe("SnoozeMaintenanceReminderBodySchema", () => {
+  it("accepts exactly { durationDays: 1 }", () => {
+    expect(SnoozeMaintenanceReminderBodySchema.parse({ durationDays: 1 })).toEqual({
+      durationDays: 1,
+    });
+  });
+
+  it.each([
+    {}, // missing durationDays
+    { durationDays: 2 },
+    { durationDays: 0 },
+    { durationDays: 1.5 },
+    { durationDays: "1" },
+    { durationDays: true },
+    { durationDays: null },
+  ])("rejects an invalid durationDays %#", (body) => {
+    expect(SnoozeMaintenanceReminderBodySchema.safeParse(body).success).toBe(false);
+  });
+
+  it("rejects an unknown extra field alongside a valid durationDays", () => {
+    expect(
+      SnoozeMaintenanceReminderBodySchema.safeParse({ durationDays: 1, snoozedUntil: "2026-09-04" })
+        .success,
+    ).toBe(false);
+  });
+
+  it.each([[], "x", 42, null, true])(
+    "rejects a valid-JSON non-object body with the shared pinned message %#",
+    (body) => {
+      const result = SnoozeMaintenanceReminderBodySchema.safeParse(body);
+      expect(result.success).toBe(false);
+      if (result.success) return;
+      expect(result.error.issues[0]?.message).toBe(REQUEST_BODY_NOT_OBJECT);
+    },
+  );
 });

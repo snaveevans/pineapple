@@ -11,6 +11,7 @@ import { MaintenanceTaskDeletedTelemetryHandler } from "./maintenance/Maintenanc
 import { MaintenanceTaskRescheduledTelemetryHandler } from "./maintenance/MaintenanceTaskRescheduledTelemetryHandler.ts";
 import { MaintenanceTaskUpdatedTelemetryHandler } from "./maintenance/MaintenanceTaskUpdatedTelemetryHandler.ts";
 import { MaintenanceReminderCreatedTelemetryHandler } from "./notification/MaintenanceReminderCreatedTelemetryHandler.ts";
+import { MaintenanceReminderSnoozedTelemetryHandler } from "./notification/MaintenanceReminderSnoozedTelemetryHandler.ts";
 import { ReminderEmailDispatchedTelemetryHandler } from "./notification/ReminderEmailDispatchedTelemetryHandler.ts";
 import { UserNameUpdatedTelemetryHandler } from "./user/UserNameUpdatedTelemetryHandler.ts";
 import { UserOnboardingCompletedTelemetryHandler } from "./user/UserOnboardingCompletedTelemetryHandler.ts";
@@ -53,6 +54,7 @@ export function registerDomainTelemetry(deps: {
 
   const notificationDomainSink = new AnalyticsEngineTelemetrySink(deps.notificationDomainDataset);
   deps.eventBus.subscribe(new MaintenanceReminderCreatedTelemetryHandler(notificationDomainSink));
+  deps.eventBus.subscribe(new MaintenanceReminderSnoozedTelemetryHandler(notificationDomainSink));
   deps.eventBus.subscribe(new ReminderEmailDispatchedTelemetryHandler(notificationDomainSink));
 
   const teamDomainSink = new AnalyticsEngineTelemetrySink(deps.teamDomainDataset);

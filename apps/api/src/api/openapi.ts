@@ -25,6 +25,8 @@ import {
   MaintenanceTaskParamsSchema,
   MaintenanceTaskResponseSchema,
   RescheduleMaintenanceTaskBodySchema,
+  SnoozeMaintenanceReminderBodySchema,
+  SnoozeMaintenanceReminderResponseSchema,
   UpdateMaintenanceTaskBodySchema,
 } from "./schemas/maintenanceTaskSchemas.ts";
 import { DashboardResponseSchema } from "./schemas/dashboardSchemas.ts";
@@ -886,6 +888,54 @@ export const rescheduleMaintenanceTaskRoute = createRoute({
   },
 });
 
+export const snoozeMaintenanceTaskRoute = createRoute({
+  method: "post",
+  path: "/api/assets/{assetId}/maintenance-tasks/{taskId}/snooze",
+  tags: ["Maintenance"],
+  summary: "Snooze a maintenance task's reminder",
+  description:
+    "Postpones the task's pending maintenance reminder until tomorrow (server-computed " +
+    "todayUtc + 1) without changing the task's schedule: nextDue, recurrence, urgency, and " +
+    "completion evidence are untouched and no maintenance record is created. Snoozing an " +
+    "already-fired reminder re-arms it so it fires again on or after the snooze expiry. " +
+    "Requires an existing reminder cycle for the task. Not affected by the maintenance " +
+    "write-freeze gate.",
+  security: [cookieAuth],
+  request: {
+    params: MaintenanceTaskParamsSchema,
+    body: {
+      required: true,
+      content: { "application/json": { schema: SnoozeMaintenanceReminderBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: "Reminder snoozed",
+      content: { "application/json": { schema: SnoozeMaintenanceReminderResponseSchema } },
+    },
+    401: {
+      description: "Not authenticated",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "The task's asset belongs to another user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "No such task, or the task has no snoozable reminder state",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "The reminder cycle changed concurrently; retry",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    422: {
+      description: "Validation failed",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
 export const shareAssetRoute = createRoute({
   method: "post",
   path: "/api/assets/{assetId}/share",
@@ -1042,6 +1092,7 @@ export function getApiDocument() {
   doc.openapi(deleteMaintenanceTaskRoute, stub);
   doc.openapi(updateMaintenanceTaskRoute, stub);
   doc.openapi(rescheduleMaintenanceTaskRoute, stub);
+  doc.openapi(snoozeMaintenanceTaskRoute, stub);
   doc.openapi(getDashboardRoute, stub);
   doc.openapi(getActivityRoute, stub);
   doc.openapi(getUserProfileRoute, stub);

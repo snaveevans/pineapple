@@ -291,42 +291,45 @@ same handler paths, but that is **out of scope** for this spec and parked in
 
 ### Snoozing a reminder
 
-- [ ] `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze` accepts exactly
+- [x] `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze` accepts exactly
       `{ durationDays: 1 }` and returns `{ taskId, snoozedUntil }` with status 200;
       `durationDays` is the literal `1` in v1 — a missing or different value, or any unknown
       field, returns 422 (future duration options widen this schema without changing its shape)
-- [ ] `snoozedUntil = todayUtc + 1` calendar day, computed server-side as a timezone-free
+- [x] `snoozedUntil = todayUtc + 1` calendar day, computed server-side as a timezone-free
       `YYYY-MM-DD` date; the client never supplies a date and the snooze is one day by definition
-- [ ] The worker's route handler performs the shared task-then-asset-then-access check (same
+- [x] The worker's route handler performs the shared task-then-asset-then-access check (same
       order as task edit/reschedule); the snooze use case then resolves the task's current cycle
-      from `notification_task_heads.currentNextDue` — notifications' own state — and never reads
-      maintenance-task storage. This is the HTTP authorization path, not a durable-consumer
-      read-back; ADR-0010's no-read-back rule governs the scheduler and consumers
-- [ ] Snoozing a `pending` cycle defers its next fire to `snoozedUntil`; snoozing an
+      from notifications' own scheduled-reminder state — the task's most recent cycle row
+      (shipped v1; `notification_task_heads.currentNextDue` remains the planned ordering
+      authority) — and never reads maintenance-task storage. This is the HTTP authorization
+      path, not a durable-consumer read-back; ADR-0010's no-read-back rule governs the
+      scheduler and consumers
+- [x] Snoozing a `pending` cycle defers its next fire to `snoozedUntil`; snoozing an
       already-`fired` cycle re-arms it (status back to `pending`, `fireAt` unchanged) so the
       first sweep on or after `snoozedUntil` fires it again; the effective fire date is always
       `max(fireAt, snoozedUntil)` — a snooze never accelerates
-- [ ] A re-fire re-activates the cycle's existing inbox notification — clearing `readAt` and
+- [x] A re-fire re-activates the cycle's existing inbox notification — clearing `readAt` and
       refreshing `createdAt` so the entry re-surfaces — and never inserts a second notification
       for the same `(taskId, nextDue)`; the aggregated email re-sends through the normal sweep
       path
-- [ ] Snooze is available to any authenticated user with access to the task (owner or
+- [x] Snooze is available to any authenticated user with access to the task (owner or
       team-shared, same as task edit/reschedule); the reminder itself remains keyed to the
       task's owner
-- [ ] The snooze write is conditional on the head's current cycle (status `pending` or `fired`
-      and `nextDue = currentNextDue`); a race with a cycle transition retries against fresh
-      head state, mirroring task-mutation concurrency, and returns 409 after retries are
-      exhausted
-- [ ] A task with no reminder state (no task head, or no row for the current cycle) returns 404
+- [x] The snooze write is conditional on the current cycle row still having its resolved
+      status (`pending` or `fired`); a re-arm that collides with a newer pending cycle is
+      rejected by the one-pending-per-task unique index. A race with a cycle transition
+      retries against fresh state, mirroring task-mutation concurrency, and returns 409
+      after retries are exhausted
+- [x] A task with no reminder state (no task head, or no row for the current cycle) returns 404
       and is logged as an anomaly; a current cycle whose status is neither `pending` nor `fired`
       fails closed as an invariant violation; the operation never fabricates a reminder row
-- [ ] A deleted task's head is terminal: snoozing it returns 404, and the existing delete-cancel
+- [x] A deleted task's head is terminal: snoozing it returns 404, and the existing delete-cancel
       path drops the snooze with the canceled cycle
-- [ ] Snooze is a notifications-side mutation: it never changes the task's `nextDue`,
+- [x] Snooze is a notifications-side mutation: it never changes the task's `nextDue`,
       `lastCompletedDate`, recurrence, urgency, or completion evidence, publishes no
       `MaintenanceTask*` event, writes no activity-history entry, and never creates a
       maintenance record
-- [ ] The maintenance write gate (`503 maintenance_write_frozen`) does **not** apply to snooze —
+- [x] The maintenance write gate (`503 maintenance_write_frozen`) does **not** apply to snooze —
       it guards maintenance-task storage, and snooze writes notifications-owned state only
 
 ### Reminder creation (the notifications sweep)
@@ -337,7 +340,7 @@ same handler paths, but that is **out of scope** for this spec and parked in
       steady-state scheduling stays event-driven
 - [ ] Reminders are created only from notifications' own scheduled-reminder state; the sweep never
       reads maintenance-task or asset tables
-- [ ] Each `pending` reminder whose effective fire date (`max(fireAt, snoozedUntil)`) has arrived
+- [x] Each `pending` reminder whose effective fire date (`max(fireAt, snoozedUntil)`) has arrived
       produces exactly one `maintenance_due_soon` notification; creation is idempotent on
       `(taskId, nextDue)` so a repeated sweep never duplicates a reminder for the same cycle —
       a snooze re-fire re-activates the existing row instead of inserting a duplicate
@@ -496,7 +499,7 @@ arithmetic, not timestamp subtraction.
 | Snooze body invalid (missing/non-`1` `durationDays`, unknown field, non-object) | 422; non-object JSON body uses the shared pinned message                                                                                                                                   |
 | Snooze on a task whose asset is inaccessible                                    | 403 (same task-then-asset-then-access order as task edit)                                                                                                                                  |
 | Snooze on a task of an archived asset                                           | Permitted via API (matches task edit/reschedule); unreachable from the dashboard, which excludes archived-asset tasks                                                                      |
-| Snooze races a cycle transition                                                 | Conditional update on the head's current cycle; retried against fresh head state; 409 after retries exhausted                                                                              |
+| Snooze races a cycle transition                                                 | Conditional update on the current cycle row's status; a colliding re-arm is rejected by the one-pending-per-task index; retried against fresh state; 409 after retries exhausted           |
 | Maintenance write gate is frozen (`maintenance_write_frozen`)                   | Snooze still works — the 503 gate guards maintenance-task storage, not notifications state                                                                                                 |
 | Snooze accepted while the cycle's inbox row already exists (fired earlier)      | The existing inbox row is unchanged at snooze time (`readAt`/`createdAt` preserved); it is re-activated only at the re-fire on/after `snoozedUntil`                                        |
 | Current cycle status is neither `pending` nor `fired` while the head is active  | 500 invariant violation — fails closed; nothing is written and no state changes                                                                                                            |
@@ -559,9 +562,9 @@ that same row and emits another event carrying the same notification id.
 
 ### `MaintenanceReminderSnoozed` — on each accepted snooze (index: `owner_id`)
 
-One per accepted snooze (per task/cycle). Emitted by the snooze use case through the
-notification domain-event outbox; the mutating-request middleware relays it after the
-successful `POST`, like other HTTP-path mutations.
+One per accepted snooze (per task/cycle). Emitted by the snooze use case on the domain
+event bus after the successful `POST`; the registered telemetry handler writes Analytics
+Engine synchronously within the request, like other HTTP-path mutations.
 
 | Field        | Name                    | Value                             |
 | ------------ | ----------------------- | --------------------------------- |
@@ -695,7 +698,8 @@ NOTHING` and then read the existing run; a concurrent or retried invocation firs
   [schema-migrations.md](../cross-cutting/schema-migrations.md)); `null` means never snoozed, so
   no backfill is needed. Add a `SnoozeReminder` application use case whose D1 transition
   conditionally updates the current cycle (`status` `pending`→`pending` with a new
-  `snoozedUntil`, or `fired`→`pending` re-arm) against `notification_task_heads.currentNextDue`,
+  `snoozedUntil`, or `fired`→`pending` re-arm) on the cycle row's resolved status, guarded by
+  the one-pending-per-task unique index,
   with the same bounded-retry concurrency as task mutations. The sweep's fire condition becomes
   `max(fireAt, snoozedUntil)`, and its fire write upsert-revives an existing inbox row on
   re-fire. The dashboard consumes this state through its queue-item `snoozedUntil` descriptor

@@ -17,7 +17,7 @@ import { D1ReminderSweepStore } from "./D1ReminderSweepStore.ts";
 
 type BoundStatement = { query: string; values: unknown[] };
 
-function harness(allResults: unknown[][] = []) {
+function harness(allResults: unknown[][] = [], batchResults: unknown[] = []) {
   const statements: BoundStatement[] = [];
   const results = [...allResults];
   const prepare = vi.fn((query: string) => ({
@@ -28,7 +28,7 @@ function harness(allResults: unknown[][] = []) {
       };
     },
   }));
-  const batch = vi.fn().mockResolvedValue([]);
+  const batch = vi.fn().mockResolvedValue(batchResults);
   return { db: { prepare, batch } as unknown as D1Database, statements, batch };
 }
 
@@ -59,7 +59,9 @@ function candidate(overrides: Partial<ReminderSweepNotificationCandidate> = {}) 
   };
 }
 
-function input(overrides: Partial<ReminderSweepPersistenceInput> = {}): ReminderSweepPersistenceInput {
+function input(
+  overrides: Partial<ReminderSweepPersistenceInput> = {},
+): ReminderSweepPersistenceInput {
   const batchId = EmailBatchId.generate();
   const ownerId = UserId.generate();
   const candidates = overrides.candidates ?? [
@@ -94,6 +96,7 @@ describe("D1ReminderSweepStore", () => {
           task_title: "Oil change",
           next_due: "2026-07-09",
           fire_at: "2026-07-02",
+          snoozed_until: null,
           status: "pending",
           last_event_id: "evt-1",
           last_event_occurred_at: "2026-06-01T00:00:00.000Z",
@@ -106,14 +109,46 @@ describe("D1ReminderSweepStore", () => {
     const due = await new D1ReminderSweepStore(db).findDue("2026-07-02");
 
     expect(statements[0]?.query).toContain("WHERE status = 'pending' AND fire_at <= ?");
-    expect(statements[0]?.values).toEqual(["2026-07-02"]);
+    // Effective fire date = max(fireAt, snoozedUntil) — a snoozed reminder that
+    // has not expired yet is filtered out here.
+    expect(statements[0]?.query).toContain("(snoozed_until IS NULL OR snoozed_until <= ?)");
+    expect(statements[0]?.values).toEqual(["2026-07-02", "2026-07-02"]);
     expect(due).toEqual([
       expect.objectContaining({
         id: ScheduledReminderId.from("reminder-1"),
         ownerId: UserId.from("owner-1"),
         maintenanceTaskId: MaintenanceTaskId.from("task-1"),
+        snoozedUntil: null,
       }),
     ]);
+  });
+
+  it("maps a snoozed reminder row through with its snoozedUntil", async () => {
+    const { db } = harness([
+      [
+        {
+          id: "reminder-1",
+          owner_id: "owner-1",
+          actor_id: "source-user",
+          maintenance_task_id: "task-1",
+          asset_id: "asset-1",
+          asset_name: "Truck",
+          asset_type: "vehicle",
+          task_title: "Oil change",
+          next_due: "2026-07-09",
+          fire_at: "2026-07-02",
+          snoozed_until: "2026-07-02",
+          status: "pending",
+          last_event_id: "evt-1",
+          last_event_occurred_at: "2026-06-01T00:00:00.000Z",
+          created_at: "2026-06-01T00:00:00.000Z",
+          updated_at: "2026-06-01T00:00:00.000Z",
+        },
+      ],
+    ]);
+
+    const due = await new D1ReminderSweepStore(db).findDue("2026-07-02");
+    expect(due[0]?.snoozedUntil).toBe("2026-07-02");
   });
 
   it("atomically inserts notifications, fires reminders, creates one batch, and enqueues one outbound job", async () => {
@@ -140,19 +175,69 @@ describe("D1ReminderSweepStore", () => {
 
     expect(batch).toHaveBeenCalledOnce();
     const batchedStatements = batch.mock.calls[0]?.[0] as D1PreparedStatement[];
-    expect(batchedStatements).toHaveLength(4);
-    expect(statements[0]?.query).toContain("INSERT INTO notifications");
-    expect(statements[0]?.query).toContain("email_batch_id");
-    expect(statements[1]?.query).toContain("UPDATE scheduled_reminders SET status = 'fired'");
-    expect(statements[2]?.query).toContain("INSERT INTO email_batches");
-    expect(statements[3]?.query).toContain("INSERT OR IGNORE INTO notification_email_outbox");
-    expect(statements[3]?.values[0]).toBe(batchId);
-    expect(statements[3]?.values[1]).toBe(batchId);
-    expect(statements[3]?.values[2]).toBe(ownerId);
-    expect(isReminderEmailMessage(JSON.parse(String(statements[3]?.values[3])))).toBe(true);
+    // 1 pre-select (created vs re-activated) + upsert + fire + batch + outbox.
+    expect(batchedStatements).toHaveLength(5);
+    expect(statements[0]?.query).toContain(
+      "SELECT maintenance_task_id, next_due FROM notifications",
+    );
+    expect(statements[1]?.query).toContain("INSERT INTO notifications");
+    expect(statements[1]?.query).toContain("email_batch_id");
+    // A re-fired cycle re-activates its existing inbox row instead of skipping.
+    expect(statements[1]?.query).toContain(
+      "ON CONFLICT (maintenance_task_id, next_due) DO UPDATE SET",
+    );
+    expect(statements[1]?.query).toContain("read_at = NULL");
+    expect(statements[1]?.query).toContain("created_at = excluded.created_at");
+    expect(statements[1]?.query).toContain("email_batch_id = excluded.email_batch_id");
+    // Firing clears the snooze so a fired row can never re-arm by accident.
+    expect(statements[2]?.query).toContain(
+      "SET status = 'fired', snoozed_until = NULL, updated_at = ?",
+    );
+    expect(statements[3]?.query).toContain("INSERT INTO email_batches");
+    expect(statements[4]?.query).toContain("INSERT OR IGNORE INTO notification_email_outbox");
+    expect(statements[4]?.values[0]).toBe(batchId);
+    expect(statements[4]?.values[1]).toBe(batchId);
+    expect(statements[4]?.values[2]).toBe(ownerId);
+    expect(isReminderEmailMessage(JSON.parse(String(statements[4]?.values[3])))).toBe(true);
     expect(result.createdNotifications).toEqual([expect.objectContaining({ id: n.id, ownerId })]);
+    expect(result.reactivatedCount).toBe(0);
     expect(result.emailBatches).toEqual([
       expect.objectContaining({ id: batchId, ownerId, notificationCount: 1, status: "pending" }),
+    ]);
+  });
+
+  it("re-fires a snoozed cycle by re-activating its existing inbox row, not a duplicate", async () => {
+    const ownerId = UserId.generate();
+    const batchId = EmailBatchId.generate();
+    const n = notification({ ownerId });
+    const record = input({
+      candidates: [candidate({ emailBatchId: batchId, notification: n })],
+      emailBatches: [
+        {
+          id: batchId,
+          ownerId,
+          createdAt: new Date("2026-07-02T10:30:00.000Z"),
+          updatedAt: new Date("2026-07-02T10:30:00.000Z"),
+        },
+      ],
+    });
+    // Pre-select inside the same transaction finds the cycle's existing row —
+    // the re-fire re-activates it, so no create event is reported.
+    const { db, batch } = harness(
+      [
+        [notificationRow(n)],
+        [emailBatchRow({ id: batchId, owner_id: ownerId, notification_count: 1 })],
+      ],
+      [{ results: [{ maintenance_task_id: n.maintenanceTaskId, next_due: n.nextDue }] }],
+    );
+
+    const result = await new D1ReminderSweepStore(db).recordDueReminderSweep(record);
+
+    expect(batch).toHaveBeenCalledOnce();
+    expect(result.createdNotifications).toEqual([]);
+    expect(result.reactivatedCount).toBe(1);
+    expect(result.emailBatches).toEqual([
+      expect.objectContaining({ id: batchId, ownerId, notificationCount: 1 }),
     ]);
   });
 
@@ -165,7 +250,7 @@ describe("D1ReminderSweepStore", () => {
     });
 
     expect(batch).not.toHaveBeenCalled();
-    expect(result).toEqual({ createdNotifications: [], emailBatches: [] });
+    expect(result).toEqual({ createdNotifications: [], reactivatedCount: 0, emailBatches: [] });
   });
 });
 

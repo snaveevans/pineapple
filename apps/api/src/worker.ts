@@ -29,6 +29,7 @@ import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1Ma
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
 import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSweepStore.ts";
+import { D1ScheduledReminderRepository } from "./infrastructure/persistence/D1ScheduledReminderRepository.ts";
 import { D1MigrationStatus } from "./infrastructure/persistence/D1MigrationStatus.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
@@ -69,6 +70,7 @@ import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTask
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { UpdateMaintenanceTask } from "./application/usecases/UpdateMaintenanceTask.ts";
 import { RescheduleMaintenanceTask } from "./application/usecases/RescheduleMaintenanceTask.ts";
+import { SnoozeMaintenanceReminder } from "./application/usecases/SnoozeMaintenanceReminder.ts";
 import { D1MaintenanceWriteGate } from "./infrastructure/persistence/D1MaintenanceWriteGate.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
@@ -112,6 +114,7 @@ import {
   deleteMaintenanceTaskRoute,
   updateMaintenanceTaskRoute,
   rescheduleMaintenanceTaskRoute,
+  snoozeMaintenanceTaskRoute,
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
@@ -551,6 +554,9 @@ app.openapi(getDashboardRoute, async (c) => {
     new D1MaintenanceTaskRepository(c.env.DB),
     new SystemUtcDateProvider(),
     new D1UserRepository(c.env.DB),
+    // Snooze state is notifications-owned; the descriptor is computed in the
+    // application layer from this read-side port (ADR-0009, like `sharing`).
+    new D1ScheduledReminderRepository(c.env.DB),
   ).execute({
     ownerId: user.id,
     viewerDisplayName: user.name,
@@ -1022,6 +1028,26 @@ app.openapi(rescheduleMaintenanceTaskRoute, async (c) => {
   if (!result.ok) throw result.error;
   const todayUtc = new SystemUtcDateProvider().today();
   return c.json(serializeMaintenanceTask(result.value, todayUtc), 200);
+});
+
+app.openapi(snoozeMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, taskId } = c.req.valid("param");
+  const result = await new SnoozeMaintenanceReminder(
+    new D1MaintenanceTaskRepository(c.env.DB),
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    new D1ScheduledReminderRepository(c.env.DB),
+    new SystemUtcDateProvider(),
+    new SystemClock(),
+    c.get("eventBus"),
+  ).execute({
+    taskId: MaintenanceTaskId.from(taskId),
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ taskId: result.value.taskId, snoozedUntil: result.value.snoozedUntil }, 200);
 });
 
 const worker: ExportedHandler<Bindings, unknown> = {

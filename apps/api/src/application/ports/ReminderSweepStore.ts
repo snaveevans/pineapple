@@ -16,7 +16,10 @@ export interface ReminderSweepPersistenceInput {
 }
 
 export interface ReminderSweepPersistenceResult {
+  /** Rows this sweep genuinely inserted — re-fired cycles re-activate instead. */
   createdNotifications: NotificationRecord[];
+  /** Existing inbox rows re-activated by a snooze re-fire (unread, re-dated). */
+  reactivatedCount: number;
   emailBatches: EmailBatchRecord[];
 }
 

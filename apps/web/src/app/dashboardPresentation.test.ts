@@ -19,6 +19,7 @@ describe("dashboardPresentation", () => {
     intervalValue: 3,
     intervalUnit: "month",
     lastCompletedDate: "2026-03-14",
+    snoozedUntil: null,
     createdAt: "2026-01-15T12:00:00.000Z",
     assetId: "195d0ef0-47f5-439f-abfd-29f892c9a040",
     assetName: "Work Truck",
@@ -58,5 +59,12 @@ describe("dashboardPresentation", () => {
         sharing: { scope: "team", isOwner: false, ownerDisplayName: "Pat" },
       }).sharingBadge,
     ).toEqual({ kind: "shared-by", text: "Shared by Pat" });
+  });
+
+  it("renders an active snooze as a chip and an unsnoozed row without one", () => {
+    expect(toQueuePresentation(baseItem).snoozedChip).toBeNull();
+    expect(toQueuePresentation({ ...baseItem, snoozedUntil: "2026-06-17" }).snoozedChip).toBe(
+      "Reminder snoozed until Jun 17, 2026",
+    );
   });
 });

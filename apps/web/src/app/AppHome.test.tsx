@@ -6,7 +6,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import { ApiError } from "../api/client.ts";
 import { getDashboard, type DashboardResponse } from "../api/dashboard.ts";
-import { rescheduleMaintenanceTask, type MaintenanceTask } from "../api/maintenanceTasks.ts";
+import {
+  rescheduleMaintenanceTask,
+  snoozeMaintenanceTask,
+  type MaintenanceTask,
+} from "../api/maintenanceTasks.ts";
 import { AppHome } from "./AppHome.tsx";
 
 declare global {
@@ -47,6 +51,7 @@ vi.mock("../api/maintenanceRecords.ts", () => ({
 vi.mock("../api/maintenanceTasks.ts", () => ({
   maintenanceTasksQueryKey: (id: string) => ["maintenanceTasks", id],
   rescheduleMaintenanceTask: vi.fn(),
+  snoozeMaintenanceTask: vi.fn(),
 }));
 
 vi.mock("./AddServiceModal.tsx", () => ({
@@ -55,6 +60,7 @@ vi.mock("./AddServiceModal.tsx", () => ({
 
 const getDashboardMock = vi.mocked(getDashboard);
 const rescheduleMock = vi.mocked(rescheduleMaintenanceTask);
+const snoozeMock = vi.mocked(snoozeMaintenanceTask);
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -77,6 +83,7 @@ const dashboard: DashboardResponse = {
       intervalValue: 2,
       intervalUnit: "month",
       lastCompletedDate: "2026-04-12",
+      snoozedUntil: null,
       createdAt: "2026-04-12T12:00:00.000Z",
       assetId: "asset-1",
       assetName: "Truck",
@@ -157,6 +164,12 @@ function rescheduleButton(): HTMLButtonElement | undefined {
   ).find((b) => b.textContent?.includes("Reschedule"));
 }
 
+function snoozeButton(): HTMLButtonElement | undefined {
+  return Array.from(
+    container?.querySelectorAll<HTMLButtonElement>(".hf-actions button") ?? [],
+  ).find((b) => b.textContent?.includes("Snooze"));
+}
+
 function setInputValue(input: HTMLInputElement, value: string) {
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   if (valueSetter === undefined) throw new Error("Input does not have a value setter");
@@ -204,14 +217,76 @@ describe("AppHome reschedule action", () => {
     );
   });
 
-  it("still disables snooze as a placeholder", async () => {
+  it("renders the snooze action enabled for an unsnoozed reminder", async () => {
     await renderApp();
     await waitFor(() => Boolean(container?.querySelector(".hf-detail-card")));
 
-    const snooze = Array.from(
-      container?.querySelectorAll<HTMLButtonElement>(".hf-actions button") ?? [],
-    ).find((b) => b.textContent?.includes("Snooze"));
-    expect(snooze?.disabled).toBe(true);
+    const snooze = snoozeButton();
+    expect(snooze?.disabled).toBe(false);
+    expect(container?.querySelector(".hf-snooze-chip")).toBeNull();
+  });
+
+  it("submits the one-day snooze and invalidates the dashboard read model on success", async () => {
+    snoozeMock.mockResolvedValue({ taskId: "task-1", snoozedUntil: "2026-06-10" });
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".hf-detail-card")));
+    invalidateSpy?.mockClear();
+
+    await act(async () => {
+      snoozeButton()?.click();
+    });
+
+    expect(snoozeMock).toHaveBeenCalledWith("asset-1", "task-1", { durationDays: 1 });
+
+    await waitFor(() => {
+      const queryKeys = invalidateSpy?.mock.calls.map(
+        (call) => (call[0] as { queryKey?: readonly unknown[] })?.queryKey,
+      );
+      return queryKeys?.some((key) => Array.isArray(key) && key[0] === "dashboard") ?? false;
+    });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+  });
+
+  it("disables the snooze action and shows the chip while the reminder is snoozed", async () => {
+    const queueItem = dashboard.queue[0];
+    if (!queueItem) throw new Error("fixture queue item missing");
+    getDashboardMock.mockResolvedValue({
+      ...dashboard,
+      queue: [{ ...queueItem, snoozedUntil: "2026-06-10" }],
+    });
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".hf-detail-card")));
+
+    expect(snoozeButton()?.disabled).toBe(true);
+    expect(container?.querySelector(".hf-snooze-chip")?.textContent).toContain(
+      "Reminder snoozed until Jun 10, 2026",
+    );
+  });
+
+  it("on 403/404 keeps the current dashboard data visible, shows the error, and re-enables snooze", async () => {
+    snoozeMock.mockRejectedValue(
+      new ApiError(403, { error: "The task's asset belongs to another user" }),
+    );
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".hf-detail-card")));
+    invalidateSpy?.mockClear();
+
+    await act(async () => {
+      snoozeButton()?.click();
+    });
+
+    await waitFor(() => Boolean(container?.querySelector('[role="alert"]')));
+    expect(container?.querySelector('[role="alert"]')?.textContent).toContain(
+      "belongs to another user",
+    );
+
+    // Current dashboard data is intact; the read model is invalidated so the
+    // row reconciles with the API without discarding what is visible.
+    expect(container?.textContent).toContain("Replace furnace filter");
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+
+    // The submitting action is re-enabled so the user can retry.
+    await waitFor(() => snoozeButton()?.disabled === false);
   });
 
   it("on success invalidates the dashboard read model and the asset's task list", async () => {

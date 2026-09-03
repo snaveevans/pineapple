@@ -2,7 +2,7 @@ import type { AssetType, DashboardQueueItem } from "../api/dashboard.ts";
 import type { IconName } from "../design/Icon.tsx";
 import type { AssetCategory, AssetStatus } from "../design/hf.tsx";
 import { shortenAssetId } from "./assetPresentation.ts";
-import { ymdParts } from "./dateFormat.ts";
+import { formatShortDate, ymdParts } from "./dateFormat.ts";
 import { sharingBadge, type SharingBadge } from "./sharingPresentation.ts";
 
 const MONTHS_LONG = [
@@ -45,6 +45,8 @@ export type DashboardQueuePresentation = {
   status: AssetStatus;
   last: string;
   recurs: string;
+  /** Reminder-only snooze chip label, or null while the reminder is not snoozed. */
+  snoozedChip: string | null;
   sharingBadge: SharingBadge;
 };
 
@@ -120,8 +122,15 @@ export function toQueuePresentation(item: DashboardQueueItem): DashboardQueuePre
     status: item.status,
     last: formatLastService(item.lastCompletedDate),
     recurs: formatRecurrence(item.intervalValue, item.intervalUnit),
+    snoozedChip: formatSnoozeChip(item.snoozedUntil),
     sharingBadge: sharingBadge(item.sharing),
   };
+}
+
+/** "Reminder snoozed until {date}" while the reminder is actively snoozed. */
+export function formatSnoozeChip(snoozedUntil: string | null): string | null {
+  if (!snoozedUntil) return null;
+  return `Reminder snoozed until ${formatShortDate(snoozedUntil)}`;
 }
 
 export function filterQueueByCategory(
