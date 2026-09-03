@@ -203,6 +203,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 
 - `pending` (mark complete) — creates a linked maintenance record for the selected task and refetches dashboard + asset maintenance data
 - `pending` (add service) — drawer modal creates a recurring maintenance task for any asset; defaults to the currently selected queue item's asset when one is selected
+- `pending` (reschedule) — modal sets a new future due date for the selected task without logging work; success refetches the dashboard and that asset's task list, then closes the modal
 - `error` — inline error; mutation errors surface in the active modal/drawer
 
 **Add-service drawer nested states** (fetches asset list on demand when opened):
@@ -220,7 +221,7 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 - Sharing badge copy is driven by each queue item's API `sharing` descriptor; the client does not re-derive ownership
 - Category filter chips filter the returned queue client-side without a new request
 - Add service fetches the asset list on demand when opened; task creation reuses the same validation and API contract as the asset maintenance task form
-- Reschedule and Snooze remain disabled placeholders until future specs land
+- Reschedule opens a modal that moves a task's next due date without logging work, changing its interval, or touching its history; Snooze remains a disabled placeholder until a future spec lands
 - Task detail fields not yet in the maintenance-task API (estimated time, location, assignee, notes) are not shown from live data
 - 401 from the API redirects to `/login`
 
@@ -419,6 +420,7 @@ Success is a navigate-away transition (updates the asset query cache, invalidate
 - `pending` (create record) — inline or modal form validates date and description; submits to API
 - `pending` (create task) — inline form validates title and due date
 - `pending` (edit task) — drawer/sheet form (title + interval only, no last-completed-date field) opened from an edit button on the task card; submits `PATCH` and updates the task in place
+- `pending` (reschedule task) — form opened from a reschedule button on the task card; sets a new due date (after today) and refreshes the task in place without logging work
 - `pending` (edit record) — prefilled title/date/notes form on a record; submits `PATCH` and refreshes the record list and linked task
 - `pending` (delete record) — confirmation dialog, then a disabled/pending delete action; success removes the record and refreshes any linked task
 - `pending` (share/unshare, owner only) — sheet/drawer to share the asset to the caller's team or unshare it back to personal
@@ -446,6 +448,7 @@ Success is a navigate-away transition (updates the asset query cache, invalidate
 - Share/unshare are idempotent on the API; the sheet closes on success and refreshes the asset query
 - An edit button (owner only, gated on `sharing.isOwner` like the share control) links to `/app/assets/:id/edit` — see [Edit Asset](#edit-asset)
 - Task edit does not offer a last-completed-date field — that value only ever changes by logging a maintenance record against the task; editing lets the user correct the title or interval without losing it (unlike the old delete-and-recreate workaround)
+- Task reschedule moves only the next due date — it never logs work, never changes the interval or last-completed date, and is available to owner and shared teammates alike under the same active-asset access gate as record creation
 - Record edit changes only title, performed date, or notes; changing the performed date refreshes the linked task from the server-computed schedule, and the client never recomputes `lastCompletedDate` or `nextDue`
 - Record deletion is a hard delete from the maintenance list but leaves an immutable correction entry in Activity History; the UI does not attempt to remove or rewrite History entries
 - Corrections are available to users with the same active-asset access as record creation, including shared teammates; archived assets remain readable but correction controls are hidden or disabled
