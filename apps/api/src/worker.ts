@@ -3,12 +3,9 @@ import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
 import { secureHeaders } from "hono/secure-headers";
 import {
-  addCalendarDays,
   AssetId,
-  calendarDaysBetween,
   DomainError,
   Email,
-  MAINTENANCE_DUE_SOON_LEAD_DAYS,
   MaintenanceRecordId,
   MaintenanceTaskId,
   NotificationId,
@@ -103,6 +100,7 @@ import type { EventBus } from "./application/ports/EventBus.ts";
 
 // API layer
 import { toHttpError } from "./api/errors.ts";
+import { serializeMaintenanceTask } from "./api/serializeMaintenanceTask.ts";
 import { createTechnicalTelemetryMiddleware } from "./api/middleware/technicalTelemetry.ts";
 import { createMutatingRequestOutboxRelayMiddleware } from "./api/middleware/mutatingRequestOutboxRelay.ts";
 import {
@@ -141,7 +139,6 @@ import {
 import openApiSpec from "../../../docs/reference/openapi.json";
 import type { AssetResponseSchema } from "./api/schemas/assetSchemas.ts";
 import type { MaintenanceRecordResponseSchema } from "./api/schemas/maintenanceRecordSchemas.ts";
-import type { MaintenanceTaskResponseSchema } from "./api/schemas/maintenanceTaskSchemas.ts";
 import type { ActivityEntrySchema } from "./api/schemas/activitySchemas.ts";
 import type {
   MarkAllNotificationsReadResponseSchema,
@@ -150,8 +147,6 @@ import type {
 } from "./api/schemas/notificationSchemas.ts";
 import type { UserProfileResponseSchema } from "./api/schemas/userProfileSchemas.ts";
 import type { TeamResponseSchema } from "./api/schemas/teamSchemas.ts";
-import type { MaintenanceTask } from "./domain/maintenance/MaintenanceTask.ts";
-import { deriveTaskStatus } from "./domain/maintenance/TaskUrgency.ts";
 import type { z } from "@hono/zod-openapi";
 
 // Infra bindings (DB, EMAIL, telemetry datasets, queues, and the vars declared
@@ -316,25 +311,6 @@ function serializeMaintenanceRecord(
     notes: record.notes,
     taskId: record.taskId,
     createdAt: record.createdAt.toISOString(),
-  };
-}
-
-function serializeMaintenanceTask(
-  task: MaintenanceTask,
-  todayUtc: string,
-): z.infer<typeof MaintenanceTaskResponseSchema> {
-  const sevenDaysOut = addCalendarDays(todayUtc, MAINTENANCE_DUE_SOON_LEAD_DAYS);
-  return {
-    id: task.id,
-    assetId: task.assetId,
-    title: task.title,
-    intervalValue: task.intervalValue,
-    intervalUnit: task.intervalUnit,
-    lastCompletedDate: task.lastCompletedDate,
-    nextDue: task.nextDue,
-    status: deriveTaskStatus(task.nextDue, todayUtc, sevenDaysOut),
-    daysDue: calendarDaysBetween(todayUtc, task.nextDue),
-    createdAt: task.createdAt.toISOString(),
   };
 }
 

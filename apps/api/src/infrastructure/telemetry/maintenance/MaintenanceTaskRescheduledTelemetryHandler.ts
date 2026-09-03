@@ -2,28 +2,33 @@ import type { DomainEventHandler } from "../../../application/ports/EventBus.ts"
 import type { MaintenanceTaskRescheduled } from "../../../domain/maintenance/events/MaintenanceTaskRescheduled.ts";
 import type { TelemetryDataPoint, TelemetrySink } from "../AnalyticsEngineTelemetrySink.ts";
 
+export function mapMaintenanceTaskRescheduledTelemetry(
+  event: MaintenanceTaskRescheduled,
+): TelemetryDataPoint {
+  return {
+    indexes: [event.ownerId],
+    blobs: [
+      event.type,
+      "MaintenanceTask",
+      event.maintenanceTaskId,
+      event.assetId,
+      event.ownerId,
+      event.actorId,
+      "RescheduleMaintenanceTask",
+      "v1",
+      "success",
+    ],
+    doubles: [1, event.occurredAt.getTime(), dateOnlyToUtcMidnight(event.nextDue)],
+  };
+}
+
 export class MaintenanceTaskRescheduledTelemetryHandler implements DomainEventHandler<MaintenanceTaskRescheduled> {
   readonly eventType = "MaintenanceTaskRescheduled" as const;
 
   constructor(private readonly sink: TelemetrySink) {}
 
   handle(event: MaintenanceTaskRescheduled): void {
-    const dataPoint: TelemetryDataPoint = {
-      indexes: [event.ownerId],
-      blobs: [
-        event.type,
-        "MaintenanceTask",
-        event.maintenanceTaskId,
-        event.assetId,
-        event.ownerId,
-        event.actorId,
-        "RescheduleMaintenanceTask",
-        "v1",
-        "success",
-      ],
-      doubles: [1, event.occurredAt.getTime(), dateOnlyToUtcMidnight(event.nextDue)],
-    };
-    this.sink.write(dataPoint);
+    this.sink.write(mapMaintenanceTaskRescheduledTelemetry(event));
   }
 }
 

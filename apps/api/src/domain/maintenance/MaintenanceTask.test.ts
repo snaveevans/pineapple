@@ -593,6 +593,9 @@ describe("MaintenanceTask.reschedule", () => {
       taskRevision: 1,
       activityEntryType: "task_rescheduled",
     });
+    // Rescheduling never manufactures completion evidence: the event carries
+    // no lastCompletedDate.
+    expect(events[0] && "lastCompletedDate" in events[0]).toBe(false);
   });
 
   it("throws ValidationError for a past target", () => {
