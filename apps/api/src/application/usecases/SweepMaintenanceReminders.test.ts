@@ -46,17 +46,19 @@ class ReminderSweepStoreFake implements ReminderSweepStore {
   ): Promise<ReminderSweepPersistenceResult> {
     this.recordInputs.push(input);
     const createdCandidates: ReminderSweepNotificationCandidate[] = [];
-    const reactivated: NotificationRecord[] = [];
+    const reactivatedCandidates: ReminderSweepNotificationCandidate[] = [];
 
     for (const candidate of input.candidates) {
       this.statusUpdates.push({ id: candidate.reminderId, status: "fired" });
       const inserted = this.insertResults.shift() ?? true;
       this.inserted.push(candidate.notification);
       if (inserted) createdCandidates.push(candidate);
-      else reactivated.push(candidate.notification);
+      else reactivatedCandidates.push(candidate);
     }
 
-    const counts = countByBatch(createdCandidates);
+    // The real store counts every notification linked to the batch — created
+    // and re-activated rows alike (the re-linked row makes the email re-send).
+    const counts = countByBatch([...createdCandidates, ...reactivatedCandidates]);
     const emailBatches: EmailBatchRecord[] = input.emailBatches
       .map((batch) => ({
         ...batch,
@@ -68,7 +70,7 @@ class ReminderSweepStoreFake implements ReminderSweepStore {
 
     return Promise.resolve({
       createdNotifications: createdCandidates.map((candidate) => candidate.notification),
-      reactivatedNotifications: reactivated,
+      reactivatedNotifications: reactivatedCandidates.map((candidate) => candidate.notification),
       emailBatches,
     });
   }
@@ -208,7 +210,8 @@ describe("SweepMaintenanceReminders", () => {
   });
 
   it("marks duplicate pending reminders fired without duplicate notifications or duplicate batches", async () => {
-    const due = [reminder(), reminder()];
+    const ownerId = UserId.generate();
+    const due = [reminder({ ownerId }), reminder({ ownerId })];
     const store = new ReminderSweepStoreFake(due, [false, true]);
     const events = new EventBusFake();
 
@@ -222,8 +225,9 @@ describe("SweepMaintenanceReminders", () => {
       { id: due[1]?.id, status: "fired" },
     ]);
     expect(result.value.createdCount).toBe(1);
+    // The email covers both fires: the created row and the re-activated one.
     expect(result.value.emailBatches).toEqual([
-      expect.objectContaining({ notificationCount: 1, status: "pending" }),
+      expect.objectContaining({ notificationCount: 2, status: "pending" }),
     ]);
     // One MaintenanceReminderCreated per fire: the re-activated row emits
     // another event; no duplicate notification rows exist.

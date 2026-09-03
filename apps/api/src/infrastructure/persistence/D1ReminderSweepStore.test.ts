@@ -178,7 +178,7 @@ describe("D1ReminderSweepStore", () => {
     // 1 pre-select (created vs re-activated) + upsert + fire + batch + outbox.
     expect(batchedStatements).toHaveLength(5);
     expect(statements[0]?.query).toContain(
-      "SELECT id, maintenance_task_id, next_due FROM notifications",
+      "SELECT maintenance_task_id, next_due FROM notifications",
     );
     expect(statements[1]?.query).toContain("INSERT INTO notifications");
     expect(statements[1]?.query).toContain("email_batch_id");
@@ -209,9 +209,16 @@ describe("D1ReminderSweepStore", () => {
   it("re-fires a snoozed cycle by re-activating its existing inbox row, not a duplicate", async () => {
     const ownerId = UserId.generate();
     const batchId = EmailBatchId.generate();
-    const n = notification({ ownerId });
+    // The candidate carries the fresh id an INSERT would use; the pre-existing
+    // row keeps its own id. The re-fire must surface the persisted row's id.
+    const existingRow = notification({ ownerId });
+    const candidateRow = notification({
+      ownerId,
+      maintenanceTaskId: existingRow.maintenanceTaskId,
+      nextDue: existingRow.nextDue,
+    });
     const record = input({
-      candidates: [candidate({ emailBatchId: batchId, notification: n })],
+      candidates: [candidate({ emailBatchId: batchId, notification: candidateRow })],
       emailBatches: [
         {
           id: batchId,
@@ -226,16 +233,15 @@ describe("D1ReminderSweepStore", () => {
     // instead of inserting a duplicate.
     const { db, batch } = harness(
       [
-        [notificationRow(n)],
+        [notificationRow(existingRow)],
         [emailBatchRow({ id: batchId, owner_id: ownerId, notification_count: 1 })],
       ],
       [
         {
           results: [
             {
-              id: n.id,
-              maintenance_task_id: n.maintenanceTaskId,
-              next_due: n.nextDue,
+              maintenance_task_id: existingRow.maintenanceTaskId,
+              next_due: existingRow.nextDue,
             },
           ],
         },
@@ -246,7 +252,10 @@ describe("D1ReminderSweepStore", () => {
 
     expect(batch).toHaveBeenCalledOnce();
     expect(result.createdNotifications).toEqual([]);
-    expect(result.reactivatedNotifications).toEqual([expect.objectContaining({ id: n.id })]);
+    expect(result.reactivatedNotifications).toEqual([
+      expect.objectContaining({ id: existingRow.id }),
+    ]);
+    expect(result.reactivatedNotifications[0]?.id).not.toBe(candidateRow.id);
     expect(result.emailBatches).toEqual([
       expect.objectContaining({ id: batchId, ownerId, notificationCount: 1 }),
     ]);

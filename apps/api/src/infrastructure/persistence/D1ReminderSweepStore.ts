@@ -57,7 +57,6 @@ type NotificationRow = {
 };
 
 type ExistingNotificationKey = {
-  id: string;
   maintenance_task_id: string;
   next_due: string;
 };
@@ -117,7 +116,7 @@ export class D1ReminderSweepStore implements ReminderSweepStore {
       statements.push(
         this.db
           .prepare(
-            `SELECT id, maintenance_task_id, next_due FROM notifications
+            `SELECT maintenance_task_id, next_due FROM notifications
              WHERE maintenance_task_id = ? AND next_due = ?`,
           )
           .bind(candidate.notification.maintenanceTaskId, candidate.notification.nextDue),

@@ -25,7 +25,7 @@ export type ReminderSweepOwnerGroup = {
 export type ReminderSweepResult = {
   today: string;
   createdCount: number;
-  /** Inbox rows re-activated by a snooze re-fire (not new, no create event). */
+  /** Inbox rows re-activated by a snooze re-fire; each emits its own per-fire event. */
   reactivatedCount: number;
   createdByOwner: ReminderSweepOwnerGroup[];
   emailBatches: EmailBatchRecord[];
