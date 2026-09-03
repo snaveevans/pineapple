@@ -57,6 +57,7 @@ type NotificationRow = {
 };
 
 type ExistingNotificationKey = {
+  id: string;
   maintenance_task_id: string;
   next_due: string;
 };
@@ -98,20 +99,25 @@ export class D1ReminderSweepStore implements ReminderSweepStore {
     input: ReminderSweepPersistenceInput,
   ): Promise<ReminderSweepPersistenceResult> {
     if (input.candidates.length === 0) {
-      return { createdNotifications: [], reactivatedCount: 0, emailBatches: [] };
+      return {
+        createdNotifications: [],
+        reactivatedNotifications: [],
+        emailBatches: [],
+      };
     }
 
     const statements: D1PreparedStatement[] = [];
     const updatedAt = input.updatedAt.toISOString();
 
     // See pre-upsert state within the same transaction so a re-fired cycle's
-    // re-activated row can be told apart from a genuinely created one: only
-    // created rows publish their MaintenanceReminderCreated event.
+    // re-activated row can be told apart from a genuinely created one: both
+    // publish their MaintenanceReminderCreated event (the re-fire carries the
+    // existing row's notification id), but only the count differs.
     for (const candidate of input.candidates) {
       statements.push(
         this.db
           .prepare(
-            `SELECT maintenance_task_id, next_due FROM notifications
+            `SELECT id, maintenance_task_id, next_due FROM notifications
              WHERE maintenance_task_id = ? AND next_due = ?`,
           )
           .bind(candidate.notification.maintenanceTaskId, candidate.notification.nextDue),
@@ -218,10 +224,13 @@ export class D1ReminderSweepStore implements ReminderSweepStore {
       (notification) =>
         !preExisting.has(notificationKey(notification.maintenanceTaskId, notification.nextDue)),
     );
+    const reactivatedNotifications = persistedNotifications.filter((notification) =>
+      preExisting.has(notificationKey(notification.maintenanceTaskId, notification.nextDue)),
+    );
 
     return {
       createdNotifications,
-      reactivatedCount: persistedNotifications.length - createdNotifications.length,
+      reactivatedNotifications,
       emailBatches: await this.findEmailBatchesByIds(batchIds),
     };
   }

@@ -119,15 +119,23 @@ export class D1ScheduledReminderRepository
 
   async findCurrentByTasks(taskIds: MaintenanceTaskId[]): Promise<ScheduledReminderRecord[]> {
     if (taskIds.length === 0) return [];
-    const result = await this.db
-      .prepare(
-        `SELECT ${COLUMNS} FROM scheduled_reminders
-         WHERE maintenance_task_id IN (${placeholders(taskIds.length)})
-         ${CURRENT_ORDER}`,
-      )
-      .bind(...taskIds)
-      .all<Row>();
-    return latestPerTask((result.results ?? []).map(rowToRecord));
+    // Chunked: D1 caps bound parameters per statement at 100, and the task set
+    // scales with every visible asset's tasks.
+    const chunkSize = 90;
+    const latest: ScheduledReminderRecord[] = [];
+    for (let start = 0; start < taskIds.length; start += chunkSize) {
+      const chunk = taskIds.slice(start, start + chunkSize);
+      const result = await this.db
+        .prepare(
+          `SELECT ${COLUMNS} FROM scheduled_reminders
+           WHERE maintenance_task_id IN (${placeholders(chunk.length)})
+           ${CURRENT_ORDER}`,
+        )
+        .bind(...chunk)
+        .all<Row>();
+      latest.push(...(result.results ?? []).map(rowToRecord));
+    }
+    return latestPerTask(latest);
   }
 
   async findDue(today: string): Promise<ScheduledReminderRecord[]> {

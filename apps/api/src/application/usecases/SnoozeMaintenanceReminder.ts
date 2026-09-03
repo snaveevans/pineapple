@@ -148,9 +148,12 @@ export class SnoozeMaintenanceReminder {
   }
 
   private missingReminderState(taskId: MaintenanceTaskId): NotFoundError {
-    // Logged as an anomaly: the dashboard offers snooze only on tasks with a
-    // reminder descriptor, so reaching this means notifications state and the
-    // read model diverged. Never fabricated — the operation fails closed.
+    // Logged per notifications.md ("404, logged as an anomaly"). Reachable from
+    // an ordinary UI flow: the dashboard descriptor cannot distinguish "never
+    // snoozed" from "no reminder state", so the Snooze button is enabled in
+    // both. The log exists to surface the divergence when it IS unexpected —
+    // e.g. after a task edit that should have left a cycle behind. The
+    // operation never fabricates a reminder row.
     console.error({ taskId }, "Snooze target has no current reminder cycle");
     return new NotFoundError("Maintenance reminder not found");
   }

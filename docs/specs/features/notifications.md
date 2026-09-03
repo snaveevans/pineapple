@@ -502,7 +502,7 @@ arithmetic, not timestamp subtraction.
 | Snooze races a cycle transition                                                 | Conditional update on the current cycle row's status; a colliding re-arm is rejected by the one-pending-per-task index; retried against fresh state; 409 after retries exhausted           |
 | Maintenance write gate is frozen (`maintenance_write_frozen`)                   | Snooze still works — the 503 gate guards maintenance-task storage, not notifications state                                                                                                 |
 | Snooze accepted while the cycle's inbox row already exists (fired earlier)      | The existing inbox row is unchanged at snooze time (`readAt`/`createdAt` preserved); it is re-activated only at the re-fire on/after `snoozedUntil`                                        |
-| Current cycle status is neither `pending` nor `fired` while the head is active  | 500 invariant violation — fails closed; nothing is written and no state changes                                                                                                            |
+| Current cycle status is neither `pending` nor `fired`                           | 500 invariant violation — fails closed; nothing is written and no state changes                                                                                                            |
 | New notification arrives while the user views the inbox                         | Appears on the next fetch/refresh; the inbox is not real-time                                                                                                                              |
 | `limit`/`cursor` out of range or malformed                                      | 422 validation error                                                                                                                                                                       |
 | Non-401 API error on the inbox (e.g. 500)                                       | Client shows an inbox-level error state with retry                                                                                                                                         |
@@ -563,8 +563,8 @@ that same row and emits another event carrying the same notification id.
 ### `MaintenanceReminderSnoozed` — on each accepted snooze (index: `owner_id`)
 
 One per accepted snooze (per task/cycle). Emitted by the snooze use case on the domain
-event bus after the successful `POST`; the registered telemetry handler writes Analytics
-Engine synchronously within the request, like other HTTP-path mutations.
+event bus once the snooze write has committed, inside the `POST` request; the registered
+telemetry handler writes Analytics Engine synchronously, like other HTTP-path mutations.
 
 | Field        | Name                    | Value                             |
 | ------------ | ----------------------- | --------------------------------- |
@@ -696,7 +696,7 @@ NOTHING` and then read the existing run; a concurrent or retried invocation firs
 - Snooze state is an **expand migration** adding a nullable `snoozed_until` date column to
   `scheduled_reminders` (per
   [schema-migrations.md](../cross-cutting/schema-migrations.md)); `null` means never snoozed, so
-  no backfill is needed. Add a `SnoozeReminder` application use case whose D1 transition
+  no backfill is needed. Add a `SnoozeMaintenanceReminder` application use case whose D1 transition
   conditionally updates the current cycle (`status` `pending`→`pending` with a new
   `snoozedUntil`, or `fired`→`pending` re-arm) on the cycle row's resolved status, guarded by
   the one-pending-per-task unique index,

@@ -505,6 +505,38 @@ describe("buildApiRequestTelemetryDataPoint", () => {
       ],
     });
   });
+
+  it("maps POST snooze to SnoozeMaintenanceReminder", () => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method: "POST",
+        pathname:
+          "/api/assets/195d0ef0-47f5-439f-abfd-29f892c9a040/maintenance-tasks/a1b2c3d4-e5f6-7890-abcd-ef1234567890/snooze",
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 21,
+        authenticated: true,
+        country: "US",
+        userId,
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: ["SnoozeMaintenanceReminder"],
+      blobs: [
+        "SnoozeMaintenanceReminder",
+        "/api/assets/{assetId}/maintenance-tasks/{taskId}/snooze",
+        "POST",
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "true",
+        "v2",
+        "US",
+        userId,
+      ],
+    });
+  });
 });
 
 describe("requestCountry", () => {

@@ -34,7 +34,6 @@ class ReminderSweepStoreFake implements ReminderSweepStore {
   constructor(
     private readonly due: ScheduledReminderRecord[],
     private readonly insertResults: boolean[] = [],
-    private readonly reactivatedCount = 0,
   ) {}
 
   findDue(today: string): Promise<ScheduledReminderRecord[]> {
@@ -47,12 +46,14 @@ class ReminderSweepStoreFake implements ReminderSweepStore {
   ): Promise<ReminderSweepPersistenceResult> {
     this.recordInputs.push(input);
     const createdCandidates: ReminderSweepNotificationCandidate[] = [];
+    const reactivated: NotificationRecord[] = [];
 
     for (const candidate of input.candidates) {
       this.statusUpdates.push({ id: candidate.reminderId, status: "fired" });
       const inserted = this.insertResults.shift() ?? true;
       this.inserted.push(candidate.notification);
       if (inserted) createdCandidates.push(candidate);
+      else reactivated.push(candidate.notification);
     }
 
     const counts = countByBatch(createdCandidates);
@@ -67,7 +68,7 @@ class ReminderSweepStoreFake implements ReminderSweepStore {
 
     return Promise.resolve({
       createdNotifications: createdCandidates.map((candidate) => candidate.notification),
-      reactivatedCount: this.reactivatedCount,
+      reactivatedNotifications: reactivated,
       emailBatches,
     });
   }
@@ -206,7 +207,7 @@ describe("SweepMaintenanceReminders", () => {
     expect(new Set(ownerABatchIds).size).toBe(1);
   });
 
-  it("marks duplicate pending reminders fired without publishing created events or duplicate batches", async () => {
+  it("marks duplicate pending reminders fired without duplicate notifications or duplicate batches", async () => {
     const due = [reminder(), reminder()];
     const store = new ReminderSweepStoreFake(due, [false, true]);
     const events = new EventBusFake();
@@ -224,7 +225,9 @@ describe("SweepMaintenanceReminders", () => {
     expect(result.value.emailBatches).toEqual([
       expect.objectContaining({ notificationCount: 1, status: "pending" }),
     ]);
-    expect(events.events).toHaveLength(1);
+    // One MaintenanceReminderCreated per fire: the re-activated row emits
+    // another event; no duplicate notification rows exist.
+    expect(events.events).toHaveLength(2);
   });
 
   it("does not create notifications for canceled, superseded, or future reminders because the repository only returns due pending rows", async () => {
@@ -248,11 +251,12 @@ describe("SweepMaintenanceReminders", () => {
     expect(events.events).toHaveLength(0);
   });
 
-  it("re-fires a snoozed reminder without re-publishing a created event", async () => {
+  it("re-fires a snoozed reminder by re-activating its existing row and emitting its per-fire event", async () => {
     const due = [reminder({ snoozedUntil: "2026-07-02", fireAt: "2026-06-25" })];
     // The cycle's inbox row already exists from the first fire: the sweep
-    // re-activates it instead of creating a new notification.
-    const store = new ReminderSweepStoreFake(due, [false], 1);
+    // re-activates it and emits another MaintenanceReminderCreated for the
+    // persisted row, instead of creating a new notification.
+    const store = new ReminderSweepStoreFake(due, [false]);
     const events = new EventBusFake();
 
     const result = await new SweepMaintenanceReminders(store, dates, clock, events).execute();
@@ -262,7 +266,14 @@ describe("SweepMaintenanceReminders", () => {
     expect(result.value.createdCount).toBe(0);
     expect(result.value.reactivatedCount).toBe(1);
     expect(store.statusUpdates).toEqual([{ id: due[0]?.id, status: "fired" }]);
-    expect(events.events).toHaveLength(0);
+    expect(events.events).toHaveLength(1);
+    expect(events.events[0]).toMatchObject({
+      type: "MaintenanceReminderCreated",
+      notificationId: store.inserted[0]?.id,
+      maintenanceTaskId: due[0]?.maintenanceTaskId,
+      ownerId: due[0]?.ownerId,
+      actorId: "system",
+    });
   });
 });
 

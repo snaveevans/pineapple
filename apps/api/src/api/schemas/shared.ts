@@ -11,7 +11,8 @@ export const REQUEST_BODY_NOT_OBJECT = "Request body must be a JSON object.";
 /**
  * A strict JSON-object body schema whose non-object payloads fail with the
  * pinned message. Unknown keys and field-level violations still get their own
- * specific Zod messages.
+ * specific Zod messages. New body-accepting endpoints adopt this helper so the
+ * pinned message becomes the one clients can match on.
  */
 export function jsonObjectBody<T extends z.ZodRawShape>(shape: T) {
   return z

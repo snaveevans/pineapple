@@ -263,7 +263,7 @@ describe("AppHome reschedule action", () => {
     );
   });
 
-  it("on 403/404 keeps the current dashboard data visible, shows the error, and re-enables snooze", async () => {
+  it("on 403 keeps the current dashboard data visible, shows the error, and re-enables snooze", async () => {
     snoozeMock.mockRejectedValue(
       new ApiError(403, { error: "The task's asset belongs to another user" }),
     );

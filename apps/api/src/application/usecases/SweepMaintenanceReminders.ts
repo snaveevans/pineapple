@@ -85,22 +85,24 @@ export class SweepMaintenanceReminders {
         emailBatches,
         updatedAt: now,
       });
-      const events = persisted.createdNotifications.map((notification) =>
-        MaintenanceReminderCreated({
-          notificationId: notification.id,
-          maintenanceTaskId: notification.maintenanceTaskId,
-          assetId: notification.assetId,
-          ownerId: notification.ownerId,
-          leadDays: calendarDaysBetween(today, notification.nextDue),
-        }),
-      );
+      const events = persisted.createdNotifications
+        .concat(persisted.reactivatedNotifications)
+        .map((notification) =>
+          MaintenanceReminderCreated({
+            notificationId: notification.id,
+            maintenanceTaskId: notification.maintenanceTaskId,
+            assetId: notification.assetId,
+            ownerId: notification.ownerId,
+            leadDays: calendarDaysBetween(today, notification.nextDue),
+          }),
+        );
 
       await this.eventBus.publishAll(events);
 
       return ok({
         today,
         createdCount: persisted.createdNotifications.length,
-        reactivatedCount: persisted.reactivatedCount,
+        reactivatedCount: persisted.reactivatedNotifications.length,
         createdByOwner: groupByOwner(persisted.createdNotifications),
         emailBatches: persisted.emailBatches,
       });
