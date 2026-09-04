@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { DateOnlySchema, TaskUrgencyStatusSchema } from "./shared.ts";
+import { DateOnlySchema, jsonObjectBody, TaskUrgencyStatusSchema } from "./shared.ts";
 
 const IntervalUnitSchema = z.enum(["day", "week", "month", "year"]).openapi({ example: "month" });
 
@@ -85,6 +85,23 @@ export const RescheduleMaintenanceTaskBodySchema = z
   })
   .strict()
   .openapi("RescheduleMaintenanceTaskBody");
+
+export const SnoozeMaintenanceReminderBodySchema = jsonObjectBody({
+  durationDays: z.literal(1).openapi({
+    description:
+      "The snooze length in days; v1 accepts only the literal 1. The snooze expiry date is computed server-side.",
+  }),
+}).openapi("SnoozeMaintenanceReminderBody");
+
+export const SnoozeMaintenanceReminderResponseSchema = z
+  .object({
+    taskId: z.string().uuid().openapi({ example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }),
+    snoozedUntil: DateOnlySchema.openapi({
+      example: "2026-09-04",
+      description: "Reminder-only snooze expiry: todayUtc + 1 calendar day",
+    }),
+  })
+  .openapi("SnoozeMaintenanceReminderResponse");
 
 export const MaintenanceTaskResponseSchema = z
   .object({

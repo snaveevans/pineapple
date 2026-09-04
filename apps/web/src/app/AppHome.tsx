@@ -4,7 +4,7 @@ import { useNavigate } from "react-router";
 import { assetsQueryKey, listAssets } from "../api/assets.ts";
 import { dashboardQueryKey, getDashboard } from "../api/dashboard.ts";
 import { createMaintenanceRecord, maintenanceRecordsQueryKey } from "../api/maintenanceRecords.ts";
-import { maintenanceTasksQueryKey } from "../api/maintenanceTasks.ts";
+import { maintenanceTasksQueryKey, snoozeMaintenanceTask } from "../api/maintenanceTasks.ts";
 import { ApiError } from "../api/client.ts";
 import { Button } from "../design/Button.tsx";
 import { EmptyState } from "../design/EmptyState.tsx";
@@ -35,6 +35,10 @@ function HFDetailBody({
   completeError,
   onReschedule,
   rescheduling = false,
+  onSnooze,
+  snoozing = false,
+  snoozeDisabled = false,
+  snoozeError,
 }: {
   item: DashboardQueuePresentation;
   compact?: boolean;
@@ -44,6 +48,11 @@ function HFDetailBody({
   completeError?: string | null;
   onReschedule: () => void;
   rescheduling?: boolean;
+  onSnooze: () => void;
+  snoozing?: boolean;
+  /** Disabled while this item's snooze is active (until it expires). */
+  snoozeDisabled?: boolean;
+  snoozeError?: string | null;
 }) {
   return (
     <div className="hf-detail-body" data-compact={compact}>
@@ -83,6 +92,12 @@ function HFDetailBody({
       <div className="hf-service-block">
         <div className="hf-label">Service due</div>
         <div className="hf-service-name">{item.service}</div>
+        {item.snoozedChip ? (
+          <span className="hf-snooze-chip" title={item.snoozedChip}>
+            <Icon name="snooze" size={11} stroke={2} />
+            <span>{item.snoozedChip}</span>
+          </span>
+        ) : null}
       </div>
 
       <div className="hf-meta-grid">
@@ -95,9 +110,9 @@ function HFDetailBody({
         </div>
       </div>
 
-      {completeError ? (
+      {completeError || snoozeError ? (
         <p className="hf-notes-text" role="alert" style={{ color: "var(--hf-bad)" }}>
-          <Icon name="alert" size={14} stroke={2} /> {completeError}
+          <Icon name="alert" size={14} stroke={2} /> {snoozeError ?? completeError}
         </p>
       ) : null}
 
@@ -110,9 +125,14 @@ function HFDetailBody({
           <Icon name="calendar" size={14} />
           {rescheduling ? "Rescheduling…" : "Reschedule"}
         </Button>
-        <Button variant="ghost" disabled title="Coming soon">
+        <Button
+          variant="ghost"
+          onClick={onSnooze}
+          disabled={snoozing || snoozeDisabled}
+          title={snoozeDisabled ? "Reminder snoozed" : undefined}
+        >
           <Icon name="snooze" size={14} />
-          Snooze
+          {snoozing ? "Snoozing…" : "Snooze"}
         </Button>
         {!compact && (
           <Button variant="ghost" end to={paths.assetMaintenance(item.assetId)}>
@@ -177,6 +197,11 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     taskId: string;
     message: string;
   } | null>(null);
+  const [snoozingTaskId, setSnoozingTaskId] = useState<string | null>(null);
+  const [snoozeError, setSnoozeError] = useState<{
+    taskId: string;
+    message: string;
+  } | null>(null);
   const [rescheduleItem, setRescheduleItem] = useState<DashboardQueuePresentation | null>(null);
   const [addServiceOpen, setAddServiceOpen] = useState(false);
 
@@ -231,6 +256,36 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
     },
   });
 
+  const snoozeMutation = useMutation({
+    mutationFn: async (item: DashboardQueuePresentation) =>
+      snoozeMaintenanceTask(item.assetId, item.taskId, { durationDays: 1 }),
+    onMutate: (item) => {
+      // Only the submitting action is disabled; other rows stay interactive.
+      setSnoozingTaskId(item.taskId);
+      setSnoozeError(null);
+    },
+    onSuccess: async () => {
+      setSnoozingTaskId(null);
+      setSnoozeError(null);
+      // The chip and disabled state come from the refreshed read model.
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+    },
+    onError: async (error, item) => {
+      setSnoozingTaskId(null);
+      if (error instanceof ApiError && error.status === 401) {
+        navigate(paths.login(), { replace: true });
+        return;
+      }
+      // Current dashboard data stays visible; the shared error treatment shows
+      // and the row is unchanged.
+      setSnoozeError({
+        taskId: item.taskId,
+        message: error instanceof Error ? error.message : "Could not snooze the reminder.",
+      });
+      await queryClient.invalidateQueries({ queryKey: dashboardQueryKey });
+    },
+  });
+
   useEffect(() => {
     document.title = "FieldOps — Home";
   }, []);
@@ -273,6 +328,9 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
 
   const completeErrorFor = (taskId: string) =>
     completeError?.taskId === taskId ? completeError.message : null;
+
+  const snoozeErrorFor = (taskId: string) =>
+    snoozeError?.taskId === taskId ? snoozeError.message : null;
 
   const assetPresentations = useMemo(
     () => (assetsQuery.data?.assets ?? []).map(toAssetPresentation),
@@ -434,6 +492,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                 completing={completingTaskId === selected.taskId}
                 completeError={completeErrorFor(selected.taskId)}
                 onReschedule={() => setRescheduleItem(selected)}
+                onSnooze={() => snoozeMutation.mutate(selected)}
+                snoozing={snoozingTaskId === selected.taskId}
+                snoozeDisabled={selected.snoozedChip !== null}
+                snoozeError={snoozeErrorFor(selected.taskId)}
               />
             </section>
 
@@ -455,6 +517,7 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                       onClick={() => {
                         setSelectedTaskId(item.taskId);
                         setCompleteError(null);
+                        setSnoozeError(null);
                       }}
                     >
                       <div className="hf-row-summary">
@@ -462,6 +525,12 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                         <div className="hf-row-text">
                           <div className="hf-row-name">{item.name}</div>
                           <div className="hf-row-sub">{item.service}</div>
+                          {item.snoozedChip ? (
+                            <span className="hf-snooze-chip" title={item.snoozedChip}>
+                              <Icon name="snooze" size={11} stroke={2} />
+                              <span>{item.snoozedChip}</span>
+                            </span>
+                          ) : null}
                           {item.sharingBadge ? (
                             <div
                               className={`hf-share-badge ${item.sharingBadge.kind === "shared-with-team" ? "is-owner" : "is-member"}`}
@@ -487,6 +556,10 @@ export function AppHome({ mobileMode = "inline" }: { mobileMode?: "inline" }) {
                             completing={completingTaskId === item.taskId}
                             completeError={completeErrorFor(item.taskId)}
                             onReschedule={() => setRescheduleItem(item)}
+                            onSnooze={() => snoozeMutation.mutate(item)}
+                            snoozing={snoozingTaskId === item.taskId}
+                            snoozeDisabled={item.snoozedChip !== null}
+                            snoozeError={snoozeErrorFor(item.taskId)}
                           />
                         </div>
                       )}

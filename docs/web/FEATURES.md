@@ -221,7 +221,9 @@ Onboarding "complete" is a navigate-away transition (effect fires `navigate(retu
 - Sharing badge copy is driven by each queue item's API `sharing` descriptor; the client does not re-derive ownership
 - Category filter chips filter the returned queue client-side without a new request
 - Add service fetches the asset list on demand when opened; task creation reuses the same validation and API contract as the asset maintenance task form
-- Reschedule opens a modal that moves a task's next due date without logging work, changing its interval, or touching its history; Snooze remains a disabled placeholder until a future spec lands
+- Reschedule opens a modal that moves a task's next due date without logging work, changing its interval, or touching its history
+- Snooze postpones only the task's reminder until tomorrow (server-computed); the queue row shows a "Reminder snoozed until {date}" chip and the action disables until the snooze expires — the task's schedule, urgency, and position never change, and no maintenance record is created
+- Snooze failure (422/403/404/409) keeps the current dashboard data visible and shows the shared error treatment; the read model is invalidated so the row reconciles
 - Task detail fields not yet in the maintenance-task API (estimated time, location, assignee, notes) are not shown from live data
 - 401 from the API redirects to `/login`
 

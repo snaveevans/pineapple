@@ -48,6 +48,11 @@ export const DashboardQueueItemSchema = z
     intervalValue: z.number().int().openapi({ example: 3 }),
     intervalUnit: IntervalUnitSchema,
     lastCompletedDate: DateOnlySchema.nullable().openapi({ example: "2026-03-14" }),
+    snoozedUntil: DateOnlySchema.nullable().openapi({
+      example: "2026-06-17",
+      description:
+        "Active reminder-only snooze expiry for the task's current reminder cycle, or null when the reminder is not snoozed. Task schedule and urgency are unaffected.",
+    }),
     createdAt: z.string().datetime().openapi({ example: "2026-01-15T12:00:00.000Z" }),
     assetId: z.string().uuid().openapi({ example: "195d0ef0-47f5-439f-abfd-29f892c9a040" }),
     assetName: z.string().openapi({ example: "Ford F-150 · Truck #4" }),

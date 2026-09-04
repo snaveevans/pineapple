@@ -49,6 +49,14 @@ export type IngestMaintenanceReminderEventCommand =
  * event id (redelivery is a no-op) and order-tolerant — a later-occurring event
  * always wins regardless of arrival order, resolved via the per-task max
  * `occurredAt` recorded in the event log. Never reads maintenance-task tables.
+ *
+ * Cycle rules (notifications.md): a same-`nextDue` event preserves the current
+ * cycle — a `pending` row keeps its status and its snooze (a title-only edit or
+ * same-`nextDue` reconciliation never drops a snooze), a `superseded` row is
+ * reactivated with any stale snooze cleared, and `fired`/`canceled` rows are
+ * left unchanged. A different `nextDue` supersedes the current pending row
+ * (dropping its snooze) and schedules the new cycle, reusing a previously seen
+ * unfired row instead of inserting a duplicate.
  */
 export class IngestMaintenanceReminderEvent {
   constructor(
@@ -75,7 +83,7 @@ export class IngestMaintenanceReminderEvent {
 
       if (!isStale) {
         if (cmd.kind === "schedule") {
-          await this.#reschedule(cmd);
+          await this.#schedule(cmd);
         } else {
           await this.#cancel(cmd.taskId);
         }
@@ -94,12 +102,71 @@ export class IngestMaintenanceReminderEvent {
     }
   }
 
-  async #reschedule(
+  async #schedule(
     cmd: Extract<IngestMaintenanceReminderEventCommand, { kind: "schedule" }>,
   ): Promise<void> {
     const now = this.clock.now();
-    const pending = await this.reminders.findPendingByTask(cmd.taskId);
-    if (pending) await this.reminders.updateStatus(pending.id, "superseded", now);
+    const current = await this.reminders.findCurrentByTask(cmd.taskId);
+
+    if (current && current.nextDue === cmd.nextDue) {
+      // Same cycle: preserve it. Only a pending row takes the new snapshot; a
+      // reactivation clears any stale snooze stored on the row; fired and
+      // canceled cycles stay exactly as they are.
+      if (current.status === "pending") {
+        await this.reminders.updateSnapshot(
+          current.id,
+          {
+            assetName: cmd.assetName,
+            assetType: cmd.assetType,
+            taskTitle: cmd.taskTitle,
+            actorId: cmd.actorId,
+          },
+          { lastEventId: cmd.eventId, lastEventOccurredAt: cmd.occurredAt },
+          now,
+        );
+      } else if (current.status === "superseded") {
+        await this.reminders.updateStatus(current.id, "pending", now);
+        await this.reminders.updateSnapshot(
+          current.id,
+          {
+            assetName: cmd.assetName,
+            assetType: cmd.assetType,
+            taskTitle: cmd.taskTitle,
+            actorId: cmd.actorId,
+          },
+          { lastEventId: cmd.eventId, lastEventOccurredAt: cmd.occurredAt },
+          now,
+        );
+      }
+      return;
+    }
+
+    // Different cycle: the old pending reminder is superseded (dropping its
+    // snooze with it). A previously seen unfired cycle is reused/reactivated
+    // instead of inserted again; a fired cycle stays fired and never re-fires
+    // from an event; a canceled cycle is terminal history.
+    if (current && current.status === "pending") {
+      await this.reminders.updateStatus(current.id, "superseded", now);
+    }
+
+    const existing = await this.reminders.findByTaskAndCycle(cmd.taskId, cmd.nextDue);
+    if (existing) {
+      if (existing.status === "superseded") {
+        await this.reminders.updateStatus(existing.id, "pending", now);
+        await this.reminders.updateSnapshot(
+          existing.id,
+          {
+            assetName: cmd.assetName,
+            assetType: cmd.assetType,
+            taskTitle: cmd.taskTitle,
+            actorId: cmd.actorId,
+          },
+          { lastEventId: cmd.eventId, lastEventOccurredAt: cmd.occurredAt },
+          now,
+        );
+      }
+      return;
+    }
 
     await this.reminders.save({
       id: ScheduledReminderId.generate(),
@@ -113,6 +180,7 @@ export class IngestMaintenanceReminderEvent {
       nextDue: cmd.nextDue,
       fireAt: addCalendarDays(cmd.nextDue, -this.leadDays),
       status: "pending",
+      snoozedUntil: null,
       lastEventId: cmd.eventId,
       lastEventOccurredAt: cmd.occurredAt,
       createdAt: now,
@@ -121,7 +189,12 @@ export class IngestMaintenanceReminderEvent {
   }
 
   async #cancel(taskId: MaintenanceTaskId): Promise<void> {
-    const pending = await this.reminders.findPendingByTask(taskId);
-    if (pending) await this.reminders.updateStatus(pending.id, "canceled", this.clock.now());
+    const current = await this.reminders.findCurrentByTask(taskId);
+    // Deletion is terminal: cancel whatever the current cycle is (pending or
+    // already fired) and drop its snooze with it, so a later snooze can never
+    // re-arm a deleted task's reminder.
+    if (current && (current.status === "pending" || current.status === "fired")) {
+      await this.reminders.updateStatus(current.id, "canceled", this.clock.now());
+    }
   }
 }

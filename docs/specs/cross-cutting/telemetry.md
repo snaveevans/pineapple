@@ -202,6 +202,25 @@ These limits apply to every data point written and must be respected when design
 | `doubles[1]` | `event_time_ms`       | Event timestamp (ms since epoch)                  |
 | `doubles[2]` | `lead_days`           | Whole calendar days between creation and due date |
 
+**`MaintenanceReminderSnoozed`** (dataset: `pineapple_notification_domain_events`, index:
+`owner_id`) — one per accepted snooze (per task/cycle):
+
+| Field        | Name                    | Value                             |
+| ------------ | ----------------------- | --------------------------------- |
+| `indexes[0]` | —                       | `owner_id`                        |
+| `blobs[0]`   | `event_type`            | `"MaintenanceReminderSnoozed"`    |
+| `blobs[1]`   | `aggregate_type`        | `"Notification"`                  |
+| `blobs[2]`   | `maintenance_task_id`   | Task UUID                         |
+| `blobs[3]`   | `scheduled_reminder_id` | Scheduled-reminder (cycle) UUID   |
+| `blobs[4]`   | `asset_id`              | Asset UUID                        |
+| `blobs[5]`   | `owner_id`              | Owner UUID                        |
+| `blobs[6]`   | `actor_id`              | UUID of the snoozing user         |
+| `blobs[7]`   | `snoozed_until`         | Snooze expiry date (`YYYY-MM-DD`) |
+| `blobs[8]`   | `schema_version`        | `"v1"`                            |
+| `blobs[9]`   | `result`                | `"success"`                       |
+| `doubles[0]` | `count`                 | Always `1`                        |
+| `doubles[1]` | `event_time_ms`         | Event timestamp (ms since epoch)  |
+
 **`ReminderEmailDispatched`** (dataset: `pineapple_notification_domain_events`, index:
 `owner_id`):
 
@@ -253,6 +272,7 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `DELETE /api/assets/{assetId}/maintenance-tasks/{taskId}`          | `DeleteMaintenanceTask`     |
 | `PATCH /api/assets/{assetId}/maintenance-tasks/{taskId}`           | `UpdateMaintenanceTask`     |
 | `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` | `RescheduleMaintenanceTask` |
+| `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze`     | `SnoozeMaintenanceReminder` |
 | `POST /api/teams`                                                  | `CreateTeam`                |
 | `GET /api/teams/me`                                                | `GetMyTeam`                 |
 | `POST /api/assets/{assetId}/share`                                 | `ShareAsset`                |

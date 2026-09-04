@@ -168,6 +168,7 @@ Aggregates raise events when something significant happens. Today:
 | `NotificationEmailVerified`  | a user's contact email becomes verified                        | event id and `userId` only (no address)                                                                                                                                                                                                           |
 | `NotificationEmailRemoved`   | a user clears their contact email                              | event id and `userId` only (no address)                                                                                                                                                                                                           |
 | `MaintenanceReminderCreated` | a due-soon reminder is created                                 | event id, notification/task/asset/owner ids, notification type, system actor, and lead-days conclusion                                                                                                                                            |
+| `MaintenanceReminderSnoozed` | a reminder-only snooze postpones the next fire                 | event id, task/reminder-cycle/asset/owner ids, snoozing-user actor id, and the server-computed `snoozedUntil` date; never carries task-schedule fields (no `nextDue`/recurrence — snooze never changes the schedule)                              |
 | `ReminderEmailDispatched`    | an aggregated reminder email decision is recorded              | event id, email batch id, owner id, result (`sent` / `suppressed` / `failed` / `unknown`), suppress reason, and covered notification count; no email address or reminder copy                                                                     |
 | `TeamCreated`                | a team is created                                              | event id, team/owner/actor, and team name                                                                                                                                                                                                         |
 | `AssetSharedToTeam`          | an asset is shared to a team                                   | event id, asset/owner/actor, asset name, team id + name                                                                                                                                                                                           |
@@ -214,7 +215,9 @@ it renders even after the source task is deleted or the asset archived.
 - **`scheduled_reminders`** — one cancelable reminder per `(task, cycle)`, keyed
   by source `maintenance_task_id`, with `status` (`pending` / `fired` /
   `canceled` / `superseded`), the `next_due` snapshot, the derived `fire_at`
-  (`next_due − 7-day lead`, date-only), and `last_event_id` /
+  (`next_due − 7-day lead`, date-only), nullable `snoozed_until`
+  (reminder-only snooze expiry, `YYYY-MM-DD`; set only by an accepted snooze
+  and cleared by every other status transition), and `last_event_id` /
   `last_event_occurred_at` / `last_task_revision` for dedupe and
   `(taskRevision, kind, lowercase(eventId))` order
   resolution. `last_event_id` and `last_task_revision` are provenance snapshots only; the

@@ -3,6 +3,7 @@ import {
   calendarDaysBetween,
   type DomainError,
   DomainError as DomainErrorClass,
+  type MaintenanceTaskId,
   MAINTENANCE_DUE_SOON_LEAD_DAYS,
   ok,
   err,
@@ -22,6 +23,7 @@ import {
   type TaskUrgencyStatus,
 } from "../../domain/maintenance/TaskUrgency.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
+import type { TaskSnoozeReader } from "../ports/TaskSnoozeReader.ts";
 import { toSharingDescriptor, type AssetSharingDescriptor } from "./assetSharing.ts";
 
 export type DashboardFleetTotals = {
@@ -56,6 +58,12 @@ export type DashboardQueueItem = {
   intervalValue: number;
   intervalUnit: MaintenanceTask["intervalUnit"];
   lastCompletedDate: string | null;
+  /**
+   * Reminder-only snooze expiry for the task's current reminder cycle while it
+   * is active (after today); null when unsnoozed, expired, or unscheduled.
+   * Computed in the application layer from notifications-owned state (ADR-0009).
+   */
+  snoozedUntil: string | null;
   createdAt: string;
   assetId: string;
   assetName: string;
@@ -90,6 +98,7 @@ export class GetDashboard {
     private readonly tasks: MaintenanceTaskRepository,
     private readonly dates: UtcDateProvider,
     private readonly users: UserRepository,
+    private readonly snoozes: TaskSnoozeReader,
   ) {}
 
   async execute(query: GetDashboardQuery): Promise<Result<DashboardReadModel, DomainError>> {
@@ -99,6 +108,9 @@ export class GetDashboard {
         this.assets.findVisibleTo(query.ownerId),
         this.tasks.findForVisibleActiveAssets(query.ownerId),
       ]);
+      const snoozedUntilByTask = await this.snoozes.snoozedUntilByTask(
+        tasks.map((task) => task.id),
+      );
 
       const activeAssets = allAssets.filter((asset) => asset.archivedAt === null);
       const assetById = new Map(activeAssets.map((asset) => [asset.id, asset]));
@@ -107,7 +119,7 @@ export class GetDashboard {
 
       const fleetTotals = buildFleetTotals(activeAssets);
       const fleetHealth = buildFleetHealth(activeAssets, enriched);
-      const queue = buildQueue(enriched, query.ownerId, ownerNames);
+      const queue = buildQueue(enriched, query.ownerId, ownerNames, snoozedUntilByTask, todayUtc);
       const queueCountsByCategory = buildQueueCounts(queue);
 
       return ok({
@@ -156,6 +168,17 @@ function enrichTasks(
   return enriched;
 }
 
+/**
+ * The queue-item snooze descriptor: only a snooze that hasn't expired yet
+ * (`snoozedUntil` strictly after today) renders as snoozed. On the expiry day
+ * the reminder is due to fire again, so the chip is gone and the action
+ * re-enables.
+ */
+function activeSnooze(snoozedUntil: string | null, todayUtc: string): string | null {
+  if (snoozedUntil === null || snoozedUntil <= todayUtc) return null;
+  return snoozedUntil;
+}
+
 function buildFleetTotals(assets: Asset[]): DashboardFleetTotals {
   return assets.reduce<DashboardFleetTotals>(
     (totals, asset) => {
@@ -200,6 +223,8 @@ function buildQueue(
   enriched: EnrichedTask[],
   requesterId: UserId,
   ownerNames: Map<UserId, string>,
+  snoozedUntilByTask: Map<MaintenanceTaskId, string>,
+  todayUtc: string,
 ): DashboardQueueItem[] {
   const queue = enriched.map(({ task, asset, status, daysDue }) => ({
     taskId: task.id,
@@ -210,6 +235,7 @@ function buildQueue(
     intervalValue: task.intervalValue,
     intervalUnit: task.intervalUnit,
     lastCompletedDate: task.lastCompletedDate,
+    snoozedUntil: activeSnooze(snoozedUntilByTask.get(task.id) ?? null, todayUtc),
     createdAt: task.createdAt.toISOString(),
     assetId: asset.id,
     assetName: asset.name,

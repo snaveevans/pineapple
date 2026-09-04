@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import {
   AssetId,
@@ -29,6 +30,7 @@ import { D1MaintenanceRecordRepository } from "./infrastructure/persistence/D1Ma
 import { D1MaintenanceTaskRepository } from "./infrastructure/persistence/D1MaintenanceTaskRepository.ts";
 import { D1NotificationRepository } from "./infrastructure/persistence/D1NotificationRepository.ts";
 import { D1ReminderSweepStore } from "./infrastructure/persistence/D1ReminderSweepStore.ts";
+import { D1ScheduledReminderRepository } from "./infrastructure/persistence/D1ScheduledReminderRepository.ts";
 import { D1MigrationStatus } from "./infrastructure/persistence/D1MigrationStatus.ts";
 import { D1ActivityLogRepository } from "./infrastructure/activity/D1ActivityLogRepository.ts";
 import { D1ActivityOutboxRepository } from "./infrastructure/activity/D1ActivityOutboxRepository.ts";
@@ -69,6 +71,7 @@ import { ListMaintenanceTasks } from "./application/usecases/ListMaintenanceTask
 import { DeleteMaintenanceTask } from "./application/usecases/DeleteMaintenanceTask.ts";
 import { UpdateMaintenanceTask } from "./application/usecases/UpdateMaintenanceTask.ts";
 import { RescheduleMaintenanceTask } from "./application/usecases/RescheduleMaintenanceTask.ts";
+import { SnoozeMaintenanceReminder } from "./application/usecases/SnoozeMaintenanceReminder.ts";
 import { D1MaintenanceWriteGate } from "./infrastructure/persistence/D1MaintenanceWriteGate.ts";
 import { GetDashboard } from "./application/usecases/GetDashboard.ts";
 import { ListActivity } from "./application/usecases/ListActivity.ts";
@@ -112,6 +115,7 @@ import {
   deleteMaintenanceTaskRoute,
   updateMaintenanceTaskRoute,
   rescheduleMaintenanceTaskRoute,
+  snoozeMaintenanceTaskRoute,
   getDashboardRoute,
   getActivityRoute,
   getUserProfileRoute,
@@ -222,10 +226,19 @@ type Variables = {
 };
 type AppEnv = { Bindings: Bindings; Variables: Variables };
 
+const JSON_CONTENT_TYPE = /^application\/(json|[\w.+-]+\+json)(\s*;|$)/;
+
 const app = new OpenAPIHono<AppEnv>({
-  // Validation failures (body/params) → 422 in our standard error shape.
+  // Validation failures (body/params) → 422 in our standard error shape —
+  // except parser-level failures: a required JSON body whose content type is
+  // missing or not application/json was never evaluated by the validator, and
+  // the pinned cross-cutting contract reserves 422 for bodies the validator
+  // actually saw (see maintenance-task.md's HTTP validation section).
   defaultHook: (result, c) => {
     if (!result.success) {
+      if (result.target === "json" && !JSON_CONTENT_TYPE.test(c.req.header("content-type") ?? "")) {
+        return c.body(null, 400);
+      }
       const issue = result.error.issues[0];
       const field = issue?.path.length ? issue.path.join(".") : undefined;
       return c.json(
@@ -236,10 +249,22 @@ const app = new OpenAPIHono<AppEnv>({
   },
 });
 
+/**
+ * The composed application, exported for route-level tests (they drive the real
+ * middleware chain — auth gate, outbox relay, telemetry — via `app.request`).
+ */
+export { app };
+
 // Centralized error handling: domain errors → their HTTP status; anything
 // else → 500. Handlers and middleware just `throw` and this maps it.
 app.onError((err, c) => {
   if (err instanceof DomainError) return toHttpError(c as Context, err);
+  // Hono's validator throws HTTPException(400) for malformed JSON and other
+  // parser-level failures; without this branch those surface as 500s.
+  if (err instanceof HTTPException) {
+    const response = err.getResponse();
+    return c.newResponse(response.body, response);
+  }
   // Structured fields so Workers Observability can search/filter unhandled
   // errors by request. Matches the codebase logging shape: `{ fields }, message`.
   console.error({ error: err, method: c.req.method, path: c.req.path }, "Unhandled request error");
@@ -551,6 +576,9 @@ app.openapi(getDashboardRoute, async (c) => {
     new D1MaintenanceTaskRepository(c.env.DB),
     new SystemUtcDateProvider(),
     new D1UserRepository(c.env.DB),
+    // Snooze state is notifications-owned; the descriptor is computed in the
+    // application layer from this read-side port (ADR-0009, like `sharing`).
+    new D1ScheduledReminderRepository(c.env.DB),
   ).execute({
     ownerId: user.id,
     viewerDisplayName: user.name,
@@ -1022,6 +1050,26 @@ app.openapi(rescheduleMaintenanceTaskRoute, async (c) => {
   if (!result.ok) throw result.error;
   const todayUtc = new SystemUtcDateProvider().today();
   return c.json(serializeMaintenanceTask(result.value, todayUtc), 200);
+});
+
+app.openapi(snoozeMaintenanceTaskRoute, async (c) => {
+  const user = c.get("user");
+  const { assetId, taskId } = c.req.valid("param");
+  const result = await new SnoozeMaintenanceReminder(
+    new D1MaintenanceTaskRepository(c.env.DB),
+    new D1AssetRepository(c.env.DB),
+    new D1TeamRepository(c.env.DB),
+    new D1ScheduledReminderRepository(c.env.DB),
+    new SystemUtcDateProvider(),
+    new SystemClock(),
+    c.get("eventBus"),
+  ).execute({
+    taskId: MaintenanceTaskId.from(taskId),
+    assetId: AssetId.from(assetId),
+    requesterId: user.id,
+  });
+  if (!result.ok) throw result.error;
+  return c.json({ taskId: result.value.taskId, snoozedUntil: result.value.snoozedUntil }, 200);
 });
 
 const worker: ExportedHandler<Bindings, unknown> = {

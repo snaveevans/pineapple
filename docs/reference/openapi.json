@@ -767,6 +767,43 @@
         ],
         "additionalProperties": false
       },
+      "SnoozeMaintenanceReminderResponse": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "string",
+            "format": "uuid",
+            "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+          },
+          "snoozedUntil": {
+            "type": "string",
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-09-04",
+            "description": "Reminder-only snooze expiry: todayUtc + 1 calendar day"
+          }
+        },
+        "required": [
+          "taskId",
+          "snoozedUntil"
+        ]
+      },
+      "SnoozeMaintenanceReminderBody": {
+        "type": "object",
+        "properties": {
+          "durationDays": {
+            "type": "number",
+            "enum": [
+              1
+            ],
+            "description": "The snooze length in days; v1 accepts only the literal 1. The snooze expiry date is computed server-side."
+          }
+        },
+        "required": [
+          "durationDays"
+        ],
+        "additionalProperties": false
+      },
       "DashboardResponse": {
         "type": "object",
         "properties": {
@@ -955,6 +992,14 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "example": "2026-03-14"
           },
+          "snoozedUntil": {
+            "type": "string",
+            "nullable": true,
+            "format": "date",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "example": "2026-06-17",
+            "description": "Active reminder-only snooze expiry for the task's current reminder cycle, or null when the reminder is not snoozed. Task schedule and urgency are unaffected."
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time",
@@ -991,6 +1036,7 @@
           "intervalValue",
           "intervalUnit",
           "lastCompletedDate",
+          "snoozedUntil",
           "createdAt",
           "assetId",
           "assetName",
@@ -2682,6 +2728,114 @@
           },
           "503": {
             "description": "Maintenance writes are temporarily frozen",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/{assetId}/maintenance-tasks/{taskId}/snooze": {
+      "post": {
+        "tags": [
+          "Maintenance"
+        ],
+        "summary": "Snooze a maintenance task's reminder",
+        "description": "Postpones the task's pending maintenance reminder until tomorrow (server-computed todayUtc + 1) without changing the task's schedule: nextDue, recurrence, urgency, and completion evidence are untouched and no maintenance record is created. Snoozing an already-fired reminder re-arms it so it fires again on or after the snooze expiry. Requires an existing reminder cycle for the task. Not affected by the maintenance write-freeze gate.",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "195d0ef0-47f5-439f-abfd-29f892c9a040"
+            },
+            "required": true,
+            "name": "assetId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            },
+            "required": true,
+            "name": "taskId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SnoozeMaintenanceReminderBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Reminder snoozed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnoozeMaintenanceReminderResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not authenticated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The task's asset belongs to another user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such task, or the task has no snoozable reminder state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The reminder cycle changed concurrently; retry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
             "content": {
               "application/json": {
                 "schema": {

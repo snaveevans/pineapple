@@ -1011,6 +1011,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assets/{assetId}/maintenance-tasks/{taskId}/snooze": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Snooze a maintenance task's reminder
+         * @description Postpones the task's pending maintenance reminder until tomorrow (server-computed todayUtc + 1) without changing the task's schedule: nextDue, recurrence, urgency, and completion evidence are untouched and no maintenance record is created. Snoozing an already-fired reminder re-arms it so it fires again on or after the snooze expiry. Requires an existing reminder cycle for the task. Not affected by the maintenance write-freeze gate.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    assetId: string;
+                    taskId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["SnoozeMaintenanceReminderBody"];
+                };
+            };
+            responses: {
+                /** @description Reminder snoozed */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["SnoozeMaintenanceReminderResponse"];
+                    };
+                };
+                /** @description Not authenticated */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The task's asset belongs to another user */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description No such task, or the task has no snoozable reminder state */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description The reminder cycle changed concurrently; retry */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+                /** @description Validation failed */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["Error"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/dashboard": {
         parameters: {
             query?: never;
@@ -2165,6 +2256,26 @@ export interface components {
              */
             nextDue: string;
         };
+        SnoozeMaintenanceReminderResponse: {
+            /**
+             * Format: uuid
+             * @example a1b2c3d4-e5f6-7890-abcd-ef1234567890
+             */
+            taskId: string;
+            /**
+             * Format: date
+             * @description Reminder-only snooze expiry: todayUtc + 1 calendar day
+             * @example 2026-09-04
+             */
+            snoozedUntil: string;
+        };
+        SnoozeMaintenanceReminderBody: {
+            /**
+             * @description The snooze length in days; v1 accepts only the literal 1. The snooze expiry date is computed server-side.
+             * @enum {number}
+             */
+            durationDays: 1;
+        };
         DashboardResponse: {
             /**
              * @description Authenticated user's display name when available
@@ -2248,6 +2359,12 @@ export interface components {
              * @example 2026-03-14
              */
             lastCompletedDate: string | null;
+            /**
+             * Format: date
+             * @description Active reminder-only snooze expiry for the task's current reminder cycle, or null when the reminder is not snoozed. Task schedule and urgency are unaffected.
+             * @example 2026-06-17
+             */
+            snoozedUntil: string | null;
             /**
              * Format: date-time
              * @example 2026-01-15T12:00:00.000Z

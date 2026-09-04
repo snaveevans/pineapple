@@ -25,6 +25,8 @@ export type ReminderSweepOwnerGroup = {
 export type ReminderSweepResult = {
   today: string;
   createdCount: number;
+  /** Inbox rows re-activated by a snooze re-fire; each emits its own per-fire event. */
+  reactivatedCount: number;
   createdByOwner: ReminderSweepOwnerGroup[];
   emailBatches: EmailBatchRecord[];
 };
@@ -79,25 +81,29 @@ export class SweepMaintenanceReminders {
         updatedAt: now,
       }));
       const persisted = await this.store.recordDueReminderSweep({
+        today,
         candidates,
         emailBatches,
         updatedAt: now,
       });
-      const events = persisted.createdNotifications.map((notification) =>
-        MaintenanceReminderCreated({
-          notificationId: notification.id,
-          maintenanceTaskId: notification.maintenanceTaskId,
-          assetId: notification.assetId,
-          ownerId: notification.ownerId,
-          leadDays: calendarDaysBetween(today, notification.nextDue),
-        }),
-      );
+      const events = persisted.createdNotifications
+        .concat(persisted.reactivatedNotifications)
+        .map((notification) =>
+          MaintenanceReminderCreated({
+            notificationId: notification.id,
+            maintenanceTaskId: notification.maintenanceTaskId,
+            assetId: notification.assetId,
+            ownerId: notification.ownerId,
+            leadDays: calendarDaysBetween(today, notification.nextDue),
+          }),
+        );
 
       await this.eventBus.publishAll(events);
 
       return ok({
         today,
         createdCount: persisted.createdNotifications.length,
+        reactivatedCount: persisted.reactivatedNotifications.length,
         createdByOwner: groupByOwner(persisted.createdNotifications),
         emailBatches: persisted.emailBatches,
       });

@@ -9,7 +9,7 @@ metadata:
 
 **Status:** in-progress
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-07-13
+**Last Updated:** 2026-09-03
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [validation.md](../cross-cutting/validation.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [permissions.md](../cross-cutting/permissions.md), [telemetry.md](../cross-cutting/telemetry.md), [asset-library.md](./asset-library.md), [maintenance-task.md](./maintenance-task.md), [maintenance-record.md](./maintenance-record.md), [notifications.md](./notifications.md), [teams-foundation.md](./teams-foundation.md)
 
 ---
@@ -80,11 +80,11 @@ _Each criterion carries exactly one slice tag (`S1`…`S6`) from the [Delivery P
 - [x] `S5` `Reschedule` opens a future-date form for the selected task and submits `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/reschedule` as defined in [maintenance-task.md](./maintenance-task.md); it never creates a maintenance record
 - [x] `S5` While a reschedule is pending, only its submitting action is disabled; on 422 the future-date field shows the server error, and on 403/404/503 the current dashboard data remains visible with the shared error/retry treatment
 - [x] `S5` A successful reschedule updates the selected queue item and invalidates the dashboard read model plus the affected asset's maintenance-task list; status and due copy always come from the returned/refetched API data
-- [ ] `S6` Each queue item carries a nullable `snoozedUntil` reminder descriptor for the task's current reminder cycle, computed in the application layer from notifications-owned reminder state (the ADR-0009 pattern used by `sharing`); it is task-scoped, so every viewer of the row sees the same value
-- [ ] `S6` `Snooze` submits `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze` with `{ durationDays: 1 }` as defined in [notifications.md](./notifications.md); it never creates a maintenance record and never changes the task schedule, its computed urgency, or the queue's ordering
-- [ ] `S6` While snoozed, the queue row keeps its computed urgency color and position and shows a "Reminder snoozed until {date}" chip; the Snooze action is disabled until the snooze expires
-- [ ] `S6` While a snooze is pending, only its submitting action is disabled; on 422/403/404 (and the rare 409 after snooze-retry exhaustion) the current dashboard data remains visible with the shared error treatment; on success the dashboard read model is invalidated so the descriptor reflects the API
-- [ ] `S6` When the snooze expires — or any task event supersedes the reminder's cycle — the chip disappears and the action re-enables on the next fetch
+- [x] `S6` Each queue item carries a nullable `snoozedUntil` reminder descriptor for the task's current reminder cycle, computed in the application layer from notifications-owned reminder state (the ADR-0009 pattern used by `sharing`); it is task-scoped, so every viewer of the row sees the same value
+- [x] `S6` `Snooze` submits `POST /api/assets/{assetId}/maintenance-tasks/{taskId}/snooze` with `{ durationDays: 1 }` as defined in [notifications.md](./notifications.md); it never creates a maintenance record and never changes the task schedule, its computed urgency, or the queue's ordering
+- [x] `S6` While snoozed, the queue row keeps its computed urgency color and position and shows a "Reminder snoozed until {date}" chip; the Snooze action is disabled until the snooze expires
+- [x] `S6` While a snooze is pending, only its submitting action is disabled; on 422/403/404 (and the rare 409 after snooze-retry exhaustion) the current dashboard data remains visible with the shared error treatment and the read model is re-fetched so the row reconciles; on success the dashboard read model is invalidated so the descriptor reflects the API
+- [x] `S6` When the snooze expires — or any task event supersedes the reminder's cycle — the chip disappears and the action re-enables on the next fetch
 - [ ] `S1` Dashboard-level `Add service` and richer task-detail editing remain placeholders until their own specs extend the task APIs
 
 ## Delivery Plan
@@ -131,7 +131,8 @@ _Each criterion carries exactly one slice tag (`S1`…`S6`) from the [Delivery P
 | Reschedule succeeds                                           | No maintenance record is created; the selected item renders the returned/refetched effective `nextDue` and its recomputed urgency              |
 | Reschedule is forbidden, missing, or writes are frozen        | Current dashboard data remains visible; the action shows the shared 403/404/503 error and a retry when applicable                              |
 | Snooze succeeds                                               | The row keeps its urgency and position; the snoozed chip appears and the action disables until expiry; the dashboard read model is refetched   |
-| Snooze returns 422/403/404                                    | Current dashboard data remains visible; the action shows the shared error treatment; no row changes                                            |
+| Snooze returns 422/403/404/409                                | Current dashboard data remains visible; the action shows the shared error treatment and the read model is re-fetched so the row reconciles     |
+| Task has no reminder state (`snoozedUntil` null)              | Row renders with no chip and Snooze enabled; submitting returns 404 and shows the shared error treatment with no row change                    |
 | Snoozed task advances (completion, reschedule, interval edit) | The snooze drops with the superseded reminder cycle; the row renders unsnoozed on the next fetch                                               |
 | Snoozed reminder expires                                      | The chip disappears and the action re-enables on the next fetch; the reminder fires again per [notifications.md](./notifications.md)           |
 | Snooze on a task due far in the future                        | Permitted but inert — the reminder was not going to fire before its natural fire date anyway (`max(fireAt, snoozedUntil)` rule)                |

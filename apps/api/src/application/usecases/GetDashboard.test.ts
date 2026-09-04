@@ -7,7 +7,20 @@ import type { UserRepository } from "../../domain/identity/UserRepository.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { UtcDateProvider } from "../ports/UtcDateProvider.ts";
+import type { TaskSnoozeReader } from "../ports/TaskSnoozeReader.ts";
 import { GetDashboard } from "./GetDashboard.ts";
+
+class TaskSnoozeReaderFake implements TaskSnoozeReader {
+  constructor(private readonly snoozes: Map<MaintenanceTaskId, string>) {}
+  snoozedUntilByTask(taskIds: MaintenanceTaskId[]): Promise<Map<MaintenanceTaskId, string>> {
+    const result = new Map<MaintenanceTaskId, string>();
+    for (const id of taskIds) {
+      const snoozedUntil = this.snoozes.get(id);
+      if (snoozedUntil !== undefined) result.set(id, snoozedUntil);
+    }
+    return Promise.resolve(result);
+  }
+}
 
 class FixedDateProvider implements UtcDateProvider {
   constructor(private readonly todayUtc: string) {}
@@ -169,6 +182,7 @@ describe("GetDashboard", () => {
     assets: Asset[],
     tasks: MaintenanceTask[],
     users: User[] = [],
+    snoozedUntilByTask: Map<MaintenanceTaskId, string> = new Map(),
   ): { useCase: GetDashboard; users: UserRepositoryFake } {
     const usersFake = new UserRepositoryFake(users);
     return {
@@ -177,6 +191,7 @@ describe("GetDashboard", () => {
         new MaintenanceTaskRepositoryFake(tasks),
         new FixedDateProvider(todayUtc),
         usersFake,
+        new TaskSnoozeReaderFake(snoozedUntilByTask),
       ),
       users: usersFake,
     };
@@ -586,5 +601,63 @@ describe("GetDashboard", () => {
       isOwner: false,
       ownerDisplayName: "Unknown",
     });
+  });
+
+  it("carries an active snooze expiry on the queue item descriptor", async () => {
+    const truck = vehicle();
+    const oilChange = task(truck.id, { title: "Oil change", nextDue: "2026-06-20" });
+    const { useCase } = dashboard(
+      [truck],
+      [oilChange],
+      [],
+      new Map([[oilChange.id, "2026-06-17"]]),
+    );
+    const result = await useCase.execute({ ownerId, viewerDisplayName: null });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.queue[0]?.snoozedUntil).toBe("2026-06-17");
+  });
+
+  it("renders an expired snooze as null so the chip disappears on the next fetch", async () => {
+    const truck = vehicle();
+    const oilChange = task(truck.id, { title: "Oil change", nextDue: "2026-06-20" });
+    const { useCase } = dashboard([truck], [oilChange], [], new Map([[oilChange.id, todayUtc]]));
+    const result = await useCase.execute({ ownerId, viewerDisplayName: null });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.queue[0]?.snoozedUntil).toBeNull();
+  });
+
+  it("renders null for tasks with no reminder state", async () => {
+    const truck = vehicle();
+    const { useCase } = dashboard(
+      [truck],
+      [task(truck.id, { title: "Oil change", nextDue: "2026-06-20" })],
+    );
+    const result = await useCase.execute({ ownerId, viewerDisplayName: null });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.queue[0]?.snoozedUntil).toBeNull();
+  });
+
+  it("renders the same snooze descriptor to a team-shared viewer — it is task-scoped", async () => {
+    // The asset belongs to the owner and is shared to the owner's team; the
+    // teammate views it through the team and must see the identical descriptor.
+    const truck = vehicle("Shared truck", { ownerId, sharedTeamId: teamId });
+    const oilChange = task(truck.id, { title: "Oil change", nextDue: "2026-06-20" });
+    const { useCase } = dashboard(
+      [truck],
+      [oilChange],
+      [],
+      new Map([[oilChange.id, "2026-06-17"]]),
+    );
+    const result = await useCase.execute({ ownerId: teammateId, viewerDisplayName: "Pat" });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.queue[0]?.snoozedUntil).toBe("2026-06-17");
   });
 });
