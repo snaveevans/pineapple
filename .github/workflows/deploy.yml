@@ -166,6 +166,35 @@ jobs:
         working-directory: apps/api
         run: pnpm wrangler deploy
 
+      # Post-deploy smoke: this deploy just took 100% of traffic, so prove the
+      # worker actually serves before the job goes green. `/health` does a real
+      # D1 round trip and reports migration status (503 + status:"error" on
+      # genuine failure); `/openapi.json` proves the contract route serves.
+      # Retries absorb brief propagation lag right after deploy — a genuinely
+      # broken worker still fails all five attempts.
+      #
+      # On red: roll back per docs/runbooks/rollback.md, then investigate.
+      # Do not re-deploy over a red smoke.
+      - name: Post-deploy smoke check
+        run: |
+          base="https://pineapple.tylerevans.co"
+          for attempt in 1 2 3 4 5; do
+            health_code="$(curl -fsS -o /tmp/health.json -w '%{http_code}' --max-time 15 "$base/health" || true)"
+            spec_code="$(curl -fsS -o /tmp/openapi.json -w '%{http_code}' --max-time 15 "$base/openapi.json" || true)"
+            if [ "$health_code" = "200" ] \
+              && jq -e '.status == "ok" and .database == "reachable"' /tmp/health.json > /dev/null \
+              && [ "$spec_code" = "200" ] \
+              && jq -e 'has("openapi") and has("paths")' /tmp/openapi.json > /dev/null; then
+              echo "Smoke green (attempt $attempt): /health 200 ok+reachable, /openapi.json 200 valid"
+              exit 0
+            fi
+            echo "Attempt $attempt failed (health=$health_code spec=$spec_code) — retrying in 10s"
+            sleep 10
+          done
+          echo "::error::Post-deploy smoke failed after 5 attempts — the deployed API worker is not serving correctly."
+          echo "::error::Roll back now per docs/runbooks/rollback.md, then investigate. Do not re-deploy over a red smoke."
+          exit 1
+
   deploy-web:
     needs: [verify, changes]
     if: ${{ github.event_name == 'workflow_dispatch' || needs.changes.outputs.web == 'true' }}
