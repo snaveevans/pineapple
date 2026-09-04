@@ -125,11 +125,21 @@ export class D1ReminderSweepStore implements ReminderSweepStore {
 
     for (const candidate of input.candidates) {
       const notification = candidate.notification;
+      // Both writes re-verify the findDue eligibility (pending + effective fire
+      // date arrived) inside the batch: a snooze or cycle transition that
+      // commits after findDue must win over this batch, leaving the reminder
+      // snoozed and the notification uncreated. A skipped candidate links to no
+      // batch, so the post-batch re-read and email counts stay consistent.
       statements.push(
         this.db
           .prepare(
             `INSERT INTO notifications (${NOTIFICATION_COLUMNS}, email_batch_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+             WHERE EXISTS (
+               SELECT 1 FROM scheduled_reminders
+               WHERE id = ? AND status = 'pending' AND fire_at <= ?
+                 AND (snoozed_until IS NULL OR snoozed_until <= ?)
+             )
              ON CONFLICT (maintenance_task_id, next_due) DO UPDATE SET
                read_at = NULL,
                created_at = excluded.created_at,
@@ -149,15 +159,20 @@ export class D1ReminderSweepStore implements ReminderSweepStore {
             notification.createdAt.toISOString(),
             notification.readAt?.toISOString() ?? null,
             candidate.emailBatchId,
+            candidate.reminderId,
+            input.today,
+            input.today,
           ),
       );
       statements.push(
         this.db
           .prepare(
             `UPDATE scheduled_reminders
-             SET status = 'fired', snoozed_until = NULL, updated_at = ? WHERE id = ?`,
+             SET status = 'fired', snoozed_until = NULL, updated_at = ?
+             WHERE id = ? AND status = 'pending' AND fire_at <= ?
+               AND (snoozed_until IS NULL OR snoozed_until <= ?)`,
           )
-          .bind(updatedAt, candidate.reminderId),
+          .bind(updatedAt, candidate.reminderId, input.today, input.today),
       );
     }
 

@@ -68,6 +68,7 @@ function input(
     candidate({ emailBatchId: batchId, notification: notification({ ownerId }) }),
   ];
   return {
+    today: "2026-07-02",
     candidates,
     emailBatches: overrides.emailBatches ?? [
       {
@@ -264,6 +265,7 @@ describe("D1ReminderSweepStore", () => {
   it("does nothing when there are no due candidates", async () => {
     const { db, batch } = harness();
     const result = await new D1ReminderSweepStore(db).recordDueReminderSweep({
+      today: "2026-07-02",
       candidates: [],
       emailBatches: [],
       updatedAt: new Date("2026-07-02T10:30:00.000Z"),
@@ -275,6 +277,49 @@ describe("D1ReminderSweepStore", () => {
       reactivatedNotifications: [],
       emailBatches: [],
     });
+  });
+
+  it("re-verifies fire eligibility in the batch so a snooze committing after findDue wins", async () => {
+    // Race: the reminder is a findDue candidate, but a snooze commits between
+    // findDue and this batch. Both writes re-check the eligibility inline, so
+    // the reminder is neither fired nor notified in this batch — it stays
+    // pending with its snooze and fires on the first sweep on/after expiry.
+    const ownerId = UserId.generate();
+    const batchId = EmailBatchId.generate();
+    const n = notification({ ownerId });
+    const record = input({
+      candidates: [candidate({ emailBatchId: batchId, notification: n })],
+      emailBatches: [
+        {
+          id: batchId,
+          ownerId,
+          createdAt: new Date("2026-07-02T10:30:00.000Z"),
+          updatedAt: new Date("2026-07-02T10:30:00.000Z"),
+        },
+      ],
+    });
+    const { db, statements } = harness([
+      [],
+      [emailBatchRow({ id: batchId, owner_id: ownerId, notification_count: 0 })],
+    ]);
+
+    await new D1ReminderSweepStore(db).recordDueReminderSweep(record);
+
+    expect(statements[1]?.query).toContain("WHERE EXISTS");
+    expect(statements[1]?.query).toContain("WHERE id = ? AND status = 'pending' AND fire_at <= ?");
+    expect(statements[1]?.query).toContain("(snoozed_until IS NULL OR snoozed_until <= ?)");
+    // The upsert's guard binds the candidate's reminder id and the sweep's date.
+    expect(statements[1]?.values[13]).toBe(record.candidates[0]?.reminderId);
+    expect(statements[1]?.values[14]).toBe("2026-07-02");
+    expect(statements[1]?.values[15]).toBe("2026-07-02");
+    expect(statements[2]?.query).toContain("WHERE id = ? AND status = 'pending' AND fire_at <= ?");
+    expect(statements[2]?.query).toContain("(snoozed_until IS NULL OR snoozed_until <= ?)");
+    expect(statements[2]?.values).toEqual([
+      "2026-07-02T10:30:00.000Z",
+      record.candidates[0]?.reminderId,
+      "2026-07-02",
+      "2026-07-02",
+    ]);
   });
 });
 

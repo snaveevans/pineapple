@@ -81,6 +81,7 @@ export class SweepMaintenanceReminders {
         updatedAt: now,
       }));
       const persisted = await this.store.recordDueReminderSweep({
+        today,
         candidates,
         emailBatches,
         updatedAt: now,

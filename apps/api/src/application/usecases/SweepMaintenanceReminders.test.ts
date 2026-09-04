@@ -251,7 +251,9 @@ describe("SweepMaintenanceReminders", () => {
     });
     expect(store.inserted).toHaveLength(0);
     expect(store.statusUpdates).toHaveLength(0);
-    expect(store.recordInputs).toEqual([{ candidates: [], emailBatches: [], updatedAt: now }]);
+    expect(store.recordInputs).toEqual([
+      { today: "2026-07-02", candidates: [], emailBatches: [], updatedAt: now },
+    ]);
     expect(events.events).toHaveLength(0);
   });
 

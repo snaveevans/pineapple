@@ -10,6 +10,8 @@ export interface ReminderSweepNotificationCandidate {
 }
 
 export interface ReminderSweepPersistenceInput {
+  /** The sweep's UTC calendar date; the write re-verifies fire eligibility against it. */
+  today: string;
   candidates: ReminderSweepNotificationCandidate[];
   emailBatches: Omit<EmailBatchRecord, "status" | "suppressReason" | "notificationCount">[];
   updatedAt: Date;
