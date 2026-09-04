@@ -322,7 +322,9 @@ same handler paths, but that is **out of scope** for this spec and parked in
       after retries are exhausted
 - [x] A task with no reminder state (no task head, or no row for the current cycle) returns 404
       and is logged as an anomaly; a current cycle whose status is neither `pending` nor `fired`
-      fails closed as an invariant violation; the operation never fabricates a reminder row
+      fails closed: a typed `canceled` or `superseded` cycle returns 404 (deleted task / no
+      snoozable current cycle), and a status outside the state machine is an invariant violation
+      (500); the operation never fabricates a reminder row
 - [x] A deleted task's head is terminal: snoozing it returns 404, and the existing delete-cancel
       path drops the snooze with the canceled cycle
 - [x] Snooze is a notifications-side mutation: it never changes the task's `nextDue`,

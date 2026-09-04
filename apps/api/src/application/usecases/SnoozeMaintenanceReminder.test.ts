@@ -40,6 +40,8 @@ const clock: Clock = { now: () => new Date("2026-09-03T23:59:00.000Z") };
 
 class TaskRepoFake implements MaintenanceTaskRepository {
   findByIdCalls = 0;
+  readonly saveCalls: MaintenanceTask[] = [];
+  readonly deleteCalls: MaintenanceTaskId[] = [];
   constructor(private readonly task: MaintenanceTask | null) {}
   findByAsset(): Promise<MaintenanceTask[]> {
     return Promise.resolve([]);
@@ -51,10 +53,12 @@ class TaskRepoFake implements MaintenanceTaskRepository {
     this.findByIdCalls += 1;
     return Promise.resolve(id === taskId ? this.task : null);
   }
-  save(): Promise<void> {
+  save(task: MaintenanceTask): Promise<void> {
+    this.saveCalls.push(task);
     return Promise.resolve();
   }
-  delete(): Promise<void> {
+  delete(taskId: MaintenanceTaskId): Promise<void> {
+    this.deleteCalls.push(taskId);
     return Promise.resolve();
   }
 }
@@ -299,6 +303,42 @@ describe("SnoozeMaintenanceReminder", () => {
     await useCase.execute(command);
 
     expect(tasks.findByIdCalls).toBe(1);
+    expect(tasks.saveCalls).toEqual([]);
+    expect(tasks.deleteCalls).toEqual([]);
+  });
+
+  it("writes nothing when access is denied", async () => {
+    const { useCase, command, tasks, reminders } = build({ viewerId: UserId.generate() });
+    const result = await useCase.execute(command);
+
+    expect(result.ok).toBe(false);
+    expect(reminders.snoozeCalls).toEqual([]);
+    expect(tasks.saveCalls).toEqual([]);
+    expect(tasks.deleteCalls).toEqual([]);
+  });
+
+  it("writes nothing when the task has no reminder state", async () => {
+    const { useCase, command, tasks, reminders } = build({ rowsByAttempt: [null] });
+    const result = await useCase.execute(command);
+
+    expect(result.ok).toBe(false);
+    expect(reminders.snoozeCalls).toEqual([]);
+    expect(tasks.saveCalls).toEqual([]);
+    expect(tasks.deleteCalls).toEqual([]);
+  });
+
+  it("commits no conditional write when the retries are exhausted", async () => {
+    const { useCase, command, tasks, reminders } = build({
+      rowsByAttempt: [reminder(), reminder(), reminder(), reminder()],
+      snoozeResponses: [false, false, false, false],
+    });
+    const result = await useCase.execute(command);
+
+    expect(result.ok).toBe(false);
+    // Every attempt lost the race (no committed write); the caller sees 409.
+    expect(reminders.snoozeCalls).toHaveLength(4);
+    expect(reminders.snoozeResponses.filter((applied) => applied)).toEqual([]);
+    expect(tasks.saveCalls).toEqual([]);
   });
 
   it("re-arms an already-fired cycle back to pending", async () => {
@@ -386,6 +426,15 @@ describe("SnoozeMaintenanceReminder", () => {
       viewerId: teamMemberId,
       team: makeTeam(),
       asset: makeAsset({ sharedTeamId: teamId }),
+    });
+    const result = await useCase.execute(command);
+
+    expect(result.ok).toBe(true);
+  });
+
+  it("snoozes a task on an archived asset (matching task edit/reschedule)", async () => {
+    const { useCase, command } = build({
+      asset: makeAsset({ archivedAt: new Date("2026-08-01T00:00:00.000Z") }),
     });
     const result = await useCase.execute(command);
 

@@ -1,6 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import type { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import {
   AssetId,
@@ -225,10 +226,19 @@ type Variables = {
 };
 type AppEnv = { Bindings: Bindings; Variables: Variables };
 
+const JSON_CONTENT_TYPE = /^application\/(json|[\w.+-]+\+json)(\s*;|$)/;
+
 const app = new OpenAPIHono<AppEnv>({
-  // Validation failures (body/params) → 422 in our standard error shape.
+  // Validation failures (body/params) → 422 in our standard error shape —
+  // except parser-level failures: a required JSON body whose content type is
+  // missing or not application/json was never evaluated by the validator, and
+  // the pinned cross-cutting contract reserves 422 for bodies the validator
+  // actually saw (see maintenance-task.md's HTTP validation section).
   defaultHook: (result, c) => {
     if (!result.success) {
+      if (result.target === "json" && !JSON_CONTENT_TYPE.test(c.req.header("content-type") ?? "")) {
+        return c.body(null, 400);
+      }
       const issue = result.error.issues[0];
       const field = issue?.path.length ? issue.path.join(".") : undefined;
       return c.json(
@@ -239,10 +249,22 @@ const app = new OpenAPIHono<AppEnv>({
   },
 });
 
+/**
+ * The composed application, exported for route-level tests (they drive the real
+ * middleware chain — auth gate, outbox relay, telemetry — via `app.request`).
+ */
+export { app };
+
 // Centralized error handling: domain errors → their HTTP status; anything
 // else → 500. Handlers and middleware just `throw` and this maps it.
 app.onError((err, c) => {
   if (err instanceof DomainError) return toHttpError(c as Context, err);
+  // Hono's validator throws HTTPException(400) for malformed JSON and other
+  // parser-level failures; without this branch those surface as 500s.
+  if (err instanceof HTTPException) {
+    const response = err.getResponse();
+    return c.newResponse(response.body, response);
+  }
   // Structured fields so Workers Observability can search/filter unhandled
   // errors by request. Matches the codebase logging shape: `{ fields }, message`.
   console.error({ error: err, method: c.req.method, path: c.req.path }, "Unhandled request error");

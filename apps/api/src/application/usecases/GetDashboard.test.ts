@@ -642,4 +642,22 @@ describe("GetDashboard", () => {
     if (!result.ok) return;
     expect(result.value.queue[0]?.snoozedUntil).toBeNull();
   });
+
+  it("renders the same snooze descriptor to a team-shared viewer — it is task-scoped", async () => {
+    // The asset belongs to the owner and is shared to the owner's team; the
+    // teammate views it through the team and must see the identical descriptor.
+    const truck = vehicle("Shared truck", { ownerId, sharedTeamId: teamId });
+    const oilChange = task(truck.id, { title: "Oil change", nextDue: "2026-06-20" });
+    const { useCase } = dashboard(
+      [truck],
+      [oilChange],
+      [],
+      new Map([[oilChange.id, "2026-06-17"]]),
+    );
+    const result = await useCase.execute({ ownerId: teammateId, viewerDisplayName: "Pat" });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.queue[0]?.snoozedUntil).toBe("2026-06-17");
+  });
 });

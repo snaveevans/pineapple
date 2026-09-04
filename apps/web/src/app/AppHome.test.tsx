@@ -165,9 +165,10 @@ function rescheduleButton(): HTMLButtonElement | undefined {
 }
 
 function snoozeButton(): HTMLButtonElement | undefined {
+  // Matches both idle ("Snooze") and in-flight ("Snoozing…") copy.
   return Array.from(
     container?.querySelectorAll<HTMLButtonElement>(".hf-actions button") ?? [],
-  ).find((b) => b.textContent?.includes("Snooze"));
+  ).find((b) => b.textContent?.includes("Snooz"));
 }
 
 function setInputValue(input: HTMLInputElement, value: string) {
@@ -245,6 +246,33 @@ describe("AppHome reschedule action", () => {
       return queryKeys?.some((key) => Array.isArray(key) && key[0] === "dashboard") ?? false;
     });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["dashboard"] });
+  });
+
+  it("disables only the submitting snooze action while the request is in flight", async () => {
+    let resolveSnooze: (value: { taskId: string; snoozedUntil: string }) => void = () => {};
+    snoozeMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSnooze = resolve;
+      }),
+    );
+    await renderApp();
+    await waitFor(() => Boolean(container?.querySelector(".hf-detail-card")));
+
+    await act(async () => {
+      snoozeButton()?.click();
+    });
+
+    // The submitting action is disabled with in-flight copy while pending...
+    await waitFor(() => snoozeButton()?.disabled === true);
+    expect(snoozeButton()?.textContent).toContain("Snoozing…");
+    // ...and the other actions on the same row stay enabled.
+    expect(rescheduleButton()?.disabled).toBe(false);
+
+    await act(async () => {
+      resolveSnooze({ taskId: "task-1", snoozedUntil: "2026-06-10" });
+    });
+
+    await waitFor(() => snoozeButton()?.disabled === false);
   });
 
   it("disables the snooze action and shows the chip while the reminder is snoozed", async () => {
