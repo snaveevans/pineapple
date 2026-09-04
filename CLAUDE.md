@@ -268,6 +268,17 @@ Work on a branch → open a PR → CI must pass → merge → auto-deploys to Cl
 Don't commit to `main` directly. End commit messages with the Co-Authored-By
 trailer.
 
+### Merge policy (ADR-0018)
+
+Merge authority is risk-tiered per
+[ADR-0018](docs/decisions/0018-risk-tiered-autonomous-merge-policy.md):
+**L** merges autonomously after green CI + clean adversarial review; **M** same,
+plus next-day batch digest the human samples; **H/C** human merges, no exceptions.
+The policy is `proposed` — until it is accepted and its activation gate passes,
+the human merges every PR. **Always human-only, at any risk level:** merging H/C
+PRs, accepting an ADR, `breaking-api` / `large-diff` labels, and anything
+touching secrets or credentials.
+
 ### Branch naming
 
 ```
