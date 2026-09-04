@@ -234,8 +234,10 @@ same handler paths, but that is **out of scope** for this spec and parked in
   previously seen cycle whose reminder has not fired (`pending` or `superseded`) is reused or
   reactivated instead of inserted again. Only `superseded` cycles can reactivate; `canceled` means
   task deletion and is terminal. A cycle whose reminder already fired remains `fired` — snooze is
-  the only exception (see "Snoozing a fired cycle re-arms it" above) — and it cannot
-  create another in-app notification or email. An event with the current `nextDue` does not create
+  the only event-driven exception (see "Snoozing a fired cycle re-arms it" above) — and it cannot
+  create another in-app notification or email. Task deletion is the other exception: the delete
+  cancel path cancels the current cycle whether it is `pending` or already `fired`, so a deleted
+  task's reminder can never re-arm. An event with the current `nextDue` does not create
   a new cycle or change its fire status. If the current cycle is `pending`, the winning event
   replaces its asset/title/task snapshot in the same transaction; if the cycle is `fired`,
   `superseded`, or `canceled`, the cycle row and its historical snapshot are unchanged.
@@ -473,7 +475,7 @@ arithmetic, not timestamp subtraction.
 | `MaintenanceTaskAdvanced` received                                              | Prior pending reminder superseded; a new one scheduled for the new `nextDue`; no reminder for the old cycle                                                                                |
 | `S5` `MaintenanceTaskRescheduled` received                                      | Prior pending reminder superseded; a new one is scheduled for the user-selected future `nextDue`; no maintenance-task read-back occurs                                                     |
 | `S5` reschedule arrives after the prior cycle fired                             | The fired reminder remains historical; the new future cycle is scheduled normally and does not duplicate the already-fired notification                                                    |
-| `MaintenanceTaskDeleted` received before the reminder fires                     | Pending reminder canceled; nothing fires for that task                                                                                                                                     |
+| `MaintenanceTaskDeleted` received                                               | The current cycle is canceled whether `pending` or already `fired` (a deleted task's reminder can never re-arm); nothing fires for that task again                                         |
 | Advance and delete events arrive out of order                                   | Resolved by `(taskRevision, kind, lowercase(eventId))` — the higher task revision wins regardless of arrival order                                                                         |
 | A maintenance event is redelivered                                              | No-op — deduped on the event id                                                                                                                                                            |
 | Several of one owner's reminders fire in the same sweep                         | One aggregated email listing all of them; one inbox notification per task                                                                                                                  |
@@ -504,7 +506,7 @@ arithmetic, not timestamp subtraction.
 | Snooze races a cycle transition                                                 | Conditional update on the current cycle row's status; a colliding re-arm is rejected by the one-pending-per-task index; retried against fresh state; 409 after retries exhausted           |
 | Maintenance write gate is frozen (`maintenance_write_frozen`)                   | Snooze still works — the 503 gate guards maintenance-task storage, not notifications state                                                                                                 |
 | Snooze accepted while the cycle's inbox row already exists (fired earlier)      | The existing inbox row is unchanged at snooze time (`readAt`/`createdAt` preserved); it is re-activated only at the re-fire on/after `snoozedUntil`                                        |
-| Current cycle status is neither `pending` nor `fired`                           | 500 invariant violation — fails closed; nothing is written and no state changes                                                                                                            |
+| Current cycle status is neither `pending` nor `fired`                           | Fails closed, nothing written: typed `canceled`/`superseded` cycles return 404 (no snoozable current cycle); a status outside the state machine is a 500 invariant violation               |
 | New notification arrives while the user views the inbox                         | Appears on the next fetch/refresh; the inbox is not real-time                                                                                                                              |
 | `limit`/`cursor` out of range or malformed                                      | 422 validation error                                                                                                                                                                       |
 | Non-401 API error on the inbox (e.g. 500)                                       | Client shows an inbox-level error state with retry                                                                                                                                         |
