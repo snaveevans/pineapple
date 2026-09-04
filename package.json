@@ -13,6 +13,7 @@
     "type-check": "pnpm -r --if-present run type-check",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify": "pnpm lint && pnpm type-check && pnpm -r test && pnpm --filter @snaveevans/pineapple-api openapi:generate && git diff --exit-code docs/reference/openapi.json && pnpm --filter @snaveevans/pineapple-api cf-typegen && git diff --exit-code apps/api/worker-configuration.d.ts && pnpm --filter @snaveevans/pineapple-web api:types && git diff --exit-code apps/web/src/api/schema.ts",
     "prepare": "husky"
   },
   "keywords": [],
