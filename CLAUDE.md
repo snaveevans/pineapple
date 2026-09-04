@@ -182,6 +182,7 @@ and never edit `schema.ts` by hand.
 ```bash
 pnpm --filter @snaveevans/pineapple-api dev   # wrangler dev (http://localhost:8787)
 pnpm --filter @snaveevans/pineapple-web dev   # vite (http://localhost:5173), proxies /api/*
+pnpm verify             # everything CI's verify job runs: lint + type-check + tests + generated-artifact drift checks
 pnpm lint                # eslint (includes layer-boundary + Workers constraints)
 pnpm type-check          # tsc --noEmit across workspace
 pnpm -r test             # vitest (domain tests live in apps/api/src/**)
@@ -191,7 +192,7 @@ pnpm --filter @snaveevans/pineapple-api cf-typegen         # regenerate worker-c
 pnpm --filter @snaveevans/pineapple-api wrangler d1 migrations apply pineapple --local
 ```
 
-Always run `pnpm lint && pnpm type-check && pnpm -r test` before committing.
+Always run `pnpm verify` before committing.
 
 ## Auth model
 
@@ -311,8 +312,8 @@ issue.
 
 Use the template in `.github/pull_request_template.md`. Before opening:
 
-1. `pnpm lint && pnpm type-check && pnpm -r test`
-2. Regenerate OpenAPI if the contract changed
+1. `pnpm verify` (lint + type-check + tests + generated-artifact drift checks, in one command)
+2. Regenerate OpenAPI if the contract changed (verify flags staleness either way)
 3. Confirm one concern (scope discipline above)
 4. Fill **Risk** (`L|M|H|C`) and **Evidence** — human review time scales with
    risk (glance at L; deep review at H/C). Prefer the `validation-gate` skill

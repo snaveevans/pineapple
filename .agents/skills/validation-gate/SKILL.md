@@ -88,17 +88,15 @@ the survivors into the PR body's escalations / follow-ups.
 ### 3. Verify (local CI shape)
 
 ```bash
-pnpm lint && pnpm type-check && pnpm -r test
+pnpm verify
 ```
 
-If the API contract changed:
-
-```bash
-pnpm --filter @snaveevans/pineapple-api openapi:generate
-pnpm --filter @snaveevans/pineapple-web api:types
-```
-
-Then re-run the full check. Do not open a PR with a known-red branch.
+One command with exact CI parity: lint, type-check, tests, plus staleness
+checks for `docs/reference/openapi.json`, `apps/api/worker-configuration.d.ts`,
+and `apps/web/src/api/schema.ts`. If it flags a stale generated artifact (the
+contract or wrangler bindings changed), regenerate (`openapi:generate` /
+`cf-typegen` / `api:types`), commit, and re-run. Do not open a PR with a
+known-red branch.
 
 ### 4. Docs pass
 

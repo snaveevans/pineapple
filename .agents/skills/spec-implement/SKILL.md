@@ -61,9 +61,8 @@ Work through [layer-checklist.md](layer-checklist.md) for each layer the slice r
 
 **After all layers:**
 
-- Run `pnpm -r test` and fix any failures
-- If any API route was added or changed: run `pnpm --filter @snaveevans/pineapple-api openapi:generate` and commit the updated `docs/reference/openapi.json`
-- Run the full check one final time: `pnpm lint && pnpm type-check && pnpm -r test`
+- Run `pnpm verify` — one command with exact CI parity: lint, type-check, tests, plus staleness checks for `docs/reference/openapi.json`, `apps/api/worker-configuration.d.ts`, and `apps/web/src/api/schema.ts`
+- If verify flags a stale generated artifact (an API route or wrangler binding changed), regenerate it (`openapi:generate` / `cf-typegen` / `api:types`), commit the result, and re-run `pnpm verify`
 
 ---
 
@@ -95,7 +94,7 @@ Present the interpreted impact list to the user and confirm before writing any c
 
 **4. Implement the delta** — Make only the changes the diff requires. Do not refactor unrelated code. If a change would require touching something outside the spec delta, flag it and ask.
 
-**5. After all changes:** run `pnpm lint && pnpm type-check && pnpm -r test`. If any API route changed, regenerate the spec: `pnpm --filter @snaveevans/pineapple-api openapi:generate`.
+**5. After all changes:** run `pnpm verify`. If it flags a stale generated artifact (an API route or wrangler binding changed), regenerate it (`openapi:generate` / `cf-typegen` / `api:types`), commit, and re-run.
 
 ---
 
