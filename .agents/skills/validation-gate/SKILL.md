@@ -8,9 +8,10 @@ description: Take finished branch work through a no-mistakes-inspired gate — r
 Semi-automated quality gate between "agent says done" and "human judges the PR."
 
 Inspired by Kun Chen's **no-mistakes** pipeline, but built on this repo's existing
-skills (`pr-review`, `pr-respond`, `/pr`) rather than a separate push remote. Automation
-will deepen over time; today the human owns the **merge** — the agent commits and
-pushes its own branch autonomously, and stops at merge for explicit approval.
+skills (`pr-review`, `pr-respond`, `/pr`) rather than a separate push remote.
+Merge authority follows [ADR-0018](../../docs/decisions/0018-risk-tiered-autonomous-merge-policy.md):
+while that policy is `proposed`/unactivated, the human owns the **merge** — the agent
+commits and pushes its own branch autonomously, and stops at merge for explicit approval.
 
 **Phone-friendly by design.** Outputs live in the PR body (risk, evidence, escalations) —
 not in a desktop-only UI. Lavish is optional laptop polish for planning; it is not part of
@@ -19,8 +20,10 @@ this gate.
 ## What this skill is not
 
 - Not a replacement for `pr-review` or `pr-respond` — it **orchestrates** them.
-- Not a license to merge without explicit user approval.
-- Not full unattended merge. Human validation budget still scales with **Risk**.
+- Not a license to merge H/C work. Human-only at any risk level: merging H/C PRs,
+  accepting an ADR, `breaking-api`/`large-diff` labels, secrets/credentials.
+- Not full unattended merge while ADR-0018 is unactivated. Once active: L/M merge
+  autonomously per the policy table; H/C never without explicit approval.
 
 ## When to run
 
@@ -179,18 +182,21 @@ Push path depends on whether the branch is already on the remote:
   on your own feature branch. This is the one force-push the gate performs; it follows
   from the step-1 rebase, not a separate ask. Never force-push `main` or a protected branch.
 
-**Gate:** Commit and push the branch autonomously. Do not **merge** without explicit
-user approval.
+**Gate:** Commit and push the branch autonomously. Merge only per ADR-0018: while
+unactivated, stop and wait for explicit user approval; once activated, L/M may merge
+per the policy table with the required evidence in the PR body. H/C: never without
+explicit user approval, activated or not.
 
 ### 8. Babysit CI (optional pass)
 
 After the PR exists and CI has run:
 
-- Green → report URL + risk + what the human should do per budget.
+- Green → report URL + risk + what the human should do per budget (or merge autonomously
+  per ADR-0018 if the policy is active and the tier permits).
 - Red → invoke `pr-respond` for failing checks only (same ownership rules).
 - Re-score risk if the fix round materially grew scope.
 
-Do not merge unless the user asks.
+Do not merge outside the ADR-0018 policy table, ever.
 
 ## Report shape
 
@@ -219,5 +225,7 @@ Next: <what you need from the human, if anything>
 ## Evolution
 
 v1 (this file): orchestrated checklist + hybrid risk + PR template audit trail.
+v2: merge authority aligned with [ADR-0018](../../docs/decisions/0018-risk-tiered-autonomous-merge-policy.md) —
+the hard-stop became policy-following; the Risk budget contract itself is unchanged.
 Later: deeper automation (isolated worktree, push gate, richer evidence upload) without
 changing the human-facing Risk budget contract.
