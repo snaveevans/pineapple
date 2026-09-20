@@ -1,6 +1,6 @@
 ---
 name: goal-author
-description: Turn a one-paragraph outcome into a hardened, executable goal doc — decomposed into slices/specs/issues, with live-verified validation commands, before any autonomous goal loop starts. Use when starting milestone work, authoring a goal, or preparing a /goal run.
+description: Turn a milestone outcome into a hardened goal doc whose feature slices have accepted intents, bug slices have corrective issues, and behavioral slices have specs and live-verified evidence commands.
 ---
 
 Goal hardening pre-flight. The autonomous loop is only as safe as the goal doc
@@ -12,8 +12,9 @@ spends human attention where it compounds — before the run, not during it.
 **Input:** a one-paragraph outcome from the user, or an existing goal doc to
 revise (only when no loop is running — docs are hash-pinned mid-loop).
 
-**Output:** `docs/goals/<yyyy-mm>-<name>.md` at `status: review`, a GitHub
-Milestone with slice issues, and a baseline verification the user approves.
+**Output:** `docs/goals/<yyyy-mm>-<name>.md` at `status: review`, accepted ready
+packets for feature/change slices, issue-backed spec updates for bug slices, a
+GitHub Milestone with slice issues, and a baseline verification the user approves.
 You do NOT start the loop — the user runs `/goal` after approving.
 
 ## 1. Interrogate the outcome
@@ -22,8 +23,9 @@ Work conversationally; do not draft until this is complete.
 
 - **End state in one sentence.** What is true when this goal is done? Push back
   on verbs like "support" / "improve" — demand the observable state.
-- **Personas & scenarios (light).** Goals span features; deep persona work
-  belongs to `spec-author` per feature. Here: who notices the goal is done,
+- **Personas & scenarios (light).** Goals span features; detailed intent and
+  persona work belongs to the intent ready-gate workflow per behavior. Here:
+  who notices the goal is done,
   and what can they do that they couldn't before?
 - **Non-goals.** Ask explicitly: "what should this goal NOT touch?" Non-goals
   are what stops the loop absorbing drift.
@@ -41,10 +43,17 @@ echo "── Open milestones ──"
 gh api repos/:owner/:repo/milestones --jq '.[] | "\(.number) \(.title) (open: \(.open_issues))"' 2>/dev/null || echo "(gh unavailable)"
 ```
 
-- Which behaviors already have specs? Reference them — do not duplicate.
-- Which need new or revised specs? Each becomes a `spec-author` delegation
-  (Greenfield or Revise) before the goal doc reaches `review`. A slice without
-  a spec is fine only for pure chore/test/infra work with no product behavior.
+- Which behaviors already have accepted intents and specs? Reference them—do
+  not duplicate.
+- Which need a new capability or deliberate behavior change? For each one,
+  use `docs/intents/INTENTS.md` to complete intent and architecture/ADR planning,
+  and obtain the explicit ready approval before invoking `spec-author`. The
+  mandatory order is intent planning → ready approval → detailed spec; the later
+  goal-doc approval does not replace or retroactively supply the intent gate.
+- Which are issue-backed bugs? They require the bug issue and an updated spec,
+  but no Intent Brief or ready gate.
+- A slice without any behavior authority/spec is valid only for pure
+  chore/test/infra work with no observable behavior.
 - Does an active goal overlap this one? Two loops editing the same area is a
   conflict machine — flag it and resolve before proceeding.
 
@@ -56,7 +65,9 @@ it lives in, dependencies. Mechanisms (tables, queues, migrations) land as
 their own slice **before** the feature that uses them — scope discipline
 applies to goals doubly, because the loop will otherwise absorb the split.
 
-Create the tracking shell:
+Every behavioral slice references a feature spec plus its authority: accepted
+Intent Brief for a feature/change, or GitHub issue for a bug. Create the
+tracking shell:
 
 - GitHub Milestone titled after the goal
 - One issue per slice (`Refs #<epic-or-milestone>`, `ready-for-dev` label when
@@ -99,8 +110,8 @@ Fill the template sections from the defaults; adjust per goal:
 - **Protected paths** — built-in defaults only unless the goal truly needs
   extras (e.g. `migrations/**` for a schema goal). Extras are justified in one
   line each.
-- **Risk & merge policy** — state the policy in force (human merge until
-  ADR-0018 activates) and pre-declare expected H/C slices.
+- **Risk & merge policy** — human evidence verification and explicit merge on
+  every agent-authored/product PR; pre-declare expected H/C slices.
 
 ## 6. Baseline + approval gate
 
@@ -111,10 +122,11 @@ pnpm verify
 Record the result in the verification log as the kickoff baseline. Set
 `status: review`.
 
-**Present the goal doc to the user.** This is the one human gate worth its
-cost: they read the outcome, non-goals, done-when, and checks block — not the
-scaffolding. Apply their edits, re-verify anything that changed, and only then
-hand off:
+**Present the goal doc to the user.** Each feature/change slice's intent ready
+gate must already be approved; each bug slice must link its issue and updated
+spec. This planning approval covers milestone ordering, non-goals, done-when,
+and the checks block. Apply edits, re-verify anything that changed, and only
+then hand off:
 
 > Goal doc ready: `docs/goals/<name>.md` (review). Milestone #N, slices S1–Sn
 > filed. Approve, then start the loop:

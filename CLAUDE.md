@@ -137,6 +137,40 @@ repositories live in `worker.ts`. Keep it that way.
   don't parse most external config files, so the failure mode is silent and
   post-merge. (See `pitfalls.md` 2026-08-06.)
 
+## Intent-driven development
+
+Accepted Intent Briefs in `docs/intents/features/` are the highest product
+authority. Humans collaborate on intent, architecture direction, and the
+evidence standard through one ready gate. The ready packet contains scope,
+non-goals, high-level delivery boundaries, and material uncertainty, but not a
+detailed feature spec or test plan. After that gate, agents own detailed
+specification, slicing, test-driven implementation, verification, and PR
+preparation. The human then verifies the reported evidence and explicitly
+approves merge for agent-authored and product changes. Eligible Dependabot
+updates retain their dedicated auto-merge exception after required checks pass.
+See
+[ADR-0019](docs/decisions/0019-use-intent-driven-development.md) and the
+[Intent Index](docs/intents/INTENTS.md).
+
+The authority order is: accepted intent → accepted ADRs/approved architecture
+→ feature and cross-cutting specs → executable contracts → tests and code.
+OpenAPI remains authoritative for HTTP wire shapes. If a lower layer conflicts
+with intent, stop and reopen the ready gate rather than silently changing the
+intent.
+
+Existing specs remain valid without backfill. For new capabilities or deliberate
+behavior changes, the agent creates or links an Intent Brief, then adds intent
+IDs to only the affected acceptance criteria and records architecture and
+layered evidence in the spec after the ready gate.
+
+An issue-backed bug fix does not create or edit an Intent Brief, even when the
+bug reveals a missed specification case. The issue is the corrective request:
+update the relevant spec, begin with a failing regression test, and map the PR
+evidence to the issue and affected criteria. If investigation shows that the
+request is actually a deliberate product behavior change rather than unintended
+behavior, reclassify it and use the intent ready gate. Behavior-preserving
+refactors and chores do not require new intent.
+
 ## API documentation is generated — don't hand-edit the spec
 
 The OpenAPI document is generated from the Zod route specs in
@@ -206,8 +240,9 @@ secrets, never committed.
 
 ## Where to look
 
+- **Why a product outcome matters** → [`docs/intents/INTENTS.md`](docs/intents/INTENTS.md)
 - **Why** anything is built a certain way → [`docs/decisions/`](docs/decisions/) (ADRs, MADR format)
-- **What a feature is supposed to do** → [`docs/specs/`](docs/specs/) (intent ledger; index at `docs/specs/SPECS.md`)
+- **What a feature does in detail** → [`docs/specs/`](docs/specs/) (agent-owned interpretation; index at `docs/specs/SPECS.md`)
 - **API contract** → [`docs/reference/api.md`](docs/reference/api.md), `docs/reference/openapi.json`
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
 - **Product behavior / features** → [`docs/specs/SPECS.md`](docs/specs/SPECS.md)
@@ -326,7 +361,9 @@ Agent shortcuts: `/start` (branch from type + optional issue + slug), `/pr`
 ### After merge
 
 When the PR lands a feature slice, run `docs/specs/prompts/pr-sync.md` against
-the diff to keep the spec honest.
+the diff to keep the spec honest. Intent changes only when the durable outcome,
+invariant, constraint, or boundary changed; implementation convenience is not a
+reason to edit it.
 
 When making a meaningful change to `apps/web` — adding a screen, changing a user
 flow, adding or removing a feature — read `docs/web/FEATURES.md` and update it to
