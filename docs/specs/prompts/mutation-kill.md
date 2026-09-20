@@ -127,11 +127,14 @@ Closes #N
 - [x] New/updated tests assert values, error types, payloads — not merely execution
 - [ ] CI `verify` + `mutation` green
 
-## Spec / AC
+## Intent / Spec / Evidence
 
-Issue #N acceptance criteria:
+Behavior-preserving test-strengthening exception: no new intent or spec.
+Existing contract: <spec / issue AC>.
 
-- [x] …
+| Authority | Claim | Named proof | Result | Remaining uncertainty |
+| --- | --- | --- | --- | --- |
+| behavior-preserving exception | <rule protected> | <test name> | pass | none |
 EOF
 )"
 ```

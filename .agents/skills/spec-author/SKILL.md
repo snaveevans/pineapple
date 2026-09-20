@@ -1,205 +1,165 @@
 ---
 name: spec-author
-description: Derive or revise an agent-owned feature specification after the intent ready gate, or update a specification for an issue-backed bug without intent work. Maps feature behavior to intent IDs and bug behavior to its issue.
+description: Derive or revise an agent-owned feature specification after the intent ready gate, or update a specification for an issue-backed bug without intent work. Retains Greenfield, Brownfield, Revise, and Bug modes and owns detailed behavior, slices, and named evidence.
 ---
 
-Resolve mechanics from the repository and proceed without routine approval
-pauses. Ask only when a decision would change product behavior, contradict the
-governing authority, or materially change approved architecture or evidence.
+# Spec author
 
-## Intent gate
+Specifications are Pineapple's durable, detailed interpretation layer. For
+features they sit beneath accepted intent; for bugs they record the correction
+authorized by the issue. The agent owns specification mechanics. Humans decide
+feature intent, material architecture, and the evidence standard at the ready
+gate—not filenames, helper shapes, detailed criteria, slices, or test names.
 
-For a new capability or deliberate behavior change, resolve the governing
-Intent Brief before drafting detailed behavior. It must be `accepted` and its
-ready gate approved before this skill derives the detailed specification.
+## Inputs and authority
 
-Every intent-governed new or touched behavior spec must include:
+Before editing, read the applicable authority:
 
-- a `Related Intent` link and `Ready Gate` state;
-- a short architecture summary plus relevant ADR links;
-- an evidence plan mapping affected `OUT-*`/`INV-*` to the smallest sufficient
-  proof;
-- applicable intent IDs alongside the existing slice tag on every affected
-  acceptance criterion.
+1. for a feature/change, the accepted Intent Brief and approved ready packet;
+2. for a bug, the GitHub issue (no Intent Brief or ready gate required);
+3. approved architecture and related ADRs, when applicable;
+4. relevant feature and cross-cutting specs;
+5. `docs/specs/templates/feature-spec.template.md`;
+6. relevant code for Brownfield, Revise, and Bug modes.
 
-Brownfield work maps only affected criteria; do not rewrite unrelated legacy
-content. For any issue-backed bug, including a specification miss, do not create
-or edit an Intent Brief. Link the issue from the spec, state the expected
-corrected behavior, and name the regression proof; no `OUT-*`/`INV-*` backfill is
-required. Behavior-preserving refactors and chores require no new intent or
-spec.
+OpenAPI remains authoritative for HTTP wire shapes; link it rather than copying
+schema tables. If feature detail cannot satisfy accepted intent or approved
+architecture/evidence, stop and return to `intent-author`'s ready gate. If a bug
+cannot be specified without choosing new product behavior, reclassify it as a
+deliberate behavior change; never edit intent to fit the defect.
 
-If no governing intent exists for a new capability or deliberate behavior
-change, stop and return to the intent ready-gate workflow. A GitHub issue is
-sufficient authority only for work classified as a bug; a spec status or green
-CI never substitutes for the feature/change gate.
+Behavior-preserving refactors and chores need no new spec. Untouched legacy
+specs do not require backfill.
 
-## Existing specs
+## Choose a mode
 
-!`find docs/specs/features -name "*.md" 2>/dev/null | sort`
+Infer and state one:
 
-## Where specs live
+- **Greenfield** — capability or spec does not exist; accepted intent exists.
+- **Brownfield** — document existing code beneath accepted intent.
+- **Revise** — sharpen an existing spec or interpret accepted intent.
+- **Bug** — revise or create the relevant spec from an issue reporting
+  unintended behavior; no intent work.
 
-Specs live in `docs/specs/features/`. They describe API capabilities — endpoints, validation, ownership, domain behavior, and telemetry. UX intent for the web app is documented separately in `docs/web/FEATURES.md` — not as full specs.
+Ask only when the product meaning is genuinely ambiguous. Do not pause for
+naming, file placement, slice mechanics, test-layer choices, or other decisions
+that follow from repository conventions.
 
-## Figure out what you're doing
+## Shared method
 
-Do NOT expect a command argument. Infer the mode from the conversation and the repo,
-state it in one line, and only ask when genuinely ambiguous:
+### 1. Establish scope
 
-- The feature/code doesn't exist yet, or the user describes something to build →
-  **Greenfield** (author a new spec)
-- The user points at existing code, or a spec is missing for code that already
-  exists → **Brownfield** (document current behavior)
-- A spec already exists and the user wants to complete/sharpen it → **Revise**
-  (complete a draft and make it implementation-ready; the spec drives the code, not
-  the other way around)
-- A GitHub issue reports unintended behavior → **Bug** (revise the relevant
-  spec from the issue without an Intent Brief)
+For a feature/change, identify affected personas/system actors and scenarios:
+happy path, meaningful errors/edges, lifecycle transitions, and non-goals.
+Derive user stories in the form “As a **[persona]**, I can **[action]** so that
+**[outcome]**.”
 
-If the user's message already makes the mode and feature obvious, state your reading
-and proceed. If not, ask which mode they want and what the feature is. The
-`Existing specs` list above is your reference for what already exists.
+For a bug, identify only the affected behavior and expected correction stated by
+the issue. Treat current code as evidence of the defect, not authority.
 
----
+Read and apply `cross-cutting-checklist.md`. Resolve mechanics from established
+patterns. Escalate only a question whose answer changes observable behavior,
+accepted architecture/evidence, or authority boundaries.
 
-## Greenfield
+### 2. Record authority and architecture
 
-**1. Intent** — Read the accepted Intent Brief and approved ready packet. Treat
-its problem, `OUT-*`/`INV-*`, constraints, non-goals, architecture direction,
-and evidence expectations as authority; do not reduce intent to a single
-sentence inside the spec.
+For a feature/change, add:
 
-**2. Name** — Select a concise kebab-case spec name from the accepted intent and
-repository conventions (for example, `archive-asset` or `service-queue`).
+- `Related Intent` link and approved ready-gate status;
+- a detailed Architecture section derived from the approved direction;
+- related ADR links for significant choices.
 
-**3. Personas** — Identify all actors. Start with the primary persona (authenticated owner-operator for app features; unauthenticated visitor for public pages) then expand:
+For a bug, record `Related Intent: Not required`, link the corrective issue in
+`Related Issues`, and use `Ready Gate: not required — bug #N`. Record only
+architecture needed to explain the correction. Do not create or edit an Intent
+Brief.
 
-- Different states of the primary user (new user with no data, established user, user mid-flow)
-- Secondary personas (future team members, delegates)
-- System actors (background jobs, webhooks, scheduled tasks)
+Routine feature architecture stays in the spec. Do not promote every technical
+choice to an ADR.
 
-**4. Scenarios** — For each persona, generate scenarios across three categories:
+### 3. Slice delivery
 
-- **Happy path** — the intended flow from entry to success
-- **Error and edge cases** — empty state, validation failure, API error, 401, slow network, concurrent actions
-- **Lifecycle transitions** — before/during/after states; navigation on success and failure
+Partition feature work into independently reviewable, shippable slices within
+the repository scope budget. New mechanisms and the feature using them are
+separate slices/branches. Fill `Delivery Plan` and tag every affected acceptance
+criterion with exactly one `S#`.
 
-**5. User stories** — Derive from scenarios using: "As a **[persona]**, I can **[action]** so that **[outcome]**." Every significant scenario should map to at least one story.
+For feature behavior, also tag each affected criterion with every applicable
+`OUT-*`/`INV-*`, for example:
 
-**6. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md). Ask the user about unknowns rather than guessing.
+```markdown
+- [ ] `S2` `OUT-1` `INV-2` The owner can …
+```
 
-**7. Delivery plan & sizing** — Partition the feature into **slices**: independently-reviewable increments, each shippable in one PR within the repo's scope budget (CLAUDE.md — ~40 files / ~800 net lines is the signal to split, not a target). A slice is usually one coherent group of criteria (e.g. backend mechanism → read-path → web surface); large features legitimately have several (teams-foundation has five). Split into a **separate feature spec** only when the parts don't share domain/schema/invariants. Fill the template's **Delivery Plan** table (`Slice | Scope | Issue | Depends on`) and **tag every acceptance criterion with exactly one slice** (`` `S1` ``…); a criterion that resists a single tag is too coarse — split it. A single-PR feature still tags every box `S1` and uses the one-line plan.
+For a bug already covered by a criterion, keep its slice, checkbox, and
+lifecycle unchanged and link the issue/evidence. When the bug exposes a spec
+miss, add or correct only the affected criterion or edge-case row and associate
+it with the owning slice; no intent tag or unrelated legacy backfill is needed.
 
-**8. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`,
-fill it in, and write the spec to `docs/specs/features/[name].md`. Add an entry
-to `docs/specs/SPECS.md`. Because the ready gate has already passed, make the
-complete, unbuilt spec `review` without another approval pause. If the feature
-has a web UI, note in the spec summary that UX intent belongs in
-`docs/web/FEATURES.md`.
+### 4. Build the layered evidence plan
 
----
+Map every affected feature intent ID or bug issue to a claim, the smallest
+sufficient evidence layer, and a named proof. Available layers are unit/domain,
+component/application, integration, contract, browser E2E, smoke, and mutation.
+Use one critical vertical browser proof where the approved feature packet or bug
+risk requires it; avoid duplicating every scenario at every layer.
 
-## Brownfield
+### 5. Write the spec
 
-**1. Locate the code** — Find relevant files: route handler in `apps/api/src/api/` or `worker.ts`, use case in `apps/api/src/application/usecases/`, UI component in `apps/web/src/`. Ask if unclear.
+Write or update `docs/specs/features/<name>.md` and its row in
+`docs/specs/SPECS.md`. The spec owns detailed observable behavior, error states,
+telemetry, delivery slices, and acceptance state. Proceed without another human
+approval once the governing authority is clear.
 
-**2. Check for an existing spec** — Look in `docs/specs/features/` using the `Existing specs` list above to locate or rule out an existing spec. If one exists, read it and note any gaps between spec and code.
+## Mode details
 
-**3. Describe current behavior** — Summarize what the code actually does: inputs → validation → domain logic → outputs → side effects. Treat it as evidence and proceed unless it creates a genuine authority conflict.
+### Greenfield
 
-**4. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md) against the actual implementation, not assumptions.
+- Select a concise kebab-case capability name from accepted intent and
+  repository conventions.
+- After the ready gate, derive the full spec, delivery plan, and named evidence
+  from the accepted intent, architecture direction, and evidence expectations.
+- Set `Status: review` when complete and no blocking open question remains.
 
-**5. Draft or update**
+### Brownfield
 
-- No spec: draft from `docs/specs/templates/feature-spec.template.md` and write to `docs/specs/features/[name].md`
-- Existing spec: update to match current behavior. Flag spec-vs-code divergences as `REVIEW NEEDED` flags rather than silently resolving them.
+- Locate routes, use cases, UI, events, and current tests.
+- Describe current inputs → validation → behavior → outputs → side effects.
+- Treat code as evidence, not authority over accepted intent.
+- Mark a conflict `REVIEW NEEDED`; never silently choose code over intent.
+- Add intent links/tags only for affected behavior.
 
-Add or update the entry in `docs/specs/SPECS.md`.
+### Revise
 
----
+- Catalogue `NOT SPECIFIED`, `REVIEW NEEDED`, `AMBIGUOUS`, and missing sections.
+- Resolve items derivable from accepted intent, ADRs, or established contracts.
+- Escalate genuine product ambiguity; move explicit exclusions to Out of Scope.
+- Preserve the current lifecycle: `review` before the first slice,
+  `in-progress` after one ships, `active` only when no unchecked criteria remain.
 
-## Bug
+### Bug
 
-Read the GitHub issue, the relevant spec, code, and existing tests. Treat the
-issue as the corrective authority and the current code as evidence of the
-defect. Update only the affected spec criteria or edge-case rows, link `Bug #N`,
-and add the named regression proof to the Evidence Plan. Do not create or edit
-an Intent Brief and do not backfill unrelated legacy criteria with intent tags.
+- Read the issue, spec, code, and existing tests.
+- Record the expected correction and issue link even when the existing criterion
+  already describes the behavior.
+- Add a named regression proof and update only the affected criteria/edge rows.
+- Preserve an `active` lifecycle for an already-covered regression. A missing
+  criterion may be added unchecked and completed in the same corrective PR.
+- Never create or edit an Intent Brief for the bug.
 
-If the issue does not state enough expected behavior to write a regression test,
-clarify it in the issue context. If the answer would deliberately choose new
-product behavior rather than correct unintended behavior, stop and reclassify
-the work through the intent ready gate.
+## Quality gate
 
----
+Before saving, verify:
 
-## Revise
-
-Use this mode when a spec already exists but has open flags, gaps, or NOT SPECIFIED sections that need design decisions before implementation can begin. The spec is the source of truth — the goal is to produce something complete enough to hand to an implementer.
-
-**0. Locate the spec** — If the user has not pinpointed a file, infer it from
-the issue, repository, and `Existing specs` output. Ask only when multiple specs
-are genuinely equally likely.
-
-**1. Read the spec** — Read `docs/specs/features/[name].md` in full. Catalogue every open item:
-
-- `NOT SPECIFIED` flags — behavior that has never been decided
-- `REVIEW NEEDED` flags — behavior that exists but needs a decision
-- `AMBIGUOUS` flags — behavior where the intent is unclear
-- Missing sections (e.g. no Telemetry section, empty edge case table)
-
-**2. Read the existing code** — Find and read the relevant implementation files to understand what is already built vs. what is a stub or placeholder. Treat the code as evidence of current state, not as a constraint on what the spec should say.
-
-**3. Triage open items** — Present the catalogued items to the user grouped by type. For each one, determine:
-
-- Is this a **decision to make now** (drives implementation)?
-- Is this **explicitly out of scope** (move to Out of Scope)?
-- Is this a **known future item** (keep as a flag but label clearly)?
-
-Resolve implementation mechanics from established patterns. Do not resolve a
-product flag by guessing: escalate only when it conflicts with the accepted
-intent or bug issue, or would change observable behavior.
-
-**4. Brainstorm gaps** — Once open flags are triaged, check whether any scenarios or personas are missing that would surface additional requirements. Use the same brainstorm approach as Greenfield step 2–3, but focused on what the existing spec does not cover.
-
-**5. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md) against the **intended** behavior (decisions made in step 3), not the current code. Flag anything still unresolved.
-
-**6. Update the spec** — Rewrite or update `docs/specs/features/[name].md`:
-
-- Replace resolved flags with acceptance criteria or edge case table rows
-- Remove flags that are explicitly out of scope (add to Out of Scope section instead)
-- Keep unresolved flags but sharpen their language to a clear question with an owner
-- For a feature/change revision, any acceptance criterion you add or resolve
-  carries **exactly one slice tag** (`` `S1` ``…) tying it to the Delivery Plan;
-  put it in an existing slice or add a new slice row.
-- For a Bug revision, update only the affected criterion or edge case. A legacy
-  spec needs no Delivery Plan or synthetic slice tag, and unrelated criteria
-  stay untouched.
-- Update the spec status field if it has advanced (`draft`→`review`; `review`→`in-progress` once a slice has shipped; `active` only when no `[ ]` remain)
-
----
-
-## Quality check before saving
-
-Before writing the file, verify:
-
-- The spec lives in `docs/specs/features/`
-- A new capability or deliberate behavior change links an accepted Intent Brief
-  and approved ready gate
-- An issue-backed bug links the issue, states corrected expected behavior, and
-  does not create/edit intent
-- Every intent-governed affected criterion has applicable `OUT-*`/`INV-*` tags
-  as well as one slice tag; bug criteria need no intent tag, and a legacy bug
-  correction needs no Delivery Plan or synthetic slice tag
-- Every affected intent ID or bug issue has a named proof in the Evidence Plan
-- Every user story maps to at least one acceptance criterion
-- Each acceptance criterion is **atomic and independently testable** — it becomes a checkbox on the spec's live implementation checklist, checked off (and backed by a test) one at a time as the feature is built (see `docs/specs/SPECS.md`)
-- For feature/change work, the **Delivery Plan** lists the slices and every
-  acceptance criterion carries exactly one slice tag (`` `S1` ``…) — no
-  orphans (see `docs/specs/SPECS.md`)
-- Every cross-cutting concern has been addressed or explicitly flagged
-- The Telemetry section names the operation(s) and states whether domain events apply
-- If the feature has a web UI, confirm the relevant entry in `docs/web/FEATURES.md` is up to date
-- `status` is set correctly: `review` if unbuilt, `in-progress` once ≥1 slice has shipped, `active` only when **no `[ ]` remain**
-- Anything unresolved is a named flag, not a missing section
+- a feature/change links accepted intent and an approved ready gate;
+- a bug links its issue, states corrected behavior, and has no fabricated intent;
+- every story maps to an atomic, independently testable criterion;
+- every feature criterion has one slice tag and applicable intent tags;
+- every bug correction targets the affected criterion/edge and needs no intent tag;
+- a legacy bug correction needs no Delivery Plan or synthetic slice tag, and
+  leaves unrelated criteria untouched;
+- every affected intent ID or bug issue has a named evidence row;
+- cross-cutting concerns and telemetry are addressed or explicitly excluded;
+- material ADRs are linked and routine architecture is summarized;
+- web behavior is reflected in `docs/web/FEATURES.md` when applicable;
+- unresolved items are explicit questions, never silent gaps.

@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Review a pull request or the current branch diff for bugs, CLAUDE.md adherence, and architectural fit. Fans out parallel reviewers, scores each finding for confidence, reports only what survives, and posts an approved / changes-requested verdict comment on PR targets. Use when asked to review a PR, review a branch before opening one, or check a change before merge.
+description: Review a PR or branch in authority order—intent, architecture, spec, evidence, then code—plus CLAUDE.md adherence and bugs. Fans out reviewers, scores confidence, and posts a verdict on PR targets.
 ---
 
 # PR review
@@ -70,11 +70,31 @@ step 3 for a full review.
 
 ## 3. Gather context
 
-Collect the paths (not the contents) of the root `CLAUDE.md` and any `CLAUDE.md` in
-directories the change touches. Summarize the change in a few lines: what it does and
-which layers it crosses. On an incremental review, summarize only `S..HEAD`.
+Collect the paths of applicable `CLAUDE.md` files. For a feature/change, resolve
+and read the accepted Intent Brief, approved ready/evidence packet, linked
+spec/cross-cutting specs, and ADRs. For an issue-backed bug, read the issue and
+updated spec; no intent is required. Summarize the authority, architecture
+boundaries, evidence claims, and layers crossed. On an incremental review,
+summarize only `S..HEAD` but retain the applicable authority chain.
 
 ## 4. Review the change
+
+Review in this order; a lower layer cannot override a higher one:
+
+1. **Authority** — for a feature/change, does it preserve accepted intent; for a
+   bug, does it correct the unintended behavior described by the issue without
+   smuggling in a product change?
+2. **Architecture** — does it follow the ready packet / accepted ADRs, or the
+   existing architecture for a corrective bug?
+3. **Spec** — is detailed behavior/scope faithful to the authority, with feature
+   criteria mapped to intent IDs or bug behavior linked to its issue?
+4. **Evidence** — does each authority claim have named, sufficient proof and any
+   required critical vertical journey?
+5. **Code** — only then inspect defects, conventions, and implementation fit.
+
+Missing accepted intent/readiness for a feature/change, a missing bug issue/spec
+update, a material conflict in this chain, or unmapped critical evidence is a
+finding; do not infer authority from tests/code.
 
 Before picking a mode, check whether this is a **dependency-bump PR**: author is
 `dependabot[bot]` (the `dependencies` label corroborates but the author is what
@@ -95,8 +115,8 @@ parallel. Each returns a list of issues, and for each issue the reason it was fl
    against why the code got that way.
 4. **Prior review** — read earlier PRs touching these files and check whether comments
    there apply again.
-5. **Comments and docs** — check the change against guidance in nearby code comments,
-   the relevant spec in `docs/specs/features/`, and any ADR it depends on.
+5. **Comments and docs** — check the full authority chain above plus guidance in nearby
+   comments. Verify authority/spec/evidence traceability and ADR links.
 
 **Incremental review (prior verdict exists, not a dependency bump)** — do not repeat the
 fan-out. Run a single pass over the `S..HEAD` diff, checking it against the same five
@@ -174,8 +194,9 @@ Reviewed `<full head SHA>` against `main`.
    carries. Stop there; no suggested fix.
 2. ...
 
-<sub>Covered: bugs, CLAUDE.md adherence, architectural fit. Not covered: lint, type-check,
-and tests (CI enforces those), test coverage, and general security posture.</sub>
+<sub>Covered: authority → architecture → spec → evidence → code, bugs, and CLAUDE.md
+adherence. Not covered: lint/type-check execution (CI enforces those) or general
+security posture.</sub>
 
 On a dependency-bump review, say so instead of claiming the full scope: `<sub>Dependency
 bump — confirmed the diff is confined to manifest/lockfile files; CI (lint, type-check,
@@ -269,7 +290,9 @@ keep — in each case both files can be individually clean.
 - **Scope discipline** — a branch delivers one concern. ~40 files or ~800 net lines is a
   signal to split. Flag a diff that has quietly absorbed an unrelated refactor, rename,
   or infra change.
-- **Docs sync** — a merged feature slice should tick its spec checkbox and update
-  `docs/specs/SPECS.md`; an `apps/web` flow change should update `docs/web/FEATURES.md`;
-  a contract change should have a spec behind it. Flag field tables in
-  `docs/reference/data-model.md` that duplicate what `openapi.json` already specifies.
+- **Docs sync** — a new capability/deliberate behavior change needs accepted
+  intent and an approved ready packet. A feature slice maps affected criteria to
+  `OUT-*`/`INV-*`; an issue-backed bug instead links its issue and updates only
+  affected spec behavior/evidence. Tick only tested slice boxes and update
+  `docs/specs/SPECS.md`; update `docs/web/FEATURES.md` for a changed web flow.
+  Flag field tables in `docs/reference/data-model.md` that duplicate OpenAPI.

@@ -30,18 +30,20 @@
      checks block below). A criterion that cannot name a validation command
      doesn't belong here. -->
 
-- [ ] When <trigger>, the system shall <observable behavior>. — validation: `<command>` `S1`
+- [ ] When <trigger>, the system shall <observable behavior>. — validation: `<command>` `S1` `OUT-1`
 - [ ] <criterion> — validation: `<command>` `S2`
 
 ## Delivery plan
 
-<!-- Slices map to specs' Delivery Plans where features exist; goal-author
-     creates the Milestone and one issue per slice. -->
+<!-- Every behavioral slice maps to an authority and a spec Delivery Plan:
+     accepted Intent Brief for feature/change work, corrective GitHub issue for
+     a bug. Pure chore/test/infra slices say "n/a — behavior preserving."
+     goal-author creates the Milestone and one issue per slice. -->
 
-| Slice | Scope | Spec                     | Issue | Depends on |
-| ----- | ----- | ------------------------ | ----- | ---------- |
-| `S1`  |       | docs/specs/features/….md | #     | —          |
-| `S2`  |       | docs/specs/features/….md | #     | `S1`       |
+| Slice | Scope | Authority                  | Spec                     | Issue | Depends on |
+| ----- | ----- | -------------------------- | ------------------------ | ----- | ---------- |
+| `S1`  |       | docs/intents/features/….md | docs/specs/features/….md | #     | —          |
+| `S2`  |       | Bug #N                     | docs/specs/features/….md | #     | `S1`       |
 
 ## Checks
 
@@ -64,6 +66,7 @@ pnpm verify
 **Stops the loop:**
 
 - Product choice not derivable from this doc or linked specs
+- Material conflict with governing authority, architecture, or evidence
 - Unresolvable merge conflict needing a product decision
 - H/C-risk change (per validation-gate's hybrid risk score)
 - A red gate unfixable in ~3 rounds
@@ -73,7 +76,7 @@ pnpm verify
 
 - Implementation details within a slice's scope
 - Mechanical conflict resolution
-- L/M-risk merge per the policy in force
+- L/M-risk implementation and PR preparation within the approved ready packet
 - Test _additions_ (never narrowing/deleting existing assertions)
 
 ## Protected paths
@@ -87,11 +90,11 @@ pnpm verify
 
 ## Risk & merge policy
 
-<!-- Default: validation-gate's risk table; human merge on every PR until
-     ADR-0018 activates, then L auto / M batched / H-C human. State the policy
-     in force at authoring time so a cold agent doesn't guess. -->
+<!-- Default: validation-gate's risk table and human evidence verification plus
+     explicit merge on every agent-authored/product PR. State it so a cold agent
+     does not infer permission from green CI. -->
 
-- Policy in force: human merge on every PR (ADR-0018 pending)
+- Policy in force: human verifies PR evidence and explicitly merges
 - Known H/C-risk slices: <!-- list, or "none expected" -->
 
 ## Verification log

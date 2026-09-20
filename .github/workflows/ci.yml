@@ -94,9 +94,9 @@ jobs:
           git diff --exit-code apps/web/src/api/schema.ts
 
       # Staleness (above) and backward-compatibility are different questions —
-      # with required_approving_review_count 0 and auto-merge, a removed
-      # response field, narrowed enum, or newly-required request field can
-      # merge and deploy unseen (issue #118). `breaking-api` is the escape
+      # a removed response field, narrowed enum, or newly-required request
+      # field can otherwise reach the human merge gate without executable
+      # compatibility evidence (issue #118). `breaking-api` is the escape
       # hatch for a deliberate break; ensure it exists so it's always
       # available to apply, whether or not this run finds a breaking change.
       - name: Ensure breaking-api escape-hatch label exists

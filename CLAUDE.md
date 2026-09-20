@@ -171,6 +171,10 @@ request is actually a deliberate product behavior change rather than unintended
 behavior, reclassify it and use the intent ready gate. Behavior-preserving
 refactors and chores do not require new intent.
 
+Use `intent-author` for new or materially changed behavior. After its ready
+packet receives explicit approval, use `intent-executor`; it runs the downstream
+spec/test/implementation/review/PR flow without routine approval pauses.
+
 ## API documentation is generated — don't hand-edit the spec
 
 The OpenAPI document is generated from the Zod route specs in
@@ -351,10 +355,11 @@ Use the template in `.github/pull_request_template.md`. Before opening:
 1. `pnpm verify` (lint + type-check + tests + generated-artifact drift checks, in one command)
 2. Regenerate OpenAPI if the contract changed (verify flags staleness either way)
 3. Confirm one concern (scope discipline above)
-4. Fill **Risk** (`L|M|H|C`) and **Evidence** — human review time scales with
-   risk (glance at L; deep review at H/C). Prefer the `validation-gate` skill
-   after implementation; it rebases, runs adversarial `pr-review`, scores risk,
-   and fills the template.
+4. Fill **Risk** (`L|M|H|C`) and **Intent / Spec / Evidence** — every affected
+   `OUT-*`/`INV-*` names its proof, result, and remaining uncertainty. Human
+   review time scales with risk (glance at L; deep review at H/C). Prefer the
+   `validation-gate` skill after implementation; it rebases, runs adversarial
+   `pr-review`, scores risk, and fills the template.
 
 Agent shortcuts: `/start` (branch from type + optional issue + slug), `/pr`
 (open PR with issue link filled in), `/validation-gate` (full pre-PR gate).

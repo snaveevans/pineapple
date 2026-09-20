@@ -82,3 +82,7 @@ request, revise the relevant spec, and begin with a failing regression test. If
 the work is actually a deliberate product behavior change, reclassify it and use
 the intent workflow. Pure refactors and chores with no behavioral change also do
 not require a brief.
+
+Acceptance-path walkthroughs live in
+[`workflow-scenarios.md`](workflow-scenarios.md). Use them when changing the
+workflow skills so routing failures are caught before a real feature run.

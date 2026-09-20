@@ -9,8 +9,9 @@ Semi-automated quality gate between "agent says done" and "human judges the PR."
 
 Inspired by Kun Chen's **no-mistakes** pipeline, but built on this repo's existing
 skills (`pr-review`, `pr-respond`, `/pr`) rather than a separate push remote. Automation
-will deepen over time; today the human owns the **merge** — the agent commits and
-pushes its own branch autonomously, and stops at merge for explicit approval.
+will deepen over time; the agent commits, pushes, and prepares claim-by-claim
+evidence autonomously. The human's checkpoint is to verify that evidence and
+explicitly approve merge.
 
 **Phone-friendly by design.** Outputs live in the PR body (risk, evidence, escalations) —
 not in a desktop-only UI. Lavish is optional laptop polish for planning; it is not part of
@@ -20,7 +21,8 @@ this gate.
 
 - Not a replacement for `pr-review` or `pr-respond` — it **orchestrates** them.
 - Not a license to merge without explicit user approval.
-- Not full unattended merge. Human validation budget still scales with **Risk**.
+- Not full unattended merge. Human evidence verification still scales with
+  **Risk**.
 
 ## When to run
 
@@ -49,11 +51,14 @@ git fetch origin
   this; the review has nothing to review without a commit.
 - No unrelated dirty files. If unrelated paths are dirty, include only intended paths
   or stop and ask.
-- Capture **intent** in 2–4 lines from: user request, issue body, accepted plan/spec
-  slice, and recent session decisions. This intent drives review and evidence — not
-  "whatever the diff happens to do."
+- For a feature/change, resolve the **accepted Intent Brief**, affected
+  `OUT-*`/`INV-*`, approved architecture/evidence packet, and spec slice. Missing
+  readiness is a hard stop. For an issue-backed bug, require the issue, updated
+  relevant spec, and named regression proof; do not require or synthesize an
+  Intent Brief. Behavior-preserving work records that exception.
 
-State branch, base (`origin/main`), and intent in one short block before continuing.
+State branch, base (`origin/main`), and governing authority in one short block
+before continuing.
 
 ### 1. Rebase onto latest main
 
@@ -74,7 +79,8 @@ git rebase origin/main
 ### 2. Fresh-context adversarial review
 
 Invoke the `pr-review` skill on the **current branch diff** against `main` (not only a
-same-session reread of your own commits). Goal: catch issues a second agent would see.
+same-session reread of your own commits). It reviews authority → architecture → spec →
+evidence → code.
 
 - Findings the skill would score 80+: **fix** when safe and mechanical (lint-shaped,
   obvious bugs, missing await, wrong import layer you introduced).
@@ -98,11 +104,20 @@ contract or wrangler bindings changed), regenerate (`openapi:generate` /
 `cf-typegen` / `api:types`), commit, and re-run. Do not open a PR with a
 known-red branch.
 
+Run `pnpm test:e2e` separately when the approved evidence plan marks a critical
+browser journey or the branch is in E2E CI scope. Record a docs-only successful
+skip rather than claiming the browser suite ran.
+
 ### 4. Docs pass
 
 Against the captured intent and the diff:
 
 - Spec AC boxes for the slice this PR implements (`[ ]` → `[x]` only if tested)
+- Accepted Intent Brief and ready-gate link for feature/change work; only
+  affected brownfield feature criteria gain `OUT-*`/`INV-*` tags
+- Bug issue/spec link for corrective work, with no intent backfill
+- Evidence-plan rows for every affected intent ID or bug issue and required
+  vertical proof
 - `docs/web/FEATURES.md` if web flows/screens changed meaningfully
 - No hand-edited `openapi.json` / `apps/web/src/api/schema.ts`
 - No field tables in `data-model.md` that duplicate the OpenAPI spec
@@ -142,16 +157,23 @@ Baseline = max(path-glob floor, semantic elevation).
 
 **Human validation budget** (copy onto the PR):
 
-| Level | Budget                                                    |
-| ----- | --------------------------------------------------------- |
-| **L** | Glance evidence. Do not read the diff.                    |
-| **M** | Evidence + escalations; spot-check 1–2 hot files.         |
-| **H** | Full review + local poke on auth/API/data paths.          |
-| **C** | Plan must have been human-approved; deep review required. |
+| Level | Budget                                                            |
+| ----- | ----------------------------------------------------------------- |
+| **L** | Glance evidence. Do not read the diff.                            |
+| **M** | Evidence + escalations; spot-check 1–2 hot files.                 |
+| **H** | Full review + local poke on auth/API/data paths.                  |
+| **C** | Ready packet must have been human-approved; deep review required. |
 
 ### 6. Evidence pack
 
-Attach proof that the change meets **intent**, not merely that tests passed.
+Attach proof that the change meets its governing **authority**, not merely that
+tests passed.
+
+For every affected feature ID or bug issue report:
+
+| Authority                | Claim             | Named proof              | Result    | Remaining uncertainty  |
+| ------------------------ | ----------------- | ------------------------ | --------- | ---------------------- |
+| `OUT-*` / `INV-*` / `#N` | what must be true | exact test/journey/check | pass/fail | none or explicit limit |
 
 Prefer, in order:
 
@@ -168,7 +190,8 @@ Follow `.github/pull_request_template.md` and `CLAUDE.md` → Opening a PR.
 
 Fill **every** section that applies:
 
-- Summary, Related, Risk, Evidence, Test plan, Spec/AC, Validation gate, Escalations
+- Summary, Related, Risk, Intent / Spec / Evidence, Test plan, Validation gate,
+  Escalations
 
 Use the `/pr` command conventions (issue link mode).
 
@@ -179,14 +202,14 @@ Push path depends on whether the branch is already on the remote:
   on your own feature branch. This is the one force-push the gate performs; it follows
   from the step-1 rebase, not a separate ask. Never force-push `main` or a protected branch.
 
-**Gate:** Commit and push the branch autonomously. Do not **merge** without explicit
-user approval.
+**Gate:** Commit and push the branch autonomously. Do not **merge** until the
+human has verified the evidence and explicitly approved it.
 
 ### 8. Babysit CI (optional pass)
 
 After the PR exists and CI has run:
 
-- Green → report URL + risk + what the human should do per budget.
+- Green → report URL + risk + the evidence the human should verify per budget.
 - Red → invoke `pr-respond` for failing checks only (same ownership rules).
 - Re-score risk if the fix round materially grew scope.
 
@@ -198,9 +221,9 @@ End with a tight block:
 
 ```text
 Branch: …
-Intent: …
+Authority: <brief + affected IDs, bug issue, or behavior-preserving exception>
 Risk: L|M|H|C — reason
-Evidence: …
+Evidence: <claim → named proof → result → uncertainty>
 Escalations: none | …
 PR: url or "not opened — <reason>"
 Human budget: <one line from the table>
@@ -209,12 +232,14 @@ Next: <what you need from the human, if anything>
 
 ## Relationship to other skills
 
-| Skill             | Role under this gate                          |
-| ----------------- | --------------------------------------------- |
-| `pr-review`       | Step 2 adversarial review                     |
-| `pr-respond`      | Step 8 CI / review thread handling            |
-| `issue-implement` | May hand off here instead of a bare verify→PR |
-| `/pr`             | Step 7 mechanics                              |
+| Skill             | Role under this gate                            |
+| ----------------- | ----------------------------------------------- |
+| `pr-review`       | Step 2 adversarial review                       |
+| `test-review`     | Confirms authority/spec proofs before this gate |
+| `intent-executor` | Hands a completed behavior slice to this gate   |
+| `pr-respond`      | Step 8 CI / review thread handling              |
+| `issue-implement` | May hand off here instead of a bare verify→PR   |
+| `/pr`             | Step 7 mechanics                                |
 
 ## Evolution
 

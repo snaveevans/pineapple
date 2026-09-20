@@ -1,6 +1,6 @@
 ---
 name: goal-author
-description: Turn a milestone outcome into a hardened goal doc whose feature slices have accepted intents, bug slices have corrective issues, and behavioral slices have specs and live-verified evidence commands.
+description: Turn a milestone outcome into a hardened goal doc whose feature slices reference accepted intents, bug slices reference corrective issues, and all behavioral slices have specs plus live-verified evidence commands before an autonomous goal loop starts.
 ---
 
 Goal hardening pre-flight. The autonomous loop is only as safe as the goal doc
@@ -14,7 +14,8 @@ revise (only when no loop is running — docs are hash-pinned mid-loop).
 
 **Output:** `docs/goals/<yyyy-mm>-<name>.md` at `status: review`, accepted ready
 packets for feature/change slices, issue-backed spec updates for bug slices, a
-GitHub Milestone with slice issues, and a baseline verification the user approves.
+GitHub Milestone with slice issues, and a baseline verification the user
+approves.
 You do NOT start the loop — the user runs `/goal` after approving.
 
 ## 1. Interrogate the outcome

@@ -130,8 +130,8 @@ as any other `NOT NULL` addition.
 
 ADR-0017 decided this rule is **enforced in CI by a blocking gate**, with an override for the
 legitimate contraction case. While this spec's status is `review`, that gate is not live and the
-rule holds on author discipline alone — with `required_approving_review_count: 0` and auto-merge on
-`main`, nothing else stands behind it.
+rule holds on author discipline alone. Explicit human merge remains required, but without the
+blocking check there is no executable evidence behind the migration claim.
 
 Enforcement takes two checks rather than one; why that is not redundant, and must not be
 "simplified" later, is recorded in
