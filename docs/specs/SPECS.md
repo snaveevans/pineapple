@@ -1,13 +1,19 @@
-> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-08-01
+> **Audience:** everyone · **Purpose:** authoritative map of all feature and cross-cutting specs · **Source of truth:** this file · **Last reviewed:** 2026-09-19
 
 # Spec Index
 
-The spec system captures product behavior and intent — what a feature is
-supposed to do and why — so the objective record survives as code changes over
-time. Feature and cross-cutting specs are the source of truth for product
-behavior. Specs are not API contracts (those live in `openapi.json`) and not
-decisions about _how_ we built something (those live in `docs/decisions/`). They
-answer: **what should this do, for whom, and under what conditions?**
+The spec system is the agent-owned, detailed interpretation of accepted product
+intent. Feature and cross-cutting specs remain the source of truth for exact
+product behavior, delivery slices, and acceptance state. Durable why, outcomes,
+and invariants live in [`docs/intents/`](../intents/); significant architecture
+decisions live in `docs/decisions/`; API wire contracts live in
+`openapi.json`. Specs answer: **given the accepted intent and architecture, what
+exactly should this do, for whom, and under what conditions?**
+
+Existing specs remain valid without a bulk migration. A new or behaviorally
+revised spec links its Intent Brief, tags affected criteria with the relevant
+`OUT-*`/`INV-*` identifier alongside its slice tag, and records architecture and
+layered evidence. Do not rewrite unrelated legacy criteria merely to add tags.
 
 See `templates/` for blank starting points and `prompts/` for AI prompts that
 generate or sync specs from code and PRs.
@@ -92,8 +98,11 @@ docs/specs/
 
 ## Workflow
 
-**Starting a new feature:** copy `templates/feature-spec.template.md` into
-`features/`, fill it out before writing code, then link it here.
+**Starting a new feature:** draft the Intent Brief, then copy
+`templates/feature-spec.template.md` into `features/` and derive the draft
+detailed interpretation, architecture, slices, and evidence plan. Present them
+together at the ready gate. On explicit approval, accept the intent and any
+packet ADRs, record the gate, and move the complete spec to `review`.
 
 **Retroactively documenting existing code:** use the prompt in
 `prompts/retro-feature.md`, review the output, and file it as a spec.

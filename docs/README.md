@@ -14,8 +14,9 @@ this repo.
 | Type            | Lives in                                 | Source of truth                 | Primarily serves                                                               |
 | --------------- | ---------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------ |
 | Front door      | `README.md`, `CLAUDE.md`                 | hand-written                    | newcomers · AI agents                                                          |
-| Decisions (ADR) | `docs/decisions/`                        | hand-written                    | engineers (the _why_)                                                          |
-| Specs           | `docs/specs/`                            | hand-written                    | everyone (the _what_)                                                          |
+| Intent          | `docs/intents/`                          | hand-written                    | product owners · AI agents (durable why, outcomes, invariants)                 |
+| Decisions (ADR) | `docs/decisions/`                        | hand-written                    | engineers (significant architecture choices)                                   |
+| Specs           | `docs/specs/`                            | agent-maintained                | AI agents · engineers (detailed behavioral interpretation)                    |
 | Goals           | `docs/goals/`                            | hand-written                    | maintainers · AI agents (the milestone _what next_, with executable done-when) |
 | API reference   | `docs/reference/api.md` + `openapi.json` | **generated from Zod**          | UI/integration devs · LLMs                                                     |
 | Data model      | `docs/reference/data-model.md`           | hand-written, mirrors `domain/` | designers · devs                                                               |
@@ -26,12 +27,13 @@ this repo.
 
 - **UI / integration developer** → `reference/api.md` and the live spec
   (`/openapi.json`, `/reference`); `reference/data-model.md` for field details.
-- **Designer** → `reference/data-model.md` (what data and which enums exist) and
-  `specs/SPECS.md` (what flows are possible).
-- **Product manager** → `specs/SPECS.md` (what we have and intend) and
+- **Designer** → `reference/data-model.md` (what data and which enums exist),
+  `intents/INTENTS.md` (why outcomes matter), and `specs/SPECS.md` (detailed flows).
+- **Product manager** → `intents/INTENTS.md` (accepted outcomes),
+  `specs/SPECS.md` (the current detailed interpretation), and
   `product/roadmap.md` (gaps & opportunities).
-- **Marketing** → `specs/SPECS.md` for product truth and `product/roadmap.md` for
-  future positioning.
+- **Marketing** → `intents/INTENTS.md` for durable product purpose,
+  `specs/SPECS.md` for detailed product truth, and `product/roadmap.md` for future positioning.
 - **AI agent** → `CLAUDE.md` is the hub; everything is linked and, where
   possible, machine-readable.
 
