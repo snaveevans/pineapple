@@ -230,3 +230,34 @@ jobs:
       - name: Deploy Worker
         working-directory: apps/web
         run: pnpm wrangler deploy
+
+      # The API deploy has its own D1 + OpenAPI smoke. Prove the separately
+      # deployed SPA and its hashed JavaScript asset are also reachable before
+      # the deployment job goes green.
+      - name: Post-deploy web smoke check
+        run: |
+          set -euo pipefail
+          base="https://pineapple.tylerevans.co"
+          for attempt in 1 2 3 4 5; do
+            rm -f /tmp/pineapple-web.html
+            page_code="$(curl -fsS -o /tmp/pineapple-web.html -w '%{http_code}' --max-time 15 "$base/" || true)"
+            asset_path=""
+            if [ -s /tmp/pineapple-web.html ]; then
+              asset_path="$(sed -n 's/.*src="\([^"]*\/assets\/[^"]*\.js\)".*/\1/p' /tmp/pineapple-web.html | sed -n '1p')"
+            fi
+            asset_code=""
+            if [ -n "$asset_path" ]; then
+              asset_code="$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 15 "$base$asset_path" || true)"
+            fi
+            if [ "$page_code" = "200" ] \
+              && grep -q '<div id="root"></div>' /tmp/pineapple-web.html \
+              && [ "$asset_code" = "200" ]; then
+              echo "Web smoke green (attempt $attempt): SPA 200, root present, JavaScript asset 200"
+              exit 0
+            fi
+            echo "Attempt $attempt failed (page=$page_code asset=$asset_code path=${asset_path:-missing})"
+            sleep 10
+          done
+          echo "::error::Post-deploy web smoke failed after 5 attempts."
+          echo "::error::Roll back per docs/runbooks/rollback.md before redeploying."
+          exit 1

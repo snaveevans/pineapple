@@ -1,6 +1,6 @@
 ---
 audience: all contributors
-purpose: canonical verification contract — mutation gate (API), CSS token lint gate (web)
+purpose: canonical verification contract — mutation, browser E2E, deployment smoke, and CSS token gates
 source: this file
 date: 2026-08-15
 ---
@@ -9,7 +9,8 @@ date: 2026-08-15
 
 **Status:** `active`
 **Owner:** engineering
-**Applies To:** API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); stylesheets in `apps/web/src/**/*.css` (CSS token lint gate)
+**Applies To:** runtime changes (browser E2E); API logic in `apps/api/src/domain/**` and `apps/api/src/application/**` (mutation gate); stylesheets in `apps/web/src/**/*.css` (CSS token lint gate)
+**Related Intent:** none — cross-cutting verification mechanism implementing [ADR-0019](../../decisions/0019-use-intent-driven-development.md)
 
 > The mutation gate is the `Mutation` workflow (`.github/workflows/mutation.yml`), with `mutation`
 > a required status check on `main`. Tracked by [#86](https://github.com/snaveevans/pineapple/issues/86).
@@ -27,14 +28,15 @@ date: 2026-08-15
 
 ## Summary
 
-`main` auto-merges on green CI with `required_approving_review_count: 0`, so **CI is the entire
-trust boundary** and the test suite is not merely the author's safety net — it is the merge gate.
+`main` requires green CI before an explicit human merge, so **CI is the executable trust
+boundary** and the test suite is not merely the author's safety net — it is a merge gate.
 Lint and type-check catch structural faults; nothing else measures whether tests _assert_
 behavior or merely _execute_ it, and coverage cannot answer that question.
 
-**Mutation testing is the check that closes the gap.** Stryker mutates the pure-logic layers and
-reports what fraction of mutants the suite kills. A floor is enforced in CI, and that floor only
-moves up.
+**Mutation testing closes the assertion-strength gap in pure logic. Browser E2E closes the
+vertical-integration gap for critical user journeys.** Neither replaces the other: the mutation
+gate proves selected tests notice changed rules, while the browser gate proves a production-shaped
+web/API path actually works. Deployment smoke then proves the deployed API and SPA are reachable.
 
 ## Canonical Behavior
 
@@ -184,6 +186,64 @@ Every feature that adds or changes logic in `domain/**` or `application/**` must
 
 ---
 
+## Browser E2E and deployment smoke
+
+**Status:** `active`
+**Architecture:** Chromium Playwright against local Vite + Worker servers and a disposable D1
+database; no pixel-diff gallery and no production writes.
+
+### Critical browser suite
+
+- `pnpm test:e2e` runs separately from the fast `pnpm verify` path.
+- Playwright starts the API and web dev servers, applies all migrations to a fresh temporary D1
+  persistence directory, and authenticates through the existing development-only bypass.
+- The baseline journeys pin public marketing load, authenticated app boot, and a real equipment
+  create followed by observation in the asset library.
+- Chromium is the only browser. The suite uses one worker and zero retries so a flaky journey
+  cannot become green by retry. A failed run retains a trace and screenshot.
+- The `Browser E2E` workflow always reports a PR status. Runtime, dependency, migration, harness,
+  or workflow changes run the suite; docs-only changes report a successful skip. Failure to
+  compute the diff fails closed by running the suite.
+- Add a journey only when an approved evidence plan identifies it as critical. Prefer one vertical
+  proof over repeating every edge case in a browser; lower layers own detailed rules.
+
+### Deployment smoke
+
+- API deployment continues to require `/health` with a D1 round trip and a valid
+  `/openapi.json` response.
+- Web deployment additionally requires the SPA document, its root mount point, and the referenced
+  hashed JavaScript asset to return successfully.
+- Smoke checks are read-only. They prove availability, not full feature correctness.
+
+### Layered evidence plan
+
+| Layer                 | Primary purpose                                            |
+| --------------------- | ---------------------------------------------------------- |
+| Unit/domain           | Business rules, invariants, calculations                   |
+| Component/application | UI states, use cases, orchestration                        |
+| Integration           | D1, queues, auth boundaries, Worker/API behavior           |
+| Contract              | OpenAPI generation, client typing, backward compatibility  |
+| Browser E2E           | Critical user journeys across real web and API processes   |
+| Smoke                 | Deployed service availability and minimum runtime health   |
+| Mutation              | Whether domain/application assertions detect changed rules |
+
+Each intent outcome or invariant gets the lowest-cost convincing layer plus a vertical browser
+journey only when the flow is critical. Do not duplicate every scenario at every layer.
+
+### Acceptance criteria
+
+- [x] `S1` Runtime-changing PRs run the required Chromium critical-path suite; docs-only PRs
+      report a successful skip.
+- [x] `S1` Every browser run uses a newly migrated disposable local D1 database and the
+      development-only authentication bypass.
+- [x] `S1` The suite pins public load, authenticated app boot, and create-asset-to-library.
+- [x] `S1` Browser failures retain diagnostic traces/screenshots and are not retried into green.
+- [x] `S1` A deployed web Worker is not green until the SPA and its JavaScript asset load.
+
+Single slice — browser evidence foundation (`S1`).
+
+---
+
 ## CSS token lint gate
 
 **Status:** `active`
@@ -196,8 +256,8 @@ it)
 `--hf-brand`, `--hf-r`, and the rest of `tokens.css` are the branded types of the frontend:
 `UserId.from()` exists so a raw string can't slip into a `UserId` field; the token file exists so
 `oklch(45% 0.1 150)` can't slip into a component stylesheet as a shadow copy of the brand color.
-Before this gate, that discipline was documentation only. `main` auto-merges on green CI with zero
-required reviewers, so an unenforced convention drifts back the moment a fast model (or a human in
+Before this gate, that discipline was documentation only. `main` requires green CI before human
+merge, so an unenforced convention drifts back the moment a fast model (or a human in
 a hurry) reaches for a literal instead of a token — exactly what #147 measured and fixed once
 already.
 
@@ -295,7 +355,7 @@ early silently disables nothing and `reportNeedlessDisables` catches it.
       a justified inline disable. `S1`
 
       Baseline (this branch's `stylelint.config.js` against `origin/main`'s CSS right after #149's
-              primitives extraction, 14 stylesheets): **272 violations**, resolved via:
+                                  primitives extraction, 14 stylesheets): **272 violations**, resolved via:
 
   - **30 new `--hf-*` tokens** in `tokens.css` (status border tints, a `--hf-bad-2`/`--hf-ink-2`
     hover pair mirroring `--hf-brand-2`, 12 activity/event swatches promoted from

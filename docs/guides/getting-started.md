@@ -96,6 +96,16 @@ pnpm --filter @snaveevans/pineapple-api openapi:generate
 pnpm --filter @snaveevans/pineapple-api cf-typegen
 ```
 
+For runtime changes, also run the separate critical-browser suite:
+
+```bash
+pnpm test:e2e
+```
+
+It starts isolated local API/web servers and a freshly migrated disposable D1
+database. CI runs it path-aware on pull requests; documentation-only changes
+receive a successful skip status.
+
 Both generated files are drift-checked on PRs and again before deploy, so a
 stale one fails CI. `cf-typegen` ignores your `.dev.vars`, so it produces the
 same file everywhere — regenerating on a clean checkout leaves no diff.
@@ -157,8 +167,8 @@ Examples: `feat/42-team-invite`, `fix/87-null-session`, `chore/upgrade-wrangler`
   - `Closes #42` / `Fixes #42` when this PR fully resolves the issue
   - `Refs #42` for a partial slice (do not auto-close until the last slice)
 - Fill out `.github/pull_request_template.md` (summary, related issue, test plan,
-  spec/AC when relevant).
+  intent/spec/evidence when relevant).
 - Commits use Conventional Commits; optional footers `Closes #N` / `Refs #N`.
 
-Before opening a PR: `pnpm lint && pnpm type-check && pnpm -r test` (and
-regenerate OpenAPI if the API contract changed).
+Before opening a PR: `pnpm verify`, plus `pnpm test:e2e` when the branch changes
+runtime behavior (and regenerate OpenAPI if the API contract changed).
