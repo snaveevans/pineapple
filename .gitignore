@@ -13,6 +13,8 @@ tmp
 *.log
 .tmp-api-*
 .playwright-mcp
+apps/web/playwright-report
+apps/web/test-results
 .swarm
 .lavish
 .agents/settings.local.json

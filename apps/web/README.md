@@ -73,7 +73,13 @@ pnpm --filter @snaveevans/pineapple-web build       # production build → dist/
 pnpm --filter @snaveevans/pineapple-web preview      # preview the built worker locally
 pnpm --filter @snaveevans/pineapple-web deploy       # build + wrangler deploy
 pnpm --filter @snaveevans/pineapple-web api:types    # regenerate src/api/schema.ts from the OpenAPI spec
+pnpm test:e2e                                           # critical Chromium journeys with disposable local D1
 ```
+
+The Playwright suite is deliberately separate from `pnpm verify`. It starts
+isolated API and web servers on ports 8877 and 5273, migrates a temporary D1
+database, and uses the development-auth path. It keeps traces and screenshots
+for failed journeys and never retries failures into green.
 
 ## API client
 
@@ -92,7 +98,8 @@ here instead of a runtime break in the browser. Don't hand-declare a shape the
 spec already describes, and don't edit `schema.ts` by hand.
 
 During local development, Vite proxies same-origin `/api/*` browser requests
-to the API Worker at `http://localhost:8787`. Run the API separately with
+to the API Worker at `http://localhost:8787` (override with
+`PINEAPPLE_API_PROXY_TARGET` for an isolated harness). Run the API separately with
 `pnpm --filter @snaveevans/pineapple-api dev`. Set
 `BETTER_AUTH_URL=http://localhost:5173` in `apps/api/.dev.vars` so OAuth
 callbacks return through the proxy.

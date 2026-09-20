@@ -220,6 +220,7 @@ pnpm verify             # everything CI's verify job runs: lint + type-check + t
 pnpm lint                # eslint (includes layer-boundary + Workers constraints)
 pnpm type-check          # tsc --noEmit across workspace
 pnpm -r test             # vitest (domain tests live in apps/api/src/**)
+pnpm test:e2e            # critical Chromium journeys; separate from fast verify
 pnpm --filter @snaveevans/pineapple-api openapi:generate   # regenerate the spec
 pnpm --filter @snaveevans/pineapple-web api:types          # regenerate apps/web/src/api/schema.ts from openapi.json
 pnpm --filter @snaveevans/pineapple-api cf-typegen         # regenerate worker-configuration.d.ts from wrangler.jsonc
