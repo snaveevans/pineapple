@@ -1,41 +1,55 @@
-# Prompt: Pre-Merge Spec Check
+# Prompt: Post-Merge Intent and Spec Check
 
-Use this prompt before merging a PR to verify the proposed changes are
-consistent with the feature spec. If violations are found, either fix the code
-or explicitly update the spec as part of the PR.
-
-Paste the prompt below, then append the existing feature spec and the PR diff
-or description.
+Use this prompt after a feature slice or bug fix merges. For a feature/change,
+provide the accepted Intent Brief and approved architecture/evidence packet. For
+a bug, provide the corrective GitHub issue; no Intent Brief is needed. Always
+provide the relevant spec and merged PR diff.
 
 ---
 
-You are checking a PR against a feature spec before it merges.
+You are checking a merged PR against its applicable authority chain:
 
-## Inputs
+1. accepted intent for a feature/change, or the corrective issue for a bug;
+2. approved architecture / accepted ADRs;
+3. feature and cross-cutting specs;
+4. executable contracts;
+5. tests and code.
 
-- Feature spec (provided, with line numbers)
-- PR diff or description (provided)
+For each meaningful change, classify it:
 
-## Task
+- **INTENT CONFLICT** — behavior contradicts an `OUT-*`, `INV-*`, constraint,
+  or non-goal. Do not edit intent from code; reopen the ready gate.
+- **BUG AUTHORITY CONFLICT** — the correction contradicts the bug issue or
+  requires choosing new product behavior. Clarify/reclassify; do not create or
+  edit intent while it remains a bug.
+- **ARCHITECTURE CONFLICT** — implementation materially departed from approved
+  architecture/ADRs. Reopen the ready gate when the departure is intentional.
+- **SPEC GAP FILLED** — merged observable behavior is consistent with its
+  authority but absent from the detailed spec; update the spec and map it to the
+  applicable intent ID or bug issue.
+- **EVIDENCE GAP** — an affected authority claim lacks required proof or a
+  critical vertical journey.
+- **IMPLEMENTATION DETAIL** — no durable outcome, architecture, behavior, or
+  evidence change; documentation is unaffected.
 
-For each meaningful change in the PR, classify it:
-
-- **VIOLATION** — PR behavior contradicts a specific spec line; flag it
-- **GAP FILLED** — PR adds behavior the spec doesn't cover; spec needs a new entry
-- **IMPLEMENTATION DETAIL** — no observable behavior change; spec unaffected
+Intent changes only when the durable problem, outcome, invariant, constraint,
+or boundary actually changed and a human approves a reopened ready packet.
+Implementation convenience is never a reason to revise intent.
 
 ## Output
 
-Return exactly two sections:
+Return exactly three sections:
 
-### Violations & Gaps
+### Ready Gate Reopened
 
-For each VIOLATION: cite the spec line number(s), quote the relevant spec text,
-and describe how the PR contradicts it.
-For each GAP FILLED: describe the new behavior that should be added to the spec.
-If none, write "None."
+List intent/architecture conflicts with cited IDs/lines and the material choice
+that needs approval. If none, write `No`.
+
+### Spec and Evidence Updates
+
+List spec gaps, affected `OUT-*`/`INV-*` or bug issues, checkbox/status changes,
+and missing proof. If none, write `None`.
 
 ### Implementation Details
 
-List changes classified as IMPLEMENTATION DETAIL.
-If none, write "None."
+List changes that need no durable documentation update. If none, write `None`.

@@ -1,25 +1,29 @@
 ---
 name: test-author
-description: Author an implementation-blind test plan for an Open Brain issue or spec slice — hunt spec gaps, record caller-visible corner cases in the feature spec, and post the prioritized plan as a GitHub issue comment. Use whenever the user asks for a test plan, testing criteria, coverage gaps, what to test, or to test-author an issue, including before spec-implement and after a spec lands. Do not use to write tests or production code (spec-implement), to judge whether existing tests pin the plan (test-review), or to open a PR (validation-gate).
+description: Author an implementation-blind, authority-mapped test plan for a feature slice or issue-backed bug. Reads accepted intent for features or the corrective issue for bugs, plus specs and ADRs; selects the lowest useful evidence layer and any required critical vertical proof. Do not use to write tests/code, review existing tests, or open a PR.
 ---
 
-Work conversationally. Confirm the target issue and any unresolved product
-calls before writing. Do not invent product policy, and do not generate the
-spec delta or issue comment until the gaps that need a human ruling are
-either answered or parked as Open Questions.
+Resolve the target from context and proceed without routine confirmation. Do
+not invent product policy. For a feature ambiguity, reopen the ready gate. For a
+bug ambiguity, clarify the expected correction in the issue context; if the
+answer chooses new product behavior, reclassify the work through `intent-author`.
 
-This skill sits **between** `spec-author` and `spec-implement`. Specs own
-behavior. The GitHub issue owns the test plan. ADRs own hard-to-reverse
-choices. There is no `docs/testing/` home — ADR-0002 forbids a third typed
-doc.
+This skill sits between `spec-author` and `spec-implement`. Accepted intent owns
+feature outcomes/invariants, a bug issue owns its corrective request, specs own
+detailed behavior, ADRs own significant architecture, and the GitHub issue owns
+the executable test plan. There is no `docs/testing/` home.
 
 ## Hard rules
 
-1. **Do not read implementation.** Stay out of `packages/**`, test files,
-   and handler source. Existing tests and code bias the plan toward what
-   already happens. The spec and the issue are the inputs. If you already
-   saw code earlier in the conversation, do not go back for more, and do
-   not tailor the plan to it.
+1. **Run in a fresh context and do not read implementation.** The caller must
+   delegate this skill to an isolated agent/task that has not inspected the
+   implementation. Pass artifact paths and issue identity only, not code
+   observations or excerpts. Stay out of `packages/**`, app source,
+   test files, and handlers. Existing tests/code bias the plan toward what
+   already happens. For features, accepted intent and the ready packet are
+   inputs; for bugs, the issue is sufficient authority. Specs and ADRs apply to
+   both. If implementation is already in this context, stop and relaunch the
+   plan in a fresh one.
 2. **Do not write production code or test files.** `spec-implement` does
    that from the spec plus this plan.
 3. **Do not invent product policy.** Unspecified behavior is a question, an
@@ -27,9 +31,16 @@ doc.
 4. **Do not create a test-plan doc in the repo.** No `docs/testing/`, no
    plan pasted into `AGENTS.md`. Behavior goes in the spec; the plan goes
    on the issue.
-5. **Do not reuse an error string for a different case.** A metadata
-   message must not describe a non-object body. Propose a new string in the
-   house style and confirm it.
+5. **Do not reuse an error string for a different case.** A metadata message
+   must not describe a non-object body. Record a distinct string in the house
+   style through `spec-author`; do not add a routine approval pause.
+6. **Map every required proof.** Each P0/minimum-confidence test names at least
+   one affected `OUT-*`/`INV-*` for feature work, or the bug issue plus affected
+   spec criterion for corrective work, and one evidence layer. Unmapped
+   authority or a missing required vertical journey blocks implementation.
+7. **Use the lowest useful layer.** Do not reproduce each scenario at unit,
+   integration, and browser layers. Add browser E2E only when the approved
+   evidence plan calls the journey critical.
 
 ## Find the target
 
@@ -38,7 +49,8 @@ Do not expect an argument. Resolve the issue from, in order:
 1. An explicit number or URL in the user request
 2. Leading digits in the branch name (`feat/5-…` → `#5`)
 3. The issue linked from the spec's Delivery Plan for the slice in play
-4. Ask if still ambiguous
+4. Return to `intent-executor`, which creates and links the slice issue
+   autonomously before retrying
 
 Then **run this** and work from the output — do not guess the spec inventory:
 
@@ -47,19 +59,22 @@ gh issue view <N> --json title,body,labels,comments
 find docs/specs/features docs/specs/cross-cutting -name "*.md" | sort
 ```
 
-Identify the feature spec the issue names (or the Delivery Plan row that
-points at this issue). Read **that spec**, every **Related Spec** it lists,
-and any ADR it cites. Read `docs/specs/SPECS.md` only if you need the
-status / checkbox rules.
+Identify the feature spec the issue names (or the Delivery Plan row that points
+at this issue). For a feature, read its **Related Intent** first and the approved
+evidence expectations. For a bug, use the issue as authority and require the
+spec's corrective update; do not require intent metadata. Then read the entire
+spec, every **Related Spec**, and cited ADRs. Read `docs/specs/SPECS.md` only for
+lifecycle rules.
 
-State in one line: issue, spec path, and whether this is a first plan or a
-revision of an existing `<!-- openbrain-test-author -->` comment.
+State in one line: issue, authority (`OUT-*`/`INV-*` or bug `#N`), spec
+path/criterion or slice, and whether this is a first plan or a revision of an
+existing marker comment.
 
 ## 1. Restate the contract
 
-In your own words, one sentence: what the slice does, and what must never
-happen. Pull “must never happen” from the spec’s acceptance criteria, edge
-table, and Out of Scope — not from how you imagine the code works.
+In your own words, one sentence: what the slice does and what must never
+happen. Pull from the feature intent or bug issue, the spec criteria/edge table,
+and applicable Non-Goals—not from imagined implementation.
 
 ## 2. Hunt gaps
 
@@ -70,14 +85,18 @@ example “500; no successful create” that still permits a leftover row).
 Group the catalogue:
 
 - **Already specified** — plan a test; do not rewrite the spec
-- **Needs a product call** — ask. Do not proceed to write until each is
-  answered or parked
+- **Needs a product call** — reopen the ready gate for feature work; for a bug,
+  clarify the issue and reclassify if the answer chooses new behavior
 - **Test strategy only** — how to fake a port, what to spy. Issue comment
   only; not spec material
-- **Architectural** — hard to reverse, real alternatives. Offer
-  `adr-author`; do not smuggle the choice into an edge-table row
+- **Authority/architecture/evidence conflict** — reopen `intent-author` for a
+  feature; for a bug, stop when the issue/spec disagree or the correction would
+  require a new product decision
+- **Architectural** — hard to reverse, real alternatives. Route through the
+  ready gate and `adr-author`; do not smuggle the choice into an edge-table row
 
-Ask the product questions in a tight list. Prefer one round of answers over
+Present feature product questions as a concise ready-gate delta and bug
+questions as a concise issue clarification. Prefer one round of answers over
 guessing “the usual REST thing.”
 
 If the conversation already answered the calls (this session or a prior
@@ -87,15 +106,20 @@ comment), restate those answers in one block and proceed. Do not re-ask.
 
 Every fact has one home:
 
-| Fact                                                                                   | Home                                                                                                        |
-| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Caller-visible behavior, validation strings, status codes, defaults, failure leftovers | Feature spec (edge table, Observable Contract, new AC boxes only when the behavior must be gated on `main`) |
-| Why a hard-to-reverse option won                                                       | ADR via `adr-author`, only when the user wants that lock                                                    |
-| Prioritized tests, spies, fakes, minimum confidence set                                | GitHub issue comment (and later the implementing PR’s Test plan, which links here)                          |
+| Fact                                                               | Home                                       |
+| ------------------------------------------------------------------ | ------------------------------------------ |
+| Feature outcome/invariant/constraint                               | Intent Brief / ready gate                  |
+| Bug's expected correction                                          | GitHub bug issue                           |
+| Caller-visible behavior, status codes, defaults, failure leftovers | Feature spec                               |
+| Why a hard-to-reverse option won                                   | ADR via `adr-author`                       |
+| Authority-to-layer evidence mapping                                | Feature spec evidence plan                 |
+| Prioritized tests, spies, fakes, minimum confidence set            | GitHub issue comment and later PR evidence |
 
-Hand back to `spec-author` instead of editing when the spec is missing,
-still `draft`/`wip`, or needs new personas / a rewritten contract — not just
-sharper edges.
+Hand feature work back to `intent-author` when accepted intent/readiness is
+missing or a material product call surfaced. Hand bug work back to
+`issue-implement` if it needs reclassification. Hand either path to
+`spec-author` when the spec is missing or needs a rewritten detailed
+contract—not just sharper edges.
 
 ## 4. Update the spec
 
@@ -141,7 +165,13 @@ rather than pasting the whole contract.
 
 ## Test plan — <issue title>
 
-Blind to implementation. Source: <spec path> (plus related specs / ADRs named there).
+Blind to implementation. Sources: <intent path or bug issue>, <spec path>, related specs/ADRs.
+
+### Authority and evidence map
+
+| Authority           | Claim | Layer       | Required proof |
+| ------------------- | ----- | ----------- | -------------- |
+| `OUT-1` or Bug `#N` | …     | integration | …              |
 
 ### Must never happen
 
@@ -153,7 +183,8 @@ Blind to implementation. Source: <spec path> (plus related specs / ADRs named th
 
 ### P0 — ship blockers
 
-One test (or a tight pair) per row. Highest bug-per-effort first.
+One test (or a tight pair) per row. Prefix each item with its authority and
+evidence layer. Highest bug-per-effort first.
 
 1. …
 2. …
@@ -168,7 +199,8 @@ One test (or a tight pair) per row. Highest bug-per-effort first.
 
 ### Minimum confidence set
 
-The smallest list that would still catch the expensive failure. Usually ≤ 8.
+The smallest list that covers every affected authority claim and catches the
+expensive failure. Usually ≤ 8. Include any required critical vertical proof.
 
 ### Out of scope for this issue
 
@@ -186,11 +218,11 @@ embedder input, leftover row/vector). Do not prescribe implementation.
 
 In-session, give the user:
 
-- Spec path and a bullet list of what changed (new rows, new strings, new
-  ACs, status flip)
+- Authority/spec path and a bullet list of what changed (new rows, strings,
+  ACs, evidence mapping, status flip)
 - Link to the issue comment
 - Any Open Questions still parked
-- Whether an ADR was offered or skipped, and why
+- Whether the ready gate, issue classification, or an ADR changed, and why
 
 Do not implement the handler, the error constant, or the tests unless the
 user explicitly switches you to `spec-implement`.

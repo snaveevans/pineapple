@@ -1,6 +1,6 @@
 ---
 name: adr-author
-description: Author, capture, or supersede an Architecture Decision Record (ADR). Keeps ADRs at decision altitude — the choice, its drivers, the options weighed, and the consequences — and pushes implementation mechanism down into feature specs. Treats the ADR collection as an append-only ledger.
+description: Author, capture, or supersede an ADR between accepted intent and feature specs. Keeps durable product outcomes above in intent, records significant architecture choices here, and pushes routine mechanism down into specs. Treats ADRs as an append-only ledger.
 ---
 
 Work conversationally. Confirm the decision, its drivers, and the rejected options before writing. Do not generate a full draft until the steps below are complete.
@@ -33,6 +33,8 @@ Before drafting, apply the README's "When to write one" test: an ADR is warrante
 Be willing to say **no**:
 
 - If it's **how a feature behaves or is built**, that's a spec detail — it belongs in `docs/specs/`, not an ADR (see the altitude checklist).
+- If it is **why the capability exists, its durable outcome/invariant, or a
+  product constraint**, it belongs in the Intent Brief and ready gate—not an ADR.
 - If it's a small, obvious, or easily reversed choice, a code comment is enough.
 
 Naming an ADR you should _not_ write is a success, not a failure.
@@ -64,6 +66,12 @@ A new decision, recorded now.
 **6. Altitude pass** — Work through [decision-altitude-checklist.md](decision-altitude-checklist.md). This is where mechanism gets caught and pushed down into a spec.
 
 **7. Draft** — Read `docs/decisions/0000-template.md`, fill it in, and write to `docs/decisions/NNNN-short-title.md` with the next sequential number. Set the status (`proposed` or `accepted` — confirm which) and today's date. Then add the row to the index table in `docs/decisions/README.md`.
+
+When an ADR is part of an `intent-author` ready packet, keep it `proposed`
+while the packet is under review. The human's explicit approval of that packet
+is also approval of every named ADR in it: flip each to `accepted` and update
+the index as part of the same gate transition. Do not add a second routine
+approval pause.
 
 ---
 

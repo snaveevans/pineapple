@@ -1,163 +1,139 @@
 ---
 name: spec-implement
-description: Implement one spec slice or issue-backed bug correction with test-first development. Enforces accepted intent for features and deliberate changes, while bugs require only their issue, updated spec, and regression proof.
+description: Implement one feature-spec slice or issue-backed bug correction with test-first development. Enforces accepted intent for features and deliberate behavior changes, while bugs require only their issue, updated spec, and regression proof. Proceeds without routine confirmation pauses.
 ---
 
-## Find the target spec
+# Spec implement
 
-Do NOT expect a command argument. Work out which spec to implement from git state:
+This is the detailed SDD/TDD implementation layer beneath `intent-executor` or
+the bug path in `issue-implement`. It does not negotiate product intent or
+re-run the ready gate.
 
-```!
-echo "── Uncommitted spec changes ──"
-git status --porcelain -- 'docs/specs/**/*.md'
-echo "── Spec files changed vs main ──"
-git diff --name-only main -- 'docs/specs/**/*.md' 2>/dev/null
-echo "── Recently committed specs ──"
-git log --oneline -10 --name-only -- 'docs/specs/**/*.md' 2>/dev/null
+## Resolve target and mode
+
+Inspect git state, recent spec changes, and Delivery Plans:
+
+```bash
+git status --porcelain -- 'docs/specs/**/*.md' 'docs/intents/**/*.md'
+git diff --name-only origin/main...HEAD -- 'docs/specs/**/*.md' 'docs/intents/**/*.md'
+git log --oneline -10 --name-only -- 'docs/specs/**/*.md'
 ```
 
-Use the output to pick the target and the mode:
+Infer:
 
-- A **new, untracked** spec file (or a spec with no implementing code yet) → **New** (full build across all layers).
-- An **existing** spec with uncommitted edits or recent commits that changed it → **Diff** (implement only the delta).
-- A linked issue reports unintended behavior → **Bug** (implement the
-  correction recorded in the relevant spec).
+- **New** — no implementing code exists for the selected feature spec/slice.
+- **Diff** — an existing feature spec changed; implement only its delta.
+- **Bug** — the linked issue reports unintended behavior; implement the
+  correction recorded by `spec-author`.
 
-For feature work, pick the **target slice**: open the spec's **Delivery Plan**
-and choose the next slice (`Sn`) whose tagged criteria are still `[ ]`,
-respecting the plan's `Depends on` order. You implement **one slice per PR** —
-its scope is exactly the criteria tagged `Sn`. A single-slice feature spec has
-one slice (`S1`) = the whole thing. For a bug, target the affected criterion or
-edge case named by the issue; an `active` or legacy spec does not need a
-Delivery Plan or a synthetic slice.
+Choose the next `Sn` with unchecked criteria and satisfied dependencies for
+feature work. For a bug against an `active` or legacy spec, target the affected
+criterion or edge case named by the issue without creating a Delivery Plan or
+synthetic slice. State the target in one line and proceed. Ask only when
+multiple candidates are genuinely equally likely or product meaning is
+ambiguous.
 
-State the spec file(s), target slice, and inferred mode in one line and proceed.
-If nothing relevant appears, or several candidates are genuinely equally likely,
-ask which target to implement. A full-stack feature may have a spec in each
-package — implement the API spec's layers and the web spec's layers together.
+## Pre-flight
 
----
+Read the authority for the work type, the target spec, related cross-cutting
+specs, ADRs, and evidence plan.
 
-## Pre-flight (both modes)
+For a feature or deliberate behavior change require:
 
-Specs live in `docs/specs/features/` (see `docs/specs/SPECS.md`). Read the spec for
-the feature before proceeding. Then verify:
+1. linked Intent Brief is `accepted`;
+2. Ready Gate is approved;
+3. spec is `review` or `in-progress`;
+4. target criteria have one slice tag and applicable `OUT-*`/`INV-*`;
+5. each affected intent ID has a named evidence method;
+6. no blocking open question remains;
+7. API work has telemetry and contract treatment.
 
-1. **Authority is valid for the work type**:
-   - A new capability or deliberate behavior change requires a linked
-     `accepted` Intent Brief, `Ready Gate: approved`, applicable
-     `OUT-*`/`INV-*` tags, and named evidence for those IDs.
-   - An issue-backed bug requires no Intent Brief or ready gate, even when it
-     reveals a spec gap. Require the linked issue, corrected expected behavior
-     in the relevant spec, and a named failing regression proof. Missing legacy
-     intent metadata is not a blocker.
-   - Behavior-preserving work records its exception.
-     If a supposed bug actually chooses new product behavior, reclassify it and
-     route it through the intent gate.
-2. **Status is implementable for the work type** — feature/change specs are
-   `review` or `in-progress`; an existing or legacy spec may remain `active`
-   while correcting a bug. A feature/change `wip`/`draft` spec is not ready.
-3. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
-4. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
-5. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
-6. **The target is clear** — for feature/change work, the criteria tagged with
-   the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a
-   multi-criterion feature/change spec has no Delivery Plan or untagged
-   criteria, stop and route it to `spec-author`; do not pause for routine
-   approval. For a bug, the issue plus affected criterion/edge case defines
-   scope without a slice.
+For an issue-backed bug require:
 
-If pre-flight passes, summarize what will be built and proceed.
+1. a linked GitHub bug issue—the issue is sufficient corrective authority;
+2. the relevant spec states the expected corrected behavior and names the
+   regression proof;
+3. no new or edited Intent Brief and no ready gate;
+4. an `active` or legacy spec is allowed, and missing legacy intent metadata is
+   not a blocker;
+5. API work still has applicable telemetry and contract treatment.
 
----
+A behavior-preserving refactor may proceed without intent/spec creation when
+characterization coverage protects it. If a supposed bug actually chooses new
+product behavior, route it through `intent-author`. If a lower feature layer
+conflicts with accepted intent, architecture, or evidence expectations, reopen
+the ready gate; never edit intent to fit the code.
 
-## New
+## Test-first implementation
 
-Implement the **target slice** across every layer it touches (for a single-slice spec, that is the whole spec). Follow the dependency order — each layer may only import inward per the architecture in `CLAUDE.md`.
+Use the implementation-blind `test-author` plan produced in a fresh isolated
+context. For bugs, the plan maps proof to the issue and affected spec criterion
+rather than inventing an intent ID. If no plan exists for changed observable
+behavior, return to the orchestrator to commission it before inspecting
+implementation details.
 
-Work through [layer-checklist.md](layer-checklist.md) for each layer the slice requires. Not every slice touches every layer — skip layers that are not needed and state why.
+1. Add the smallest acceptance, regression, or characterization test proving
+   the intended behavior.
+2. Run it and observe failure for the missing behavior.
+3. Implement the minimum change.
+4. Refactor while tests remain green.
+5. Never narrow/delete/skip the blind assertion to obtain green.
 
-**Order:**
+TDD exceptions are docs-only work, mechanical refactors already protected by
+characterization tests, and deployment-only checks. Record the exception in PR
+evidence.
 
-1. Domain
-2. Application
-3. Infrastructure
-4. API (schemas + route spec)
-5. `worker.ts` (wire deps + register route)
-6. Frontend (if applicable)
+## New mode
 
-**After each layer:** run `pnpm lint && pnpm type-check` before moving to the next. Fix any errors before proceeding — do not accumulate lint or type errors across layers.
+Implement only the selected slice through the layers it needs, respecting the
+dependency direction in `CLAUDE.md`:
 
-**After all layers:**
+1. domain
+2. application
+3. infrastructure
+4. API schemas/route specification
+5. `worker.ts` composition
+6. frontend
 
-- Run `pnpm verify` — one command with exact CI parity: lint, type-check, tests, plus staleness checks for `docs/reference/openapi.json`, `apps/api/worker-configuration.d.ts`, and `apps/web/src/api/schema.ts`
-- If verify flags a stale generated artifact (an API route or wrangler binding changed), regenerate it (`openapi:generate` / `cf-typegen` / `api:types`), commit the result, and re-run `pnpm verify`
+Use `layer-checklist.md`. After a coherent layer/change loop, run the narrow
+tests plus lint/type-check; do not accumulate structural errors. Skip layers the
+slice does not need and record why.
 
----
+## Diff and Bug modes
 
-## Diff
+Diff the target spec against `origin/main` and translate only its changed
+criteria, edge cases, architecture, telemetry, and evidence rows into code
+impact. For an already-specified bug with no semantic spec delta, use the issue, affected
+criterion, and named regression proof. Locate existing implementation, then
+implement only that delta without unrelated refactoring. A newly discovered
+separate concern becomes a follow-up branch.
 
-Implement only the delta between the spec's last committed state and its current state.
+## Contracts and evidence
 
-**1. Get the spec diff**
+- OpenAPI remains authoritative for wire shapes; edit Zod route specs, then run
+  `openapi:generate` and web `api:types`.
+- Regenerate Worker binding types after `wrangler.jsonc` binding changes.
+- Run every named proof for affected `OUT-*`/`INV-*` or the bug issue.
+- Run `pnpm test:e2e` when the evidence plan marks a critical browser journey or
+  the branch falls within its CI scope.
+- Run `pnpm verify` after all changes.
 
-Run a diff against the spec file identified in **Find the target spec** (substitute the detected path):
-
-```
-git diff main -- "<detected-spec-path>" 2>/dev/null || git diff HEAD~1 -- "<detected-spec-path>" 2>/dev/null || echo "No diff found — spec may not have changed since main"
-```
-
-If no diff is found, use the linked issue and repository history to locate the
-intended delta. Stop only if the target remains genuinely ambiguous.
-
-**2. Interpret the diff** — Translate each change in the spec to a code impact:
-
-- New acceptance criteria → new code path or validation rule
-- Removed acceptance criteria → code to delete or simplify
-- Changed edge case behavior → logic update
-- New flag resolved → implement the decided behavior
-- Telemetry section added or changed → new operation mapping or domain event handler
-
-Record the interpreted impact list and proceed without routine confirmation.
-
-**3. Locate existing code** — Find the files already implementing this feature across all layers. Read them to understand current state before making changes.
-
-**4. Implement the delta** — Make only the changes the diff requires. Do not refactor unrelated code. If a change would require touching something outside the spec delta, flag it and ask.
-
-**5. After all changes:** run `pnpm verify`. If it flags a stale generated artifact (an API route or wrangler binding changed), regenerate it (`openapi:generate` / `cf-typegen` / `api:types`), commit, and re-run.
-
----
-
-## Slicing a large spec
-
-A spec too large for one PR declares its **Delivery Plan** — the slices `S1`…, each normally a GitHub issue (see `docs/specs/SPECS.md`). Implement **one slice per PR**:
-
-- The spec file stays whole — do not split it.
-- Implement the criteria **tagged with the target slice** (`Sn`) and **check off only those boxes** (`- [ ]` → `- [x]`) in the same PR.
-- Respect the plan's `Depends on` order — don't start a slice whose dependency's boxes aren't `[x]` yet.
-- Slice tags make ownership explicit, so checkmarks rarely conflict; if two in-flight slices touch the same box, resolve it in the later merge.
-- **Status:** the first shipped slice moves the spec `review` → `in-progress`; the final slice (last box checked) moves it to `active`.
-
----
+Then invoke `test-review`. Missing mapped authority, missing critical vertical
+proof, weakened blind tests, or checked boxes without pinning tests block
+completion.
 
 ## Completion
 
-When a PR's implementation is done:
+- One feature slice per PR; implement and check off only criteria tagged with
+  that `Sn`.
+- An already-specified bug leaves its existing checkbox and `active` lifecycle unchanged.
+  A spec-miss criterion added for the bug is checked only after the correction
+  is implemented and pinned by the regression test.
+- First shipped feature slice moves `review` → `in-progress`; the final box moves
+  the spec to `active`.
+- Update `docs/web/FEATURES.md` for meaningful web flow/screen changes.
+- Report any TDD exception and remaining uncertainty in the PR evidence.
 
-- For feature/change work, check off the boxes **tagged with the slice this PR
-  delivered** (`Sn`), one by one (`- [ ]` → `- [x]`) in the same PR. Check a
-  box only when its behavior is implemented **and covered by a test** — not
-  merely written.
-- An already-specified bug leaves its existing checkbox and `active` lifecycle
-  unchanged. A spec-miss criterion added for the bug is checked only after the
-  correction is implemented and pinned by the regression test.
-- For feature/change work, set `status`: if no `[ ]` remain across the whole
-  spec, advance to `active`; if this was the **first** shipped slice, move
-  `review` → `in-progress`; otherwise leave `in-progress` unchanged.
-- Note any criteria that could not be met and why (flag candidates for the spec)
-- Remind the user to run `/spec-author` (document existing code) if behavior diverged from the spec during implementation
-
-See `docs/specs/SPECS.md` (Spec lifecycle & acceptance criteria) for the canonical convention.
-
-Hand the finished PR to the human with claim-by-claim evidence and remaining
-uncertainty. The human verifies that evidence before explicitly approving merge.
+Commit and PR mechanics belong to `validation-gate` / `pr-shepherd`. Hand the
+finished PR to the human with claim-by-claim evidence; the human verifies that
+evidence before explicitly approving merge.

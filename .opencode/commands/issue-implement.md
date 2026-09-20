@@ -1,5 +1,5 @@
 ---
-description: Implement a GitHub issue end-to-end via the spec-driven flow
+description: Implement a GitHub issue end-to-end via the intent-driven flow
 ---
 
 Use the `issue-implement` skill to implement issue $ARGUMENTS.

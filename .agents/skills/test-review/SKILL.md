@@ -1,6 +1,6 @@
 ---
 name: test-review
-description: Adversarial review of tests against the feature spec and the GitHub issue test plan. Checks leftover spies, exact error strings, auth-before-parse, and boxes checked too early. Use after spec-implement, before validation-gate, or whenever the user asks whether the tests actually pin the spec, to review coverage, or to test-review an issue or branch. Do not use to write a blind plan (test-author), implement the slice (spec-implement), or review production code for bugs (pr-review).
+description: Adversarial review of tests against the governing authority, architecture, feature spec, evidence plan, and blind issue plan. Uses accepted intent for features and the corrective issue for bugs; blocks unmapped authority, missing vertical proof, weakened blind tests, and boxes checked too early.
 ---
 
 # Test review
@@ -9,8 +9,10 @@ Finds holes in the **tests**, not in the handler. `test-author` was blind on
 purpose. This skill is the one allowed to read `packages/**` test files and
 say whether they pin the contract.
 
-This skill sits **between** `spec-implement` and `validation-gate`. Specs own
-behavior. The issue comment owns the plan. Tests must prove both.
+This skill sits between `spec-implement` and `validation-gate`. Intent owns
+feature claims, a bug issue owns its corrective claim, specs own detailed
+behavior, and the issue owns the blind plan. Tests must provide the required
+evidence across the applicable authority chain.
 
 ## Identify, don't fix
 
@@ -38,8 +40,11 @@ find docs/specs/features docs/specs/cross-cutting -name "*.md" | sort
 git diff --name-only main...HEAD -- '*test*' '*spec*'
 ```
 
-Load:
+Load, in authority order:
 
+- For a feature/change, the accepted Intent Brief and approved ready/evidence
+  packet; for a bug, the corrective issue (no intent required)
+- Relevant ADRs and approved architecture
 - The feature spec and every Related Spec it lists
 - The **latest** issue comment containing `<!-- openbrain-test-author -->`
 - Test files in the branch diff (and existing tests for the same feature on
@@ -49,21 +54,28 @@ Load:
 If there is **no plan comment**, stop and hand back to `test-author`.
 Reviewing tests against vibes is how we re-derive the plan.
 
-State in one line: issue, spec path, plan comment URL, and which test files
-you will read.
+State in one line: issue, authority (`OUT-*`/`INV-*` or bug `#N`), spec
+criterion/slice, plan comment URL, and which test files you will read.
 
 ## 1. Build the expected set
 
-From the spec, list every acceptance criterion tagged for this slice and every
-Edge Cases / Observable Contract row that is caller-visible.
+For feature work, list every affected `OUT-*`/`INV-*`. For a bug, list the issue
+claim and affected spec criterion/edge. Then list every acceptance criterion for
+the target and every caller-visible edge/contract row.
 
 From the issue plan, list every **Minimum confidence set** item and every
 **P0** row. Treat those as required. P1 is a finding only when the user asked
 for a full pass, or when skipping it would let a P0 failure hide (wrong error
 string reused, leftover unspied).
 
-Do not add new product policy. If the spec and the plan disagree, that is
-itself a finding — hand back to `test-author`, do not pick a winner.
+Build a trace table: authority → spec criterion → planned proof/layer → test.
+Every required test must map to at least one feature intent ID or the bug issue.
+Verify the lowest useful layer was chosen and that a critical journey has its
+required vertical proof.
+
+Do not add product policy. A feature disagreement blocks and reopens the ready
+gate. A bug issue/spec disagreement blocks for clarification; reclassify it if
+the answer requires a deliberate behavior change.
 
 ## 2. Read the tests
 
@@ -72,14 +84,17 @@ handler source unless you cannot tell what an assertion is pointing at.
 
 For each required item, record one of:
 
-| Verdict              | Meaning                                                                                                       |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Pinned**           | A test would fail if the behavior regressed the way the plan fears                                            |
-| **Status-only**      | A status/body check exists, but the expensive part (leftover row, embedder input, key-on-row) is not asserted |
-| **Wrong string**     | Test expects a message that belongs to a different case                                                       |
-| **Missing**          | No test                                                                                                       |
-| **Contradicts spec** | Test encodes a different contract than the spec / plan                                                        |
-| **Box lie**          | Spec box is `[x]` and the matching test is missing, status-only, or contradicts                               |
+| Verdict                 | Meaning                                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Pinned**              | A test would fail if the behavior regressed the way the plan fears                                            |
+| **Status-only**         | A status/body check exists, but the expensive part (leftover row, embedder input, key-on-row) is not asserted |
+| **Wrong string**        | Test expects a message that belongs to a different case                                                       |
+| **Missing**             | No test                                                                                                       |
+| **Contradicts spec**    | Test encodes a different contract than the spec / plan                                                        |
+| **Box lie**             | Spec box is `[x]` and the matching test is missing, status-only, or contradicts                               |
+| **Unmapped authority**  | A critical `OUT-*`/`INV-*` or bug claim has no required proof, or the test cannot be traced to it             |
+| **Wrong layer**         | Proof is duplicative/too high, or omits the approved critical vertical journey                                |
+| **Blind test weakened** | An implementation-blind assertion was narrowed, deleted, skipped, or replaced with weaker evidence            |
 
 Work through [pin-checklist.md](pin-checklist.md). That list is the difference
 between "we have a 500 test" and "a leftover row would fail CI."
@@ -100,20 +115,29 @@ Typical keepers:
 - Oversize path allows stored text ≠ embedded text
 - Spec box `[x]` without a pinning test
 - New observable behavior in tests that the spec never recorded
+- Critical feature intent or bug claim without mapped proof
+- Critical vertical browser journey missing
+- Blind plan assertion weakened after implementation began
 
 ## 4. Report in-session
 
 Verdict:
 
 - **Changes requested** — any keeper. The slice is not done.
-- **Approved** — every minimum-confidence item and every new AC is Pinned; no
-  box lies.
+- **Approved** — every affected authority claim, minimum-confidence item, and new
+  AC is Pinned at a sufficient layer; required vertical proof exists; no blind
+  test weakened and no box lies.
 
 ```markdown
 ## Test review: changes requested | approved
 
 Issue #<N> · <spec path>
+Authority: <intent path + OUT/INV list, or bug #N>
 Plan: <comment URL>
+
+### Authority evidence gaps
+
+- **`OUT-N` / `INV-N` / Bug `#N`** — Unmapped authority | Wrong layer | Missing vertical proof | …
 
 ### Unpinned (required)
 
@@ -124,7 +148,7 @@ Plan: <comment URL>
 
 - `docs/specs/…` — `[x]` without a pinning test / …
 
-### Plan vs spec disagreements
+### Authority / architecture / spec / plan disagreements
 
 - …
 

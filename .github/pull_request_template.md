@@ -13,7 +13,7 @@
 
 <!-- Agent always fills this — gate or bare /pr. Human may bump. -->
 <!-- Prefer the validation-gate skill; if opening bare, score from the diff paths. -->
-<!-- L = glance evidence only · M = evidence + spot-check · H = full review · C = human-designed plan required -->
+<!-- L = glance evidence only · M = evidence + spot-check · H = full review · C = human-approved ready packet required -->
 
 **Level:** <!-- L | M | H | C -->
 
@@ -27,25 +27,29 @@
      L — Glance evidence. Do not read the diff.
      M — Evidence + escalations; spot-check 1–2 hot files.
      H — Full review + local poke on auth/API/data paths.
-     C — Stop if plan was not human-approved; deep review required. -->
+     C — Stop if the ready packet was not human-approved; deep review required. -->
 
-## Evidence
+## Intent / Spec / Evidence
 
-<!-- What proves the change works as intended. Link artifacts, not vibes. -->
-<!-- Examples: test names that cover the behavior, screenshots,
-     API traces, logs, manual steps with expected results. -->
+<!-- Feature/change: link the accepted Intent Brief and approved ready gate,
+     list affected OUT-*/INV-* IDs, then link the spec + slice/criteria.
+     Bug: link the corrective issue and updated spec; no Intent Brief is needed.
+     Behavior-preserving work: state the exception instead of inventing artifacts. -->
 
-- [ ]
+**Authority:**
+
+**Spec / slice:**
+
+| Authority (`OUT-*` / `INV-*` / bug `#N`) | Claim | Named proof | Result | Remaining uncertainty |
+| ---------------------------------------- | ----- | ----------- | ------ | --------------------- |
+|                                          |       |             |        |                       |
+
+**Human evidence verification:** <!-- pending | verified by @name on YYYY-MM-DD -->
 
 ## Test plan
 
 - [ ]
 - [ ]
-
-## Spec / AC
-
-<!-- Link to docs/specs/... when this PR lands feature work. -->
-<!-- Check off only the acceptance criteria this PR implements. -->
 
 ## Validation gate
 
@@ -55,7 +59,7 @@
 - [ ] Lint / type-check / tests green locally
 - [ ] Adversarial review run (`pr-review`)
 - [ ] Safe findings self-fixed; product escalations listed below
-- [ ] Docs / spec AC / FEATURES.md updated if required
+- [ ] Intent / spec AC / evidence / FEATURES.md updated if required
 - [ ] OpenAPI + web `api:types` regenerated if contract changed
 
 **Escalations (need human decision):**

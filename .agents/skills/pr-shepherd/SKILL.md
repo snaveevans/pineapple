@@ -16,7 +16,8 @@ handles PR creation and machine CI only.
 
 ## Safe defaults
 
-- **Never merge.** The human owns merge, always. Green CI is not approval.
+- **Never merge.** Green CI is not approval. The human verifies the PR evidence
+  and owns the merge decision.
 - Never commit to `main` or a protected branch; never force-push them. The only
   permitted force-push is `git push --force-with-lease` to your **own** feature
   branch after a rebase (see step 1).
@@ -36,7 +37,10 @@ git status && git branch --show-current && git fetch origin
   `CLAUDE.md` (`{type}/{issue}-{slug}`), agent-assigned platform branches are exempt.
 - Intended work is **committed**. Unrelated dirty paths: include only intended paths
   or stop and ask.
-- Capture intent in 1–2 lines from the user request / issue. It drives the PR summary.
+- For a feature/change, resolve the accepted Intent Brief, affected IDs, spec
+  slice, and ready/evidence packet. For an issue-backed bug, require the issue,
+  updated relevant spec, and named regression proof; do not require intent. A
+  behavior-preserving change states that exception.
 
 ### 1. Rebase onto latest `main`
 
@@ -52,7 +56,7 @@ git rebase origin/main
 ### 2. Local gate
 
 ```bash
-pnpm lint && pnpm type-check && pnpm -r test
+pnpm verify
 ```
 
 If the API contract changed, regenerate first, then re-run the full gate:
@@ -71,10 +75,15 @@ Follow `.github/pull_request_template.md`. Fill **every** section that applies:
   partial slice; drop the section only when no issue exists.
 - **Risk:** always filled (see table below) — level, why, and the matching
   human-validation-budget line copied from the template comments.
-- **Evidence:** proof the change works — named tests, screenshot, curl/trace, or a
-  short manual script. Link artifacts, not vibes.
-- **Test plan** and **Spec / AC** when applicable; **Validation gate** section is
-  **dropped** (this skill is not the gate).
+- **Intent / Spec / Evidence:** link accepted intent + IDs for a feature, or the
+  bug issue for corrective work; link the spec target and include one row per
+  claim with named proof, result, and uncertainty. State behavior-preserving
+  exceptions explicitly.
+- **Test plan** when applicable; **Validation gate** is dropped (this skill is not
+  the gate).
+
+Run `pnpm test:e2e` when the evidence plan marks a critical browser journey or
+the branch is in E2E scope.
 
 ```bash
 git push -u origin <branch>        # new PR; upstream exists → --force-with-lease
@@ -126,6 +135,9 @@ Blocked on: <failure + why it needs a human>   (only when not green)
 Next: <what you need from the human, if anything>
 ```
 
+When CI is green, `Next` tells the human to verify the evidence appropriate to
+the risk budget and explicitly approve or decline merge.
+
 ## Risk scoring (identical every time)
 
 Baseline = highest matching path floor; semantic elevations only raise it; an agent
@@ -145,7 +157,7 @@ sharing/teams access paths → **H**.
 
 Budget lines (copy onto the PR): **L** glance evidence, don't read the diff ·
 **M** evidence + escalations, spot-check 1–2 hot files · **H** full review + local
-poke on auth/API/data paths · **C** plan must have been human-approved; deep review.
+poke on auth/API/data paths · **C** ready packet must have been human-approved; deep review.
 
 ## Relationship to other skills
 

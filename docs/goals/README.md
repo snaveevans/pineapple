@@ -7,10 +7,11 @@ the maintainer writes (or revises) one goal doc, an agent decomposes it into
 slices and specs, then executes slice after slice — implementing, validating,
 and landing PRs — stopping only at defined escalation classes.
 
-Goals sit **above specs**: a spec says what one feature should do; a goal says
-what set of features/changes constitutes a finished milestone, and — critically —
-**what deterministic evidence proves it**. Goals never duplicate spec content;
-they reference specs and add the executable layer.
+Goals aggregate behavioral authority and specs: intent says why/outcomes for
+features, a GitHub issue authorizes a bug correction, a spec gives the detailed
+interpretation, and a goal says what set of slices constitutes a finished
+milestone—and **what deterministic evidence proves it**. Goals never duplicate
+those artifacts.
 
 ## Why goals exist
 
@@ -45,10 +46,10 @@ Section by section:
 | Outcome             | One paragraph: the end state, for whom, and why now                                                                                                                |
 | Scope               | In/out boundary; non-goals are load-bearing — they stop the loop from absorbing drift                                                                              |
 | Done-when           | Acceptance criteria in EARS-style phrasing, each tagged with one slice and one validation command                                                                  |
-| Delivery plan       | Slices (`S1`…), the spec each lives in, its issue, and dependencies — normally rolled up under a GitHub Milestone                                                  |
+| Delivery plan       | Slices (`S1`…), feature intent or bug issue + spec for behavioral work, tracking issue, and dependencies — normally rolled up under a GitHub Milestone             |
 | Checks              | The ` ```checks ` fenced block: **line 1 is the enforced milestone check** (default `pnpm verify`); following lines map criteria to validation commands (comments) |
 | Escalation classes  | What stops the loop vs. what the agent decides alone                                                                                                               |
-| Risk & merge policy | Per-slice risk floor and the merge rule in force (human merge until ADR-0018 activates)                                                                            |
+| Risk & merge policy | Per-slice risk floor plus human evidence-verification and merge policy                                                                                             |
 | Verification log    | Appended per slice: PR, evidence, tamper flags, rework rounds — the durable memory a cold agent or the next session resumes from                                   |
 
 A criterion that cannot name a validation command is not done-when material —

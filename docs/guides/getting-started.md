@@ -163,6 +163,12 @@ Examples: `feat/42-team-invite`, `fix/87-null-session`, `chore/upgrade-wrangler`
 ### Issues and PRs
 
 - Prefer a GitHub issue for user-facing features and bugs; chores can skip one.
+- New or materially changed behavior starts with `intent-author`. Implementation
+  starts only after its intent/architecture/evidence ready packet is explicitly
+  approved; then `intent-executor` runs without routine design pauses.
+- Issue-backed bugs do not create or edit Intent Briefs, even for a spec miss;
+  update the relevant spec and begin with a failing regression test.
+  Behavior-preserving refactors do not create new intent/spec artifacts.
 - Link the issue in the **PR body** (not only the branch name):
   - `Closes #42` / `Fixes #42` when this PR fully resolves the issue
   - `Refs #42` for a partial slice (do not auto-close until the last slice)

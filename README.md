@@ -90,6 +90,21 @@ that matches your goal:
 [`docs/reference/openapi.json`](docs/reference/openapi.json) and served live at
 `GET /openapi.json`, with interactive docs at `/reference`.
 
+## Development workflow
+
+Pineapple uses intent-driven development:
+
+```text
+Intent → Architecture + Evidence → human ready gate
+       → Spec → Tests → Implementation → Verification → PR
+       → human evidence verification → human merge
+```
+
+Use `intent-author` for a new capability or deliberate behavior change and
+`intent-executor` after the ready packet is approved. Existing specs remain
+valid. Issue-backed bugs update the relevant spec without creating or editing
+intent; behavior-preserving refactors do not create ceremony.
+
 ## Deployment
 
 Merging to `main` auto-deploys the Worker via GitHub Actions (migrations are

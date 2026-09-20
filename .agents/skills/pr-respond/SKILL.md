@@ -125,9 +125,9 @@ clear decision point covering all of it. Once approved, run the rest without sto
 re-confirm each step.
 
 Escalate rather than guess when: two reviewers want opposite things, a finding would
-force an architectural change or a new ADR, or a comment asks for something you believe
-is wrong in a way that matters. Use `AskUserQuestion` with enough context to answer
-without scrolling back.
+materially change accepted intent, approved architecture/evidence, or require a new ADR,
+or a comment asks for something you believe is wrong in a way that matters. Reopen the
+ready gate for intent/architecture/evidence changes.
 
 ## 5. Implement
 
@@ -150,12 +150,12 @@ behavior — both sides changed the same logic and picking one loses something r
 Non-negotiable, because a push that reddens CI turns one round of feedback into two:
 
 ```bash
-pnpm lint && pnpm type-check && pnpm -r test
+pnpm verify
 ```
 
-Regenerate the OpenAPI spec if the contract changed
-(`pnpm --filter @snaveevans/pineapple-api openapi:generate`) — CI fails on a stale
-`docs/reference/openapi.json`.
+Run `pnpm test:e2e` when the fix changes a critical browser journey or falls in
+E2E scope. `pnpm verify` handles generated-artifact drift and tells you which
+source-derived artifact to regenerate.
 
 If a gate fails, fix it before pushing. Do not push a known-red branch and plan to
 follow up.

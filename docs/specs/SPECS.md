@@ -10,10 +10,12 @@ decisions live in `docs/decisions/`; API wire contracts live in
 `openapi.json`. Specs answer: **given the accepted intent and architecture, what
 exactly should this do, for whom, and under what conditions?**
 
-Existing specs remain valid without a bulk migration. A new or behaviorally
-revised spec links its Intent Brief, tags affected criteria with the relevant
-`OUT-*`/`INV-*` identifier alongside its slice tag, and records architecture and
-layered evidence. Do not rewrite unrelated legacy criteria merely to add tags.
+Existing specs remain valid without a bulk migration. A new capability or
+deliberate behavior change links its Intent Brief, tags affected criteria with
+the relevant `OUT-*`/`INV-*` identifier alongside its slice tag, and records
+architecture and layered evidence. An issue-backed bug instead links its issue
+and updates only affected behavior/evidence. Do not rewrite unrelated legacy
+criteria merely to add tags.
 
 See `templates/` for blank starting points and `prompts/` for AI prompts that
 generate or sync specs from code and PRs.
@@ -129,6 +131,13 @@ live on `main` — no `[ ]` remain); `deprecated` when retired. A single-slice f
 straight from `review` to `active`; `in-progress` is the natural state of a multi-slice spec
 mid-delivery.
 
+For a new capability or deliberate behavior change, `review` also requires a
+linked `accepted` Intent Brief and `Ready Gate: approved`. A spec cannot make
+itself implementation-ready. Issue-backed bugs do not need intent metadata or a
+ready gate: link the issue, update the affected behavior/evidence, and preserve
+an `active` lifecycle when the existing criterion already covers the correction.
+Untouched legacy specs continue without bulk backfill.
+
 The **acceptance-criteria checkboxes are the live implementation checklist.** A box is checked
 (`- [x]`) **only when its behavior is implemented and covered by a test on `main`** — not when
 code is merely written. Each box carries exactly one **slice tag** (`` `S1` ``…) tying it to the
@@ -147,3 +156,9 @@ slice and becomes `active` when the final slice checks the last box. A feature t
 a one-line plan ("Single slice — the whole feature (`S1`)") and tags every box `S1`. A slice may be a
 thin web increment whose criteria live in a sibling spec or `docs/web/FEATURES.md` rather than as
 tagged boxes here — note that in the plan's Scope cell.
+
+New or changed feature criteria also carry every applicable intent tag
+(`OUT-*` / `INV-*`). Bug criteria need no intent tag and map evidence to the
+issue. Both appear in the spec's layered Evidence Plan. Prefer one proof at the
+lowest convincing layer; add a browser journey only for a critical vertical
+flow required by the feature packet or bug risk.
