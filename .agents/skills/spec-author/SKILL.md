@@ -170,8 +170,12 @@ intent or bug issue, or would change observable behavior.
 - Replace resolved flags with acceptance criteria or edge case table rows
 - Remove flags that are explicitly out of scope (add to Out of Scope section instead)
 - Keep unresolved flags but sharpen their language to a clear question with an owner
-- Any acceptance criterion you add or resolve carries **exactly one slice tag** (`` `S1` ``…) tying it to the Delivery Plan; put it in an existing slice or add a new slice row
-- If the spec predates slicing (no Delivery Plan), add the Delivery Plan table and tag the existing criteria as part of the revision
+- For a feature/change revision, any acceptance criterion you add or resolve
+  carries **exactly one slice tag** (`` `S1` ``…) tying it to the Delivery Plan;
+  put it in an existing slice or add a new slice row.
+- For a Bug revision, update only the affected criterion or edge case. A legacy
+  spec needs no Delivery Plan or synthetic slice tag, and unrelated criteria
+  stay untouched.
 - Update the spec status field if it has advanced (`draft`→`review`; `review`→`in-progress` once a slice has shipped; `active` only when no `[ ]` remain)
 
 ---
@@ -186,11 +190,14 @@ Before writing the file, verify:
 - An issue-backed bug links the issue, states corrected expected behavior, and
   does not create/edit intent
 - Every intent-governed affected criterion has applicable `OUT-*`/`INV-*` tags
-  as well as one slice tag; bug criteria need no intent tag
+  as well as one slice tag; bug criteria need no intent tag, and a legacy bug
+  correction needs no Delivery Plan or synthetic slice tag
 - Every affected intent ID or bug issue has a named proof in the Evidence Plan
 - Every user story maps to at least one acceptance criterion
 - Each acceptance criterion is **atomic and independently testable** — it becomes a checkbox on the spec's live implementation checklist, checked off (and backed by a test) one at a time as the feature is built (see `docs/specs/SPECS.md`)
-- The **Delivery Plan** lists the slices, and **every acceptance criterion carries exactly one slice tag** (`` `S1` ``…) — no orphans (see `docs/specs/SPECS.md`)
+- For feature/change work, the **Delivery Plan** lists the slices and every
+  acceptance criterion carries exactly one slice tag (`` `S1` ``…) — no
+  orphans (see `docs/specs/SPECS.md`)
 - Every cross-cutting concern has been addressed or explicitly flagged
 - The Telemetry section names the operation(s) and states whether domain events apply
 - If the feature has a web UI, confirm the relevant entry in `docs/web/FEATURES.md` is up to date

@@ -42,7 +42,10 @@ if the number cannot be resolved or the target is genuinely ambiguous.
 
 ## Intent readiness — hard gate
 
-Before the existing spec/ADR triage, classify the requested work:
+Classify the requested work, then complete the repository/architecture triage
+in §1 and §3 before evaluating the feature gate below. An accepted intent and
+accepted ADRs are implementation prerequisites, not prerequisites for planning
+the packet. Do not enter the spec phase in §2 until the applicable gate passes.
 
 | Work                                                     | Required route                                                                                                       |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
@@ -61,7 +64,7 @@ implementation:
 5. Agreed scope, non-goals, high-level delivery boundaries, and remaining
    uncertainty.
 
-If any item is missing, stop the implementation path. Use the Intent Brief
+After architecture/ADR planning, if any item is missing, stop the implementation path. Use the Intent Brief
 template, present the packet for one explicit human approval, and record that
 approval in the brief. Derive the detailed specification, acceptance criteria,
 delivery slices, and named evidence afterward with `spec-author`; they are not

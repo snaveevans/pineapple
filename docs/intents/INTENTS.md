@@ -67,7 +67,8 @@ populate this table.
    boundaries. Do not put the detailed spec, acceptance criteria, delivery
    slices, or named tests into the approval packet.
 3. After explicit human approval, set the brief to `accepted` and record the
-   ready gate.
+   date, approver, durable approval reference, approved architecture direction,
+   high-level delivery boundaries, and remaining uncertainty.
 4. Let the agent derive the detailed specification, delivery plan, and named
    evidence; then own test-driven implementation, verification, and PR
    preparation without routine confirmation pauses.

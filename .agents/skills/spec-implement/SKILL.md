@@ -20,8 +20,16 @@ Use the output to pick the target and the mode:
 
 - A **new, untracked** spec file (or a spec with no implementing code yet) → **New** (full build across all layers).
 - An **existing** spec with uncommitted edits or recent commits that changed it → **Diff** (implement only the delta).
+- A linked issue reports unintended behavior → **Bug** (implement the
+  correction recorded in the relevant spec).
 
-Then pick the **target slice**: open the spec's **Delivery Plan** and choose the next slice (`Sn`) whose tagged criteria are still `[ ]`, respecting the plan's `Depends on` order. You implement **one slice per PR** — its scope is exactly the criteria tagged `Sn`. A single-slice spec has one slice (`S1`) = the whole thing.
+For feature work, pick the **target slice**: open the spec's **Delivery Plan**
+and choose the next slice (`Sn`) whose tagged criteria are still `[ ]`,
+respecting the plan's `Depends on` order. You implement **one slice per PR** —
+its scope is exactly the criteria tagged `Sn`. A single-slice feature spec has
+one slice (`S1`) = the whole thing. For a bug, target the affected criterion or
+edge case named by the issue; an `active` or legacy spec does not need a
+Delivery Plan or a synthetic slice.
 
 State the spec file(s), target slice, and inferred mode in one line and proceed.
 If nothing relevant appears, or several candidates are genuinely equally likely,
@@ -52,7 +60,12 @@ the feature before proceeding. Then verify:
 3. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
 4. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
 5. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
-6. **The target slice's criteria are clear** — the criteria tagged with the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a multi-criterion feature/change spec has no Delivery Plan or untagged criteria, stop and route it to `spec-author`; do not pause for routine approval.
+6. **The target is clear** — for feature/change work, the criteria tagged with
+   the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a
+   multi-criterion feature/change spec has no Delivery Plan or untagged
+   criteria, stop and route it to `spec-author`; do not pause for routine
+   approval. For a bug, the issue plus affected criterion/edge case defines
+   scope without a slice.
 
 If pre-flight passes, summarize what will be built and proceed.
 
@@ -131,8 +144,16 @@ A spec too large for one PR declares its **Delivery Plan** — the slices `S1`�
 
 When a PR's implementation is done:
 
-- Check off the boxes **tagged with the slice this PR delivered** (`Sn`), one by one (`- [ ]` → `- [x]`), committing that edit in the same PR. Check a box only when its behavior is implemented **and covered by a test** — not merely written.
-- Set `status`: if no `[ ]` remain across the whole spec, advance to `active`; if this was the **first** shipped slice, move `review` → `in-progress`; otherwise leave `in-progress` unchanged.
+- For feature/change work, check off the boxes **tagged with the slice this PR
+  delivered** (`Sn`), one by one (`- [ ]` → `- [x]`) in the same PR. Check a
+  box only when its behavior is implemented **and covered by a test** — not
+  merely written.
+- An already-specified bug leaves its existing checkbox and `active` lifecycle
+  unchanged. A spec-miss criterion added for the bug is checked only after the
+  correction is implemented and pinned by the regression test.
+- For feature/change work, set `status`: if no `[ ]` remain across the whole
+  spec, advance to `active`; if this was the **first** shipped slice, move
+  `review` → `in-progress`; otherwise leave `in-progress` unchanged.
 - Note any criteria that could not be met and why (flag candidates for the spec)
 - Remind the user to run `/spec-author` (document existing code) if behavior diverged from the spec during implementation
 

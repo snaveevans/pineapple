@@ -12,6 +12,9 @@ metadata:
 # Intent: [Short Name]
 
 **Status:** `draft` | `accepted` | `superseded` | `retired`
+**Ready Gate:** `pending` | `approved YYYY-MM-DD`
+**Approved By:** `pending` | [human approver]
+**Approval Record:** `pending` | [durable link or reference to the explicit approval]
 **Owner:** [product owner]
 **Last Updated:** YYYY-MM-DD
 **Related Specs:** [links, or `none yet`]
@@ -50,6 +53,22 @@ impossible today without prescribing a solution.
 
 Describe the standard of proof, not filenames, test helpers, endpoints, or
 implementation mechanics. The linked spec owns the layered evidence plan.
+
+## Approved Architecture Direction
+
+[The component boundaries, responsibilities, compatibility/rollout constraints,
+and accepted ADR links included in the ready packet. Keep routine mechanics in
+the downstream spec.]
+
+## High-Level Delivery Boundaries
+
+[The approved dependencies, sequencing boundaries, and scope splits. Do not put
+detailed delivery slices or test names here.]
+
+## Remaining Uncertainty
+
+[What remains uncertain after approval, or `none`. Material unresolved product
+questions belong in Open Questions and block acceptance.]
 
 ## Open Questions
 
