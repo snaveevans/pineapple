@@ -52,13 +52,17 @@ Chosen option: **put intent above agent-owned specifications, tests, and
 implementation**, because it preserves detailed, transferable engineering
 knowledge while moving the human interface to durable outcomes and judgment.
 
-An accepted Intent Brief is the highest product authority. Architecture and an
-evidence plan are agreed with the human in one ready gate. After that gate, an
-agent may derive or revise the linked specification, use specification-driven
-and test-driven development, implement, verify, and open a pull request without
-intermediate implementation approvals. Merge still requires explicit human
-approval for agent-authored and product changes. Dependabot updates that satisfy
-the repository's dedicated auto-merge workflow remain exempt.
+An accepted Intent Brief is the highest product authority. Intent, architecture
+direction, evidence expectations, scope, non-goals, high-level delivery
+boundaries, and material uncertainty are agreed with the human in one ready
+gate. The detailed specification, acceptance criteria, delivery slices, and
+named test plan are deliberately not part of that approval surface. After the
+gate, an agent derives or revises those artifacts, uses specification-driven and
+test-driven development, implements, verifies, and opens a pull request without
+intermediate implementation approvals. At the final checkpoint, the human
+verifies the reported evidence and explicitly approves merge for agent-authored
+and product changes. Dependabot updates that satisfy the repository's dedicated
+auto-merge workflow remain exempt.
 
 Accepted architecture decisions outrank specifications. Specifications remain
 the authoritative detailed behavioral interpretation and retain their existing
@@ -67,10 +71,19 @@ authoritative for their own surfaces; in particular, OpenAPI remains the source
 of truth for HTTP wire shapes. When a lower layer conflicts with accepted
 intent, the agent reopens the ready gate instead of silently changing intent.
 
+Issue-backed bugs are a separate corrective path. Unintended behavior does not
+need a new or edited Intent Brief, including when it exposes a case omitted from
+the original specification. The issue is sufficient authority for the fix; the
+agent revises the relevant specification, begins with a failing regression test,
+and reports evidence against the issue and affected criteria. A request that
+turns out to choose new product behavior is reclassified as a behavior change
+and returns to the intent ready gate.
+
 ### Positive Consequences
 
 - Human attention stays on why the work exists, what must become true, important
-  architectural choices, and what evidence is convincing.
+  architectural choices, what evidence would be convincing, and whether the
+  final evidence actually supports the claims.
 - Existing specifications remain useful and require no bulk migration.
 - A cold agent can trace intent through specification, tests, implementation,
   and pull-request evidence.

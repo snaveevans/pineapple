@@ -1,18 +1,19 @@
 ---
 name: spec-author
-description: Derive or revise a feature specification beneath an Intent Brief being readied or already accepted. Maps affected behavior to intent IDs, architecture, slices, and evidence; never makes itself implementation-ready without the approved gate.
+description: Derive or revise an agent-owned feature specification after the intent ready gate, or update a specification for an issue-backed bug without intent work. Maps feature behavior to intent IDs and bug behavior to its issue.
 ---
 
-Work conversationally. Ask questions and confirm assumptions before writing. Do not generate a full draft until the steps below are complete.
+Resolve mechanics from the repository and proceed without routine approval
+pauses. Ask only when a decision would change product behavior, contradict the
+governing authority, or materially change approved architecture or evidence.
 
 ## Intent gate
 
-For new or materially changed behavior, resolve the governing Intent Brief
-before drafting detailed behavior. It may be `draft` while this skill helps
-assemble the ready packet; it must be `accepted` before the specification moves
-to `review` or implementation begins.
+For a new capability or deliberate behavior change, resolve the governing
+Intent Brief before drafting detailed behavior. It must be `accepted` and its
+ready gate approved before this skill derives the detailed specification.
 
-Every new or touched behavior spec must include:
+Every intent-governed new or touched behavior spec must include:
 
 - a `Related Intent` link and `Ready Gate` state;
 - a short architecture summary plus relevant ADR links;
@@ -22,12 +23,16 @@ Every new or touched behavior spec must include:
   acceptance criterion.
 
 Brownfield work maps only affected criteria; do not rewrite unrelated legacy
-content. Covered bugs may reuse accepted intent/spec coverage.
-Behavior-preserving refactors and chores require no new intent or spec.
+content. For any issue-backed bug, including a specification miss, do not create
+or edit an Intent Brief. Link the issue from the spec, state the expected
+corrected behavior, and name the regression proof; no `OUT-*`/`INV-*` backfill is
+required. Behavior-preserving refactors and chores require no new intent or
+spec.
 
-If no governing intent exists for changed behavior, stop and return to the
-intent ready-gate workflow. Do not infer acceptance from a GitHub issue, a spec
-status, or green CI.
+If no governing intent exists for a new capability or deliberate behavior
+change, stop and return to the intent ready-gate workflow. A GitHub issue is
+sufficient authority only for work classified as a bug; a spec status or green
+CI never substitutes for the feature/change gate.
 
 ## Existing specs
 
@@ -40,7 +45,7 @@ Specs live in `docs/specs/features/`. They describe API capabilities — endpoin
 ## Figure out what you're doing
 
 Do NOT expect a command argument. Infer the mode from the conversation and the repo,
-confirm it in one line, and only ask when genuinely ambiguous:
+state it in one line, and only ask when genuinely ambiguous:
 
 - The feature/code doesn't exist yet, or the user describes something to build →
   **Greenfield** (author a new spec)
@@ -49,20 +54,24 @@ confirm it in one line, and only ask when genuinely ambiguous:
 - A spec already exists and the user wants to complete/sharpen it → **Revise**
   (complete a draft and make it implementation-ready; the spec drives the code, not
   the other way around)
+- A GitHub issue reports unintended behavior → **Bug** (revise the relevant
+  spec from the issue without an Intent Brief)
 
 If the user's message already makes the mode and feature obvious, state your reading
-and proceed. If not, ask which of the three they want and what the feature is. The
+and proceed. If not, ask which mode they want and what the feature is. The
 `Existing specs` list above is your reference for what already exists.
 
 ---
 
 ## Greenfield
 
-**1. Intent** — Read or create the draft Intent Brief. Confirm its problem,
-`OUT-*`/`INV-*`, constraints, and non-goals; do not reduce intent to a single
+**1. Intent** — Read the accepted Intent Brief and approved ready packet. Treat
+its problem, `OUT-*`/`INV-*`, constraints, non-goals, architecture direction,
+and evidence expectations as authority; do not reduce intent to a single
 sentence inside the spec.
 
-**2. Name** — From the intent and the capability/screen described, propose a kebab-case spec name (e.g. `archive-asset`, `service-queue`). Present it as a suggestion and ask the user to confirm or replace it. **Always take the user's chosen name** — your suggestion is only a starting point. Use the agreed name for the spec file(s).
+**2. Name** — Select a concise kebab-case spec name from the accepted intent and
+repository conventions (for example, `archive-asset` or `service-queue`).
 
 **3. Personas** — Identify all actors. Start with the primary persona (authenticated owner-operator for app features; unauthenticated visitor for public pages) then expand:
 
@@ -84,10 +93,9 @@ sentence inside the spec.
 
 **8. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`,
 fill it in, and write the spec to `docs/specs/features/[name].md`. Add an entry
-to `docs/specs/SPECS.md`. Keep it `draft`/`wip` while the ready packet is under
-review. Only after explicit approval may the Intent Brief become `accepted`,
-the Ready Gate become `approved`, and the unbuilt spec become `review`. If the
-feature has a web UI, note in the spec summary that UX intent belongs in
+to `docs/specs/SPECS.md`. Because the ready gate has already passed, make the
+complete, unbuilt spec `review` without another approval pause. If the feature
+has a web UI, note in the spec summary that UX intent belongs in
 `docs/web/FEATURES.md`.
 
 ---
@@ -98,7 +106,7 @@ feature has a web UI, note in the spec summary that UX intent belongs in
 
 **2. Check for an existing spec** — Look in `docs/specs/features/` using the `Existing specs` list above to locate or rule out an existing spec. If one exists, read it and note any gaps between spec and code.
 
-**3. Describe current behavior** — Summarize what the code actually does: inputs → validation → domain logic → outputs → side effects. Confirm with the user before proceeding.
+**3. Describe current behavior** — Summarize what the code actually does: inputs → validation → domain logic → outputs → side effects. Treat it as evidence and proceed unless it creates a genuine authority conflict.
 
 **4. Cross-cutting analysis** — Read and work through [cross-cutting-checklist.md](cross-cutting-checklist.md) against the actual implementation, not assumptions.
 
@@ -111,11 +119,28 @@ Add or update the entry in `docs/specs/SPECS.md`.
 
 ---
 
+## Bug
+
+Read the GitHub issue, the relevant spec, code, and existing tests. Treat the
+issue as the corrective authority and the current code as evidence of the
+defect. Update only the affected spec criteria or edge-case rows, link `Bug #N`,
+and add the named regression proof to the Evidence Plan. Do not create or edit
+an Intent Brief and do not backfill unrelated legacy criteria with intent tags.
+
+If the issue does not state enough expected behavior to write a regression test,
+clarify it in the issue context. If the answer would deliberately choose new
+product behavior rather than correct unintended behavior, stop and reclassify
+the work through the intent ready gate.
+
+---
+
 ## Revise
 
 Use this mode when a spec already exists but has open flags, gaps, or NOT SPECIFIED sections that need design decisions before implementation can begin. The spec is the source of truth — the goal is to produce something complete enough to hand to an implementer.
 
-**0. Locate the spec** — If the user hasn't pinpointed a file, list the specs from the `Existing specs` output above and have the user pick. Confirm the exact file path before reading.
+**0. Locate the spec** — If the user has not pinpointed a file, infer it from
+the issue, repository, and `Existing specs` output. Ask only when multiple specs
+are genuinely equally likely.
 
 **1. Read the spec** — Read `docs/specs/features/[name].md` in full. Catalogue every open item:
 
@@ -132,7 +157,9 @@ Use this mode when a spec already exists but has open flags, gaps, or NOT SPECIF
 - Is this **explicitly out of scope** (move to Out of Scope)?
 - Is this a **known future item** (keep as a flag but label clearly)?
 
-Work through decisions conversationally. Do not resolve a flag by guessing — if the user doesn't have an answer, leave it flagged with a clearer question.
+Resolve implementation mechanics from established patterns. Do not resolve a
+product flag by guessing: escalate only when it conflicts with the accepted
+intent or bug issue, or would change observable behavior.
 
 **4. Brainstorm gaps** — Once open flags are triaged, check whether any scenarios or personas are missing that would surface additional requirements. Use the same brainstorm approach as Greenfield step 2–3, but focused on what the existing spec does not cover.
 
@@ -154,10 +181,13 @@ Work through decisions conversationally. Do not resolve a flag by guessing — i
 Before writing the file, verify:
 
 - The spec lives in `docs/specs/features/`
-- New/changed behavior links an accepted Intent Brief and approved ready gate
-- Every affected criterion has applicable `OUT-*`/`INV-*` tags as well as one
-  slice tag
-- Every affected intent ID has a named proof in the Evidence Plan
+- A new capability or deliberate behavior change links an accepted Intent Brief
+  and approved ready gate
+- An issue-backed bug links the issue, states corrected expected behavior, and
+  does not create/edit intent
+- Every intent-governed affected criterion has applicable `OUT-*`/`INV-*` tags
+  as well as one slice tag; bug criteria need no intent tag
+- Every affected intent ID or bug issue has a named proof in the Evidence Plan
 - Every user story maps to at least one acceptance criterion
 - Each acceptance criterion is **atomic and independently testable** — it becomes a checkbox on the spec's live implementation checklist, checked off (and backed by a test) one at a time as the feature is built (see `docs/specs/SPECS.md`)
 - The **Delivery Plan** lists the slices, and **every acceptance criterion carries exactly one slice tag** (`` `S1` ``…) — no orphans (see `docs/specs/SPECS.md`)

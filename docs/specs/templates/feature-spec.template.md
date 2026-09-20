@@ -9,8 +9,9 @@ date: YYYY-MM-DD
 
 **Status:** `draft` | `wip` | `review` | `in-progress` | `active` | `deprecated`
 **Owner:** [PM or team name]
-**Related Intent:** [accepted Intent Brief, or legacy/behavior-preserving exception]
-**Ready Gate:** `pending` | `approved YYYY-MM-DD` | `legacy coverage`
+**Related Intent:** [accepted Intent Brief; for a bug, `Not required`; or legacy/behavior-preserving exception]
+**Related Issues:** [feature delivery issues and/or corrective bug `#N`]
+**Ready Gate:** `approved YYYY-MM-DD` | `not required — bug #N` | `legacy coverage`
 **Related Specs:** [cross-cutting specs this feature references]
 **Related ADRs:** [architecture decisions, or `none`]
 
@@ -22,9 +23,11 @@ One paragraph. What this feature does and the user problem it solves. No impleme
 
 ## Architecture
 
-[Responsibilities and boundaries approved at the ready gate. Link ADRs for
-significant or hard-to-reverse decisions; keep routine feature architecture
-here. Do not duplicate OpenAPI wire shapes.]
+[Detailed responsibilities and boundaries derived by the agent from the
+architecture direction approved at the ready gate. Link ADRs for significant or
+hard-to-reverse decisions; keep routine feature architecture here. For a bug,
+record only architecture needed to explain the correction. Do not duplicate
+OpenAPI wire shapes.]
 
 ## User Stories
 
@@ -34,8 +37,9 @@ here. Do not duplicate OpenAPI wire shapes.]
 
 <!-- These boxes are the live implementation checklist: check a box (`- [x]`) only when the
 behavior is implemented AND covered by a test on `main`. Every criterion carries exactly one
-slice tag (`S1`…) from the Delivery Plan below and each new/changed behavior carries every
-applicable intent tag (`OUT-*` / `INV-*`). Legacy untouched criteria do not need backfill. A
+slice tag (`S1`…) from the Delivery Plan below and each intent-governed feature behavior carries
+every applicable intent tag (`OUT-*` / `INV-*`). A bug criterion links through `Related Issues`
+to its issue and needs no intent tag. Legacy untouched criteria do not need backfill. A
 criterion that resists a single slice tag is too coarse — split it. Each slice PR checks off only
 its own boxes. See docs/specs/SPECS.md. -->
 
@@ -61,10 +65,11 @@ sibling spec (or docs/web/FEATURES.md) may carry no tags here — note that in S
 <!-- Map every affected outcome/invariant to the smallest sufficient proof. Name the behavior or
 journey, not an implementation helper. Add browser E2E only for critical vertical journeys. -->
 
-| Intent ID | Claim | Layer | Named proof | Critical vertical proof? |
+| Authority | Claim | Layer | Named proof | Critical vertical proof? |
 | --------- | ----- | ----- | ----------- | ------------------------ |
 | `OUT-1`   |       |       |             | no                       |
 | `INV-1`   |       |       |             | no                       |
+| Bug `#N`  |       |       |             | no                       |
 
 ## Edge Cases & Error States
 

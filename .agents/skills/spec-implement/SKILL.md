@@ -1,6 +1,6 @@
 ---
 name: spec-implement
-description: Implement a feature from its spec(s). Detects the target spec from recent spec changes, builds a complete spec across all layers, or implements only what changed in an updated spec.
+description: Implement one spec slice or issue-backed bug correction with test-first development. Enforces accepted intent for features and deliberate changes, while bugs require only their issue, updated spec, and regression proof.
 ---
 
 ## Find the target spec
@@ -23,7 +23,10 @@ Use the output to pick the target and the mode:
 
 Then pick the **target slice**: open the spec's **Delivery Plan** and choose the next slice (`Sn`) whose tagged criteria are still `[ ]`, respecting the plan's `Depends on` order. You implement **one slice per PR** — its scope is exactly the criteria tagged `Sn`. A single-slice spec has one slice (`S1`) = the whole thing.
 
-Propose the spec file(s), the target slice, and the mode you inferred in one line and confirm with the user. If nothing relevant shows up, or several candidates are equally likely, ask the user which feature to implement. A full-stack feature may have a spec in each package — implement the API spec's layers and the web spec's layers together.
+State the spec file(s), target slice, and inferred mode in one line and proceed.
+If nothing relevant appears, or several candidates are genuinely equally likely,
+ask which target to implement. A full-stack feature may have a spec in each
+package — implement the API spec's layers and the web spec's layers together.
 
 ---
 
@@ -32,18 +35,26 @@ Propose the spec file(s), the target slice, and the mode you inferred in one lin
 Specs live in `docs/specs/features/` (see `docs/specs/SPECS.md`). Read the spec for
 the feature before proceeding. Then verify:
 
-1. **Intent gate passed for changed behavior** — require a linked `accepted`
-   Intent Brief, `Ready Gate: approved`, applicable `OUT-*`/`INV-*` tags on
-   affected criteria, and named evidence for those IDs. Covered regressions may
-   reuse accepted coverage; behavior-preserving work records its exception.
-   Missing readiness is a hard stop, not a prompt to infer or create policy.
-2. **Status is `review` or `in-progress`, not `wip`/`draft`** — a `wip`/`draft` spec is not ready to implement. `review` (no slice shipped yet) and `in-progress` (mid-delivery) are both implementable. If it's `wip`/`draft`, stop and tell the user to run `/spec-author` first.
+1. **Authority is valid for the work type**:
+   - A new capability or deliberate behavior change requires a linked
+     `accepted` Intent Brief, `Ready Gate: approved`, applicable
+     `OUT-*`/`INV-*` tags, and named evidence for those IDs.
+   - An issue-backed bug requires no Intent Brief or ready gate, even when it
+     reveals a spec gap. Require the linked issue, corrected expected behavior
+     in the relevant spec, and a named failing regression proof. Missing legacy
+     intent metadata is not a blocker.
+   - Behavior-preserving work records its exception.
+     If a supposed bug actually chooses new product behavior, reclassify it and
+     route it through the intent gate.
+2. **Status is implementable for the work type** — feature/change specs are
+   `review` or `in-progress`; an existing or legacy spec may remain `active`
+   while correcting a bug. A feature/change `wip`/`draft` spec is not ready.
 3. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
 4. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
 5. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
-6. **The target slice's criteria are clear** — the criteria tagged with the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a multi-criterion spec has no Delivery Plan or untagged criteria, stop and ask the user to run `/spec-author` to add the plan and tags.
+6. **The target slice's criteria are clear** — the criteria tagged with the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a multi-criterion feature/change spec has no Delivery Plan or untagged criteria, stop and route it to `spec-author`; do not pause for routine approval.
 
-If pre-flight passes, summarize what will be built and confirm with the user before proceeding.
+If pre-flight passes, summarize what will be built and proceed.
 
 ---
 
@@ -83,7 +94,8 @@ Run a diff against the spec file identified in **Find the target spec** (substit
 git diff main -- "<detected-spec-path>" 2>/dev/null || git diff HEAD~1 -- "<detected-spec-path>" 2>/dev/null || echo "No diff found — spec may not have changed since main"
 ```
 
-If no diff is found, ask the user to confirm which version of the spec changed and how.
+If no diff is found, use the linked issue and repository history to locate the
+intended delta. Stop only if the target remains genuinely ambiguous.
 
 **2. Interpret the diff** — Translate each change in the spec to a code impact:
 
@@ -93,7 +105,7 @@ If no diff is found, ask the user to confirm which version of the spec changed a
 - New flag resolved → implement the decided behavior
 - Telemetry section added or changed → new operation mapping or domain event handler
 
-Present the interpreted impact list to the user and confirm before writing any code.
+Record the interpreted impact list and proceed without routine confirmation.
 
 **3. Locate existing code** — Find the files already implementing this feature across all layers. Read them to understand current state before making changes.
 
@@ -125,3 +137,6 @@ When a PR's implementation is done:
 - Remind the user to run `/spec-author` (document existing code) if behavior diverged from the spec during implementation
 
 See `docs/specs/SPECS.md` (Spec lifecycle & acceptance criteria) for the canonical convention.
+
+Hand the finished PR to the human with claim-by-claim evidence and remaining
+uncertainty. The human verifies that evidence before explicitly approving merge.

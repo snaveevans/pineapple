@@ -141,11 +141,14 @@ repositories live in `worker.ts`. Keep it that way.
 
 Accepted Intent Briefs in `docs/intents/features/` are the highest product
 authority. Humans collaborate on intent, architecture direction, and the
-evidence standard through one ready gate. After that gate, agents own detailed
-specification, test-driven implementation, verification, and PR preparation;
-merge still requires explicit human approval for agent-authored and product
-changes. Eligible Dependabot updates retain their dedicated auto-merge
-exception after required checks pass. See
+evidence standard through one ready gate. The ready packet contains scope,
+non-goals, high-level delivery boundaries, and material uncertainty, but not a
+detailed feature spec or test plan. After that gate, agents own detailed
+specification, slicing, test-driven implementation, verification, and PR
+preparation. The human then verifies the reported evidence and explicitly
+approves merge for agent-authored and product changes. Eligible Dependabot
+updates retain their dedicated auto-merge exception after required checks pass.
+See
 [ADR-0019](docs/decisions/0019-use-intent-driven-development.md) and the
 [Intent Index](docs/intents/INTENTS.md).
 
@@ -155,11 +158,18 @@ OpenAPI remains authoritative for HTTP wire shapes. If a lower layer conflicts
 with intent, stop and reopen the ready gate rather than silently changing the
 intent.
 
-Existing specs remain valid without backfill. For new or changed behavior, the
-agent creates or links an Intent Brief, adds intent IDs to only the affected
-acceptance criteria, and records architecture and layered evidence in the spec.
-Covered bug fixes may reuse existing intent/specs; behavior-preserving refactors
-and chores do not require new intent.
+Existing specs remain valid without backfill. For new capabilities or deliberate
+behavior changes, the agent creates or links an Intent Brief, then adds intent
+IDs to only the affected acceptance criteria and records architecture and
+layered evidence in the spec after the ready gate.
+
+An issue-backed bug fix does not create or edit an Intent Brief, even when the
+bug reveals a missed specification case. The issue is the corrective request:
+update the relevant spec, begin with a failing regression test, and map the PR
+evidence to the issue and affected criteria. If investigation shows that the
+request is actually a deliberate product behavior change rather than unintended
+behavior, reclassify it and use the intent ready gate. Behavior-preserving
+refactors and chores do not require new intent.
 
 ## API documentation is generated — don't hand-edit the spec
 

@@ -98,11 +98,21 @@ docs/specs/
 
 ## Workflow
 
-**Starting a new feature:** draft the Intent Brief, then copy
-`templates/feature-spec.template.md` into `features/` and derive the draft
-detailed interpretation, architecture, slices, and evidence plan. Present them
-together at the ready gate. On explicit approval, accept the intent and any
-packet ADRs, record the gate, and move the complete spec to `review`.
+**Starting a new feature:** draft the Intent Brief and present the ready packet:
+intent, architecture direction and any proposed ADRs, conceptual evidence
+expectations, scope/non-goals, high-level delivery boundaries, and remaining
+uncertainty. Do not include the detailed specification, acceptance criteria,
+delivery slices, or named tests in that approval. After explicit approval,
+accept the intent and any packet ADRs, record the gate, then let the agent copy
+`templates/feature-spec.template.md` into `features/`, derive the detailed
+interpretation, delivery plan, and named evidence, and move the complete spec to
+`review` without another approval pause.
+
+**Fixing a bug:** the linked GitHub issue is the corrective authority. Do not
+create or edit an Intent Brief. Update the relevant specification to state the
+expected behavior, add a failing regression test, and report proof against the
+issue and affected criteria. Legacy specs do not need intent metadata backfilled
+for the fix.
 
 **Retroactively documenting existing code:** use the prompt in
 `prompts/retro-feature.md`, review the output, and file it as a spec.

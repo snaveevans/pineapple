@@ -60,15 +60,24 @@ populate this table.
 
 ## Workflow
 
-1. Use the template in `templates/feature-intent.template.md` for greenfield or
-   changed behavior.
-2. Resolve material open questions and agree on architecture and evidence.
-3. After explicit human approval, set the brief to `accepted` and make the
-   linked specification implementation-ready.
-4. Let the agent own specification detail, test-driven implementation,
-   verification, and PR preparation.
-5. Require explicit human approval to merge agent-authored and product changes;
-   eligible Dependabot updates retain their dedicated auto-merge exception.
+1. Use the template in `templates/feature-intent.template.md` for a new
+   capability or deliberate behavior change.
+2. Resolve material open questions and agree on architecture direction,
+   conceptual evidence expectations, scope, non-goals, and high-level delivery
+   boundaries. Do not put the detailed spec, acceptance criteria, delivery
+   slices, or named tests into the approval packet.
+3. After explicit human approval, set the brief to `accepted` and record the
+   ready gate.
+4. Let the agent derive the detailed specification, delivery plan, and named
+   evidence; then own test-driven implementation, verification, and PR
+   preparation without routine confirmation pauses.
+5. At the PR, require the human to verify the reported evidence and explicitly
+   approve merge for agent-authored and product changes. Eligible Dependabot
+   updates retain their dedicated auto-merge exception.
 
-Covered bug fixes may reuse an accepted intent and specification. Pure
-refactors and chores with no behavioral change do not require a new brief.
+An issue-backed bug fix never requires a new or edited Intent Brief, including
+when the bug reveals a specification miss. Treat the issue as the corrective
+request, revise the relevant spec, and begin with a failing regression test. If
+the work is actually a deliberate product behavior change, reclassify it and use
+the intent workflow. Pure refactors and chores with no behavioral change also do
+not require a brief.
