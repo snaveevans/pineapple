@@ -26,15 +26,19 @@ the level where product judgment matters most.
 - Concentrate human approval on intent, architecture, and the standard of proof.
 - Allow agents to own detailed specification, test-driven implementation, and
   verification after one explicit ready gate.
-- Retain the existing human merge boundary and one-home-per-fact documentation
-  method from [ADR-0008](0008-documentation-method.md).
+- Retain the human merge boundary for agent-authored and product changes while
+  preserving the existing Dependabot auto-merge exception, plus the
+  one-home-per-fact documentation method from
+  [ADR-0008](0008-documentation-method.md).
 
-The human merge boundary supersedes the now-stale “CI is the only gate” premise
-recorded in the historical context of
+For agent-authored and product changes, the human merge boundary supersedes the
+now-stale “CI is the only gate” premise recorded in the historical context of
 [ADR-0016](0016-mutation-testing-as-the-ci-trust-boundary.md) and
 [ADR-0017](0017-expand-contract-schema-migrations.md). Their actual decisions
 remain in force: mutation and schema-safety checks are still blocking evidence.
-Any future autonomous-merge policy must explicitly supersede this decision.
+Eligible Dependabot updates remain the narrow exception and may auto-merge
+under their existing workflow after required checks pass. Any broader future
+autonomous-merge policy must explicitly supersede this decision.
 
 ## Considered Options
 
@@ -53,7 +57,8 @@ evidence plan are agreed with the human in one ready gate. After that gate, an
 agent may derive or revise the linked specification, use specification-driven
 and test-driven development, implement, verify, and open a pull request without
 intermediate implementation approvals. Merge still requires explicit human
-approval.
+approval for agent-authored and product changes. Dependabot updates that satisfy
+the repository's dedicated auto-merge workflow remain exempt.
 
 Accepted architecture decisions outrank specifications. Specifications remain
 the authoritative detailed behavioral interpretation and retain their existing
@@ -80,6 +85,8 @@ intent, the agent reopens the ready gate instead of silently changing intent.
   acceptance criteria and evidence.
 - The ready gate adds deliberate up-front discussion before autonomous
   implementation begins.
+- Merge policy has a deliberate actor-specific exception, so documentation and
+  automation must not imply that every pull request follows one universal rule.
 
 ---
 

@@ -1,13 +1,14 @@
 ---
 name: issue-implement
-description: Take a GitHub issue from number to merged PR via the spec-driven flow. Reads the issue, triages whether a spec and/or ADR is needed, authors or revises them, implements the target slice, verifies, and opens a PR. Use when asked to implement an issue, work an issue, or take an issue to completion.
+description: Take a GitHub issue through Pineapple's intent-gated delivery flow to a green PR. Changed behavior requires an accepted Intent Brief and approved architecture/evidence packet before implementation; covered bugs reuse accepted coverage and behavior-preserving work skips ceremony. Never merges.
 ---
 
 # Issue implement
 
-The orchestrator for the spec-driven flow. Takes a GitHub issue number and drives
-it through: triage → spec → ADR → branch → implement → verify → PR. Delegates to
-`spec-author`, `adr-author`, and `spec-implement` rather than duplicating them.
+The orchestrator for the intent-driven flow. Takes a GitHub issue number and
+drives it through: classify → intent/ready gate when required → spec → ADR →
+implement → verify → PR. Delegates detailed work to the owning skills rather
+than bypassing their gates.
 
 ## What this skill is not
 
@@ -38,6 +39,32 @@ Capture:
 
 Summarize the issue in 2-3 lines and state the issue number. Confirm you have the
 right issue before proceeding.
+
+## Intent readiness — hard gate
+
+Before the existing spec/ADR triage, classify the requested work:
+
+| Work                                                     | Required route                                                                                                       |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| New capability or materially changed observable behavior | Create or revise an Intent Brief and obtain approval of intent, architecture, evidence, scope, slices, and non-goals |
+| Bug contradicting accepted intent/spec                   | Reuse those artifacts and begin with a failing regression test                                                       |
+| Bug exposing a product/spec gap                          | Reopen the intent ready gate before implementation                                                                   |
+| Behavior-preserving refactor, docs, or chore             | No new intent/spec; record the exception in PR evidence                                                              |
+
+For new or materially changed behavior, require all of the following before any
+implementation:
+
+1. A linked Intent Brief in `docs/intents/features/` with status `accepted`.
+2. No unresolved material open question.
+3. Approved architecture and any required accepted ADRs.
+4. An approved evidence plan mapping every affected `OUT-*`/`INV-*`.
+5. A linked feature spec whose affected criteria carry slice and intent tags.
+
+If any item is missing, stop the implementation path. Use the Intent Brief
+template, invoke `spec-author` while assembling the packet, present the packet
+for one explicit human approval, then record that approval in both artifacts.
+Do not treat an issue label, a `review` spec status, or green CI as a substitute.
+This is an agent-enforced workflow gate; it adds no CI gate.
 
 ## 1. Triage — what kind of work is this?
 
@@ -76,7 +103,9 @@ Present your triage in one block:
 - ADR status (needed / not needed — and why)
 - Scope split (if any)
 
-**Gate:** Confirm the triage with the user before proceeding.
+**Gate:** For behavior changes, the single intent/architecture/evidence ready
+approval replaces this routine triage confirmation. For behavior-preserving
+work, confirm only when classification is genuinely ambiguous.
 
 ## 2. Spec phase
 
@@ -93,9 +122,9 @@ Based on the triage:
 - **Refactor / no behavior change** → skip spec. State explicitly why no spec is
   needed so the decision is on the record.
 
-If a spec was authored or revised, confirm it is at `review` or better before
-proceeding. A `wip`/`draft` spec is not implementable — `spec-implement` will
-reject it.
+If a spec was authored or revised, confirm it is at `review` or better and that
+its linked intent/ready gate passed before proceeding. A `wip`/`draft` spec is
+not implementable — `spec-implement` will reject it.
 
 ## 3. ADR phase
 

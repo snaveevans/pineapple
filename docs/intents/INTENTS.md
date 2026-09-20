@@ -27,24 +27,24 @@ gate when a lower layer cannot satisfy accepted intent.
 
 ## Lifecycle
 
-| Status | Meaning |
-| --- | --- |
-| `draft` | The problem, outcomes, or boundaries are still being discussed. |
-| `accepted` | Intent, architecture direction, and evidence expectations passed the ready gate. |
+| Status       | Meaning                                                                                        |
+| ------------ | ---------------------------------------------------------------------------------------------- |
+| `draft`      | The problem, outcomes, or boundaries are still being discussed.                                |
+| `accepted`   | Intent, architecture direction, and evidence expectations passed the ready gate.               |
 | `superseded` | A newer Intent Brief replaces this one; retain the historical record and link both directions. |
-| `retired` | The intent no longer applies and has no replacement. |
+| `retired`    | The intent no longer applies and has no replacement.                                           |
 
 Implementation progress does not change intent status. Specs, issues, goals,
 and pull requests track delivery.
 
 ## Length
 
-| Scope | Target |
-| --- | ---: |
-| Small behavioral change | 150–300 words |
-| Normal feature | 300–800 words |
-| Significant subsystem change | 500–1,000 words |
-| Larger than 1,000 words | Split into a parent intent and focused child intents |
+| Scope                        |                                               Target |
+| ---------------------------- | ---------------------------------------------------: |
+| Small behavioral change      |                                        150–300 words |
+| Normal feature               |                                        300–800 words |
+| Significant subsystem change |                                      500–1,000 words |
+| Larger than 1,000 words      | Split into a parent intent and focused child intents |
 
 The durability test is simple: if the implementation were replaced tomorrow,
 most of the brief should remain true.
@@ -56,7 +56,7 @@ behavior-changing request; do not backfill existing specifications solely to
 populate this table.
 
 | Intent | Area | Status | Related specs |
-| --- | --- | --- | --- |
+| ------ | ---- | ------ | ------------- |
 
 ## Workflow
 
@@ -67,7 +67,8 @@ populate this table.
    linked specification implementation-ready.
 4. Let the agent own specification detail, test-driven implementation,
    verification, and PR preparation.
-5. Require explicit human approval to merge.
+5. Require explicit human approval to merge agent-authored and product changes;
+   eligible Dependabot updates retain their dedicated auto-merge exception.
 
 Covered bug fixes may reuse an accepted intent and specification. Pure
 refactors and chores with no behavioral change do not require a new brief.

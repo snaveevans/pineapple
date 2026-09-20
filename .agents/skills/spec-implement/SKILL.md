@@ -32,11 +32,16 @@ Propose the spec file(s), the target slice, and the mode you inferred in one lin
 Specs live in `docs/specs/features/` (see `docs/specs/SPECS.md`). Read the spec for
 the feature before proceeding. Then verify:
 
-1. **Status is `review` or `in-progress`, not `wip`/`draft`** — a `wip`/`draft` spec is not ready to implement. `review` (no slice shipped yet) and `in-progress` (mid-delivery) are both implementable. If it's `wip`/`draft`, stop and tell the user to run `/spec-author` first.
-2. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
-3. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
-4. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
-5. **The target slice's criteria are clear** — the criteria tagged with the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a multi-criterion spec has no Delivery Plan or untagged criteria, stop and ask the user to run `/spec-author` to add the plan and tags.
+1. **Intent gate passed for changed behavior** — require a linked `accepted`
+   Intent Brief, `Ready Gate: approved`, applicable `OUT-*`/`INV-*` tags on
+   affected criteria, and named evidence for those IDs. Covered regressions may
+   reuse accepted coverage; behavior-preserving work records its exception.
+   Missing readiness is a hard stop, not a prompt to infer or create policy.
+2. **Status is `review` or `in-progress`, not `wip`/`draft`** — a `wip`/`draft` spec is not ready to implement. `review` (no slice shipped yet) and `in-progress` (mid-delivery) are both implementable. If it's `wip`/`draft`, stop and tell the user to run `/spec-author` first.
+3. **No blocking `NOT SPECIFIED` flags** — any flag whose resolution would change what code to write is a blocker. Surface them and ask the user to resolve before continuing.
+4. **Telemetry section exists (API spec)** — if the feature has an API capability spec and its Telemetry section is missing, the operation name and domain event contract are unknown. Stop and flag it. (Pure web specs have no telemetry.)
+5. **Acceptance criteria exist** — if the AC section is empty or has only placeholders, the spec is not implementable. Stop.
+6. **The target slice's criteria are clear** — the criteria tagged with the target slice (`Sn`) in the Delivery Plan are this PR's scope. If a multi-criterion spec has no Delivery Plan or untagged criteria, stop and ask the user to run `/spec-author` to add the plan and tags.
 
 If pre-flight passes, summarize what will be built and confirm with the user before proceeding.
 

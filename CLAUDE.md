@@ -143,7 +143,9 @@ Accepted Intent Briefs in `docs/intents/features/` are the highest product
 authority. Humans collaborate on intent, architecture direction, and the
 evidence standard through one ready gate. After that gate, agents own detailed
 specification, test-driven implementation, verification, and PR preparation;
-merge still requires explicit human approval. See
+merge still requires explicit human approval for agent-authored and product
+changes. Eligible Dependabot updates retain their dedicated auto-merge
+exception after required checks pass. See
 [ADR-0019](docs/decisions/0019-use-intent-driven-development.md) and the
 [Intent Index](docs/intents/INTENTS.md).
 

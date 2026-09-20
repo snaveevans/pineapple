@@ -5,6 +5,10 @@ metadata:
   type: intent
 ---
 
+> **Audience:** [product owners and affected engineers/agents] · **Purpose:**
+> authoritative intent for [capability] · **Source of truth:** this file ·
+> **Last reviewed:** YYYY-MM-DD
+
 # Intent: [Short Name]
 
 **Status:** `draft` | `accepted` | `superseded` | `retired`

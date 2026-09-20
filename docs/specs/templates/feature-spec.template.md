@@ -9,13 +9,22 @@ date: YYYY-MM-DD
 
 **Status:** `draft` | `wip` | `review` | `in-progress` | `active` | `deprecated`
 **Owner:** [PM or team name]
+**Related Intent:** [accepted Intent Brief, or legacy/behavior-preserving exception]
+**Ready Gate:** `pending` | `approved YYYY-MM-DD` | `legacy coverage`
 **Related Specs:** [cross-cutting specs this feature references]
+**Related ADRs:** [architecture decisions, or `none`]
 
 ---
 
 ## Summary
 
 One paragraph. What this feature does and the user problem it solves. No implementation details.
+
+## Architecture
+
+[Responsibilities and boundaries approved at the ready gate. Link ADRs for
+significant or hard-to-reverse decisions; keep routine feature architecture
+here. Do not duplicate OpenAPI wire shapes.]
 
 ## User Stories
 
@@ -25,12 +34,13 @@ One paragraph. What this feature does and the user problem it solves. No impleme
 
 <!-- These boxes are the live implementation checklist: check a box (`- [x]`) only when the
 behavior is implemented AND covered by a test on `main`. Every criterion carries exactly one
-slice tag (`S1`…) from the Delivery Plan below — so each box has a home and "slice done = its
-tagged boxes are all `[x]`." A criterion that resists a single tag is too coarse — split it.
-Each slice PR checks off only its own boxes. See docs/specs/SPECS.md. -->
+slice tag (`S1`…) from the Delivery Plan below and each new/changed behavior carries every
+applicable intent tag (`OUT-*` / `INV-*`). Legacy untouched criteria do not need backfill. A
+criterion that resists a single slice tag is too coarse — split it. Each slice PR checks off only
+its own boxes. See docs/specs/SPECS.md. -->
 
-- [ ] `S1` [Specific, testable behavior]
-- [ ] `S1` [Another testable criterion]
+- [ ] `S1` `OUT-1` [Specific, testable behavior]
+- [ ] `S1` `INV-1` [Another testable criterion]
 
 ## Delivery Plan
 
@@ -45,6 +55,16 @@ sibling spec (or docs/web/FEATURES.md) may carry no tags here — note that in S
 | ----- | -------------------------- | ----- | ---------- |
 | `S1`  | [what this slice delivers] | #—    | —          |
 | `S2`  | [next increment]           | #—    | `S1`       |
+
+## Evidence Plan
+
+<!-- Map every affected outcome/invariant to the smallest sufficient proof. Name the behavior or
+journey, not an implementation helper. Add browser E2E only for critical vertical journeys. -->
+
+| Intent ID | Claim | Layer | Named proof | Critical vertical proof? |
+| --------- | ----- | ----- | ----------- | ------------------------ |
+| `OUT-1`   |       |       |             | no                       |
+| `INV-1`   |       |       |             | no                       |
 
 ## Edge Cases & Error States
 

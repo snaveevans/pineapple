@@ -1,9 +1,33 @@
 ---
 name: spec-author
-description: Draft, document, or revise a feature spec. Walks through persona brainstorming, scenarios, user stories, and all six cross-cutting concerns.
+description: Derive or revise a feature specification beneath an Intent Brief being readied or already accepted. Maps affected behavior to intent IDs, architecture, slices, and evidence; never makes itself implementation-ready without the approved gate.
 ---
 
 Work conversationally. Ask questions and confirm assumptions before writing. Do not generate a full draft until the steps below are complete.
+
+## Intent gate
+
+For new or materially changed behavior, resolve the governing Intent Brief
+before drafting detailed behavior. It may be `draft` while this skill helps
+assemble the ready packet; it must be `accepted` before the specification moves
+to `review` or implementation begins.
+
+Every new or touched behavior spec must include:
+
+- a `Related Intent` link and `Ready Gate` state;
+- a short architecture summary plus relevant ADR links;
+- an evidence plan mapping affected `OUT-*`/`INV-*` to the smallest sufficient
+  proof;
+- applicable intent IDs alongside the existing slice tag on every affected
+  acceptance criterion.
+
+Brownfield work maps only affected criteria; do not rewrite unrelated legacy
+content. Covered bugs may reuse accepted intent/spec coverage.
+Behavior-preserving refactors and chores require no new intent or spec.
+
+If no governing intent exists for changed behavior, stop and return to the
+intent ready-gate workflow. Do not infer acceptance from a GitHub issue, a spec
+status, or green CI.
 
 ## Existing specs
 
@@ -34,7 +58,9 @@ and proceed. If not, ask which of the three they want and what the feature is. T
 
 ## Greenfield
 
-**1. Intent** — Ask for the user problem this feature solves in one sentence. Do not proceed until you have it.
+**1. Intent** — Read or create the draft Intent Brief. Confirm its problem,
+`OUT-*`/`INV-*`, constraints, and non-goals; do not reduce intent to a single
+sentence inside the spec.
 
 **2. Name** — From the intent and the capability/screen described, propose a kebab-case spec name (e.g. `archive-asset`, `service-queue`). Present it as a suggestion and ask the user to confirm or replace it. **Always take the user's chosen name** — your suggestion is only a starting point. Use the agreed name for the spec file(s).
 
@@ -56,7 +82,13 @@ and proceed. If not, ask which of the three they want and what the feature is. T
 
 **7. Delivery plan & sizing** — Partition the feature into **slices**: independently-reviewable increments, each shippable in one PR within the repo's scope budget (CLAUDE.md — ~40 files / ~800 net lines is the signal to split, not a target). A slice is usually one coherent group of criteria (e.g. backend mechanism → read-path → web surface); large features legitimately have several (teams-foundation has five). Split into a **separate feature spec** only when the parts don't share domain/schema/invariants. Fill the template's **Delivery Plan** table (`Slice | Scope | Issue | Depends on`) and **tag every acceptance criterion with exactly one slice** (`` `S1` ``…); a criterion that resists a single tag is too coarse — split it. A single-PR feature still tags every box `S1` and uses the one-line plan.
 
-**8. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`, fill it in, and write the spec to `docs/specs/features/[name].md`. Add an entry to `docs/specs/SPECS.md`. Set `status: review` for an unbuilt spec (it becomes `in-progress` when the first slice ships, `active` when the last box is checked). If the feature has a web UI, note in the spec summary that UX intent belongs in `docs/web/FEATURES.md`.
+**8. Draft** — Read the template at `docs/specs/templates/feature-spec.template.md`,
+fill it in, and write the spec to `docs/specs/features/[name].md`. Add an entry
+to `docs/specs/SPECS.md`. Keep it `draft`/`wip` while the ready packet is under
+review. Only after explicit approval may the Intent Brief become `accepted`,
+the Ready Gate become `approved`, and the unbuilt spec become `review`. If the
+feature has a web UI, note in the spec summary that UX intent belongs in
+`docs/web/FEATURES.md`.
 
 ---
 
@@ -122,6 +154,10 @@ Work through decisions conversationally. Do not resolve a flag by guessing — i
 Before writing the file, verify:
 
 - The spec lives in `docs/specs/features/`
+- New/changed behavior links an accepted Intent Brief and approved ready gate
+- Every affected criterion has applicable `OUT-*`/`INV-*` tags as well as one
+  slice tag
+- Every affected intent ID has a named proof in the Evidence Plan
 - Every user story maps to at least one acceptance criterion
 - Each acceptance criterion is **atomic and independently testable** — it becomes a checkbox on the spec's live implementation checklist, checked off (and backed by a test) one at a time as the feature is built (see `docs/specs/SPECS.md`)
 - The **Delivery Plan** lists the slices, and **every acceptance criterion carries exactly one slice tag** (`` `S1` ``…) — no orphans (see `docs/specs/SPECS.md`)
