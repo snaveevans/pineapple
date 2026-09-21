@@ -280,6 +280,8 @@ Every API route maps to a named operation used as the `indexes[0]` value in requ
 | `GET /health`                                                      | `Health`                    |
 | `GET /openapi.json`                                                | `OpenApiDocument`           |
 | `GET /reference`                                                   | `ApiReference`              |
+| `POST /mcp`                                                        | `Mcp`                       |
+| `GET`/`HEAD /.well-known/*`                                        | `McpAuthDiscovery`          |
 | (anything else)                                                    | `Unknown`                   |
 
 ### Failure Policy

@@ -5,6 +5,7 @@ import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
 import { getUserProfile, isOnboardingComplete } from "../api/userProfile";
 import { paths } from "../routes";
+import { startGoogleSignIn } from "./authClient";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
 // auth-specific layer (which mirrors the tokens onto .au so the reused .hf-*
@@ -17,25 +18,6 @@ type Mode = "login" | "signup";
 type Phase = "form" | "redirect" | "error";
 
 type SessionUser = { email: string; name?: string | null } | null;
-
-/** Kick off Better Auth's Google OAuth. Resolves the consent URL then navigates. */
-async function startGoogleSignIn() {
-  const res = await fetch("/api/auth/sign-in/social", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({
-      provider: "google",
-      // Return to /login so the page can confirm the session was established.
-      callbackURL: `${window.location.origin}/login`,
-      errorCallbackURL: `${window.location.origin}/login?error=google`,
-    }),
-  });
-  if (!res.ok) throw new Error(`sign-in/social failed: ${res.status}`);
-  const data = (await res.json()) as { url?: string };
-  if (!data.url) throw new Error("sign-in/social returned no redirect url");
-  window.location.href = data.url;
-}
 
 /** official Google "G" mark for the sign-in button */
 function GoogleG({ size = 18 }: { size?: number }) {
@@ -229,7 +211,10 @@ function AuthFailure({ onRetry, onBack }: { onRetry: () => void; onBack: () => v
         <Icon name="alert" size={30} stroke={1.9} />
       </div>
       <h1>Something went wrong</h1>
-      <p>We're sorry — we ran into an unexpected error while signing you in. Please try again in a moment.</p>
+      <p>
+        We're sorry — we ran into an unexpected error while signing you in. Please try again in a
+        moment.
+      </p>
       <div className="au-fail-ref">Error · sign-in could not be completed</div>
       <div className="au-fail-actions">
         <button className="au-btn-primary" onClick={onRetry}>
@@ -251,6 +236,7 @@ export function AuthFlow() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const initialMode: Mode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const isOAuthAuthorization = searchParams.has("sig");
   const [mode, setMode] = useState<Mode>(initialMode);
   const [phase, setPhase] = useState<Phase>(searchParams.has("error") ? "error" : "form");
 
@@ -265,14 +251,13 @@ export function AuthFlow() {
     fetch("/api/auth/get-session", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then(async (data: { user?: SessionUser } | null) => {
-        if (cancelled || !data?.user) return;
+        if (cancelled || !data?.user || isOAuthAuthorization) return;
         try {
           const profile = await getUserProfile();
           if (cancelled) return;
-          void navigate(
-            isOnboardingComplete(profile) ? paths.appHome : paths.onboarding(),
-            { replace: true },
-          );
+          void navigate(isOnboardingComplete(profile) ? paths.appHome : paths.onboarding(), {
+            replace: true,
+          });
         } catch {
           // profile fetch failed — stay on login form
         }
@@ -283,7 +268,7 @@ export function AuthFlow() {
     return () => {
       cancelled = true;
     };
-  }, [navigate]);
+  }, [isOAuthAuthorization, navigate]);
 
   const onGoogle = () => {
     setPhase("redirect");

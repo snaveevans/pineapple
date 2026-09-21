@@ -1,0 +1,242 @@
+.oc-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  color: var(--hf-ink);
+  background:
+    radial-gradient(circle at 18% 12%, var(--hf-warn-bg), transparent 30%),
+    linear-gradient(145deg, var(--hf-bg), var(--hf-brand-bg));
+}
+
+.oc-card {
+  width: min(100%, 520px);
+  padding: 34px;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-xl);
+  background: var(--hf-surface);
+  box-shadow: var(--hf-shadow-3);
+}
+
+.oc-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.oc-brandmark,
+.oc-pineapple-badge,
+.oc-app-badge {
+  display: grid;
+  place-items: center;
+  border-radius: var(--hf-r);
+}
+
+.oc-brandmark {
+  width: 36px;
+  height: 36px;
+  background: var(--hf-brand);
+}
+
+.oc-connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 30px 0 24px;
+}
+
+.oc-app-badge,
+.oc-pineapple-badge {
+  width: 52px;
+  height: 52px;
+  color: var(--hf-on-brand);
+  box-shadow: var(--hf-shadow-2);
+}
+
+.oc-app-badge {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: var(--hf-ink);
+}
+
+.oc-pineapple-badge {
+  background: var(--hf-brand);
+}
+
+.oc-connector-line {
+  width: 64px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--hf-ink), var(--hf-brand));
+}
+
+.oc-card h1 {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(1.55rem, 5vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+
+.oc-card > p {
+  color: var(--hf-ink-soft);
+  line-height: 1.55;
+}
+
+.oc-intro {
+  margin: 28px 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.oc-permissions {
+  display: grid;
+  gap: 18px;
+  margin: 0;
+  padding: 20px;
+  list-style: none;
+  border: 1px solid var(--hf-line);
+  border-radius: var(--hf-r-lg);
+  background: var(--hf-surface-2);
+}
+
+.oc-permissions li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.oc-permissions strong,
+.oc-permissions small {
+  display: block;
+}
+
+.oc-permissions strong {
+  margin-bottom: 3px;
+  font-size: 14px;
+}
+
+.oc-permissions small {
+  color: var(--hf-ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.oc-check {
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--hf-brand);
+  border-radius: 50%;
+  background: var(--hf-brand-bg);
+}
+
+.oc-private {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  color: var(--hf-ink-soft);
+  font-size: 13px;
+  line-height: 1.45;
+  border-radius: var(--hf-r);
+  background: var(--hf-brand-bg);
+}
+
+.oc-private svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.oc-actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.oc-actions button {
+  min-height: 46px;
+  padding: 0 18px;
+  font: inherit;
+  font-weight: 750;
+  border: 0;
+  border-radius: var(--hf-r);
+  cursor: pointer;
+}
+
+.oc-actions button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.oc-allow {
+  color: var(--hf-on-brand);
+  background: var(--hf-brand);
+}
+
+.oc-cancel {
+  color: var(--hf-ink);
+  background: var(--hf-surface-2);
+}
+
+.oc-footnote {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 12px;
+}
+
+.oc-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--hf-ink-soft);
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.oc-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--hf-brand-bg);
+  border-top-color: var(--hf-brand);
+  border-radius: 50%;
+  animation: oc-spin 0.8s linear infinite;
+}
+
+.oc-error-icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 18px;
+  color: var(--hf-bad);
+  border-radius: 50%;
+  background: var(--hf-bad-bg);
+}
+
+.oc-help {
+  margin-bottom: 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+@keyframes oc-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 560px) {
+  .oc-shell {
+    align-items: start;
+    padding: 20px 14px;
+  }
+
+  .oc-card {
+    padding: 26px 20px;
+  }
+}

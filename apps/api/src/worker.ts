@@ -1,6 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
-import type { Context } from "hono";
+import type { Context, MiddlewareHandler } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import {
@@ -50,8 +50,9 @@ import {
 } from "./infrastructure/notifications/ReminderEmailMessage.ts";
 import { handleReminderEmailQueueBatch } from "./infrastructure/notifications/ReminderEmailQueueConsumer.ts";
 import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEventMessage.ts";
-import { createAuth, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
+import { createAuth, mcpResourceUrl, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
+import { createMcpTransport } from "./infrastructure/mcp/McpTransport.ts";
 import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
 import { AnalyticsEngineTelemetrySink } from "./infrastructure/telemetry/AnalyticsEngineTelemetrySink.ts";
 import { registerDomainTelemetry } from "./infrastructure/telemetry/registerDomainTelemetry.ts";
@@ -398,7 +399,7 @@ app.get("/reference", Scalar({ url: "/openapi.json" }));
 // Prefer an explicit BETTER_AUTH_URL (required in `wrangler dev`, where the
 // request URL is the production route host, not localhost); otherwise derive
 // it from the incoming request (correct in production).
-app.use("/api/*", async (c, next) => {
+const initializeAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
   const auth = createAuth(c.env, baseURL);
   c.set("auth", auth);
@@ -406,7 +407,11 @@ app.use("/api/*", async (c, next) => {
   c.set("eventBus", buildDomainEventBus(c.env));
 
   await next();
-});
+};
+
+app.use("/api/*", initializeAuth);
+app.use("/mcp", initializeAuth);
+app.use("/.well-known/*", initializeAuth);
 
 // Relays the activity and notification-event outboxes right after a successful
 // mutating request, instead of waiting for the next cron sweep (up to ~15 min).
@@ -453,6 +458,19 @@ app.use(
 
 // Mount all Better Auth routes (sign-in/out, OAuth callbacks, session).
 app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
+
+// Standards-based OAuth discovery for MCP clients lives outside Better Auth's
+// /api/auth base path. The auth plugin recognizes only its exact well-known
+// routes and returns 404 for everything else under this prefix.
+app.on(["GET", "HEAD"], "/.well-known/*", (c) => c.get("auth").handler(c.req.raw));
+
+// Modern MCP is one authenticated, stateless POST endpoint. Slice S1 exposes
+// the transport with no application tools; the asset tool is added separately.
+app.post("/mcp", (c) => {
+  const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
+  return createMcpTransport(c.get("auth"), mcpResourceUrl(baseURL))(c.req.raw);
+});
+app.on(["GET", "PUT", "PATCH", "DELETE"], "/mcp", (c) => c.body(null, 405, { Allow: "POST" }));
 
 // Public verification confirm — registered BEFORE the auth gate below so it stays
 // session-optional: the token is the proof. See authentication.md exceptions.
