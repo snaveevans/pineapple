@@ -18,8 +18,10 @@ date: 2026-09-20
 Application features operate with a verified Pineapple identity. Browser API
 requests use a Better Auth session cookie. The MCP protected resource uses a
 short-lived, audience-bound OAuth bearer token with the `assets:read` scope.
-The backend resolves both credential types to a domain `User`; features must
-never assume identity or accept a caller-selected user ID.
+The backend resolves browser sessions to a domain `User`. MCP verifies the
+bearer before protocol handling; application tools must resolve its verified
+subject to a domain `User` before accessing data. Features must never assume
+identity or accept a caller-selected user ID.
 
 ## Canonical Behavior
 
@@ -37,6 +39,9 @@ never assume identity or accept a caller-selected user ID.
 - `POST /mcp` accepts only a verified bearer token issued for the canonical
   `/mcp` resource with `assets:read`. A browser session cookie and
   `DEV_AUTH_EMAIL` never authorize MCP.
+- Before an MCP application tool accesses Pineapple data, its adapter resolves
+  the verified bearer subject to the corresponding domain `User`; transport
+  authentication alone does not grant data access.
 - MCP authorization uses authorization code with PKCE. Dynamic client
   registration is enabled for private ChatGPT connections. Access tokens
   expire within five minutes; refresh grants can be revoked through the OAuth

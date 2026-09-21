@@ -10,6 +10,7 @@ metadata:
 **Status:** review
 **Owner:** [unknown — assign on review]
 **Last Updated:** 2026-09-20
+**Related Intent:** [ChatGPT Asset Access](../../intents/features/chatgpt-asset-access.md) (`accepted`)
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md)
 
 ---
@@ -32,7 +33,7 @@ The Sign In feature lets users authenticate with FieldOps via Google OAuth. It l
 - [ ] The redirect phase shows a spinner, Google G mark, and "Connecting to Google…" message with a Cancel button
 - [ ] Clicking Cancel in the redirect phase returns to the form
 - [ ] After a successful ordinary OAuth callback, the app automatically navigates to `/app` (the dashboard)
-- [ ] `chatgpt-asset-access OUT-1` When `/login` receives a signed MCP OAuth continuation, Google sign-in preserves it and the normal existing-session redirect to `/app` does not interrupt authorization
+- [ ] `S1` `OUT-1` `INV-5` When `/login` receives a signed MCP OAuth continuation, Google sign-in preserves it and the normal existing-session redirect to `/app` does not interrupt authorization
 - [ ] Visiting `/login` with `?error=google` in the query string shows a generic error message on the form [REVIEW NEEDED: exact error message text and visual treatment pending design]
 - [ ] The login screen includes a mode-switch link: login → "New to FieldOps? Create an account" (switches to signup mode); signup → "Already have an account? Log in" (switches to login mode)
 - [ ] The brand panel displays three value propositions and a product preview collage

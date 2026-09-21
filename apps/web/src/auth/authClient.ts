@@ -9,12 +9,27 @@ function authError(message: string | undefined, fallback: string): Error {
   return new Error(message ?? fallback);
 }
 
+export function googleSignInURLs(
+  origin = window.location.origin,
+  search = window.location.search,
+): { callbackURL: string; errorCallbackURL: string } {
+  const callbackURL = new URL("/login", origin);
+  const errorCallbackURL = new URL(callbackURL);
+  errorCallbackURL.search = search;
+  errorCallbackURL.searchParams.set("error", "google");
+
+  return {
+    callbackURL: callbackURL.toString(),
+    errorCallbackURL: errorCallbackURL.toString(),
+  };
+}
+
 /** Starts Google sign-in while preserving a signed OAuth authorization request. */
 export async function startGoogleSignIn(): Promise<void> {
+  const urls = googleSignInURLs();
   const { error } = await authClient.signIn.social({
     provider: "google",
-    callbackURL: `${window.location.origin}/login`,
-    errorCallbackURL: `${window.location.origin}/login?error=google`,
+    ...urls,
   });
 
   if (error !== null) {

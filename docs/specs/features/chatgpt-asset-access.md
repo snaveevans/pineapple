@@ -7,7 +7,7 @@ date: 2026-09-20
 
 # ChatGPT Asset Access
 
-**Status:** `in-progress`
+**Status:** `review`
 **Owner:** Tyler Evans
 **Related Intent:** [ChatGPT Asset Access](../../intents/features/chatgpt-asset-access.md) (`accepted`)
 **Related Issues:** none
@@ -76,12 +76,12 @@ required discovery paths while leaving all existing API and SPA routes intact.
 
 ## Acceptance Criteria
 
-- [x] `S1` `OUT-1` `INV-5` Pineapple publishes OAuth authorization-server and MCP protected-resource metadata that identifies the canonical `/mcp` resource and supports authorization code with PKCE.
-- [x] `S1` `OUT-1` `INV-5` A private ChatGPT client can dynamically register, send the user through existing Google sign-in when needed, and obtain tokens only after an explicit allow decision on Pineapple's consent screen.
-- [x] `S1` `OUT-1` `INV-5` The consent screen supports allow and deny, preserves the opaque signed OAuth continuation through authentication, and ensures the authenticated identity has a corresponding Pineapple domain user before an allow decision completes.
-- [x] `S1` `INV-1` `INV-5` `POST /mcp` fails closed for missing, malformed, expired, wrong-issuer, wrong-audience, or insufficient-scope bearer tokens and never accepts a cookie session as MCP authorization.
-- [x] `S1` `INV-5` A user can revoke the Pineapple grant through the authorization provider; revocation blocks refresh and future grants immediately, and an already-issued self-contained access token expires within five minutes.
-- [x] `S1` `INV-6` The OAuth/MCP auth schema is introduced only through additive tables and indexes, and existing sign-in, session, API, SPA, OpenAPI, docs, and health behavior remains unchanged.
+- [ ] `S1` `OUT-1` `INV-5` Pineapple publishes OAuth authorization-server and MCP protected-resource metadata that identifies the canonical `/mcp` resource and supports authorization code with PKCE.
+- [ ] `S1` `OUT-1` `INV-5` A private ChatGPT client can dynamically register, send the user through existing Google sign-in when needed, and obtain tokens only after an explicit allow decision on Pineapple's consent screen.
+- [ ] `S1` `OUT-1` `INV-5` The consent screen supports allow and deny, preserves the opaque signed OAuth continuation through authentication, and ensures the authenticated identity has a corresponding Pineapple domain user before an allow decision completes.
+- [ ] `S1` `INV-1` `INV-5` `POST /mcp` fails closed for missing, malformed, expired, wrong-issuer, wrong-audience, or insufficient-scope bearer tokens and never accepts a cookie session as MCP authorization.
+- [ ] `S1` `INV-5` A user can revoke the Pineapple grant through the authorization provider; revocation blocks refresh and future grants immediately, and an already-issued self-contained access token expires within five minutes.
+- [ ] `S1` `INV-6` The OAuth/MCP auth schema is introduced only through additive tables and indexes, and existing sign-in, session, API, SPA, OpenAPI, docs, and health behavior remains unchanged.
 - [ ] `S2` `OUT-2` The MCP server advertises exactly one application tool named `list_assets`; it has no input fields and its name, title, and description support both explicit Pineapple invocation and natural asset-inventory requests.
 - [ ] `S2` `INV-4` The `list_assets` declaration marks the operation read-only, non-destructive, idempotent, and closed-world, and no mutating Pineapple tool is exposed.
 - [ ] `S2` `INV-1` A successful tool call derives its Pineapple user only from the verified token subject; no prompt or tool argument can select or override the caller identity.
