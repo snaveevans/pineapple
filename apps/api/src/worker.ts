@@ -53,6 +53,8 @@ import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEve
 import { createAuth, mcpResourceUrl, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
 import { createMcpTransport } from "./infrastructure/mcp/McpTransport.ts";
+import { createAssetMcpServerFactory } from "./infrastructure/mcp/McpAssetServer.ts";
+import { D1McpUserResolver } from "./infrastructure/mcp/D1McpUserResolver.ts";
 import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
 import { AnalyticsEngineTelemetrySink } from "./infrastructure/telemetry/AnalyticsEngineTelemetrySink.ts";
 import { registerDomainTelemetry } from "./infrastructure/telemetry/registerDomainTelemetry.ts";
@@ -464,11 +466,19 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 // routes and returns 404 for everything else under this prefix.
 app.on(["GET", "HEAD"], "/.well-known/*", (c) => c.get("auth").handler(c.req.raw));
 
-// Modern MCP is one authenticated, stateless POST endpoint. Slice S1 exposes
-// the transport with no application tools; the asset tool is added separately.
+// Modern MCP is one authenticated, stateless POST endpoint. The verified OAuth
+// subject is resolved to the same domain User used by the application API, then
+// the MCP adapter invokes the existing ListAssets use case.
 app.post("/mcp", (c) => {
   const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
-  return createMcpTransport(c.get("auth"), mcpResourceUrl(baseURL))(c.req.raw);
+  const users = new D1UserRepository(c.env.DB);
+  const identity = new D1McpUserResolver(c.env.DB, users);
+  const serverFactory = createAssetMcpServerFactory({
+    resolveUser: (subject) => identity.resolve(subject),
+    createListAssets: () => new ListAssets(new D1AssetRepository(c.env.DB), users),
+    onAuthenticated: (user) => c.set("user", user),
+  });
+  return createMcpTransport(c.get("auth"), mcpResourceUrl(baseURL), serverFactory)(c.req.raw);
 });
 app.on(["GET", "PUT", "PATCH", "DELETE"], "/mcp", (c) => c.body(null, 405, { Allow: "POST" }));
 

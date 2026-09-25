@@ -617,6 +617,36 @@ describe("statusFromError", () => {
 });
 
 describe("createTechnicalTelemetryMiddleware", () => {
+  it("records the resolved MCP user without request, token, or result content", async () => {
+    const written: ApiRequestTelemetryDataPoint[] = [];
+    const app = new Hono<{ Variables: { user?: User } }>();
+    app.use(
+      "*",
+      createTechnicalTelemetryMiddleware(() => ({ write: (dp) => written.push(dp) })),
+    );
+    app.post("/mcp", async (c) => {
+      c.set("user", testUser);
+      await c.req.text();
+      return c.json({ assetName: "Secret Cabin" }, 200);
+    });
+
+    const response = await app.request("http://localhost/mcp", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer secret-access-token",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ name: "list_assets", address: "123 Secret Road" }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(written[0]?.indexes).toEqual(["Mcp"]);
+    expect(written[0]?.blobs[10]).toBe(userId);
+    expect(JSON.stringify(written[0])).not.toMatch(
+      /secret-access-token|list_assets|123 Secret Road|Secret Cabin/,
+    );
+  });
+
   it("writes country from request.cf and user id from context", async () => {
     const written: ApiRequestTelemetryDataPoint[] = [];
     const app = new Hono<{ Variables: { user?: User } }>();
