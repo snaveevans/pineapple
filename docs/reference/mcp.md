@@ -50,21 +50,40 @@ Record the **deployed** version, not merely the latest uploaded version. From
 `pnpm wrangler versions list` show deployment history and version IDs. The
 Cloudflare Workers & Pages dashboard shows the same history.
 
-| Checkpoint         | Record                                                                                                                                                                                                                                  |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                                                                                                           |
-| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                                                                                                           |
-| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                                                                                                              |
-| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                                                                                                           |
-| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                                                                                                           |
-| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                                                                                                               |
-| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                                                                                                              |
-| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                                                                                                           |
-| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; ChatGPT reached the `assets:read` consent screen on 2026-09-25; owner approval, authenticated MCP, and mobile checks pending |
+| Checkpoint         | Record                                                                                                                                                                                                                           |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                                                                                                    |
+| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                                                                                                    |
+| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                                                                                                       |
+| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                                                                                                    |
+| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                                                                                                    |
+| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                                                                                                        |
+| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                                                                                                       |
+| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                                                                                                    |
+| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; owner approved `assets:read`; authenticated ChatGPT web calls passed; persistent connection and mobile checks pending |
 
 `S2` production smoke covered `/health`, `/openapi.json`, OAuth discovery, an
-unauthenticated `/mcp` challenge, and the signed-in Asset Library. It did not
-exercise an authenticated tool result or ChatGPT; those gates remain open.
+unauthenticated `/mcp` challenge, and the signed-in Asset Library. On 2026-09-25,
+ChatGPT web discovered exactly one no-input, read-only `list_assets` tool.
+Explicit and natural-language prompts both invoked Pineapple Assets and returned
+the active authorized inventory with category counts matching the Asset Library.
+An out-of-scope prompt found no write tool and did not expose archived or
+unshared assets. A fresh tool call led ChatGPT to report that both result
+representations contain only `kind` under property metadata and no property
+name or address fields. The ChatGPT UI did not expose the raw tool payload for
+independent inspection; the server's protocol tests assert this redaction in
+both representations.
+
+The connection is **not yet durable**: after the five-minute access token
+expired, ChatGPT requested Reconnect. Reconnection succeeded using the existing
+consent, and the pending read-only query completed. Production OAuth records
+show the consent granted only `assets:read` and no refresh token was issued;
+Pineapple's OAuth client permits `offline_access`, but this ChatGPT connection
+did not request it. A persistent connection needs a new owner-approved grant
+for `offline_access` or another reviewed fix. Do not lengthen the access-token
+lifetime or expand the grant silently. No Worker rollback was warranted: the
+backend and authorization/privacy checks remained healthy. Mobile use remains
+unverified.
 
 Use these exact version IDs in a rollback. An unqualified `wrangler rollback`
 selects the version uploaded before the latest one, which may not be the
