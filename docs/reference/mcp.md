@@ -192,9 +192,12 @@ this step only after both deployments pass.
    account owner decides whether to select **Allow access**; cancel if the
    displayed client or scope is unexpected. Client names are self-reported by
    the requesting app, so a "ChatGPT" label alone does not prove origin; approve
-   only the flow you just initiated in ChatGPT. The consent URL expires; restart
-   the connection flow if it times out rather than copying an authorization
-   code or URL into another service.
+   only the flow you just initiated in ChatGPT. The consent URL expires. In the
+   observed account, ChatGPT saves **Pineapple Assets** before consent, but
+   shows no connected account or app tools yet. If the URL times out, open the
+   saved app's **Manage → Connected accounts → Connect another account** control
+   to retry authorization before creating a duplicate app. Never copy an
+   authorization code or URL into another service.
 4. After owner approval, confirm discovery shows exactly one tool,
    `list_assets`. In a new web conversation, choose **Developer mode** from the
    composer plus menu and select Pineapple Assets before asking for the asset
