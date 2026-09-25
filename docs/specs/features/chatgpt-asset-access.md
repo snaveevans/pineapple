@@ -84,14 +84,14 @@ required discovery paths while leaving all existing API and SPA routes intact.
 - [x] `S1` `INV-1` `INV-5` `POST /mcp` fails closed for missing, malformed, expired, wrong-issuer, wrong-audience, or insufficient-scope bearer tokens and never accepts a cookie session as MCP authorization.
 - [x] `S1` `INV-5` A user can revoke the Pineapple grant through the authorization provider; revocation blocks refresh and future grants immediately, and an already-issued self-contained access token expires within five minutes.
 - [x] `S1` `INV-6` The OAuth/MCP auth schema is introduced only through additive tables and indexes, and existing sign-in, session, API, SPA, OpenAPI, docs, and health behavior remains unchanged.
-- [ ] `S2` `OUT-2` The MCP server advertises exactly one application tool named `list_assets`; it has no input fields and its name, title, and description support both explicit Pineapple invocation and natural asset-inventory requests.
-- [ ] `S2` `INV-4` The `list_assets` declaration marks the operation read-only, non-destructive, idempotent, and closed-world, and no mutating Pineapple tool is exposed.
-- [ ] `S2` `INV-1` A successful tool call derives its Pineapple user only from the verified token subject; no prompt or tool argument can select or override the caller identity.
-- [ ] `S2` `OUT-2` `INV-2` The tool invokes `ListAssets` and returns exactly the caller's active owned and team-shared assets, excluding archived, unshared, and foreign assets, with correct category counts for empty and populated inventories.
-- [ ] `S2` `OUT-3` The structured result includes each visible asset's API-visible ID, type, timestamps, archive value, sharing descriptor, and type-specific metadata; non-property assets also include their name, including vehicle VIN and equipment serial number when present.
-- [ ] `S2` `OUT-3` `INV-3` Property results include `kind` but omit the free-form asset name and nickname, `address` object, and every street, city, state, postal-code, and country value from structured and model-readable content.
-- [ ] `S2` `INV-4` A `list_assets` call performs no domain or persistence mutation and publishes no domain event.
-- [ ] `S2` `INV-5` Request telemetry records the normalized MCP operation, outcome, latency, and authenticated Pineapple user ID without recording bearer tokens, OAuth codes, tool arguments, asset names, metadata, or tool results.
+- [x] `S2` `OUT-2` The MCP server advertises exactly one application tool named `list_assets`; it has no input fields and its name, title, and description support both explicit Pineapple invocation and natural asset-inventory requests.
+- [x] `S2` `INV-4` The `list_assets` declaration marks the operation read-only, non-destructive, idempotent, and closed-world, and no mutating Pineapple tool is exposed.
+- [x] `S2` `INV-1` A successful tool call derives its Pineapple user only from the verified token subject; no prompt or tool argument can select or override the caller identity.
+- [x] `S2` `OUT-2` `INV-2` The tool invokes `ListAssets` and returns exactly the caller's active owned and team-shared assets, excluding archived, unshared, and foreign assets, with correct category counts for empty and populated inventories.
+- [x] `S2` `OUT-3` The structured result includes each visible asset's API-visible ID, type, timestamps, archive value, sharing descriptor, and type-specific metadata; non-property assets also include their name, including vehicle VIN and equipment serial number when present.
+- [x] `S2` `OUT-3` `INV-3` Property results include `kind` but omit the free-form asset name and nickname, `address` object, and every street, city, state, postal-code, and country value from structured and model-readable content.
+- [x] `S2` `INV-4` A `list_assets` call performs no domain or persistence mutation and publishes no domain event.
+- [x] `S2` `INV-5` Request telemetry records the normalized MCP operation, outcome, latency, and authenticated Pineapple user ID without recording bearer tokens, OAuth codes, tool arguments, asset names, metadata, or tool results.
 - [ ] `S2` `OUT-2` Explicit invocation and representative direct, indirect, and out-of-scope prompts produce the intended tool-selection behavior in ChatGPT, with out-of-scope requests neither inventing capabilities nor selecting a mutation.
 
 ## Delivery Plan
