@@ -164,15 +164,18 @@ flow and retains its existing `UserProvisioned` behavior.
 
 ## Flags
 
-**PLATFORM SURFACE BLOCKER — ChatGPT mobile:** The owner's Pro account reached
-the private MCP app's `assets:read` consent screen on ChatGPT web on 2026-09-25,
-but owner approval and authenticated tool use remain pending. OpenAI's current
-[MCP app guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)
-says custom MCP apps are web-only. A separate Pineapple plugin created through
-Plugin Creator was marked Desktop only with Chat disabled; OpenAI's [plugin
-guidance](https://learn.chatgpt.com/docs/plugins) excludes Desktop-only plugins
-from mobile. The accepted mobile outcome remains unmet. Do not mark it complete
-or alter the Pineapple security boundary to bypass this platform limitation.
+**MOBILE VERIFICATION PENDING:** On 2026-09-25, the owner approved the private
+**Pineapple Assets (persistent)** connection with `assets:read offline_access`.
+Authenticated ChatGPT web queries passed, including one after access-token
+expiry without reconnecting; Pineapple confirmed refresh-token rotation. The
+connection has not yet been tested in the phone app. OpenAI's [plugin
+guidance](https://learn.chatgpt.com/docs/plugins) says plugins available to an
+account can work on mobile, but **Desktop only** plugins cannot. A separate
+Pineapple package made through Plugin Creator was marked Desktop only with Chat
+disabled. The private connection's mobile availability remains unknown until
+an actual phone test. The accepted mobile outcome remains unmet; do not mark it
+complete or alter Pineapple's authorization/privacy boundary to bypass a
+surface limitation.
 
 ## Open Questions
 

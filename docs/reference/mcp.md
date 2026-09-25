@@ -32,15 +32,15 @@ gates. This document does not itself authorize merging or connecting.
 
 The owner's Pro account can reach the developer-mode **Create MCP App** flow on
 ChatGPT web. OpenAI's [developer-mode guide](https://developers.openai.com/api/docs/guides/developer-mode)
-also lists Plus eligibility on the web, but that does not imply mobile access.
-OpenAI's current [MCP app guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)
-states that custom MCP apps are **web-only**. Its separate [plugin availability
-guide](https://learn.chatgpt.com/docs/plugins) says plugins marked **Desktop
-only** are unavailable on mobile. A Pineapple plugin made through Plugin Creator
-was marked Desktop only and its Chat action was disabled in this account. Neither
-route currently proves the accepted phone outcome. Do not treat a successful web
-connection as mobile verification or publish the integration to work around the
-surface limitation.
+also lists Plus eligibility on the web, but that does not establish mobile
+access. OpenAI's [plugin availability guide](https://learn.chatgpt.com/docs/plugins)
+says plugins available to an account can run on mobile, while **Desktop only**
+plugins cannot. A separate Pineapple package made through Plugin Creator was
+marked Desktop only and its Chat action was disabled in this account. The
+private **Pineapple Assets (persistent)** connection is installed and works on
+ChatGPT web, but has not been tested in the phone app. Do not treat a successful
+web connection or absence of a Desktop-only label on the web as mobile
+verification, and do not publish it to work around a surface limitation.
 
 ## Release record — fill in before each merge
 
@@ -266,13 +266,17 @@ issue, or telemetry log.
    values. A successful response alone could be cached and does not prove
    refresh. The server default refresh-token lifetime is 30 days, so this
    short test does not establish indefinite connectivity.
-6. Check ChatGPT mobile with the same account only if its current UI offers the
-   private connection. As of 2026-09-25, OpenAI documents custom MCP apps as
-   web-only and Desktop-only plugins as unavailable on mobile. Record the
-   account/surface limitation and leave the accepted mobile outcome
-   **unverified** until an actual phone test can select the connection and call
-   `list_assets`. Do not weaken Pineapple's authorization or privacy boundary to
-   make it appear to work.
+6. Check ChatGPT mobile with the same account. OpenAI documents mobile use for
+   plugins available to that account, but the separate Plugin Creator package
+   was marked Desktop only and the private MCP connection's mobile availability
+   has not been verified. In a new phone chat, look for **Pineapple Assets
+   (persistent)** and, if available, ask it to list your active Pineapple
+   assets. Confirm it calls `list_assets`, matches the web inventory, and omits
+   property names and addresses. Record a successful tool call as mobile
+   evidence. If the connection is absent or the call fails, record that
+   account/surface failure and leave the accepted mobile outcome **unmet**. Do
+   not weaken Pineapple's authorization or privacy boundary to make it appear
+   to work.
 
 Record pass/fail and links to non-sensitive CI/deploy evidence. Refresh the
 ChatGPT connection metadata after any later tool-name, description, schema,
