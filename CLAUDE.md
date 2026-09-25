@@ -223,7 +223,7 @@ pnpm -r test             # vitest (domain tests live in apps/api/src/**)
 pnpm --filter @snaveevans/pineapple-api openapi:generate   # regenerate the spec
 pnpm --filter @snaveevans/pineapple-web api:types          # regenerate apps/web/src/api/schema.ts from openapi.json
 pnpm --filter @snaveevans/pineapple-api cf-typegen         # regenerate worker-configuration.d.ts from wrangler.jsonc
-pnpm --filter @snaveevans/pineapple-api wrangler d1 migrations apply pineapple --local
+pnpm --filter @snaveevans/pineapple-api exec wrangler d1 migrations apply pineapple --local
 ```
 
 Always run `pnpm verify` before committing.
@@ -245,6 +245,7 @@ secrets, never committed.
 - **What a feature does in detail** → [`docs/specs/`](docs/specs/) (agent-owned interpretation; index at `docs/specs/SPECS.md`)
 - **API contract** → [`docs/reference/api.md`](docs/reference/api.md), `docs/reference/openapi.json`
 - **Data shapes** → [`docs/reference/data-model.md`](docs/reference/data-model.md)
+- **Private ChatGPT/MCP setup** → [`docs/reference/mcp.md`](docs/reference/mcp.md)
 - **Product behavior / features** → [`docs/specs/SPECS.md`](docs/specs/SPECS.md)
 - **Web app feature intent** → [`docs/web/FEATURES.md`](docs/web/FEATURES.md)
 - **Which web component to use, and when not to** → [`docs/web/COMPONENTS.md`](docs/web/COMPONENTS.md)

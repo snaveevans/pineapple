@@ -1,5 +1,11 @@
 import { generateExportedKeyPair } from "better-auth/plugins";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  CLIENT_CAPABILITIES_META_KEY,
+  CLIENT_INFO_META_KEY,
+  McpServer,
+  PROTOCOL_VERSION_META_KEY,
+} from "@modelcontextprotocol/server";
 import { createAuth, mcpResourceUrl } from "../auth/auth.ts";
 import { createMcpTransport } from "./McpTransport.ts";
 
@@ -50,6 +56,30 @@ function mcpRequest(headers?: HeadersInit): Request {
       ...headers,
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} }),
+  });
+}
+
+function modernMcpRequest(method: string, headers?: HeadersInit): Request {
+  return new Request(resource, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "mcp-method": method,
+      "mcp-protocol-version": "2026-07-28",
+      ...headers,
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method,
+      params: {
+        _meta: {
+          [PROTOCOL_VERSION_META_KEY]: "2026-07-28",
+          [CLIENT_INFO_META_KEY]: { name: "test-client", version: "1.0.0" },
+          [CLIENT_CAPABILITIES_META_KEY]: {},
+        },
+      },
+    }),
   });
 }
 
@@ -137,5 +167,28 @@ describe("MCP transport authorization", () => {
     expect(response.status, await response.clone().text()).toBe(403);
     expect(response.headers.get("www-authenticate")).toContain("insufficient_scope");
     expect(response.headers.get("www-authenticate")).toContain("assets:read");
+  });
+
+  it("passes verified token identity into the MCP server factory", async () => {
+    const factory = vi.fn().mockReturnValue(new McpServer({ name: "pineapple", version: "1" }));
+    const token = await accessToken();
+    const handle = createMcpTransport(createAuth(undefined, baseURL), resource, factory);
+
+    const response = await handle(
+      modernMcpRequest("server/discover", { authorization: `Bearer ${token}` }),
+    );
+
+    expect(response.status, await response.clone().text()).toBe(200);
+    expect(factory).toHaveBeenCalledOnce();
+    expect(factory.mock.calls[0]?.[0]).toMatchObject({
+      era: "modern",
+      authInfo: {
+        token,
+        clientId: "chatgpt-client",
+        scopes: ["assets:read"],
+        resource: new URL(resource),
+        extra: { sub: "better-auth-user-id" },
+      },
+    });
   });
 });

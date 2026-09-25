@@ -78,6 +78,7 @@ that matches your goal:
 | You want to…                                 | Read                                                               |
 | -------------------------------------------- | ------------------------------------------------------------------ |
 | Call the API from a UI                       | [`docs/reference/api.md`](docs/reference/api.md) + the live spec¹  |
+| Connect or verify the private MCP app        | [`docs/reference/mcp.md`](docs/reference/mcp.md)                   |
 | Know what data exists (fields, types, enums) | [`docs/reference/data-model.md`](docs/reference/data-model.md)     |
 | Understand why an outcome matters            | [`docs/intents/INTENTS.md`](docs/intents/INTENTS.md)               |
 | Understand exact product behavior            | [`docs/specs/SPECS.md`](docs/specs/SPECS.md)                       |

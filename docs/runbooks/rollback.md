@@ -1,4 +1,4 @@
-> **Audience:** on-call (both of us) · **Purpose:** what to do when production is broken after a deploy · **Source of truth:** this file · **Last reviewed:** 2026-09-04
+> **Audience:** on-call (both of us) · **Purpose:** what to do when production is broken after a deploy · **Source of truth:** this file · **Last reviewed:** 2026-09-24
 
 # Rollback runbook
 
@@ -15,30 +15,31 @@ broken production is not.
 
 ## How: roll back a Worker
 
-`wrangler rollback` re-activates the most recent **stable** version (one that
-was previously deployed at 100% of traffic). It prompts for a reason — always
-write one; it lands in the deployment history as the audit trail.
+Roll back to a **specific known-good deployed version ID**, identified from the
+deployment history. An unqualified `wrangler rollback` defaults to the version
+uploaded before the latest version, which is not necessarily the release you
+want. Wrangler prompts for a reason — always write one; it lands in the
+deployment history as the audit trail. Start these commands from the repository
+root. See [Cloudflare's Wrangler reference](https://developers.cloudflare.com/workers/wrangler/commands/workers/).
 
 ```bash
-# API worker (serves /api/*, /openapi.json, /health, and the SPA catch-all —
-# the API worker is almost always the one to roll back)
+# API worker (serves /api/*, /openapi.json, /health, and MCP routes)
 cd apps/api
-pnpm wrangler rollback              # most recent stable version
-pnpm wrangler versions list         # to pick a specific version instead
-pnpm wrangler rollback <VERSION-ID> # that specific version
+pnpm wrangler deployments list      # identify the known-good deployed version
+pnpm wrangler rollback <VERSION-ID> # replace placeholder with that version ID
 
 # Web worker (serves the built SPA assets)
-cd apps/web
-pnpm wrangler rollback
+cd ../web
+pnpm wrangler deployments list
+pnpm wrangler rollback <VERSION-ID>
 ```
 
-**Rollback can be blocked.** Per the Cloudflare docs, you cannot roll back to a
-version if platform resources (KV, D1, R2, secrets) were **added, deleted, or
-modified** since that version was deployed — the error names what changed. If
-the bad deploy changed `wrangler.jsonc` bindings or secrets, the rollback
-target may be out of reach; in that case fix-forward (revert the commit and
-push, letting the deploy pipeline re-verify and re-deploy) and say so in the
-incident notes.
+**Rollback can be blocked.** Cloudflare may reject an older version when
+connected resources or bindings changed incompatibly — for example, a required
+bucket/queue no longer exists or a Durable Object class lifecycle changed.
+If the recorded target is unavailable, fix-forward through a reviewed revert
+or correction PR and the normal deploy pipeline, and note the reason in the
+incident record. [Cloudflare rollback limits](https://developers.cloudflare.com/workers/versions-and-deployments/rollbacks/).
 
 ## What a rollback does NOT undo
 
@@ -58,7 +59,8 @@ curl -fsS https://pineapple.tylerevans.co/health | jq -e '.status == "ok" and .d
 curl -fsS https://pineapple.tylerevans.co/openapi.json | jq -e 'has("openapi") and has("paths")'
 ```
 
-Both green = the previous version is serving. These are the same assertions the
+Both green show the API is serving; also confirm `/health.version` matches the
+version selected for rollback. The two assertions above are the same ones the
 deploy workflow's smoke check makes.
 
 ## After the rollback
@@ -68,5 +70,6 @@ deploy workflow's smoke check makes.
 2. Investigate before re-deploying — merging to `main` auto-deploys, so a fix
    lands through the normal pipeline (branch → PR → green CI → merge), at which
    point the new deploy supersedes the rollback.
-3. If the failure was found by smoke rather than by a user, the blast radius was
-   zero-traffic-visible — note that in the issue; it means the gate worked.
+3. If smoke found the failure before a user report, assess traffic and error
+   telemetry before claiming there was no user impact: the smoke check runs
+   **after** the new version starts serving production traffic.

@@ -39,7 +39,7 @@ relevant cross-cutting specs rather than re-describing the behavior.
 | Spec                                                          | Area          | Status      |
 | ------------------------------------------------------------- | ------------- | ----------- |
 | [sign-in.md](./features/sign-in.md)                           | Auth          | review      |
-| [chatgpt-asset-access.md](./features/chatgpt-asset-access.md) | Integrations  | review      |
+| [chatgpt-asset-access.md](./features/chatgpt-asset-access.md) | Integrations  | in-progress |
 | [create-asset.md](./features/create-asset.md)                 | Assets        | draft       |
 | [edit-asset.md](./features/edit-asset.md)                     | Assets        | in-progress |
 | [asset-library.md](./features/asset-library.md)               | Assets        | in-progress |
