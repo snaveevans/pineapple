@@ -1,4 +1,4 @@
-> **Audience:** Pineapple operators and integration testers · **Purpose:** release, privately connect, verify, and recover the ChatGPT asset-query integration · **Source of truth:** this checklist, [the feature spec](../specs/features/chatgpt-asset-access.md), and [the production rollback runbook](../runbooks/rollback.md) · **Last reviewed:** 2026-09-24
+> **Audience:** Pineapple operators and integration testers · **Purpose:** release, privately connect, verify, and recover the ChatGPT asset-query integration · **Source of truth:** this checklist, [the feature spec](../specs/features/chatgpt-asset-access.md), and [the production rollback runbook](../runbooks/rollback.md) · **Last reviewed:** 2026-09-25
 
 # Private ChatGPT asset-query release plan
 
@@ -46,16 +46,21 @@ Record the **deployed** version, not merely the latest uploaded version. From
 `pnpm wrangler versions list` show deployment history and version IDs. The
 Cloudflare Workers & Pages dashboard shows the same history.
 
-| Checkpoint                 | Record                                                                                                    |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Pre-MCP API Worker         | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                             |
-| Pre-MCP web Worker         | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                             |
-| S1 merge commit            | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                |
-| S1 API Worker              | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                             |
-| S1 web Worker              | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                             |
-| S1 verification            | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed |
-| S2 merge commit/API Worker | Fill after the second deployment                                                                          |
-| S2 verification            | Fill without tokens or private asset payloads                                                             |
+| Checkpoint         | Record                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                          |
+| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                          |
+| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                             |
+| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                          |
+| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                          |
+| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                              |
+| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                             |
+| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                          |
+| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; authenticated MCP and mobile checks pending |
+
+`S2` production smoke covered `/health`, `/openapi.json`, OAuth discovery, an
+unauthenticated `/mcp` challenge, and the signed-in Asset Library. It did not
+exercise an authenticated tool result or ChatGPT; those gates remain open.
 
 Use these exact version IDs in a rollback. An unqualified `wrangler rollback`
 selects the version uploaded before the latest one, which may not be the
