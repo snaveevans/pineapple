@@ -73,17 +73,27 @@ These pre-MCP IDs were verified against Cloudflare's deployment history on
    visibility tests in the evidence packet.
 3. Apply all migrations to a **local** D1 database with
    `pnpm --filter @snaveevans/pineapple-api exec wrangler d1 migrations apply pineapple --local`.
-   Do not use `--remote` for this local check. Start the API Worker with
-   `pnpm --filter @snaveevans/pineapple-api exec wrangler dev --var ENVIRONMENT:development --var BETTER_AUTH_URL:http://localhost:8787 --inspector-port 9230`
-   and confirm `/health` reports an accessible database and migration
-   `0023_mcp_oauth_provider.sql`. If port `8787` is occupied, choose another
-   port and set `BETTER_AUTH_URL` to that exact local origin. Local OAuth
-   requires Google credentials in an uncommitted `.dev.vars`; never commit
-   those secrets. Without `BETTER_AUTH_URL`, `/mcp` cannot produce its OAuth
-   challenge in local development.
+   Do not use `--remote` for this local check. In separate terminals, start the
+   API Worker and Vite web app:
+
+   ```bash
+   pnpm --filter @snaveevans/pineapple-api exec wrangler dev --var ENVIRONMENT:development --var BETTER_AUTH_URL:http://localhost:5173 --inspector-port 9230
+   pnpm --filter @snaveevans/pineapple-web dev
+   ```
+
+   The Worker uses port `8787` and Vite proxies `/api`, `/mcp`, and
+   `/.well-known` from `http://localhost:5173` to that port. Check
+   `http://localhost:8787/health` for an accessible database and migration
+   `0023_mcp_oauth_provider.sql`. Keep `BETTER_AUTH_URL` at the Vite origin so
+   OAuth callbacks, `/login`, and `/oauth/consent` share one browser origin.
+   Local OAuth requires Google credentials in an uncommitted
+   `apps/api/.dev.vars`; never commit those secrets. Without
+   `BETTER_AUTH_URL`, `/mcp` cannot produce its OAuth challenge locally.
+
 4. Check the local protected-resource and authorization-server discovery
-   documents. An unauthenticated `POST /mcp` must return `401` with a
-   `WWW-Authenticate` challenge; a browser cookie alone must not authorize it.
+   documents through `http://localhost:5173`. An unauthenticated `POST /mcp`
+   must return `401` with a `WWW-Authenticate` challenge; a browser cookie
+   alone must not authorize it.
    An authorized test call must advertise only `list_assets`, and its raw
    structured and readable results must omit every property address field and
    the free-form property name. Use representative local/test assets, not
