@@ -31,7 +31,9 @@ gates. This document does not itself authorize merging or connecting.
 ## Current ChatGPT availability
 
 The owner's Pro account can reach the developer-mode **Create MCP App** flow on
-ChatGPT web. OpenAI's current [MCP app guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)
+ChatGPT web. OpenAI's [developer-mode guide](https://developers.openai.com/api/docs/guides/developer-mode)
+also lists Plus eligibility on the web, but that does not imply mobile access.
+OpenAI's current [MCP app guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)
 states that custom MCP apps are **web-only**. Its separate [plugin availability
 guide](https://learn.chatgpt.com/docs/plugins) says plugins marked **Desktop
 only** are unavailable on mobile. A Pineapple plugin made through Plugin Creator
@@ -194,8 +196,9 @@ this step only after both deployments pass.
    the connection flow if it times out rather than copying an authorization
    code or URL into another service.
 4. After owner approval, confirm discovery shows exactly one tool,
-   `list_assets`, and start a new web conversation with Pineapple Assets
-   enabled. Do not substitute a Plugin Creator package marked **Desktop only**;
+   `list_assets`. In a new web conversation, choose **Developer mode** from the
+   composer plus menu and select Pineapple Assets before asking for the asset
+   list. Do not substitute a Plugin Creator package marked **Desktop only**;
    that separate surface did not enable Chat on this account.
 
 No API key, Pineapple cookie, client secret, or manually invented OAuth client
