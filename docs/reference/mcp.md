@@ -30,13 +30,15 @@ gates. This document does not itself authorize merging or connecting.
 
 ## Current ChatGPT availability
 
-OpenAI's current [developer-mode documentation](https://developers.openai.com/api/docs/guides/developer-mode)
-lists **Plus and Pro** on the web. Its [plugin quickstart](https://developers.openai.com/plugins/quickstart)
-creates a personal plugin from an MCP connection, and its [plugin availability
-guide](https://learn.chatgpt.com/docs/plugins) says account-available plugins
-can be used on mobile. Availability of this particular personal connection
-must still be proven on the owner's phone; documentation alone does not satisfy
-the accepted mobile outcome.
+The owner's Pro account can reach the developer-mode **Create MCP App** flow on
+ChatGPT web. OpenAI's current [MCP app guidance](https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt)
+states that custom MCP apps are **web-only**. Its separate [plugin availability
+guide](https://learn.chatgpt.com/docs/plugins) says plugins marked **Desktop
+only** are unavailable on mobile. A Pineapple plugin made through Plugin Creator
+was marked Desktop only and its Chat action was disabled in this account. Neither
+route currently proves the accepted phone outcome. Do not treat a successful web
+connection as mobile verification or publish the integration to work around the
+surface limitation.
 
 ## Release record — fill in before each merge
 
@@ -46,17 +48,17 @@ Record the **deployed** version, not merely the latest uploaded version. From
 `pnpm wrangler versions list` show deployment history and version IDs. The
 Cloudflare Workers & Pages dashboard shows the same history.
 
-| Checkpoint         | Record                                                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                          |
-| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                          |
-| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                             |
-| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                          |
-| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                          |
-| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                              |
-| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                             |
-| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                          |
-| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; authenticated MCP and mobile checks pending |
+| Checkpoint         | Record                                                                                                                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                                                                                                           |
+| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                                                                                                           |
+| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                                                                                                              |
+| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                                                                                                           |
+| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                                                                                                           |
+| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                                                                                                               |
+| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                                                                                                              |
+| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                                                                                                           |
+| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; ChatGPT reached the `assets:read` consent screen on 2026-09-25; owner approval, authenticated MCP, and mobile checks pending |
 
 `S2` production smoke covered `/health`, `/openapi.json`, OAuth discovery, an
 unauthenticated `/mcp` challenge, and the signed-in Asset Library. It did not
@@ -169,27 +171,32 @@ curl -si -X POST https://pineapple.txe.app/mcp -H 'Content-Type: application/jso
 ## 4. Create the private ChatGPT connection
 
 OpenAI's current [connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt)
-describes creating a personal plugin from a remote MCP connection in ChatGPT
-web developer mode. Complete this step only after both deployments pass.
+describes connecting a remote MCP server in ChatGPT web developer mode. Complete
+this step only after both deployments pass.
 
 1. In ChatGPT web, open **Settings → Security and login** and enable
-   **Developer mode**. Open **ChatGPT Plugins**, select the plus button, name
-   the connection Pineapple, and enter `https://pineapple.txe.app/mcp` as the
-   public HTTPS MCP endpoint. Keep the connection personal/unpublished.
-2. Let ChatGPT discover/register the OAuth client. When prompted during setup
-   or first use, follow Pineapple's Google sign-in and consent flow. At the
-   live consent screen, confirm it names the
-   requesting client and grants only active-asset read access with property
-   addresses excluded. The account owner decides whether to select **Allow**;
-   cancel if the displayed client or scope is unexpected. Client names are
-   self-reported by the requesting app, so a "ChatGPT" label alone does not
-   prove origin; approve only the flow you just initiated in ChatGPT.
-3. Confirm discovery shows exactly one tool, `list_assets`, and create the
-   personal plugin/connection. Install it from personal plugins if the UI
-   offers a separate install step. Start a new conversation with Pineapple
-   enabled. OpenAI's UI labels may vary between a personal plugin and a
-   developer-mode draft app; use the same private connection, not the public
-   submission flow.
+   **Developer mode**. Open **ChatGPT Plugins → Add plugin → Create app → Create
+   MCP App**. Name it **Pineapple Assets**, use
+   `https://pineapple.txe.app/mcp` as the Server URL, and keep it personal and
+   unpublished. Select **OAuth**, not No Auth.
+2. Review Advanced OAuth settings before creating it. Pineapple discovery
+   should select **Dynamic Client Registration (DCR)**, request only the default
+   scope `assets:read` with no base scopes, and show Pineapple `/api/auth`
+   authorization, token, and registration endpoints. Acknowledge the custom
+   server warning only for the Pineapple endpoint you control. Select
+   **Create**; ChatGPT should register a client and open Pineapple consent.
+3. At the live consent screen, confirm it names the requesting client and
+   grants only active-asset read access with property addresses excluded. The
+   account owner decides whether to select **Allow access**; cancel if the
+   displayed client or scope is unexpected. Client names are self-reported by
+   the requesting app, so a "ChatGPT" label alone does not prove origin; approve
+   only the flow you just initiated in ChatGPT. The consent URL expires; restart
+   the connection flow if it times out rather than copying an authorization
+   code or URL into another service.
+4. After owner approval, confirm discovery shows exactly one tool,
+   `list_assets`, and start a new web conversation with Pineapple Assets
+   enabled. Do not substitute a Plugin Creator package marked **Desktop only**;
+   that separate surface did not enable Chat on this account.
 
 No API key, Pineapple cookie, client secret, or manually invented OAuth client
 ID should be entered. If ChatGPT asks for one, stop and diagnose registration;
@@ -203,7 +210,7 @@ Library. Inspect the tool-call details or raw MCP result where available, not
 only ChatGPT's prose answer. Do not paste the full private result into a PR,
 issue, or telemetry log.
 
-1. Explicit prompt: `@Pineapple List all of my Pineapple assets.` It should
+1. Explicit prompt: `@Pineapple Assets List all of my Pineapple assets.` It should
    call only `list_assets` and return the user's active owned and team-shared
    vehicles, equipment, and properties with correct counts.
 2. Natural prompt with Pineapple enabled: “What vehicles, equipment, and
@@ -217,12 +224,13 @@ issue, or telemetry log.
    no property free-form name or nickname, `address` object, or street/city/state/
    postal-code/country components. A friendly summary omitting an address is
    insufficient evidence if the tool payload still contains it.
-5. Open ChatGPT mobile with the same account and repeat the explicit and
-   natural prompts. Record whether the personal Pineapple connection is
-   selectable and whether it calls `list_assets`. If it is absent, record the
-   account/surface limitation, leave the accepted mobile outcome **unverified**,
-   and do not weaken Pineapple's authorization or privacy boundary to make it
-   appear to work.
+5. Check ChatGPT mobile with the same account only if its current UI offers the
+   private connection. As of 2026-09-25, OpenAI documents custom MCP apps as
+   web-only and Desktop-only plugins as unavailable on mobile. Record the
+   account/surface limitation and leave the accepted mobile outcome
+   **unverified** until an actual phone test can select the connection and call
+   `list_assets`. Do not weaken Pineapple's authorization or privacy boundary to
+   make it appear to work.
 
 Record pass/fail and links to non-sensitive CI/deploy evidence. Refresh the
 ChatGPT connection metadata after any later tool-name, description, schema,
