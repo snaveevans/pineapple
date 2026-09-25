@@ -1,3 +1,4 @@
+import { makeSignature } from "better-auth/crypto";
 import { describe, expect, it } from "vitest";
 import { createAuth, mcpResourceUrl } from "./auth.ts";
 
@@ -77,5 +78,40 @@ describe("MCP OAuth configuration", () => {
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
     });
+  });
+
+  it("rejects forged signed requests before revealing public client metadata", async () => {
+    const configuredAuth = createAuth(undefined, "https://pineapple.txe.app");
+
+    const response = await configuredAuth.handler(
+      new Request("https://pineapple.txe.app/api/auth/oauth2/public-client-prelogin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ client_id: "chatgpt", oauth_query: "client_id=chatgpt&sig=forged" }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "invalid_signature" });
+  });
+
+  it("accepts a valid signed request before looking up public client metadata", async () => {
+    const configuredAuth = createAuth(undefined, "https://pineapple.txe.app");
+    const query = new URLSearchParams({
+      client_id: "not-registered",
+      exp: String(Math.floor(Date.now() / 1000) + 60),
+    });
+    query.set("sig", await makeSignature(query.toString(), (await configuredAuth.$context).secret));
+
+    const response = await configuredAuth.handler(
+      new Request("https://pineapple.txe.app/api/auth/oauth2/public-client-prelogin", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ client_id: "not-registered", oauth_query: query.toString() }),
+      }),
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({ error: "not_found" });
   });
 });

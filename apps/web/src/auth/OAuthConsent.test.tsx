@@ -96,6 +96,7 @@ describe("OAuthConsent", () => {
     expect(document.body.textContent).toContain("View your active Pineapple assets");
     expect(document.body.textContent).toContain("Property addresses are never shared");
     expect(document.body.textContent).toContain("Stay connected until you disconnect");
+    expect(document.body.textContent).toContain("App names are supplied by the requesting app");
     expect(getOAuthClientMock).toHaveBeenCalledWith("chatgpt");
     expect(getUserProfileMock).toHaveBeenCalledOnce();
   });
@@ -132,6 +133,21 @@ describe("OAuthConsent", () => {
 
     expect(document.body.textContent).toContain("This connection request is invalid or expired");
     expect(getOAuthClientMock).not.toHaveBeenCalled();
+    expect(decideOAuthConsentMock).not.toHaveBeenCalled();
+  });
+
+  it("does not render grant controls for a forged or expired signed request", async () => {
+    getOAuthClientMock.mockRejectedValue(new Error("invalid_signature"));
+
+    container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    await act(async () => {
+      root?.render(<OAuthConsent />);
+    });
+    await waitFor(() => document.body.textContent?.includes("invalid or expired") === true);
+
+    expect(document.body.textContent).not.toContain("Allow access");
     expect(decideOAuthConsentMock).not.toHaveBeenCalled();
   });
 });

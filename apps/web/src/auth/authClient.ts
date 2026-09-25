@@ -41,17 +41,21 @@ export type OAuthClientSummary = {
   name: string;
 };
 
-/** Reads only the public metadata needed to identify the requesting client. */
+/** Verifies the signed authorization request and reads its public client name. */
 export async function getOAuthClient(clientId: string): Promise<OAuthClientSummary> {
-  const { data, error } = await authClient.oauth2.publicClient({
-    query: { client_id: clientId },
+  // The oauth-provider client includes the signed URL query on this POST.
+  // The provider rejects forged or expired requests before returning metadata.
+  const { data, error } = await authClient.oauth2.publicClientPrelogin({
+    client_id: clientId,
   });
 
   if (error !== null || data === null) {
     throw authError(error?.message, "The requesting application could not be identified");
   }
 
-  return { name: data.client_name ?? "ChatGPT" };
+  // Anonymous dynamic registration can omit client_name. Never invent a
+  // trusted-sounding name for a client that did not supply one.
+  return { name: data.client_name?.trim() || "An unnamed application" };
 }
 
 /** Completes the signed OAuth request; Better Auth performs the safe redirect. */

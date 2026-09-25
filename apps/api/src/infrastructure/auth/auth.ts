@@ -84,6 +84,9 @@ export function createAuth(env?: AuthEnv, baseURL?: string) {
     accessTokenExpiresIn: 300,
     allowDynamicClientRegistration: true,
     allowUnauthenticatedClientRegistration: true,
+    // Let the consent UI use Better Auth's own signed-query verifier before
+    // displaying an actionable grant to a dynamically registered client.
+    allowPublicClientPrelogin: true,
     clientRegistrationDefaultScopes: [...MCP_OAUTH_SCOPES],
     clientRegistrationDefaultResources: [mcpResourceUrl(resolvedBaseURL)],
   }) as unknown as BetterAuthPlugin;

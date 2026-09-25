@@ -5,7 +5,7 @@ import { Brandmark } from "../design/Brandmark";
 import { HFAssetIcon, HFAssetThumb } from "../design/hf";
 import { getUserProfile, isOnboardingComplete } from "../api/userProfile";
 import { paths } from "../routes";
-import { startGoogleSignIn } from "./authClient";
+import { getOAuthClient, startGoogleSignIn } from "./authClient";
 
 // Stylesheets: the .hf design tokens + asset components first, then the
 // auth-specific layer (which mirrors the tokens onto .au so the reused .hf-*
@@ -251,7 +251,20 @@ export function AuthFlow() {
     fetch("/api/auth/get-session", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then(async (data: { user?: SessionUser } | null) => {
-        if (cancelled || !data?.user || isOAuthAuthorization) return;
+        if (cancelled || !data?.user) return;
+        if (isOAuthAuthorization) {
+          const clientId = searchParams.get("client_id");
+          if (clientId) {
+            try {
+              // Only a provider-verified signed request should override the
+              // normal signed-in redirect. A bare or forged sig cannot.
+              await getOAuthClient(clientId);
+              return;
+            } catch {
+              // Invalid or expired continuation: use normal signed-in routing.
+            }
+          }
+        }
         try {
           const profile = await getUserProfile();
           if (cancelled) return;
@@ -268,7 +281,7 @@ export function AuthFlow() {
     return () => {
       cancelled = true;
     };
-  }, [isOAuthAuthorization, navigate]);
+  }, [isOAuthAuthorization, navigate, searchParams]);
 
   const onGoogle = () => {
     setPhase("redirect");

@@ -131,6 +131,10 @@ export function OAuthConsent() {
         </div>
 
         <h1 id="oc-title">{state.clientName} wants to connect</h1>
+        <p className="oc-intro">
+          App names are supplied by the requesting app, not verified by Pineapple. Only approve if
+          you started this connection.
+        </p>
         <p className="oc-intro">Allow this connection to:</p>
 
         <ul className="oc-permissions">

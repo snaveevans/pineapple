@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getUserProfile, type UserProfile } from "../api/userProfile";
-import { startGoogleSignIn } from "./authClient";
+import { getOAuthClient, startGoogleSignIn } from "./authClient";
 import { AuthFlow } from "./AuthFlow";
 
 declare global {
@@ -30,10 +30,12 @@ vi.mock("../api/userProfile", () => ({
 }));
 
 vi.mock("./authClient", () => ({
+  getOAuthClient: vi.fn(),
   startGoogleSignIn: vi.fn(),
 }));
 
 const getUserProfileMock = vi.mocked(getUserProfile);
+const getOAuthClientMock = vi.mocked(getOAuthClient);
 const startGoogleSignInMock = vi.mocked(startGoogleSignIn);
 
 let root: Root | null = null;
@@ -62,6 +64,7 @@ beforeEach(() => {
     ),
   );
   getUserProfileMock.mockResolvedValue(profile());
+  getOAuthClientMock.mockResolvedValue({ name: "ChatGPT" });
   startGoogleSignInMock.mockResolvedValue(undefined);
 });
 
@@ -106,6 +109,7 @@ describe("AuthFlow MCP authorization continuation", () => {
     await renderAuthFlow();
 
     expect(navigate).not.toHaveBeenCalled();
+    expect(getOAuthClientMock).toHaveBeenCalledWith("chatgpt");
     expect(getUserProfileMock).not.toHaveBeenCalled();
     expect(document.body.textContent).toContain("Continue with Google");
   });
@@ -124,7 +128,28 @@ describe("AuthFlow MCP authorization continuation", () => {
   it("keeps the normal signed-in navigation behavior outside an authorization request", async () => {
     await renderAuthFlow();
 
+    expect(getOAuthClientMock).not.toHaveBeenCalled();
     expect(getUserProfileMock).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/app", { replace: true });
+  });
+
+  it("does not strand an existing session on a forged authorization request", async () => {
+    currentSearch = new URLSearchParams("client_id=chatgpt&sig=forged");
+    getOAuthClientMock.mockRejectedValue(new Error("invalid_signature"));
+
+    await renderAuthFlow();
+
+    expect(getOAuthClientMock).toHaveBeenCalledWith("chatgpt");
+    expect(getUserProfileMock).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/app", { replace: true });
+  });
+
+  it("does not strand an existing session on a bare signature parameter", async () => {
+    currentSearch = new URLSearchParams("sig=");
+
+    await renderAuthFlow();
+
+    expect(getOAuthClientMock).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith("/app", { replace: true });
   });
 });

@@ -90,7 +90,7 @@ ChatGPT connection's narrow asset-read grant.
 
 **States:**
 
-- `loading` — validate the session/domain profile and load public client metadata
+- `loading` — validate the provider-signed request and session/domain profile, then load public client metadata
 - `error` — fail closed when the signed request is missing, invalid, expired, or cannot be resolved
 - `populated` — identify the requesting client, describe asset-read and persistent-connection permissions, and state the property-address exclusion
 - `pending` — disable both decisions while Better Auth completes the allow or deny response
@@ -103,6 +103,8 @@ and is not a stable renderable state.
 
 - The signed OAuth continuation is opaque and forwarded by the Better Auth
   OAuth-provider client plugin; the UI does not reconstruct it
+- Registered client names are supplied by the requesting app, not verified by
+  Pineapple; a nameless client is never labeled "ChatGPT" by default
 - Loading `GET /api/users/me` before consent also ensures that a newly signed-in
   Better Auth identity has a corresponding Pineapple domain user
 - The screen promises only active owned and team-shared asset visibility and
