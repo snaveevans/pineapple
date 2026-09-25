@@ -37,10 +37,13 @@ access. OpenAI's [plugin availability guide](https://learn.chatgpt.com/docs/plug
 says plugins available to an account can run on mobile, while **Desktop only**
 plugins cannot. A separate Pineapple package made through Plugin Creator was
 marked Desktop only and its Chat action was disabled in this account. The
-private **Pineapple Assets (persistent)** connection is installed and works on
-ChatGPT web, but has not been tested in the phone app. Do not treat a successful
-web connection or absence of a Desktop-only label on the web as mobile
-verification, and do not publish it to work around a surface limitation.
+original **Pineapple Assets** connection has now completed an authenticated
+asset query in the owner's ChatGPT phone app. The private **Pineapple Assets
+(persistent)** connection is installed and works on ChatGPT web, including
+after access-token expiry, but has not yet been selected and tested on the
+phone. Do not treat success through the original connection as proof of
+persistent mobile access, and do not publish either connection to work around
+a surface limitation.
 
 ## Release record — fill in before each merge
 
@@ -50,17 +53,17 @@ Record the **deployed** version, not merely the latest uploaded version. From
 `pnpm wrangler versions list` show deployment history and version IDs. The
 Cloudflare Workers & Pages dashboard shows the same history.
 
-| Checkpoint         | Record                                                                                                                                                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                                                                                                                          |
-| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                                                                                                                          |
-| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                                                                                                                             |
-| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                                                                                                                          |
-| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                                                                                                                          |
-| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                                                                                                                              |
-| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                                                                                                                             |
-| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                                                                                                                          |
-| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; owner approved read-only `assets:read offline_access`; authenticated ChatGPT web calls and post-expiry refresh passed; mobile check pending |
+| Checkpoint         | Record                                                                                                                                                                                                                                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-MCP API Worker | `99d1220e-dae1-4d8f-b52e-fe414229d647` · 2026-09-21 03:30 UTC                                                                                                                                                                                                                                                              |
+| Pre-MCP web Worker | `8e271734-894e-4f47-b95c-db489ffaf198` · 2026-09-21 03:30 UTC                                                                                                                                                                                                                                                              |
+| S1 merge commit    | `c4f79ca99eee5e2d55333134c6f36aafa351e74d`                                                                                                                                                                                                                                                                                 |
+| S1 API Worker      | `a1f40db8-3130-4924-a0ce-04ea381c8234` · 2026-09-25 05:36 UTC                                                                                                                                                                                                                                                              |
+| S1 web Worker      | `04de1713-65c1-4d09-8ee1-e2d24a7f1609` · 2026-09-25 05:36 UTC                                                                                                                                                                                                                                                              |
+| S1 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36099155673) green; production smoke passed                                                                                                                                                                                                                  |
+| S2 merge commit    | `f6c34608d6a0aabcc45a5da9b6e8400af5ac00a0`                                                                                                                                                                                                                                                                                 |
+| S2 API Worker      | `be4f93f0-ba69-477b-8455-30ca464fcf3c` · 2026-09-25 06:07 UTC                                                                                                                                                                                                                                                              |
+| S2 verification    | [Deploy](https://github.com/snaveevans/pineapple/actions/runs/36101315541) green; production smoke passed; owner approved read-only `assets:read offline_access`; authenticated ChatGPT web calls and post-expiry refresh passed; natural mobile query passed through original connection; persistent mobile check pending |
 
 `S2` production smoke covered `/health`, `/openapi.json`, OAuth discovery, an
 unauthenticated `/mcp` challenge, and the signed-in Asset Library. On 2026-09-25,
@@ -89,8 +92,20 @@ token rotated. This verifies automatic refresh; it does not guarantee future
 connectivity beyond the current refresh-token lifetime (30 days under the
 server default). The original personal connection remains in place pending
 owner choice about disconnecting it. No Worker rollback was warranted: the
-backend and authorization/privacy checks remained healthy. Mobile use remains
-unverified.
+backend and authorization/privacy checks remained healthy.
+
+On 2026-09-25, the owner supplied screenshots from the ChatGPT phone app. The
+first showed discovery of both Pineapple connections and their single read-only
+`list_assets` tool, but no call. In the same synced conversation, a natural
+"List the assets for me" request triggered an app response from the **original**
+Pineapple Assets connection after the owner reauthenticated. ChatGPT returned
+four active assets (three vehicles, one property, zero equipment), matching the
+earlier web inventory. The expanded tool response showed that the property
+record had no name or address and `metadata` contained only `kind`; do not put
+the private asset list or raw result in release notes. This proves a natural
+mobile read through the original connection, not that the persistent connection
+works or refreshes on mobile. An explicit mobile call through **Pineapple Assets
+(persistent)** remains to be checked.
 
 Use these exact version IDs in a rollback. An unqualified `wrangler rollback`
 selects the version uploaded before the latest one, which may not be the
@@ -266,17 +281,18 @@ issue, or telemetry log.
    values. A successful response alone could be cached and does not prove
    refresh. The server default refresh-token lifetime is 30 days, so this
    short test does not establish indefinite connectivity.
-6. Check ChatGPT mobile with the same account. OpenAI documents mobile use for
-   plugins available to that account, but the separate Plugin Creator package
-   was marked Desktop only and the private MCP connection's mobile availability
-   has not been verified. In a new phone chat, look for **Pineapple Assets
-   (persistent)** and, if available, ask it to list your active Pineapple
-   assets. Confirm it calls `list_assets`, matches the web inventory, and omits
-   property names and addresses. Record a successful tool call as mobile
-   evidence. If the connection is absent or the call fails, record that
-   account/surface failure and leave the accepted mobile outcome **unmet**. Do
-   not weaken Pineapple's authorization or privacy boundary to make it appear
-   to work.
+6. Check ChatGPT mobile with the same account. The owner's natural request
+   already called `list_assets` through the original **Pineapple Assets**
+   connection after reauthentication and returned the expected multi-asset
+   inventory without property addresses. Select **Pineapple Assets
+   (persistent)** explicitly in a phone chat and call `list_assets`; confirm
+   that it matches the Asset Library, omits property names and addresses, and
+   can be used again after access-token expiry without reconnecting. Keep the
+   original mobile result and the persistent-connection result distinct. If
+   the persistent connection is absent or the call fails, record that
+   account/surface failure and leave the accepted persistent mobile evidence
+   unmet. Do not weaken Pineapple's authorization or privacy boundary to make
+   it appear to work.
 
 Record pass/fail and links to non-sensitive CI/deploy evidence. Refresh the
 ChatGPT connection metadata after any later tool-name, description, schema,
