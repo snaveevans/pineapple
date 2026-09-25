@@ -74,8 +74,43 @@ gallery registry — there is no deferred hatch (#193).
 
 - Supports `?mode=signup` and `?mode=login` query params; both go through the same Google OAuth flow — the distinction is cosmetic copy only
 - On success, redirects to `/app`
+- When Better Auth supplies a signed MCP authorization continuation, the login
+  flow preserves it through Google sign-in and does not redirect an existing
+  session away to `/app`
 
 **Spec:** [`docs/specs/features/sign-in.md`](../specs/features/sign-in.md)
+
+---
+
+## MCP Connection Consent
+
+**Route:** `/oauth/consent`
+**Goal:** Let a signed-in Pineapple user explicitly allow or deny a private
+ChatGPT connection's narrow asset-read grant.
+
+**States:**
+
+- `loading` — validate the provider-signed request and session/domain profile, then load public client metadata
+- `error` — fail closed when the signed request is missing, invalid, expired, or cannot be resolved
+- `populated` — identify the requesting client, describe asset-read and persistent-connection permissions, and state the property-address exclusion
+- `pending` — disable both decisions while Better Auth completes the allow or deny response
+
+**Exceptions:** This OAuth transition uses the Better Auth client rather than
+React Query. A successful allow or deny navigates back to the requesting client
+and is not a stable renderable state.
+
+**Non-obvious behavior:**
+
+- The signed OAuth continuation is opaque and forwarded by the Better Auth
+  OAuth-provider client plugin; the UI does not reconstruct it
+- Registered client names are supplied by the requesting app, not verified by
+  Pineapple; a nameless client is never labeled "ChatGPT" by default
+- Loading `GET /api/users/me` before consent also ensures that a newly signed-in
+  Better Auth identity has a corresponding Pineapple domain user
+- The screen promises only active owned and team-shared asset visibility and
+  explicitly excludes property addresses and every mutation
+
+**Spec:** [`docs/specs/features/chatgpt-asset-access.md`](../specs/features/chatgpt-asset-access.md)
 
 ---
 

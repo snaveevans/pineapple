@@ -9,14 +9,15 @@ metadata:
 
 **Status:** review
 **Owner:** [unknown — assign on review]
-**Last Updated:** 2026-06-04
+**Last Updated:** 2026-09-20
+**Related Intent:** [ChatGPT Asset Access](../../intents/features/chatgpt-asset-access.md) (`accepted`)
 **Related Specs:** [authentication.md](../cross-cutting/authentication.md), [error-handling.md](../cross-cutting/error-handling.md), [loading-states.md](../cross-cutting/loading-states.md), [telemetry.md](../cross-cutting/telemetry.md)
 
 ---
 
 ## Summary
 
-The Sign In feature lets users authenticate with FieldOps via Google OAuth. It lives at `/login` and covers the entire auth lifecycle on that page: arriving in login or signup mode, initiating the Google OAuth redirect, the in-progress state while waiting for Google, automatic navigation to the dashboard on success, and an error message when Google's callback returns a failure.
+The Sign In feature lets users authenticate with FieldOps via Google OAuth. It lives at `/login` and covers the entire auth lifecycle on that page: arriving in login or signup mode, initiating the Google OAuth redirect, the in-progress state while waiting for Google, automatic navigation to the dashboard on an ordinary sign-in, and an error message when Google's callback returns a failure. When sign-in is part of a signed MCP authorization request, the flow preserves that opaque continuation so Better Auth can resume authorization instead of navigating to the dashboard.
 
 ## User Stories
 
@@ -31,7 +32,8 @@ The Sign In feature lets users authenticate with FieldOps via Google OAuth. It l
 - [ ] The login and signup forms share the same "Continue with Google" button; clicking switches to the redirect phase
 - [ ] The redirect phase shows a spinner, Google G mark, and "Connecting to Google…" message with a Cancel button
 - [ ] Clicking Cancel in the redirect phase returns to the form
-- [ ] After a successful OAuth callback, the app automatically navigates to `/app` (the dashboard)
+- [ ] After a successful ordinary OAuth callback, the app automatically navigates to `/app` (the dashboard)
+- [ ] `S1` `OUT-1` `INV-5` When `/login` receives a signed MCP OAuth continuation, Google sign-in preserves it and the normal existing-session redirect to `/app` does not interrupt authorization
 - [ ] Visiting `/login` with `?error=google` in the query string shows a generic error message on the form [REVIEW NEEDED: exact error message text and visual treatment pending design]
 - [ ] The login screen includes a mode-switch link: login → "New to FieldOps? Create an account" (switches to signup mode); signup → "Already have an account? Log in" (switches to login mode)
 - [ ] The brand panel displays three value propositions and a product preview collage
@@ -41,10 +43,10 @@ The Sign In feature lets users authenticate with FieldOps via Google OAuth. It l
 
 | Scenario                                                                    | Expected Behavior                                                      |
 | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `POST /api/auth/sign-in/social` returns a non-OK status                     | Error is caught; phase returns to `form`                               |
-| `POST /api/auth/sign-in/social` returns OK but no `url` field               | Error is caught; phase returns to `form`                               |
+| Better Auth's Google sign-in request returns an error                       | Error is caught; phase returns to `form`                               |
 | `GET /api/auth/get-session` fails on load                                   | Session treated as `null` (logged out); login form shown               |
-| User already has a valid session when visiting `/login`                     | Navigates to `/app` after session check resolves                       |
+| User already has a valid session when visiting ordinary `/login`            | Navigates to `/app` after session check resolves                       |
+| User has a valid session on signed MCP `/login?...&sig=...`                 | Remains in the authorization flow; does not navigate to `/app`         |
 | OAuth callback includes `?error=google`                                     | Generic error message shown on the form; phase set to `form`           |
 | Google OAuth fails during the window redirect (network error before return) | User is stuck at Google's error page; they must navigate back manually |
 

@@ -14,13 +14,19 @@
     "cf-typegen": "wrangler types --strict-vars=false --env-file .env.typegen"
   },
   "dependencies": {
+    "@better-auth/core": "1.7.5",
+    "@better-auth/mcp": "^1.7.5",
+    "@better-auth/utils": "0.4.2",
+    "@better-fetch/fetch": "1.3.2",
     "@hono/zod-openapi": "^1.6.2",
+    "@modelcontextprotocol/server": "^2.0.0",
     "@scalar/hono-api-reference": "^0.12.0",
     "@snaveevans/pineapple-shared": "workspace:*",
-    "better-auth": "^1.7.4",
+    "better-auth": "^1.7.5",
     "better-auth-cloudflare": "^0.3.1",
+    "better-call": "1.4.0",
     "hono": "^4.13.8",
-    "zod": "^4.4.3"
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@stryker-mutator/core": "^10.0.0",

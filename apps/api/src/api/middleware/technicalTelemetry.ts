@@ -116,6 +116,12 @@ export function requestUserId(user: User | undefined): string {
 }
 
 function routeTelemetry(method: string, pathname: string): RouteTelemetry {
+  if (pathname === "/mcp" && method === "POST") {
+    return { operation: "Mcp", routePattern: "/mcp" };
+  }
+  if (pathname.startsWith("/.well-known/") && (method === "GET" || method === "HEAD")) {
+    return { operation: "McpAuthDiscovery", routePattern: "/.well-known/*" };
+  }
   if (pathname === "/api/auth/sign-in/social" && method === "POST") {
     return { operation: "SignIn", routePattern: "/api/auth/sign-in/social" };
   }

@@ -124,6 +124,46 @@ describe("buildApiRequestTelemetryDataPoint", () => {
     }
   });
 
+  it.each([
+    ["POST", "/mcp", "Mcp", "/mcp"],
+    ["GET", "/.well-known/oauth-protected-resource/mcp", "McpAuthDiscovery", "/.well-known/*"],
+    [
+      "GET",
+      "/.well-known/oauth-authorization-server/api/auth",
+      "McpAuthDiscovery",
+      "/.well-known/*",
+    ],
+  ])("maps %s %s to %s", (method, pathname, operation, routePattern) => {
+    expect(
+      buildApiRequestTelemetryDataPoint({
+        method,
+        pathname,
+        status: 200,
+        durationMs: 1,
+        requestSizeBytes: 0,
+        authenticated: false,
+        country: "US",
+        userId: "anonymous",
+        error: null,
+      }),
+    ).toMatchObject({
+      indexes: [operation],
+      blobs: [
+        operation,
+        routePattern,
+        method,
+        "2xx",
+        "200",
+        "success",
+        "none",
+        "false",
+        "v2",
+        "US",
+        "anonymous",
+      ],
+    });
+  });
+
   it("normalizes asset ids and records validation failures", () => {
     expect(
       buildApiRequestTelemetryDataPoint({

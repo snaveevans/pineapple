@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import { AuthFlow } from "./auth/AuthFlow";
+import { OAuthConsent } from "./auth/OAuthConsent";
 import { AppAddAsset } from "./app/AppAddAsset";
 import { AppEditAsset } from "./app/AppEditAsset";
 import { AppAssets } from "./app/AppAssets";
@@ -17,6 +18,7 @@ import { routePaths } from "./routes";
 export const router = createBrowserRouter([
   { path: routePaths.home, element: <MarketingHome /> },
   { path: routePaths.login, element: <AuthFlow /> },
+  { path: routePaths.oauthConsent, element: <OAuthConsent /> },
   { path: routePaths.onboarding, element: <OnboardingScreen /> },
   {
     path: "/app",

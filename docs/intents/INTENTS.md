@@ -51,12 +51,9 @@ most of the brief should remain true.
 
 ## Feature Intents
 
-No feature intents have been added yet. Create the first brief for the next
-behavior-changing request; do not backfill existing specifications solely to
-populate this table.
-
-| Intent | Area | Status | Related specs |
-| ------ | ---- | ------ | ------------- |
+| Intent                                                   | Area         | Status   | Related specs                                                                                                                                                         |
+| -------------------------------------------------------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ChatGPT Asset Access](features/chatgpt-asset-access.md) | Integrations | accepted | [Asset Library](../specs/features/asset-library.md), [Authentication](../specs/cross-cutting/authentication.md), [Permissions](../specs/cross-cutting/permissions.md) |
 
 ## Workflow
 

@@ -3,6 +3,7 @@ export type LoginMode = "login" | "signup";
 export const routePaths = {
   home: "/",
   login: "/login",
+  oauthConsent: "/oauth/consent",
   onboarding: "/onboarding",
   appHome: "/app",
   profile: "/app/profile",

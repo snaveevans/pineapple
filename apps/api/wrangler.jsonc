@@ -4,12 +4,14 @@
   "main": "src/worker.ts",
   "compatibility_date": "2026-05-21",
   // Better Auth relies on Node APIs (crypto, etc.) on the Workers runtime.
-  "compatibility_flags": ["nodejs_compat"],
+  // MCP bearer verification fetches this Worker's public /api/auth/jwks route;
+  // same-zone Worker-to-Worker fetches require strict public routing.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
 
-  // Production routes on the shared hostnames. The API owns /api/* plus its
-  // (non-/api) docs + health endpoints; the web Worker (pineapple-web) owns the
-  // catch-all /* for the SPA. Cloudflare matches the most specific route, so
-  // /api/* and the explicit paths below win over the SPA's /* on either host.
+  // Production routes on the shared hostnames. The API owns /api/*, the MCP
+  // endpoint and discovery documents, plus its docs + health endpoints; the web
+  // Worker (pineapple-web) owns the catch-all /* for the SPA. Cloudflare matches
+  // the most specific route, so these paths win over the SPA's /* on either host.
   // Requires both zones in this Cloudflare account. The primary hostname needs
   // a proxied DNS record; the alternate hostname's record is provisioned by the
   // web Worker's Custom Domain. Routes are ignored by `wrangler dev`.
@@ -18,10 +20,18 @@
     { "pattern": "pineapple.tylerevans.co/openapi.json", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.tylerevans.co/reference", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.tylerevans.co/health", "zone_name": "tylerevans.co" },
+    { "pattern": "pineapple.tylerevans.co/mcp", "zone_name": "tylerevans.co" },
+    { "pattern": "pineapple.tylerevans.co/.well-known/oauth-protected-resource", "zone_name": "tylerevans.co" },
+    { "pattern": "pineapple.tylerevans.co/.well-known/oauth-protected-resource/mcp", "zone_name": "tylerevans.co" },
+    { "pattern": "pineapple.tylerevans.co/.well-known/oauth-authorization-server/api/auth", "zone_name": "tylerevans.co" },
     { "pattern": "pineapple.txe.app/api/*", "zone_name": "txe.app" },
     { "pattern": "pineapple.txe.app/openapi.json", "zone_name": "txe.app" },
     { "pattern": "pineapple.txe.app/reference", "zone_name": "txe.app" },
     { "pattern": "pineapple.txe.app/health", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/mcp", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/.well-known/oauth-protected-resource", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/.well-known/oauth-protected-resource/mcp", "zone_name": "txe.app" },
+    { "pattern": "pineapple.txe.app/.well-known/oauth-authorization-server/api/auth", "zone_name": "txe.app" },
   ],
 
   "vars": {
