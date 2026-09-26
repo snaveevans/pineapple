@@ -708,6 +708,12 @@ describe("D1AgentOperationRecovery (real SQLite transactions)", () => {
       [{ table: "maintenance_tasks", id: TASK_ID, before, after }],
       [],
     );
+    // Keep the operation earlier than the fixed later-record fixture, independent of wall time.
+    sqlite
+      .prepare(
+        "UPDATE agent_operation_journal SET created_at = ? WHERE actor_id = ? AND operation_id = ?",
+      )
+      .run("2026-09-25T10:00:00.000Z", ACTOR, OPERATION);
     sqlite
       .prepare("INSERT INTO maintenance_records VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
       .run(

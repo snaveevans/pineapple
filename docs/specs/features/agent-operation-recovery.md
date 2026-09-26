@@ -10,7 +10,7 @@ date: 2026-09-26
 **Status:** `review`
 **Owner:** Tyler Evans
 **Related Intent:** [ChatGPT Field Operations](../../intents/features/chatgpt-field-operations.md) (`accepted`)
-**Related Issues:** [#298](https://github.com/snaveevans/pineapple/issues/298), [#299](https://github.com/snaveevans/pineapple/issues/299)
+**Related Issues:** [#298](https://github.com/snaveevans/pineapple/issues/298), [#299](https://github.com/snaveevans/pineapple/issues/299), [#314](https://github.com/snaveevans/pineapple/issues/314)
 **Related PRs:** [#302](https://github.com/snaveevans/pineapple/pull/302), [#303](https://github.com/snaveevans/pineapple/pull/303), [#306](https://github.com/snaveevans/pineapple/pull/306), [#307](https://github.com/snaveevans/pineapple/pull/307), [#308](https://github.com/snaveevans/pineapple/pull/308)
 **Ready Gate:** `approved 2026-09-25`
 **Related Specs:** [ChatGPT Field Operations](chatgpt-field-operations.md), [Permissions](../cross-cutting/permissions.md), [Schema Migrations](../cross-cutting/schema-migrations.md), [Maintenance Task](maintenance-task.md), [Maintenance Record](maintenance-record.md), [Activity History](activity-history.md)
@@ -88,6 +88,8 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 | `INV-3`           | Atomic retry and conflict safety          | real SQLite transactions           | concurrent replay, lost response, stale target, linked-record race, and rollback leave one valid result                 | yes                      |
 | `INV-5`           | No private recovery data escapes          | journal/adapter contracts          | receipts and errors contain no street or raw snapshots                                                                  | no                       |
 | `INV-6`           | Recovery repairs recurrence and reminders | domain/persistence integration     | restore linked maintenance plus override; process compensation before an older event and verify reminders stay restored | yes                      |
+
+- Bug #314 regression proof: the real-SQLite case `blocks an existing task restore if a different later record now depends on it` in `D1AgentOperationRecovery.test.ts`.
 
 ### Merged implementation and verification evidence
 
