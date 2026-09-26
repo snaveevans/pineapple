@@ -660,7 +660,7 @@ function isSemanticallyRestorable(operation: StoredAgentOperation): boolean {
       receipt.entityType === "asset" &&
       receipt.entityId === asset.id &&
       receipt.assetId === asset.id &&
-      revisionEquals(receipt.appliedRevision, asset.after)
+      revisionEquals(receipt.appliedRevision, asset.after, true)
     );
   }
 
@@ -737,8 +737,17 @@ function isSemanticallyRestorable(operation: StoredAgentOperation): boolean {
   );
 }
 
-function revisionEquals(revision: number, snapshot: AgentRowSnapshot): boolean {
-  return typeof snapshot.revision === "number" && revision === snapshot.revision;
+function revisionEquals(
+  revision: number,
+  snapshot: AgentRowSnapshot,
+  allowLegacyAssetNull = false,
+): boolean {
+  // Asset revisions were added nullable. A no-op must retain the raw NULL
+  // snapshot while its public revision is zero; task/record revisions are required.
+  return (
+    (typeof snapshot.revision === "number" && revision === snapshot.revision) ||
+    (allowLegacyAssetNull && snapshot.revision === null && revision === 0)
+  );
 }
 
 function rowMatchesSnapshot(row: AgentRowSnapshot, snapshot: AgentRowSnapshot): boolean {

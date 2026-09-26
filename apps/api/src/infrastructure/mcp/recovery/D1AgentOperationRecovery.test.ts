@@ -174,6 +174,30 @@ describe("D1AgentOperationRecovery (real SQLite transactions)", () => {
     expect(count(sqlite, "notification_event_outbox")).toBe(0);
   });
 
+  it.each([0, null])(
+    "restores a no-op journal entry without changing stored asset revision %s",
+    async (revision) => {
+      const { sqlite, db } = createDatabase();
+      seedActor(sqlite);
+      const snapshot = assetSnapshot({ revision });
+      seedAsset(sqlite, snapshot);
+      await journalMutation(
+        db,
+        "edit_asset",
+        [{ table: "assets", id: ASSET_ID, before: snapshot, after: snapshot }],
+        [],
+      );
+      const before = readAsset(sqlite, ASSET_ID);
+      const recovery = new D1AgentOperationRecovery(db);
+
+      expect((await recovery.recover(ACTOR, OPERATION)).status).toBe("dry_run_ready");
+      expect((await recovery.recover(ACTOR, OPERATION, { apply: true })).status).toBe("restored");
+      expect(readAsset(sqlite, ASSET_ID)).toEqual(before);
+      expect(readJournal(sqlite)?.restored_at).toEqual(expect.any(String));
+      expect(count(sqlite, "notification_event_outbox")).toBe(0);
+    },
+  );
+
   it("reverses untouched asset creation but refuses to remove it after maintenance depends on it", async () => {
     const { sqlite, db } = createDatabase();
     seedActor(sqlite);
