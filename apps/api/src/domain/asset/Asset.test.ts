@@ -30,6 +30,7 @@ describe("Asset", () => {
   it("creates a vehicle asset and emits AssetCreated", () => {
     const asset = Asset.create({ ownerId, name: "My Truck", metadata: validVehicle });
 
+    expect(asset.revision).toBe(0);
     expect(asset.name).toBe("My Truck");
     expect(asset.type).toBe("vehicle");
     expect(asset.ownerId).toBe(ownerId);
@@ -157,6 +158,7 @@ describe("Asset", () => {
 
     expect(asset.name).toBe("New Name");
     expect(asset.metadata).toEqual(nextMetadata);
+    expect(asset.revision).toBe(1);
 
     const events = asset.pullEvents();
     expect(events).toHaveLength(1);
@@ -191,6 +193,7 @@ describe("Asset", () => {
     asset.edit({ name: "Truck", metadata: validVehicle, actorId: ownerId });
 
     expect(asset.name).toBe("Truck");
+    expect(asset.revision).toBe(0);
     expect(asset.pullEvents()).toHaveLength(0);
   });
 
@@ -212,6 +215,30 @@ describe("Asset", () => {
     expect(reconstituted.pullEvents()).toHaveLength(0);
     expect(reconstituted.name).toBe("Truck");
     expect(reconstituted.sharedTeamId).toBeNull();
+    expect(reconstituted.revision).toBe(0);
+  });
+
+  it("restores its persisted revision and advances it for sharing changes", () => {
+    const original = Asset.create({ ownerId, name: "Truck", metadata: validVehicle });
+    const asset = Asset.reconstitute({
+      id: original.id,
+      ownerId: original.ownerId,
+      name: original.name,
+      metadata: original.metadata,
+      archivedAt: null,
+      createdAt: original.createdAt,
+      updatedAt: original.updatedAt,
+      sharedTeamId: null,
+      revision: 4,
+    });
+    const teamId = TeamId.generate();
+
+    asset.shareToTeam({ teamId, teamName: "Field Ops", actorId: ownerId });
+    expect(asset.revision).toBe(5);
+    asset.shareToTeam({ teamId, teamName: "Field Ops", actorId: ownerId });
+    expect(asset.revision).toBe(5);
+    asset.unshare({ actorId: ownerId, teamId, teamName: "Field Ops" });
+    expect(asset.revision).toBe(6);
   });
 
   it("shares to a team and emits AssetSharedToTeam", () => {

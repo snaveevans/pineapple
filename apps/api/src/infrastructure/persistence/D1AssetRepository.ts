@@ -15,10 +15,11 @@ type AssetRow = {
   created_at: string;
   updated_at: string;
   shared_team_id: string | null;
+  revision: number;
 };
 
 const SELECT_COLUMNS =
-  "id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id";
+  "id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id, COALESCE(revision, 0) AS revision";
 
 export class D1AssetRepository implements AssetRepository {
   constructor(private readonly db: D1Database) {}
@@ -49,14 +50,20 @@ export class D1AssetRepository implements AssetRepository {
   async save(asset: Asset, events: readonly DomainEvent[] = []): Promise<void> {
     const assetStatement = this.db
       .prepare(
-        `INSERT INTO assets (id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO assets (id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id, revision)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (id) DO UPDATE SET
            name           = excluded.name,
            metadata       = excluded.metadata,
            archived_at    = excluded.archived_at,
            updated_at     = excluded.updated_at,
-           shared_team_id = excluded.shared_team_id`,
+           shared_team_id = excluded.shared_team_id,
+           revision       = COALESCE(assets.revision, 0) + 1
+         WHERE assets.name IS NOT excluded.name
+            OR assets.metadata IS NOT excluded.metadata
+            OR assets.archived_at IS NOT excluded.archived_at
+            OR assets.updated_at IS NOT excluded.updated_at
+            OR assets.shared_team_id IS NOT excluded.shared_team_id`,
       )
       .bind(
         asset.id,
@@ -68,6 +75,7 @@ export class D1AssetRepository implements AssetRepository {
         asset.createdAt.toISOString(),
         asset.updatedAt.toISOString(),
         asset.sharedTeamId,
+        asset.revision,
       );
 
     const outboxStatements = events
@@ -92,6 +100,7 @@ export class D1AssetRepository implements AssetRepository {
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
       sharedTeamId: row.shared_team_id ? TeamId.from(row.shared_team_id) : null,
+      revision: row.revision,
     });
   }
 }

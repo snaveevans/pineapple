@@ -19,6 +19,7 @@ export class Asset {
     readonly createdAt: Date,
     public updatedAt: Date,
     private _sharedTeamId: TeamId | null,
+    private _revision: number = 0,
   ) {}
 
   get type(): AssetType {
@@ -31,6 +32,10 @@ export class Asset {
 
   get isShared(): boolean {
     return this._sharedTeamId !== null;
+  }
+
+  get revision(): number {
+    return this._revision;
   }
 
   static create(props: { ownerId: UserId; name: string; metadata: AssetMetadata }): Asset {
@@ -72,6 +77,7 @@ export class Asset {
     createdAt: Date;
     updatedAt: Date;
     sharedTeamId?: TeamId | null;
+    revision?: number;
   }): Asset {
     return new Asset(
       props.id,
@@ -82,6 +88,7 @@ export class Asset {
       props.createdAt,
       props.updatedAt,
       props.sharedTeamId ?? null,
+      props.revision ?? 0,
     );
   }
 
@@ -106,6 +113,7 @@ export class Asset {
     this.name = trimmedName;
     this.metadata = props.metadata;
     this.updatedAt = new Date();
+    this._revision += 1;
 
     this._domainEvents.push(
       AssetEdited({
@@ -136,6 +144,7 @@ export class Asset {
 
     this._sharedTeamId = props.teamId;
     this.updatedAt = new Date();
+    this._revision += 1;
     this._domainEvents.push(
       AssetSharedToTeam({
         assetId: this.id,
@@ -157,6 +166,7 @@ export class Asset {
 
     this._sharedTeamId = null;
     this.updatedAt = new Date();
+    this._revision += 1;
     this._domainEvents.push(
       AssetUnsharedFromTeam({
         assetId: this.id,
