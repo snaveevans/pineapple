@@ -1,5 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/server";
-import { AssetId, ForbiddenError } from "@snaveevans/pineapple-shared";
+import { AssetId, ConflictError, ForbiddenError } from "@snaveevans/pineapple-shared";
 import { z } from "zod";
 import type { GetAsset } from "../../application/usecases/GetAsset.ts";
 import type { GetDashboard, DashboardQueueItem } from "../../application/usecases/GetDashboard.ts";
@@ -184,6 +184,7 @@ export function registerReadTools(
           ]);
           if (!tasksResult.ok) return safeMcpError(tasksResult.error);
           if (!recordsResult.ok) return safeMcpError(recordsResult.error);
+          await assertPropertyContextUnchanged(assetResult.value.asset, user, deps);
 
           const street =
             assetResult.value.asset.metadata.kind === "property"
@@ -226,6 +227,7 @@ async function loadDueAssetContexts(
       ]);
       if (!assetResult.ok) throw assetResult.error;
       if (!tasksResult.ok) throw tasksResult.error;
+      await assertPropertyContextUnchanged(assetResult.value.asset, user, deps);
       return [
         assetId,
         {
@@ -237,6 +239,30 @@ async function loadDueAssetContexts(
     }),
   );
   return new Map(contexts);
+}
+
+async function assertPropertyContextUnchanged(
+  observed: Asset,
+  user: User,
+  deps: McpReadDependencies,
+): Promise<void> {
+  if (observed.metadata.kind !== "property") return;
+  // Context comes from separate authorized application reads. Do not sanitize
+  // newer text using a street captured before a concurrent property edit.
+  const current = await deps.getAsset.execute({
+    assetId: observed.id,
+    requesterId: user.id,
+  });
+  if (!current.ok) throw current.error;
+  const asset = current.value.asset;
+  if (
+    asset.revision !== observed.revision ||
+    asset.updatedAt.toISOString() !== observed.updatedAt.toISOString() ||
+    asset.sharedTeamId !== observed.sharedTeamId ||
+    JSON.stringify(asset.metadata) !== JSON.stringify(observed.metadata)
+  ) {
+    throw new ConflictError("Property context changed during the read.");
+  }
 }
 
 function matchesDashboardRow(

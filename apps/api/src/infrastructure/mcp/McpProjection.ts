@@ -311,12 +311,13 @@ export function redactPropertyText(value: string, street: string): string {
 }
 
 function projectPropertyMetadata(metadata: PropertyMetadata) {
+  const redact = (value: string) => redactPropertyText(value, metadata.address.street);
   return {
     kind: "property" as const,
-    city: metadata.address.city,
-    state: metadata.address.state,
-    postalCode: metadata.address.postalCode,
-    country: metadata.address.country,
+    city: redact(metadata.address.city),
+    state: redact(metadata.address.state),
+    postalCode: redact(metadata.address.postalCode),
+    country: redact(metadata.address.country),
   };
 }
 
@@ -336,12 +337,8 @@ function projectMcpSharing(sharing: AssetSharingDescriptor, street?: string) {
 }
 
 function propertyLabel(metadata: PropertyMetadata, id: string): string {
-  const locality = [
-    metadata.address.city,
-    metadata.address.state,
-    metadata.address.postalCode,
-    metadata.address.country,
-  ]
+  const safe = projectPropertyMetadata(metadata);
+  const locality = [safe.city, safe.state, safe.postalCode, safe.country]
     .map((value) => value.trim())
     .filter(Boolean)
     .join(", ");
