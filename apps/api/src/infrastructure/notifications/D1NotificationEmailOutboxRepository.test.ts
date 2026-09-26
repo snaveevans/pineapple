@@ -57,10 +57,16 @@ describe("D1NotificationEmailOutboxRepository", () => {
       batch: batchMock,
     } as unknown as D1Database;
     const queue = {
-      sendBatch: vi.fn().mockRejectedValue(new Error("queue down")),
+      sendBatch: vi.fn().mockRejectedValue(new Error("867 Secret Lane queue payload rejected")),
     } as unknown as Queue<ReminderEmailMessage>;
 
-    await new D1NotificationEmailOutboxRepository(db).relayPending(queue);
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await new D1NotificationEmailOutboxRepository(db).relayPending(queue);
+      expect(errorLog).toHaveBeenCalledExactlyOnceWith("Reminder email outbox relay failed");
+    } finally {
+      errorLog.mockRestore();
+    }
 
     expect(batchMock).toHaveBeenCalled();
   });

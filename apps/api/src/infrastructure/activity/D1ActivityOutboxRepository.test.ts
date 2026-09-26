@@ -79,7 +79,7 @@ describe("D1ActivityOutboxRepository", () => {
 
   it("releases claimed rows when queue send fails", async () => {
     const { db, batch, statements } = createDatabaseHarness();
-    const sendBatch = vi.fn(() => Promise.reject(new Error("Queue unavailable")));
+    const sendBatch = vi.fn(() => Promise.reject(new Error("Queue rejected 867 Secret Lane")));
     const queue = {
       sendBatch,
     } as unknown as Queue<ActivityEventMessage>;
@@ -87,6 +87,7 @@ describe("D1ActivityOutboxRepository", () => {
 
     try {
       await new D1ActivityOutboxRepository(db).relayPending(queue);
+      expect(consoleError).toHaveBeenCalledExactlyOnceWith("Activity outbox relay failed");
     } finally {
       consoleError.mockRestore();
     }
@@ -97,5 +98,23 @@ describe("D1ActivityOutboxRepository", () => {
     );
     expect(failedStatement?.query).toContain("attempts = attempts + 1");
     expect(failedStatement?.query).toContain("AND status = 'sending'");
+  });
+
+  it("keeps a failure-recording exception out of logs", async () => {
+    const { db, batch } = createDatabaseHarness();
+    batch.mockRejectedValue(new Error("Database rejected 867 Secret Lane"));
+    const queue = {
+      sendBatch: vi.fn().mockRejectedValue(new Error("Private payload")),
+    } as unknown as Queue<ActivityEventMessage>;
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await new D1ActivityOutboxRepository(db).relayPending(queue);
+      expect(consoleError.mock.calls).toEqual([
+        ["Activity outbox relay failed"],
+        ["Activity outbox failure update failed"],
+      ]);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });

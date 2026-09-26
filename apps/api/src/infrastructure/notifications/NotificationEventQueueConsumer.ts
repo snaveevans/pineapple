@@ -48,15 +48,12 @@ export async function handleNotificationEventBatch(
       } else {
         // The use case failed (e.g. a transient concurrent-write conflict). It
         // left the event unrecorded, so retry and let redelivery reconcile it.
-        console.error(
-          { error: result.error, messageId: message.id },
-          "Notification event message failed",
-        );
+        console.error({ messageId: message.id }, "Notification event message failed");
         message.retry();
       }
-    } catch (error) {
+    } catch {
       // Fail-safe: a leaked throw is treated as transient (retry), never a silent ack.
-      console.error({ error, messageId: message.id }, "Notification event message threw");
+      console.error({ messageId: message.id }, "Notification event message threw");
       message.retry();
     }
   }
@@ -100,9 +97,9 @@ async function persistDeadLetter(
       receivedAt: new Date(),
     });
     message.ack();
-  } catch (error) {
+  } catch {
     console.error(
-      { error, messageId: message.id, queue, attempts: message.attempts },
+      { messageId: message.id, queue, attempts: message.attempts },
       "Notification dead-letter persistence failed",
     );
     message.retry();

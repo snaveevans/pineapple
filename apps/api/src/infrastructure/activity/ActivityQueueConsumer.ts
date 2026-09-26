@@ -39,8 +39,8 @@ export async function handleActivityQueueBatch(
       const markDelivered = outbox.prepareMarkDelivered(message.body.id);
       await db.batch(recordActivity === null ? [markDelivered] : [recordActivity, markDelivered]);
       message.ack();
-    } catch (error) {
-      console.error({ error, messageId: message.id }, "Activity queue message failed");
+    } catch {
+      console.error({ messageId: message.id }, "Activity queue message failed");
       message.retry();
     }
   }
@@ -72,11 +72,11 @@ async function persistDeadLetterMessage(
       reason,
     });
     message.ack();
-  } catch (error) {
+  } catch {
     const isTerminalDlqFailure =
       queue === ACTIVITY_HISTORY_DLQ_NAME && message.attempts >= ACTIVITY_HISTORY_DLQ_MAX_RETRIES;
     console.error(
-      { error, messageId: message.id, queue, attempts: message.attempts },
+      { messageId: message.id, queue, attempts: message.attempts },
       isTerminalDlqFailure
         ? "Activity terminal dead-letter persistence failed"
         : "Activity dead-letter persistence failed",

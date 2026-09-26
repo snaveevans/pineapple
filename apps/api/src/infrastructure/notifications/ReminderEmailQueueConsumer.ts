@@ -61,13 +61,10 @@ export async function handleReminderEmailQueueBatch(
         await outbox.prepareMarkDelivered(message.body.id).run();
         message.ack();
       }
-    } catch (error) {
+    } catch {
       // Fail-safe: an unexpected throw (e.g. a leaked infra error) is transient —
       // retry rather than silently ack or dead-letter on a guess.
-      console.error(
-        { error, messageId: message.id, queue: batch.queue },
-        "Reminder email message failed",
-      );
+      console.error({ messageId: message.id, queue: batch.queue }, "Reminder email message failed");
       message.retry();
     }
   }
@@ -78,9 +75,7 @@ export async function handleReminderEmailQueueBatch(
  * decided by the use case in its result — never inferred from an error subclass.
  */
 export type ReminderEmailDisposition =
-  | { action: "ack" }
-  | { action: "retry" }
-  | { action: "dead_letter"; reason: string };
+  { action: "ack" } | { action: "retry" } | { action: "dead_letter"; reason: string };
 
 export async function processReminderEmailMessage(
   message: ReminderEmailMessage,
@@ -99,7 +94,7 @@ export async function processReminderEmailMessage(
     // The use case surfaced an unexpected domain error instead of a classified
     // outcome. Treat it as transient and retry so it fails safe.
     console.error(
-      { emailBatchId: message.batchId, error: result.error.message },
+      { emailBatchId: message.batchId },
       "Reminder email dispatch returned an unexpected domain error",
     );
     return { action: "retry" };
@@ -133,11 +128,11 @@ async function persistDeadLetter(
       receivedAt: new Date(),
     });
     message.ack();
-  } catch (error) {
+  } catch {
     const isTerminalDlqFailure =
       queue === REMINDER_EMAIL_DLQ_NAME && message.attempts >= REMINDER_EMAIL_DLQ_MAX_RETRIES;
     console.error(
-      { error, messageId: message.id, queue, attempts: message.attempts },
+      { messageId: message.id, queue, attempts: message.attempts },
       isTerminalDlqFailure
         ? "Reminder email terminal dead-letter persistence failed"
         : "Reminder email dead-letter persistence failed",

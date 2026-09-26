@@ -60,7 +60,8 @@ export class D1ActivityOutboxRepository {
       await queue.sendBatch(messages);
       await this.markSent(rows.map((row) => row.id));
     } catch (error) {
-      console.error({ error }, "Activity outbox relay failed");
+      // Queue/DB errors can embed private event payloads; log only a fixed category.
+      console.error("Activity outbox relay failed");
       await this.recordRelayFailure(rows, error);
     }
   }
@@ -153,8 +154,8 @@ export class D1ActivityOutboxRepository {
         rows.map((row) => row.id),
         error instanceof Error ? error.message : "Unknown relay failure",
       );
-    } catch (failureRecordError) {
-      console.error({ error: failureRecordError }, "Activity outbox failure update failed");
+    } catch {
+      console.error("Activity outbox failure update failed");
     }
   }
 }

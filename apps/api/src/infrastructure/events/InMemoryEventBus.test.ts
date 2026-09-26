@@ -33,7 +33,7 @@ describe("InMemoryEventBus", () => {
     bus.subscribe({
       eventType: "AssetCreated",
       handle: () => {
-        throw new Error("telemetry failed");
+        throw new Error("867 Secret Lane handler failed");
       },
     });
     bus.subscribe({
@@ -46,7 +46,10 @@ describe("InMemoryEventBus", () => {
     await expect(bus.publish(event)).resolves.toBeUndefined();
 
     expect(received).toEqual([event]);
-    expect(consoleError).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+      { eventType: "AssetCreated" },
+      "Domain event handler failed",
+    );
     consoleError.mockRestore();
   });
 });

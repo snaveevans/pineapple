@@ -6,6 +6,7 @@ import {
   D1NotificationOutboxRepository,
   prepareNotificationOutboxInsert,
 } from "./D1NotificationOutboxRepository.ts";
+import { toNotificationEventMessage } from "./NotificationEventMessage.ts";
 
 function createdEvent() {
   return MaintenanceTaskCreated({
@@ -54,6 +55,46 @@ describe("prepareNotificationOutboxInsert", () => {
 });
 
 describe("D1NotificationOutboxRepository.relayPending", () => {
+  it.each([false, true])(
+    "keeps private queue/database errors out of logs (failure update rejects: %s)",
+    async (failureUpdateRejects) => {
+      const message = toNotificationEventMessage(createdEvent());
+      const statements: { query: string; values: unknown[] }[] = [];
+      const batch = failureUpdateRejects
+        ? vi.fn().mockRejectedValue(new Error("Database rejected 867 Secret Lane"))
+        : vi.fn().mockResolvedValue([]);
+      const db = {
+        prepare: (query: string) => ({
+          bind: (...values: unknown[]) => {
+            statements.push({ query, values });
+            return {
+              all: vi.fn().mockResolvedValue({
+                results: [{ id: "evt-1", payload: JSON.stringify(message) }],
+              }),
+            };
+          },
+        }),
+        batch,
+      } as unknown as D1Database;
+      const queue = {
+        sendBatch: vi.fn().mockRejectedValue(new Error("Queue rejected 867 Secret Lane")),
+      } as unknown as Queue<never>;
+      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      try {
+        await new D1NotificationOutboxRepository(db).relayPending(queue);
+        expect(consoleError.mock.calls).toEqual(
+          failureUpdateRejects
+            ? [["Notification outbox relay failed"], ["Notification outbox failure update failed"]]
+            : [["Notification outbox relay failed"]],
+        );
+        expect(batch).toHaveBeenCalledOnce();
+        expect(statements.some(({ query }) => query.includes("SET status = 'pending'"))).toBe(true);
+      } finally {
+        consoleError.mockRestore();
+      }
+    },
+  );
+
   it("claims pending rows, sends them, and marks them sent", async () => {
     const message = {
       id: "evt-1",

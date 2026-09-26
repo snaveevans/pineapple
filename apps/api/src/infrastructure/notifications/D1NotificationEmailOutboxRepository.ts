@@ -1,7 +1,4 @@
-import {
-  type ReminderEmailMessage,
-  isReminderEmailMessage,
-} from "./ReminderEmailMessage.ts";
+import { type ReminderEmailMessage, isReminderEmailMessage } from "./ReminderEmailMessage.ts";
 
 type OutboxRow = {
   id: string;
@@ -27,7 +24,7 @@ export class D1NotificationEmailOutboxRepository {
       await queue.sendBatch(messages);
       await this.markSent(rows.map((row) => row.id));
     } catch (error) {
-      console.error({ error }, "Reminder email outbox relay failed");
+      console.error("Reminder email outbox relay failed");
       await this.recordRelayFailure(rows, error);
     }
   }
@@ -97,8 +94,8 @@ export class D1NotificationEmailOutboxRepository {
             .bind(now, message, row.id),
         ),
       );
-    } catch (failureRecordError) {
-      console.error({ error: failureRecordError }, "Reminder email outbox failure update failed");
+    } catch {
+      console.error("Reminder email outbox failure update failed");
     }
   }
 }
