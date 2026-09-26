@@ -244,7 +244,7 @@ export function registerWriteTools(
           if (!authorized()) return safeMcpError(new ForbiddenError("Missing scope"));
           if (!writesEnabled()) return safeMcpError(new ServiceUnavailableError("Writes disabled"));
           const result = await executor.execute(user.id, toCommand(kind, args));
-          if (!result.ok) return safeMcpError(result.error);
+          if (!result.ok) return safeMcpError(result.error, true);
           // Parse the receipt to reject accidental private fields crossing the application port.
           const output = outputSchema.parse({ receipt: result.value });
           return {
@@ -252,7 +252,7 @@ export function registerWriteTools(
             content: [{ type: "text" as const, text: JSON.stringify(output) }],
           };
         } catch (error) {
-          return safeMcpError(error);
+          return safeMcpError(error, true);
         }
       },
     );

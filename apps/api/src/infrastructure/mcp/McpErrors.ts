@@ -8,7 +8,7 @@ import {
 } from "@snaveevans/pineapple-shared";
 
 /** Error messages are allowlisted; domain and database exception text can contain private input. */
-export function safeMcpError(error: unknown) {
+export function safeMcpError(error: unknown, retryOperation = false) {
   const detail =
     error instanceof UnauthorizedError
       ? { code: "UNAUTHORIZED", message: "Reconnect Pineapple to authorize this request." }
@@ -34,8 +34,9 @@ export function safeMcpError(error: unknown) {
                   }
                 : {
                     code: "INTERNAL_ERROR",
-                    message:
-                      "Pineapple could not complete the request. Retry with the same operation ID.",
+                    message: retryOperation
+                      ? "Pineapple could not complete the request. Retry with the same operation ID."
+                      : "Pineapple could not complete the request. Try again.",
                   };
   const output = { error: detail };
   return {
