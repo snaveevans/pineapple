@@ -31,6 +31,13 @@ Writes use an operation UUID generated once per intended action and reused on ti
 
 ## Tool Contract
 
+Existing public-web clients registered with the original default read-only
+capability whitelist may request the new scopes after a narrow migration of
+that registration limit. The migration does not change user consent, issued
+access-token scopes, or refresh-token grants. Renewed explicit consent remains
+required; unrelated, disabled, confidential, or deliberately restricted client
+registrations are preserved.
+
 MCP declarations are the executable wire authority for these tools; HTTP schemas remain governed by OpenAPI. Every object is strict, including nested objects. IDs and operation IDs are UUIDs; date-only values use existing calendar validation. No actor, owner, sharing, archive, task seed, revision increment, or computed due/status input is accepted.
 
 ### Read tools
