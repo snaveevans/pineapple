@@ -139,15 +139,15 @@ describe("D1AgentOperationJournal (real SQLite transactions)", () => {
 
     const [first, second] = await Promise.all([journal.commit(request), journal.commit(request)]);
 
-    expect(first).toEqual({
+    expect(first).toMatchObject({
       operationId: OPERATION_ID,
-      replayed: false,
       entityType: "asset",
       entityId: "asset-1",
       assetId: "asset-1",
       appliedRevision: 1,
     });
-    expect(second).toEqual({ ...first, replayed: true });
+    expect({ ...second, replayed: first.replayed }).toEqual(first);
+    expect([first.replayed, second.replayed].sort()).toEqual([false, true]);
     expect(readAsset(sqlite, "asset-1")?.revision).toBe(1);
     expect(mutationExecutions()).toBe(1);
     expect(count(sqlite, "activity_event_outbox")).toBe(1);
