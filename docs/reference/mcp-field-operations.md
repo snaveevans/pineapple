@@ -32,7 +32,9 @@ the same endpoint using the host's current connection controls.
 
 Confirm the consent page names the client you just connected, explains the
 requested read/write permissions, excludes street from responses, and describes
-operator recovery. Never paste a Pineapple session cookie, bearer token, or
+operator recovery. Client names are supplied by the requester and do not prove
+who operates the client. Approve only the connection flow you just initiated.
+Never paste a Pineapple session cookie, bearer token, or
 client secret into a prompt. Keep the connection personal and unpublished.
 
 OpenAI's [connection documentation](https://developers.openai.com/plugins/deploy/connect-chatgpt)
@@ -45,7 +47,13 @@ deployment.
 ## Phone acceptance prompts
 
 Start a new chat with the refreshed personal Pineapple connection enabled.
-Use representative test assets and compare the results with the Pineapple app.
+Use controlled disposable test data and compare the results with the Pineapple
+app. These prompts persist linked production changes. Record each safe receipt's
+operation UUID as it arrives, along with the authenticated actor's ID in the
+operator's controlled session. Preserve those IDs for compensation afterward;
+do not record private fields or snapshots. An operator must reverse dependent operations first,
+then the earlier operations, using the recovery runbook. The agent cannot remove
+the test data itself.
 
 1. “What maintenance is due today, coming soon, or overdue?”
 2. “Show the schedules and maintenance history for this asset.”
@@ -105,7 +113,8 @@ undo additive D1 migrations. Restore specific operations through the operator
 procedure. Do not drop journal tables or replace the whole database as a code
 rollback.
 
-OAuth revocation blocks refresh and subsequent authorization. Existing
+OAuth revocation prevents the revoked refresh grant from issuing new tokens.
+A separately initiated authorization flow is a new grant. Existing
 self-contained access tokens expire within the configured five-minute bound;
 disconnecting a host connection alone is not a server-wide write switch.
 
