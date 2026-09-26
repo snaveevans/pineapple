@@ -168,12 +168,19 @@ flow and retains its existing `UserProvisioned` behavior.
 
 ## Flags
 
-**PLATFORM SURFACE UNCERTAINTY — ChatGPT mobile:** OpenAI's current
-[developer-mode guidance](https://developers.openai.com/api/docs/guides/developer-mode)
-lists Plus and Pro on the web, while its [plugin guidance](https://learn.chatgpt.com/docs/plugins)
-says plugins available to an account can be used on mobile. The accepted
-mobile evidence remains required to prove that this specific personal MCP
-connection is available on the owner's phone.
+**MOBILE VERIFICATION PARTIAL:** On 2026-09-25, the owner approved the private
+**Pineapple Assets (persistent)** connection with `assets:read offline_access`.
+Authenticated ChatGPT web queries passed, including one after access-token
+expiry without reconnecting; Pineapple confirmed refresh-token rotation. In
+the phone app, the owner's natural-language request called `list_assets`
+through the **original** Pineapple Assets connection after reauthentication,
+returned the same four active assets and category counts as web, and omitted
+the property's name and address in the expanded tool response. An explicit
+mobile call through the **persistent** connection, its post-expiry mobile
+behavior, and a phone-side empty-inventory case have not been demonstrated.
+The acceptance criterion above and full `OUT-2` mobile evidence therefore
+remain open. Do not mark them complete or change Pineapple's authorization or
+privacy boundary to bypass a surface limitation.
 
 ## Open Questions
 
