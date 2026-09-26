@@ -10,7 +10,7 @@ date: 2026-09-25
 **Status:** `review`
 **Owner:** Tyler Evans
 **Related Intent:** [ChatGPT Field Operations](../../intents/features/chatgpt-field-operations.md) (`accepted`)
-**Related Issues:** none yet
+**Related Issues:** [#298](https://github.com/snaveevans/pineapple/issues/298), [#299](https://github.com/snaveevans/pineapple/issues/299)
 **Ready Gate:** `approved 2026-09-25`
 **Related Specs:** [ChatGPT Field Operations](chatgpt-field-operations.md), [Permissions](../cross-cutting/permissions.md), [Schema Migrations](../cross-cutting/schema-migrations.md), [Maintenance Task](maintenance-task.md), [Maintenance Record](maintenance-record.md), [Activity History](activity-history.md)
 **Related ADRs:** [ADR-0003](../../decisions/0003-monorepo-layer-architecture-and-dependency-rules.md), [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md), [ADR-0019](../../decisions/0019-use-intent-driven-development.md)
@@ -47,6 +47,7 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 - [ ] `S1` `INV-3` Two simultaneous identical actor/UUID requests apply one mutation and yield an equivalent safe receipt.
 - [ ] `S1` `INV-1` `INV-3` A UUID reused with different input fails with a conflict; another actor can independently use the same UUID.
 - [ ] `S1` `INV-5` Recovery snapshots and raw input are not returned by the journal's public receipt path or recorded in error logs.
+- [ ] `S1` `S3` `INV-2` `INV-5` Unknown snapshot versions or malformed/incomplete evidence refuse new commit, successful replay, and recovery apply without changing any domain, outbox, or journal state; only a safe error is returned.
 
 ### Mutation integration (`S2`)
 
@@ -70,11 +71,11 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 
 ## Delivery Plan
 
-| Slice | Scope                                                                        | Issue | Depends on |
-| ----- | ---------------------------------------------------------------------------- | ----- | ---------- |
-| `S1`  | Private journal, canonical hashing, atomic commit/replay primitive           | —     | —          |
-| `S2`  | Application use-case integration, revision/access guards, complete snapshots | —     | `S1`       |
-| `S3`  | Guarded operator recovery planner, runbook, restoration drills               | —     | `S2`       |
+| Slice | Scope                                                                        | Issue                                                      | Depends on |
+| ----- | ---------------------------------------------------------------------------- | ---------------------------------------------------------- | ---------- |
+| `S1`  | Private journal, canonical hashing, atomic commit/replay primitive           | [#299](https://github.com/snaveevans/pineapple/issues/299) | —          |
+| `S2`  | Application use-case integration, revision/access guards, complete snapshots | [#298](https://github.com/snaveevans/pineapple/issues/298) | `S1`       |
+| `S3`  | Guarded operator recovery planner, runbook, restoration drills               | [#299](https://github.com/snaveevans/pineapple/issues/299) | `S2`       |
 
 ## Evidence Plan
 
@@ -88,16 +89,17 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 
 ## Edge Cases & Error States
 
-| Scenario                                  | Expected behavior                                                                        |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Invalid or unauthorized request           | No journal entry or domain write                                                         |
-| Failure between statements                | Transaction rolls back all domain/journal/outbox state                                   |
-| Timeout after commit                      | Retry returns the committed receipt                                                      |
-| Same UUID, changed input                  | Conflict; original operation remains intact                                              |
-| Newer target edit or unsharing            | Conflict; refresh current context before a new intended operation                        |
-| Replay after access removal               | Forbidden; no retained snapshot is revealed                                              |
-| Restore after later changes or dependents | Refuse; inspect/reverse later operations first                                           |
-| Queue delivery lags                       | Journal and outbox remain sufficient durable evidence; no reliance on projected timeline |
+| Scenario                                                  | Expected behavior                                                                                                                                |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Invalid or unauthorized request                           | No journal entry or domain write                                                                                                                 |
+| Unknown snapshot version or malformed/incomplete evidence | Refuse mutation, successful replay, and recovery apply; preserve all domain/outbox/journal state and original evidence; return only a safe error |
+| Failure between statements                                | Transaction rolls back all domain/journal/outbox state                                                                                           |
+| Timeout after commit                                      | Retry returns the committed receipt                                                                                                              |
+| Same UUID, changed input                                  | Conflict; original operation remains intact                                                                                                      |
+| Newer target edit or unsharing                            | Conflict; refresh current context before a new intended operation                                                                                |
+| Replay after access removal                               | Forbidden; no retained snapshot is revealed                                                                                                      |
+| Restore after later changes or dependents                 | Refuse; inspect/reverse later operations first                                                                                                   |
+| Queue delivery lags                                       | Journal and outbox remain sufficient durable evidence; no reliance on projected timeline                                                         |
 
 ## Telemetry
 
