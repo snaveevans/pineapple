@@ -21,6 +21,57 @@ type AssetRow = {
 const SELECT_COLUMNS =
   "id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id, COALESCE(revision, 0) AS revision";
 
+function assetInsertValues(asset: Asset): unknown[] {
+  return [
+    asset.id,
+    asset.ownerId,
+    asset.name,
+    asset.type,
+    JSON.stringify(asset.metadata),
+    asset.archivedAt?.toISOString() ?? null,
+    asset.createdAt.toISOString(),
+    asset.updatedAt.toISOString(),
+    asset.sharedTeamId,
+    asset.revision,
+  ];
+}
+
+/** A strict create statement used by atomic agent-operation batches. */
+export function prepareAssetInsert(db: D1Database, asset: Asset): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO assets
+         (id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id, revision)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(...assetInsertValues(asset));
+}
+
+/** Update only the owner-visible row at the revision read by the use case. */
+export function prepareAssetUpdateWithRevision(
+  db: D1Database,
+  asset: Asset,
+  expectedRevision: number,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE assets
+       SET name = ?, metadata = ?, archived_at = ?, updated_at = ?, shared_team_id = ?,
+           revision = COALESCE(revision, 0) + 1
+       WHERE id = ? AND owner_id = ? AND COALESCE(revision, 0) = ?`,
+    )
+    .bind(
+      asset.name,
+      JSON.stringify(asset.metadata),
+      asset.archivedAt?.toISOString() ?? null,
+      asset.updatedAt.toISOString(),
+      asset.sharedTeamId,
+      asset.id,
+      asset.ownerId,
+      expectedRevision,
+    );
+}
+
 export class D1AssetRepository implements AssetRepository {
   constructor(private readonly db: D1Database) {}
 
@@ -65,18 +116,7 @@ export class D1AssetRepository implements AssetRepository {
             OR assets.updated_at IS NOT excluded.updated_at
             OR assets.shared_team_id IS NOT excluded.shared_team_id`,
       )
-      .bind(
-        asset.id,
-        asset.ownerId,
-        asset.name,
-        asset.type,
-        JSON.stringify(asset.metadata),
-        asset.archivedAt?.toISOString() ?? null,
-        asset.createdAt.toISOString(),
-        asset.updatedAt.toISOString(),
-        asset.sharedTeamId,
-        asset.revision,
-      );
+      .bind(...assetInsertValues(asset));
 
     const outboxStatements = events
       .map((event) => prepareActivityOutboxInsert(this.db, event))

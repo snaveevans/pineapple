@@ -1,5 +1,6 @@
 import {
   type AssetId,
+  ConflictError,
   type DomainError,
   DomainError as DomainErrorClass,
   ForbiddenError,
@@ -28,6 +29,7 @@ export type UpdateMaintenanceTaskCommand = {
   title?: string;
   intervalValue?: number;
   intervalUnit?: IntervalUnit;
+  expectedRevision?: number;
 };
 
 export class UpdateMaintenanceTask {
@@ -60,6 +62,9 @@ export class UpdateMaintenanceTask {
       if (!asset) return err(new NotFoundError("Asset not found"));
       if (!(await canAccessAsset(asset, command.requesterId, this.teams))) {
         return err(new ForbiddenError("Access denied"));
+      }
+      if (command.expectedRevision !== undefined && task.revision !== command.expectedRevision) {
+        return err(new ConflictError("Maintenance task changed; refresh before editing"));
       }
 
       const changed = task.update(

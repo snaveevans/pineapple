@@ -29,6 +29,7 @@ export type RescheduleMaintenanceTaskCommand = {
   assetId: AssetId;
   requesterId: UserId;
   nextDue: string;
+  expectedRevision?: number;
 };
 
 export class RescheduleMaintenanceTask {
@@ -63,6 +64,9 @@ export class RescheduleMaintenanceTask {
         if (!asset) return err(new NotFoundError("Asset not found"));
         if (!(await canAccessAsset(asset, command.requesterId, this.teams))) {
           return err(new ForbiddenError("Access denied"));
+        }
+        if (command.expectedRevision !== undefined && task.revision !== command.expectedRevision) {
+          return err(new ConflictError("Maintenance task changed; refresh before rescheduling"));
         }
 
         // Rescheduling an existing task on an archived asset is permitted,

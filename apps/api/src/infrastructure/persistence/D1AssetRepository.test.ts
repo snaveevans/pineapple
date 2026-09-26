@@ -1,7 +1,11 @@
 import { UserId } from "@snaveevans/pineapple-shared";
 import { describe, expect, it, vi } from "vitest";
 import { Asset } from "../../domain/asset/Asset.ts";
-import { D1AssetRepository } from "./D1AssetRepository.ts";
+import {
+  D1AssetRepository,
+  prepareAssetInsert,
+  prepareAssetUpdateWithRevision,
+} from "./D1AssetRepository.ts";
 
 type BoundStatement = {
   query: string;
@@ -47,6 +51,27 @@ describe("D1AssetRepository", () => {
     expect(statements[1]?.query).toContain("revision       = COALESCE(assets.revision, 0) + 1");
     expect(statements[1]?.query).toContain("WHERE assets.name IS NOT excluded.name");
     expect(statements[1]?.values.at(-1)).toBe(0);
+  });
+
+  it("prepares a strict asset insert and a revision-guarded owner update", () => {
+    const { db, statements } = createDatabaseHarness();
+    const ownerId = UserId.generate();
+    const asset = Asset.create({
+      ownerId,
+      name: "Generator",
+      metadata: { kind: "equipment", manufacturer: "Honda" },
+    });
+
+    prepareAssetInsert(db, asset);
+    prepareAssetUpdateWithRevision(db, asset, 7);
+
+    expect(statements[0]?.query).toContain("INSERT INTO assets");
+    expect(statements[0]?.query).not.toContain("ON CONFLICT");
+    expect(statements[1]?.query).toContain("UPDATE assets");
+    expect(statements[1]?.query).toContain("owner_id = ?");
+    expect(statements[1]?.query).toContain("COALESCE(revision, 0) = ?");
+    expect(statements[1]?.values).toContain(ownerId);
+    expect(statements[1]?.values).toContain(7);
   });
 
   it("findVisibleTo includes owned assets and team-shared assets via membership subquery", async () => {

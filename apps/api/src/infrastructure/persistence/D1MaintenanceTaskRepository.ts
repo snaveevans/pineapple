@@ -4,8 +4,7 @@ import type { IntervalUnit } from "../../domain/maintenance/IntervalUnit.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import type { MaintenanceTaskRepository } from "../../domain/maintenance/MaintenanceTaskRepository.ts";
 import type { MaintenanceTaskWriter } from "../../application/ports/MaintenanceTaskWriter.ts";
-import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
-import { prepareNotificationOutboxInsert } from "../notifications/D1NotificationOutboxRepository.ts";
+import { prepareMaintenanceOutboxInserts } from "./D1MaintenanceOutboxStatements.ts";
 
 type MaintenanceTaskRow = {
   id: string;
@@ -26,6 +25,67 @@ type MaintenanceTaskRow = {
 const SELECT_COLUMNS =
   "id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision, next_due_override";
 
+function taskValues(task: MaintenanceTask): unknown[] {
+  return [
+    task.id,
+    task.assetId,
+    task.ownerId,
+    task.title,
+    task.intervalValue,
+    task.intervalUnit,
+    task.lastCompletedDate,
+    task.nextDue,
+    task.createdAt.toISOString(),
+    task.scheduleSeedDate,
+    task.initialLastCompletedDate,
+    task.revision,
+    task.nextDueOverride,
+  ];
+}
+
+/** A strict create statement used by atomic agent-operation batches. */
+export function prepareMaintenanceTaskInsert(
+  db: D1Database,
+  task: MaintenanceTask,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO maintenance_tasks
+         (id, asset_id, owner_id, title, interval_value, interval_unit, last_completed_date, next_due, created_at, schedule_seed_date, initial_last_completed_date, revision, next_due_override)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(...taskValues(task));
+}
+
+/** A compare-and-swap update used after the application use case validates a task edit. */
+export function prepareMaintenanceTaskUpdateWithRevision(
+  db: D1Database,
+  task: MaintenanceTask,
+  expectedRevision: number,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE maintenance_tasks
+       SET title = ?, interval_value = ?, interval_unit = ?, last_completed_date = ?,
+           next_due = ?, schedule_seed_date = ?, initial_last_completed_date = ?,
+           revision = ?, next_due_override = ?
+       WHERE id = ? AND revision = ?`,
+    )
+    .bind(
+      task.title,
+      task.intervalValue,
+      task.intervalUnit,
+      task.lastCompletedDate,
+      task.nextDue,
+      task.scheduleSeedDate,
+      task.initialLastCompletedDate,
+      expectedRevision + 1,
+      task.nextDueOverride,
+      task.id,
+      expectedRevision,
+    );
+}
+
 export function prepareMaintenanceTaskSave(
   db: D1Database,
   task: MaintenanceTask,
@@ -43,24 +103,10 @@ export function prepareMaintenanceTaskSave(
          next_due = excluded.next_due,
          schedule_seed_date = excluded.schedule_seed_date,
          initial_last_completed_date = excluded.initial_last_completed_date,
-         revision = excluded.revision,
+         revision = COALESCE(maintenance_tasks.revision, 0) + 1,
          next_due_override = excluded.next_due_override`,
     )
-    .bind(
-      task.id,
-      task.assetId,
-      task.ownerId,
-      task.title,
-      task.intervalValue,
-      task.intervalUnit,
-      task.lastCompletedDate,
-      task.nextDue,
-      task.createdAt.toISOString(),
-      task.scheduleSeedDate,
-      task.initialLastCompletedDate,
-      task.revision,
-      task.nextDueOverride,
-    );
+    .bind(...taskValues(task));
 }
 
 export class D1MaintenanceTaskRepository
@@ -113,7 +159,7 @@ export class D1MaintenanceTaskRepository
 
   async save(task: MaintenanceTask, events: readonly DomainEvent[] = []): Promise<void> {
     const taskStatement = prepareMaintenanceTaskSave(this.db, task);
-    const outboxStatements = prepareOutboxInserts(this.db, events);
+    const outboxStatements = prepareMaintenanceOutboxInserts(this.db, events);
 
     if (outboxStatements.length === 0) {
       await taskStatement.run();
@@ -134,7 +180,7 @@ export class D1MaintenanceTaskRepository
       .prepare("DELETE FROM maintenance_tasks WHERE id = ?")
       .bind(taskId);
 
-    const outboxStatements = prepareOutboxInserts(this.db, events);
+    const outboxStatements = prepareMaintenanceOutboxInserts(this.db, events);
 
     await this.db.batch([unlinkStatement, deleteStatement, ...outboxStatements]);
   }
@@ -161,29 +207,13 @@ export class D1MaintenanceTaskRepository
       )
       .bind(task.id, expectedTaskRevision);
 
-    const taskStatement = this.db
-      .prepare(
-        `UPDATE maintenance_tasks
-         SET title = ?, interval_value = ?, interval_unit = ?, last_completed_date = ?,
-             next_due = ?, schedule_seed_date = ?, initial_last_completed_date = ?,
-             revision = ?, next_due_override = ?
-         WHERE id = ? AND revision = ?`,
-      )
-      .bind(
-        task.title,
-        task.intervalValue,
-        task.intervalUnit,
-        task.lastCompletedDate,
-        task.nextDue,
-        task.scheduleSeedDate,
-        task.initialLastCompletedDate,
-        task.revision,
-        task.nextDueOverride,
-        task.id,
-        expectedTaskRevision,
-      );
+    const taskStatement = prepareMaintenanceTaskUpdateWithRevision(
+      this.db,
+      task,
+      expectedTaskRevision,
+    );
 
-    const outboxStatements = prepareOutboxInserts(this.db, events);
+    const outboxStatements = prepareMaintenanceOutboxInserts(this.db, events);
 
     try {
       const results = await this.db.batch([guardStatement, taskStatement, ...outboxStatements]);
@@ -231,17 +261,4 @@ export class D1MaintenanceTaskRepository
       nextDueOverride: row.next_due_override ?? null,
     });
   }
-}
-
-/** Fans each event out to the activity and notification outboxes in one batch. */
-function prepareOutboxInserts(
-  db: D1Database,
-  events: readonly DomainEvent[],
-): D1PreparedStatement[] {
-  return events
-    .flatMap((event) => [
-      prepareActivityOutboxInsert(db, event),
-      prepareNotificationOutboxInsert(db, event),
-    ])
-    .filter((statement): statement is D1PreparedStatement => statement !== null);
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AssetId,
+  ConflictError,
   ForbiddenError,
   MaintenanceTaskId,
   NotFoundError,
@@ -182,6 +183,31 @@ describe("UpdateMaintenanceTask", () => {
     });
 
     expect(result.ok).toBe(true);
+    expect(repo.saved).toBeNull();
+    expect(events.events).toHaveLength(0);
+  });
+
+  it("checks expected revision after access and does not save stale edits", async () => {
+    const task = makeTask({ revision: 3 });
+    const repo = new MaintenanceTaskRepositoryFake(task);
+    const events = new EventBusFake();
+
+    const result = await new UpdateMaintenanceTask(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
+      repo,
+      events,
+      dates,
+    ).execute({
+      taskId: task.id,
+      assetId,
+      requesterId: ownerId,
+      expectedRevision: 2,
+      title: "New title",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBeInstanceOf(ConflictError);
     expect(repo.saved).toBeNull();
     expect(events.events).toHaveLength(0);
   });
