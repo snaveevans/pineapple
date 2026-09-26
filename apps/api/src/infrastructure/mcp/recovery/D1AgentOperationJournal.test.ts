@@ -10,7 +10,12 @@ const JOURNAL_SCHEMA = `
     id TEXT PRIMARY KEY,
     owner_id TEXT NOT NULL REFERENCES users(id),
     name TEXT NOT NULL,
+    type TEXT NOT NULL,
     metadata TEXT NOT NULL,
+    archived_at TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    shared_team_id TEXT,
     revision INTEGER NOT NULL DEFAULT 0
   );
   CREATE TABLE activity_event_outbox (id TEXT PRIMARY KEY);
@@ -195,7 +200,7 @@ describe("D1AgentOperationJournal (real SQLite transactions)", () => {
       db,
       OTHER_ACTOR,
       OPERATION_ID,
-      assetChange("Other", "Updated", "987 Private Avenue", "asset-2"),
+      assetChange("Other", "Updated", "987 Private Avenue", "asset-2", OTHER_ACTOR),
     );
 
     const firstReceipt = await journal.commit(first);
@@ -259,7 +264,9 @@ function seedAsset(
   street: string,
 ): void {
   sqlite
-    .prepare("INSERT INTO assets (id, owner_id, name, metadata, revision) VALUES (?, ?, ?, ?, 0)")
+    .prepare(
+      "INSERT INTO assets (id, owner_id, name, metadata, revision, type, archived_at, created_at, updated_at, shared_team_id) VALUES (?, ?, ?, ?, 0, 'property', NULL, '2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z', NULL)",
+    )
     .run(id, ownerId, name, JSON.stringify({ street }));
 }
 
@@ -268,13 +275,35 @@ function assetChange(
   afterName: string,
   street: string,
   id = "asset-1",
+  ownerId = ACTOR,
 ): AgentRowChange {
   const metadata = JSON.stringify({ street });
   return {
     table: "assets",
     id,
-    before: { id, name: beforeName, metadata, revision: 0 },
-    after: { id, name: afterName, metadata, revision: 1 },
+    before: completeAssetSnapshot(id, ownerId, beforeName, metadata, 0),
+    after: completeAssetSnapshot(id, ownerId, afterName, metadata, 1),
+  };
+}
+
+function completeAssetSnapshot(
+  id: string,
+  ownerId: string,
+  name: string,
+  metadata: string,
+  revision: number,
+) {
+  return {
+    id,
+    name,
+    metadata,
+    revision,
+    owner_id: ownerId,
+    type: "property",
+    archived_at: null,
+    created_at: "2026-09-01T00:00:00.000Z",
+    updated_at: "2026-09-01T00:00:00.000Z",
+    shared_team_id: null,
   };
 }
 

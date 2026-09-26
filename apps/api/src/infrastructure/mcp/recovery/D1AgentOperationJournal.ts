@@ -276,7 +276,7 @@ function copySafeReceipt(value: unknown): Omit<AgentMutationReceipt, "replayed">
 }
 
 function copyChanges(value: unknown): AgentRowChange[] {
-  if (!Array.isArray(value))
+  if (!Array.isArray(value) || value.length === 0)
     throw new InvariantError("Agent operation snapshots have an unsupported shape.");
   const seen = new Set<string>();
   return value.map((change) => {
@@ -292,6 +292,11 @@ function copyChanges(value: unknown): AgentRowChange[] {
     seen.add(identity);
     const before = copySnapshot(change.table, change.id, change.before);
     const after = copySnapshot(change.table, change.id, change.after);
+    // Agent operations never delete. Even a no-op retains identical full
+    // snapshots so omitted recovery evidence cannot masquerade as a no-op.
+    if (after === null) {
+      throw new InvariantError("Agent operation snapshots are incomplete.");
+    }
     return { table: change.table, id: change.id, before, after };
   });
 }
@@ -300,6 +305,12 @@ function copySnapshot(table: AgentRowTable, id: string, value: unknown): AgentRo
   if (value === null) return null;
   if (!isRecord(value))
     throw new InvariantError("Agent operation snapshots have an unsupported shape.");
+  if (
+    Object.keys(value).length !== TABLE_COLUMNS[table].size ||
+    [...TABLE_COLUMNS[table]].some((column) => !Object.hasOwn(value, column))
+  ) {
+    throw new InvariantError("Agent operation snapshots are incomplete.");
+  }
   const snapshot: AgentRowSnapshot = {};
   for (const [column, columnValue] of Object.entries(value)) {
     if (!TABLE_COLUMNS[table].has(column)) {
@@ -357,7 +368,11 @@ function parseStoredOperation(value: unknown): StoredAgentOperation {
     row.snapshots_json,
     "Stored agent operation snapshots are malformed.",
   );
-  if (!isRecord(snapshots) || snapshots.version !== SNAPSHOT_VERSION) {
+  if (
+    !isRecord(snapshots) ||
+    !hasOnlyKeys(snapshots, new Set(["version", "changes"])) ||
+    snapshots.version !== SNAPSHOT_VERSION
+  ) {
     throw new InvariantError("Stored agent operation snapshots are malformed.");
   }
   return {
