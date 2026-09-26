@@ -10,7 +10,7 @@ date: 2026-09-25
 **Status:** `review`
 **Owner:** Tyler Evans
 **Related Intent:** [ChatGPT Field Operations](../../intents/features/chatgpt-field-operations.md) (`accepted`)
-**Related Issues:** none yet
+**Related Issues:** [#297](https://github.com/snaveevans/pineapple/issues/297), [#298](https://github.com/snaveevans/pineapple/issues/298), [#300](https://github.com/snaveevans/pineapple/issues/300)
 **Ready Gate:** `approved 2026-09-25`
 **Related Specs:** [Agent Operation Recovery](agent-operation-recovery.md), [ChatGPT Asset Access](chatgpt-asset-access.md), [Authentication](../cross-cutting/authentication.md), [Permissions](../cross-cutting/permissions.md), [Validation](../cross-cutting/validation.md), [Error Handling](../cross-cutting/error-handling.md), [Dashboard](dashboard.md), [Edit Asset](edit-asset.md), [Maintenance Task](maintenance-task.md), [Maintenance Record](maintenance-record.md), [Telemetry](../cross-cutting/telemetry.md)
 **Related ADRs:** [ADR-0003](../../decisions/0003-monorepo-layer-architecture-and-dependency-rules.md), [ADR-0009](../../decisions/0009-computed-fields-belong-in-api-read-models.md), [ADR-0019](../../decisions/0019-use-intent-driven-development.md)
@@ -82,7 +82,7 @@ All writes are non-read-only, closed-world, and idempotent for identical argumen
 ### Grants and bounded writes (`S2`)
 
 - [ ] `S2` `OUT-2` `INV-4` OAuth supports separate asset/maintenance read/write scopes, transparent renewed consent, and compatible existing asset-read grants.
-- [ ] `S2` `INV-1` `INV-4` Tool discovery and direct callbacks enforce scopes; read-only or revoked/expired credentials cannot execute writes, even if a client caches a declaration.
+- [ ] `S2` `INV-1` `INV-4` Tool discovery and direct callbacks enforce scopes; read-only and expired credentials cannot execute writes, even if a client caches a declaration. Revocation immediately prevents refresh/future grants, while an already-issued self-contained access token expires within the existing five-minute bound.
 - [ ] `S2` `INV-2` The catalog exposes exactly the four reads and seven permitted writes when fully granted/enabled, and never delete/archive/share/unshare/team/send/restore operations.
 - [ ] `S2` `OUT-2` `INV-1` All asset types create/edit through application use cases; asset edits are owner-only, type immutable, and omitted metadata is preserved.
 - [ ] `S2` `OUT-2` `INV-5` Property creation/street replacement accepts user-provided street input, partial non-street edits preserve it, and success/error/replay output never echoes it.
@@ -103,11 +103,11 @@ All writes are non-read-only, closed-world, and idempotent for identical argumen
 
 ## Delivery Plan
 
-| Slice | Scope                                                              | Issue | Depends on                |
-| ----- | ------------------------------------------------------------------ | ----- | ------------------------- |
-| `S1`  | Focused reads, privacy projections, revisions/context              | —     | recovery revision support |
-| `S2`  | Scope/consent/write adapter, recovery-backed executor, kill switch | —     | `S1`, recovery `S1`–`S3`  |
-| `S3`  | Production verification and owner mobile acceptance                | —     | `S2`                      |
+| Slice | Scope                                                              | Issue                                                                                                                  | Depends on                |
+| ----- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `S1`  | Focused reads, privacy projections, revisions/context              | [#297](https://github.com/snaveevans/pineapple/issues/297)                                                             | recovery revision support |
+| `S2`  | Scope/consent/write adapter, recovery-backed executor, kill switch | [#298](https://github.com/snaveevans/pineapple/issues/298), [#300](https://github.com/snaveevans/pineapple/issues/300) | `S1`, recovery `S1`–`S3`  |
+| `S3`  | Production verification and owner mobile acceptance                | [#300](https://github.com/snaveevans/pineapple/issues/300)                                                             | `S2`                      |
 
 Read adapters and private recovery infrastructure may be prepared in isolated branches concurrently. Shared contracts land first. Recovery mechanisms, read capability, and write capability have separate PRs; do not combine unrelated web test repairs with feature delivery.
 
