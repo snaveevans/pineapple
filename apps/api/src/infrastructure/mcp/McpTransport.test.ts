@@ -198,6 +198,42 @@ describe("MCP transport authorization", () => {
     });
   });
 
+  it.each(["missing", "session-only", "malformed", "expired", "wrong-audience", "missing-scope"])(
+    "blocks %s authorization before a tool call can create a server or expose data",
+    async (authorizationCase) => {
+      const factory = vi.fn(() => {
+        const server = new McpServer({ name: "pineapple", version: "1" });
+        server.registerTool("private_read", { inputSchema: z.object({}) }, () => ({
+          content: [{ type: "text", text: "private-response-canary" }],
+        }));
+        return server;
+      });
+      const headers: Record<string, string> = { "mcp-name": "private_read" };
+      if (authorizationCase === "session-only")
+        headers.cookie = "better-auth.session_token=browser-session";
+      else if (authorizationCase === "malformed") headers.authorization = "Bearer not-a-jwt";
+      else if (authorizationCase !== "missing") {
+        const claims =
+          authorizationCase === "expired"
+            ? { exp: 1 }
+            : authorizationCase === "wrong-audience"
+              ? { aud: `${baseURL}/api/assets` }
+              : { scope: "offline_access" };
+        headers.authorization = `Bearer ${await accessToken(claims)}`;
+      }
+      const handle = createMcpTransport(createAuth(undefined, baseURL), resource, factory);
+      const response = await handle(
+        modernMcpRequest("tools/call", headers, {
+          name: "private_read",
+          arguments: {},
+        }),
+      );
+      expect(response.status).toBe(authorizationCase === "missing-scope" ? 403 : 401);
+      expect(await response.text()).not.toContain("private-response-canary");
+      expect(factory).not.toHaveBeenCalled();
+    },
+  );
+
   it("does not echo private input embedded in SDK validation errors", async () => {
     const server = new McpServer({ name: "pineapple", version: "2" });
     const execute = vi.fn().mockResolvedValue({ content: [] });

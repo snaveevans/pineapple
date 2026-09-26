@@ -153,13 +153,14 @@ function seedUser(sqlite: DatabaseSync): void {
 function seedAsset(
   sqlite: DatabaseSync,
   metadata: Record<string, unknown> = { kind: "vehicle", make: "Ram", model: "2500", year: 2016 },
+  revision: number | null = 0,
 ): AssetId {
   const assetId = AssetId.generate();
   sqlite
     .prepare(
       `INSERT INTO assets
        (id, owner_id, name, type, metadata, archived_at, created_at, updated_at, shared_team_id, revision)
-       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, 0)`,
+       VALUES (?, ?, ?, ?, ?, NULL, ?, ?, NULL, ?)`,
     )
     .run(
       assetId,
@@ -169,6 +170,7 @@ function seedAsset(
       JSON.stringify(metadata),
       "2026-01-01T00:00:00.000Z",
       "2026-01-01T00:00:00.000Z",
+      revision,
     );
   return assetId;
 }
@@ -401,6 +403,55 @@ describe("executor → private journal → operator recovery (real SQLite)", () 
     });
     expect(row.revision).toBe(receipt.appliedRevision + 1);
     expect(JSON.stringify(receipt)).not.toContain(PRIVATE_STREET);
+    sqlite.close();
+  });
+
+  it("marks a no-op edit on a legacy NULL-revision asset restored without changing its row", async () => {
+    const { sqlite, db } = createSqlHarness();
+    seedUser(sqlite);
+    const assetId = seedAsset(sqlite, undefined, null);
+    const operationId = crypto.randomUUID();
+    const originalRow = sqlite.prepare("SELECT * FROM assets WHERE id = ?").get(assetId);
+    const executor = createExecutor(db);
+    const result = await executor.execute(ACTOR, {
+      kind: "edit_asset",
+      operationId,
+      assetId,
+      expectedRevision: 0,
+      metadata: { kind: "vehicle", make: "Ram" },
+    });
+    if (!result.ok) throw result.error;
+    expect(result.value.appliedRevision).toBe(0);
+    expect(sqlite.prepare("SELECT * FROM assets WHERE id = ?").get(assetId)).toEqual(originalRow);
+    expect(sqlite.prepare("SELECT COUNT(*) AS count FROM activity_event_outbox").get()?.count).toBe(
+      0,
+    );
+    expect(
+      sqlite.prepare("SELECT COUNT(*) AS count FROM notification_event_outbox").get()?.count,
+    ).toBe(0);
+
+    const recovery = new D1AgentOperationRecovery(db);
+    expect(await recovery.recover(ACTOR, operationId)).toMatchObject({
+      status: "dry_run_ready",
+      changedRows: 0,
+    });
+    expect(await recovery.recover(ACTOR, operationId, { apply: true })).toMatchObject({
+      status: "restored",
+      changedRows: 0,
+    });
+    expect(sqlite.prepare("SELECT * FROM assets WHERE id = ?").get(assetId)).toEqual(originalRow);
+    expect(sqlite.prepare("SELECT COUNT(*) AS count FROM activity_event_outbox").get()?.count).toBe(
+      0,
+    );
+    expect(
+      sqlite.prepare("SELECT COUNT(*) AS count FROM notification_event_outbox").get()?.count,
+    ).toBe(0);
+    const journal = sqlite
+      .prepare(
+        "SELECT restored_at FROM agent_operation_journal WHERE actor_id = ? AND operation_id = ?",
+      )
+      .get(ACTOR, operationId);
+    expect(typeof journal?.restored_at).toBe("string");
     sqlite.close();
   });
 
