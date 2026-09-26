@@ -29,7 +29,7 @@ Replay uses actor plus operation UUID. Canonical JSON normalizes object key orde
 
 Asset persistence gains an additive nullable revision column. Existing rows read as revision zero. Every persisted asset update, including ordinary web edits and sharing changes, advances the persisted revision monotonically. MCP uses it alongside existing task and record revisions. Read receipts include only public revision values. Atomic guards compare current revisions and affected source row/set state, including authorization state; a stale write cannot overwrite a newer human edit or unsharing.
 
-Operator recovery is a separate internal planner/runbook, not an HTTP or MCP route. It defaults to inspection/dry run, validates the current domain rows still match the operation's after state, refuses changed dependencies, and performs a compensating transaction with new monotonically increasing revisions. It marks the journal restored and retains original evidence. Task compensation re-emits a producer-owned schedule conclusion to the notification outbox so reminders converge to restored state. Recovery of linked maintenance must restore/reconcile the linked schedule, not merely the record. Already delivered reminders and immutable timeline entries remain historical evidence.
+Operator recovery is a separate internal planner/runbook, not an HTTP or MCP route. It defaults to inspection/dry run and validates that current domain rows match the operation's after snapshots. A row can be restored after a later operation only when each later operation is already restored and the complete snapshots form an unambiguous chain; the current row must match the resulting compensated values, with each monotonic revision and asset timestamp explained by those restorations. The apply transaction rechecks the observed full row and journal-chain membership. Changed or ambiguous state and dependencies block recovery. It marks the journal restored and retains original evidence. Task compensation re-emits a producer-owned schedule conclusion to the notification outbox with an occurrence time strictly after the durable task-event history, so delayed or reverse-delivered older events cannot reapply a stale schedule. Recovery of linked maintenance must restore/reconcile the linked schedule, not merely the record. Already delivered reminders and immutable timeline entries remain historical evidence.
 
 ## User Stories
 
@@ -64,8 +64,8 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 
 - [ ] `S3` `OUT-3` `INV-2` The operator procedure inspects first and requires an explicit apply step; it is absent from HTTP routes and the MCP tool list.
 - [ ] `S3` `OUT-3` `INV-2` Representative create/edit asset, create/edit/reschedule task, and create/correct record operations can be restored using only journal and current persisted state.
-- [ ] `S3` `INV-3` Restoration refuses an already restored operation, changed current after state, or new dependent data; it never silently clobbers subsequent work.
-- [ ] `S3` `INV-6` Restoring a record or task repairs completion, seed, override, and effective due state with monotonic revisions and a current notification outbox conclusion.
+- [ ] `S3` `INV-3` Restoration refuses an already restored operation, changed/ambiguous current state, or new dependent data; reversing later operations first is accepted only when full snapshots prove an exact chain and the transaction rechecks the observed rows and chain membership.
+- [ ] `S3` `INV-6` Restoring a record or task repairs completion, seed, override, and effective due state with monotonic revisions and a notification outbox conclusion strictly newer than the durable task-event history.
 - [ ] `S3` `INV-2` Creation reversal removes only the untouched created entity; dependent asset/task work requires later operations to be reversed first.
 - [ ] `S3` `INV-5` Sensitive snapshots appear only in the operator's controlled session; evidence reports use operation IDs and pass/fail rather than raw data.
 
@@ -79,13 +79,13 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 
 ## Evidence Plan
 
-| Authority         | Claim                                     | Layer                              | Named proof                                                                                             | Critical vertical proof? |
-| ----------------- | ----------------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------ |
-| `OUT-3` / `INV-2` | Every write can be restored               | SQLite integration/operator drill  | restore all permitted operations from private snapshots                                                 | yes                      |
-| `INV-1`           | Access holds at commit/replay             | application and SQLite integration | reject foreign, unshared, and revoked access before commit/replay                                       | yes                      |
-| `INV-3`           | Atomic retry and conflict safety          | real SQLite transactions           | concurrent replay, lost response, stale target, linked-record race, and rollback leave one valid result | yes                      |
-| `INV-5`           | No private recovery data escapes          | journal/adapter contracts          | receipts and errors contain no street or raw snapshots                                                  | no                       |
-| `INV-6`           | Recovery repairs recurrence and reminders | domain/persistence integration     | restore linked maintenance plus override and notification projection                                    | yes                      |
+| Authority         | Claim                                     | Layer                              | Named proof                                                                                                             | Critical vertical proof? |
+| ----------------- | ----------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `OUT-3` / `INV-2` | Every write can be restored               | SQLite integration/operator drill  | restore all permitted operations from private snapshots and reverse verified later-operation chains                     | yes                      |
+| `INV-1`           | Access holds at commit/replay             | application and SQLite integration | reject foreign, unshared, and revoked access before commit/replay                                                       | yes                      |
+| `INV-3`           | Atomic retry and conflict safety          | real SQLite transactions           | concurrent replay, lost response, stale target, linked-record race, and rollback leave one valid result                 | yes                      |
+| `INV-5`           | No private recovery data escapes          | journal/adapter contracts          | receipts and errors contain no street or raw snapshots                                                                  | no                       |
+| `INV-6`           | Recovery repairs recurrence and reminders | domain/persistence integration     | restore linked maintenance plus override; process compensation before an older event and verify reminders stay restored | yes                      |
 
 ## Edge Cases & Error States
 
