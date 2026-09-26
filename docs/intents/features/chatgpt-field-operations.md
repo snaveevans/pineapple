@@ -30,21 +30,22 @@ write endpoints would expose changes that cannot be reliably repaired.
 ## Desired Outcomes
 
 - **`OUT-1`** From ChatGPT on a phone, an authenticated Pineapple user can ask
-  what maintenance needs attention and receive current, authorized, actionable
-  information about their assets, schedules, and recorded work.
-- **`OUT-2`** In that conversation, the user can create and edit assets, create
-  and edit time-based maintenance tasks, reschedule a task without claiming work
-  occurred, and log or correct maintenance records. The agent reports the
-  persisted result and any schedule change caused by logging or correcting work.
+  what is due today, due soon, or overdue and receive current, authorized
+  information from Pineapple's existing schedules and recorded work.
+- **`OUT-2`** In that conversation, the user can create and edit vehicle and
+  equipment assets, create and edit time-based maintenance tasks, reschedule a
+  task without claiming work occurred, and log or correct maintenance records.
+  The agent reports the persisted result and any linked schedule change.
 - **`OUT-3`** Every agent-authorized write can be identified and repaired by a
   Pineapple operator using durable evidence of the affected data and its prior
   state. An in-app undo or self-service recovery flow is outside this intent.
 
 ## Affected Users and Systems
 
-This applies to Pineapple users through their private, authenticated ChatGPT
-connection and the components that serve it. Existing web and API behavior
-continues. The agent follows the same asset and team permissions.
+This applies to Pineapple users through their private ChatGPT connection. The
+agent follows existing asset and team permissions. Property maintenance remains
+available when its target is unambiguous without an address; property asset
+creation and editing are excluded.
 
 ## Invariants
 
@@ -62,9 +63,10 @@ continues. The agent follows the same asset and team permissions.
   revocable. Tool declarations accurately identify writes, and Pineapple
   enforces the granted capability server-side rather than trusting client
   confirmations or model instructions.
-- **`INV-5`** MCP results and telemetry retain the property-address privacy
-  boundary unless explicitly revised. Recovery evidence is access-controlled
-  and does not leak private asset data into logs or model output.
+- **`INV-5`** MCP tools neither request nor return property addresses. Results
+  and telemetry retain the current exclusion of property names and nicknames
+  that may contain an address. Recovery evidence is access-controlled and does
+  not leak private asset data into logs or model output.
 - **`INV-6`** A task reschedule never claims maintenance occurred. A maintenance
   record linked to a task follows the existing completion and reconciliation
   rules; the agent does not independently calculate due dates or urgency.
@@ -76,13 +78,18 @@ continues. The agent follows the same asset and team permissions.
   proxy for the HTTP API.
 - Deliver a reliable, operator-run recovery path before enabling each write
   capability in production. A user-facing recovery interface is not required.
+- Retain operator-only recovery evidence for the account's lifetime and remove
+  it with the account.
+- Restoration covers Pineapple's persisted data; delivered reminders cannot be
+  unsent.
 
 ## Non-Goals
 
+- Property asset creation or editing while an address is required
 - Agent-accessible deletion, archiving, sharing changes, or team administration
 - One-click undo, self-service restore, or replaying a chat transcript as backup
 - Distance- or hour-based schedules, new asset types, autonomous work orders,
-  or inferred maintenance recommendations beyond Pineapple's current data
+  or inferred maintenance recommendations beyond the existing due queue
 - Scheduled agent runs, unsolicited messages, public plugin publication, or
   general-purpose access to Pineapple's database or REST API
 
@@ -96,8 +103,7 @@ continues. The agent follows the same asset and team permissions.
   including a linked record that changed a task's schedule. Prove the evidence
   survives a failed client response and does not depend on chat history.
 - **`INV-1` / `INV-4`** Exercise two identities, team-shared assets, owner-only
-  edits, missing or revoked scopes, and a client that tries to invoke a write
-  without approval. Verify the server rejects unauthorized access.
+  edits, missing or revoked write grants, and unauthorized calls.
 - **`INV-3` / `INV-6`** Exercise retries, concurrent edits, task rescheduling,
   and maintenance logging/correction; compare final persisted state and
   server-derived due dates.
@@ -107,12 +113,12 @@ continues. The agent follows the same asset and team permissions.
 ## Proposed Architecture Direction for Ready Gate
 
 Keep a focused MCP adapter over the existing application use cases. Add
-purpose-specific read tools for current due work and the asset/task/record
+purpose-specific read tools for the existing due queue and the asset/task/record
 context needed to select a target. Give write tools narrow OAuth capabilities
-and accurate annotations. Establish durable, access-controlled recovery
-evidence for MCP writes and an operator restoration procedure; a mechanism
-shared by write tools should land separately before the first write tool.
-Use server-side retry and conflict protection for agent calls.
+and accurate annotations. Build on the existing transactional activity outbox
+where possible, adding access-controlled prior-state evidence and an operator
+restoration procedure for every exposed write. Land shared recovery work before
+the first write tool. Use server-side retry and conflict protection.
 
 ## Proposed High-Level Delivery Boundaries
 
@@ -124,17 +130,10 @@ branches, with production mobile and recovery evidence at each release gate.
 
 ## Remaining Uncertainty
 
-The existing personal connection's availability on the owner's phone still
-needs a live check. Host confirmation behavior may vary; Pineapple must enforce
-authorization, input validation, retry safety, and recovery independently.
+The existing personal connection still needs a live phone check. Host
+confirmation behavior may vary; Pineapple enforces its own safety rules. The
+activity timeline lacks sufficient prior state for some proposed writes.
 
 ## Open Questions
 
-1. May property addresses be supplied to or returned from the agent for
-   property creation and editing, or should those writes wait while the current
-   address-exclusion boundary remains in force?
-2. Does "what should be done" mean the existing due/soon/overdue schedule and
-   unscheduled assets, or should the agent also propose new maintenance work?
-3. Is operator-run restoration of Pineapple's persisted data sufficient even
-   though already delivered reminders cannot be unsent? What retention period
-   should recovery evidence have?
+None pending approval of this ready packet.
