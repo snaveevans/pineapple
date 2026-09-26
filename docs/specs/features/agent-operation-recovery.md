@@ -97,7 +97,7 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 - Operator inspection, dry-run, apply, privacy-safe reporting, and restoration planner: [PR #307](https://github.com/snaveevans/pineapple/pull/307).
 - Seven recoverable mutations and complete before/after evidence: [PR #308](https://github.com/snaveevans/pineapple/pull/308).
 - The post-composition `pnpm verify` gate passed 926 API and 170 web tests. All seven mutation restoration drills passed locally; eight vertical cases include legacy `NULL` asset no-op restoration with unchanged raw row state and no outbox/domain event. Independent operator and source reviews were completed. Malformed timestamp privacy is covered across inspect, dry-run, and apply for both journal timestamp columns.
-- This is local code and integration evidence, not production restoration acceptance. The production recovery criterion remains unchecked pending controlled production drills and review.
+- The [production deployment record](../../reference/mcp-field-operations.md#production-deployment-record--2026-09-26) confirms composition and write enablement with local recovery prerequisites and production migration/health checks. Controlled production restoration remains unverified pending the temporary broad OAuth test grant; the production recovery criterion remains unchecked.
 
 ## Edge Cases & Error States
 

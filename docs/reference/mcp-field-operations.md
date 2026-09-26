@@ -120,3 +120,31 @@ disconnecting a host connection alone is not a server-wide write switch.
 
 The [initial read-only release record](mcp.md) is retained as historical evidence
 and a source of pre-expansion rollback version IDs.
+
+## Production deployment record — 2026-09-26
+
+The expanded MCP is deployed and writes are enabled for independently consented
+write grants. Renew authorization before testing the new capabilities on a phone.
+
+| Checkpoint                  | Recorded evidence                                                                                                                                                                                                            |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Composition                 | [PR #311](https://github.com/snaveevans/pineapple/pull/311), commit `ca487fb92c586ddfb5eecac75781c3cb80648fce`; deployment run [36226009402](https://github.com/snaveevans/pineapple/actions/runs/36226009402) green         |
+| Writes disabled API version | `240a85c0-3a48-488d-9e45-c13c954e36da`; deployed binding `false`, both hosts healthy before enablement                                                                                                                       |
+| Enablement                  | [PR #312](https://github.com/snaveevans/pineapple/pull/312), commit `d2e7e5f5763eea00e971e02fa85fd1b34c154f56`; deployment run [36226341935](https://github.com/snaveevans/pineapple/actions/runs/36226341935) green         |
+| Enabled API version         | `2619890f-9034-4a54-99f3-7f0935a9aba7`; deployed binding `true`                                                                                                                                                              |
+| Active web version          | `2eb6d86c-a200-402c-ba51-3ab74e1d55c3` at 100% traffic; consent expansion deployed                                                                                                                                           |
+| Migration history           | `0024_agent_operation_journal.sql`, `0025_asset_agent_revision.sql`, `0026_mcp_oauth_client_scopes.sql` confirmed in production                                                                                              |
+| Public endpoint checks      | Both `pineapple.txe.app` and `pineapple.tylerevans.co`: database-backed `/health` 200 at the enabled API version; unauthenticated modern MCP requests 401                                                                    |
+| Existing read connection    | Live read after enablement returned the same four asset IDs/counts (three vehicles, one property); property street/name fields absent, locality/revision fields available                                                    |
+| Local quality gates         | Pinned Node 22 `pnpm verify`: 926 API and 170 web tests; lint/types/generated artifacts clean; all seven real SQLite executor→journal→operator restoration drills and independent source/test/documentation reviews complete |
+
+The controlled temporary broad OAuth test grant has not been approved, so live
+maintenance/write-scope calls, complete raw read/write privacy checks, controlled
+production restoration, and the owner's actual-phone acceptance remain open in
+the specifications. Existing read-grant compatibility and endpoint health do not
+complete those checks. No credentials, private snapshots, or street data are
+included in this record.
+
+The recorded writes-disabled API version is a code/config rollback target.
+Rollback preserves additive migrations and committed business changes; use the
+operator recovery procedure for individual operations.
