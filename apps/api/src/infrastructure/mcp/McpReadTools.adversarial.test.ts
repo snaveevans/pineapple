@@ -24,12 +24,11 @@ import type { TaskSnoozeReader } from "../../application/ports/TaskSnoozeReader.
 import type { UtcDateProvider } from "../../application/ports/UtcDateProvider.ts";
 import { Asset } from "../../domain/asset/Asset.ts";
 import { User } from "../../domain/identity/User.ts";
-import type { UserRepository } from "../../domain/identity/UserRepository.ts";
-import { Team } from "../../domain/team/Team.ts";
-import type { TeamRepository } from "../../domain/team/TeamRepository.ts";
 import { D1AssetRepository } from "../persistence/D1AssetRepository.ts";
 import { D1MaintenanceRecordRepository } from "../persistence/D1MaintenanceRecordRepository.ts";
 import { D1MaintenanceTaskRepository } from "../persistence/D1MaintenanceTaskRepository.ts";
+import { D1TeamRepository } from "../persistence/D1TeamRepository.ts";
+import { D1UserRepository } from "../persistence/D1UserRepository.ts";
 import { registerReadTools, type McpReadDependencies } from "./McpReadTools.ts";
 
 const todayUtc = "2026-09-25";
@@ -57,50 +56,6 @@ function makeUser(id: UserId, email: string, name: string): User {
     onboardingCompletedAt: new Date("2026-01-01T00:00:00.000Z"),
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
   });
-}
-
-class TestUserRepository implements UserRepository {
-  constructor(private readonly users: User[]) {}
-
-  findById(id: UserId): Promise<User | null> {
-    return Promise.resolve(this.users.find((user) => user.id === id) ?? null);
-  }
-
-  findByIds(ids: readonly UserId[]): Promise<User[]> {
-    return Promise.resolve(this.users.filter((user) => ids.includes(user.id)));
-  }
-
-  findByEmail(email: Email): Promise<User | null> {
-    return Promise.resolve(this.users.find((user) => user.email === email) ?? null);
-  }
-
-  save(): Promise<void> {
-    throw new Error("Read-only SQLite fixture must not save a user");
-  }
-}
-
-class TestTeamRepository implements TeamRepository {
-  private readonly team = Team.reconstitute({
-    id: teamId,
-    ownerId,
-    name: "Field Team",
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    members: [],
-  });
-
-  constructor(private readonly members: ReadonlySet<UserId>) {}
-
-  findByMember(userId: UserId): Promise<Team | null> {
-    return Promise.resolve(this.members.has(userId) ? this.team : null);
-  }
-
-  findById(id: TeamId): Promise<Team | null> {
-    return Promise.resolve(id === teamId ? this.team : null);
-  }
-
-  save(): Promise<void> {
-    throw new Error("Read-only SQLite fixture must not save a team");
-  }
 }
 
 type SqlRow = Record<string, string | number | null>;
@@ -186,6 +141,18 @@ function insertTeam(db: DatabaseSync): void {
   }
 }
 
+function insertForeignTeam(db: DatabaseSync): void {
+  db.prepare("INSERT INTO teams (id, owner_id, name, created_at) VALUES (?, ?, ?, ?)").run(
+    foreignTeamId,
+    foreignOwnerId,
+    "Foreign Team",
+    "2026-01-01T00:00:00.000Z",
+  );
+  db.prepare(
+    "INSERT INTO team_members (id, team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?, ?)",
+  ).run(TeamId.generate(), foreignTeamId, foreignOwnerId, "owner", todayUtc);
+}
+
 type PropertyMetadata = {
   kind: "property";
   nickname?: string;
@@ -202,6 +169,7 @@ function makeProperty(props: {
   id?: AssetId;
   owner?: UserId;
   name: string;
+  nickname?: string;
   street: string;
   city: string;
   archivedAt?: Date | null;
@@ -210,7 +178,7 @@ function makeProperty(props: {
 }): Asset {
   const metadata: PropertyMetadata = {
     kind: "property",
-    nickname: props.name,
+    nickname: props.nickname ?? props.name,
     address: {
       street: props.street,
       city: props.city,
@@ -348,14 +316,10 @@ class HookedD1MaintenanceTaskRepository extends D1MaintenanceTaskRepository {
   }
 }
 
-function createReadFixture(
-  db: DatabaseSync,
-  teamMembers: ReadonlySet<UserId> = new Set([callerId, ownerId]),
-  taskReadHooks: TaskReadHooks = {},
-) {
+function createReadFixture(db: DatabaseSync, taskReadHooks: TaskReadHooks = {}) {
   const d1 = sqliteD1(db);
-  const users = new TestUserRepository([caller, owner, foreignOwner]);
-  const teams = new TestTeamRepository(teamMembers);
+  const users = new D1UserRepository(d1);
+  const teams = new D1TeamRepository(d1);
   const assets = new D1AssetRepository(d1);
   const tasks = new HookedD1MaintenanceTaskRepository(d1, taskReadHooks);
   const records = new D1MaintenanceRecordRepository(d1);
@@ -476,6 +440,7 @@ describe("MCP read adversarial contract", () => {
       insertUser(db, owner);
       insertUser(db, foreignOwner);
       insertTeam(db);
+      insertForeignTeam(db);
       const owned = makeProperty({
         name: "Owned Cabin",
         street: "11 Own Road",
@@ -636,6 +601,55 @@ describe("MCP read adversarial contract", () => {
       }
 
       expect(databaseSnapshot(db)).toBe(before);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("leaves all database and durable outbox rows unchanged for every successful read", async () => {
+    const db = createSqlite();
+    try {
+      insertUser(db, caller);
+      insertUser(db, owner);
+      insertTeam(db);
+      const property = makeProperty({
+        name: "Read-only property",
+        nickname: "Read-only nickname",
+        street: "221 Snapshot Road",
+        city: "Boulder",
+        sharedTeamId: teamId,
+        revision: 1,
+      });
+      insertAsset(db, property);
+      insertTask(db, {
+        asset: property,
+        title: "Read-only due task",
+        nextDue: todayUtc,
+        createdAt: "2026-09-01T12:00:00.000Z",
+        revision: 2,
+      });
+      for (const [table, id] of [
+        ["activity_event_outbox", "activity-read-baseline"],
+        ["notification_event_outbox", "notification-read-baseline"],
+        ["notification_email_outbox", "email-read-baseline"],
+      ] as const) {
+        db.prepare(`INSERT INTO ${table} (id, payload) VALUES (?, ?)`).run(id, `preserve ${id}`);
+      }
+
+      const { dependencies } = createReadFixture(db);
+      const server = makeServer(dependencies);
+      const before = databaseSnapshot(db);
+
+      for (const [toolName, arguments_] of [
+        ["list_assets", {}],
+        ["get_asset", { assetId: property.id }],
+        ["get_due_maintenance", {}],
+        ["get_asset_maintenance", { assetId: property.id }],
+      ] as const) {
+        const response = await callTool(server, toolName, arguments_);
+        expect(mcpResult(response).isError).not.toBe(true);
+        expect(databaseSnapshot(db)).toBe(before);
+      }
     } finally {
       db.close();
     }
@@ -844,7 +858,7 @@ describe("MCP read adversarial contract", () => {
           taskId,
         );
       };
-      const { dependencies } = createReadFixture(db, new Set([callerId, ownerId]), {
+      const { dependencies } = createReadFixture(db, {
         beforeAssetTaskRead: changePropertyBetweenReads,
       });
       const server = makeServer(dependencies);
@@ -852,6 +866,7 @@ describe("MCP read adversarial contract", () => {
 
       expect(changed).toBe(true);
       expect(mcpResult(response).isError).toBe(true);
+      expect(structuredResult(response)).toMatchObject({ error: { code: "CONFLICT" } });
       expect(JSON.stringify(response)).not.toContain(oldStreet);
       expect(JSON.stringify(response)).not.toContain(currentStreet);
 
@@ -869,7 +884,7 @@ describe("MCP read adversarial contract", () => {
     }
   });
 
-  it("redacts a property street changed between dashboard asset and task reads", async () => {
+  it("returns a safe conflict when property context changes during due maintenance loading", async () => {
     const db = createSqlite();
     try {
       insertUser(db, caller);
@@ -911,12 +926,14 @@ describe("MCP read adversarial contract", () => {
           taskId,
         );
       };
-      const { dependencies } = createReadFixture(db, new Set([callerId, ownerId]), {
-        beforeDashboardTaskRead: changePropertyBetweenReads,
+      const { dependencies } = createReadFixture(db, {
+        beforeAssetTaskRead: changePropertyBetweenReads,
       });
       const response = await callTool(makeServer(dependencies), "get_due_maintenance");
 
       expect(changed).toBe(true);
+      expect(mcpResult(response).isError).toBe(true);
+      expect(structuredResult(response)).toMatchObject({ error: { code: "CONFLICT" } });
       expect(JSON.stringify(structuredResult(response))).not.toContain(currentStreet);
       expect(readableResult(response)).not.toContain(currentStreet);
     } finally {
@@ -928,34 +945,95 @@ describe("MCP read adversarial contract", () => {
     const db = createSqlite();
     try {
       insertUser(db, caller);
-      insertUser(db, owner);
+      const streetOwnerName = "OWNER BEFORE 123 Main Street OWNER AFTER";
+      insertUser(db, makeUser(ownerId, owner.email, streetOwnerName));
       insertTeam(db);
       const collision = "123 Main Street";
+      const propertyName = "Private Property Name Marker";
+      const propertyNickname = "Private Property Nickname Marker";
       const property = makeProperty({
-        name: collision,
+        name: propertyName,
+        nickname: propertyNickname,
         street: collision,
         city: collision,
-        owner: callerId,
+        owner: ownerId,
+        sharedTeamId: teamId,
         revision: 4,
       });
       insertAsset(db, property);
-      insertTask(db, {
+      const taskId = insertTask(db, {
         asset: property,
-        title: `Inspect ${collision}`,
+        title: `TASK BEFORE Inspect ${collision} TASK AFTER`,
         nextDue: "2026-09-25",
         createdAt: "2026-09-01T12:00:00.000Z",
         revision: 5,
+      });
+      insertRecord(db, {
+        asset: property,
+        title: `RECORD TITLE BEFORE ${collision} RECORD TITLE AFTER`,
+        performedAt: "2026-09-24",
+        notes: `RECORD NOTES BEFORE ${collision} RECORD NOTES AFTER`,
+        taskId,
+        createdAt: "2026-09-24T12:00:00.000Z",
+        revision: 6,
       });
       const { dependencies } = createReadFixture(db);
       const server = makeServer(dependencies);
 
       for (const [name, args] of [
+        ["list_assets", {}],
         ["get_asset", { assetId: property.id }],
+        ["get_due_maintenance", {}],
         ["get_asset_maintenance", { assetId: property.id }],
       ] as const) {
         const body = await callTool(server, name, args);
+        expect(mcpResult(body).isError).not.toBe(true);
         expect(JSON.stringify(structuredResult(body))).not.toContain(collision);
         expect(readableResult(body)).not.toContain(collision);
+        expect(JSON.stringify(body)).not.toContain(propertyName);
+        expect(JSON.stringify(body)).not.toContain(propertyNickname);
+
+        if (name === "get_asset") {
+          expect(structuredResult(body).asset).toMatchObject({
+            label: `Property in [redacted address], CO, 80202, US (${property.id})`,
+            metadata: {
+              kind: "property",
+              city: "[redacted address]",
+              state: "CO",
+              postalCode: "80202",
+              country: "US",
+            },
+            sharing: {
+              ownerDisplayName: "OWNER BEFORE [redacted address] OWNER AFTER",
+            },
+          });
+        }
+
+        if (name === "get_due_maintenance") {
+          expect(resultArray(structuredResult(body), "tasks")[0]).toMatchObject({
+            taskTitle: "TASK BEFORE Inspect [redacted address] TASK AFTER",
+            assetLabel: `Property in [redacted address], CO, 80202, US (${property.id})`,
+            sharing: {
+              ownerDisplayName: "OWNER BEFORE [redacted address] OWNER AFTER",
+            },
+          });
+        }
+
+        if (name === "get_asset_maintenance") {
+          const context = structuredResult(body);
+          expect(context.asset).toMatchObject({
+            sharing: {
+              ownerDisplayName: "OWNER BEFORE [redacted address] OWNER AFTER",
+            },
+          });
+          expect(resultArray(context, "maintenanceTasks")[0]).toMatchObject({
+            title: "TASK BEFORE Inspect [redacted address] TASK AFTER",
+          });
+          expect(resultArray(context, "maintenanceRecords")[0]).toMatchObject({
+            title: "RECORD TITLE BEFORE [redacted address] RECORD TITLE AFTER",
+            notes: "RECORD NOTES BEFORE [redacted address] RECORD NOTES AFTER",
+          });
+        }
       }
     } finally {
       db.close();
