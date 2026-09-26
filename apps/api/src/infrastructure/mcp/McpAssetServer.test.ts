@@ -350,7 +350,8 @@ describe("Pineapple MCP asset server", () => {
         CREATE TABLE assets (
           id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, name TEXT NOT NULL,
           type TEXT NOT NULL, metadata TEXT NOT NULL, archived_at TEXT,
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL, shared_team_id TEXT
+          created_at TEXT NOT NULL, updated_at TEXT NOT NULL, shared_team_id TEXT,
+          revision INTEGER
         );
         CREATE TABLE team_members (team_id TEXT NOT NULL, user_id TEXT NOT NULL);
       `);
