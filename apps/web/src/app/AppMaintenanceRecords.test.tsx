@@ -401,7 +401,11 @@ describe("AppMaintenanceRecords task reschedule", () => {
       reschedBtn?.click();
     });
 
-    await waitFor(() => Boolean(container?.querySelector("#mrt-resched-date")));
+    // Wait for the server date before submitting; the loading fallback uses
+    // the real clock, which can reject this fixture before the mocked API runs.
+    await waitFor(
+      () => container?.querySelector<HTMLInputElement>("#mrt-resched-date")?.min === "2026-06-10",
+    );
     const dateInput = container?.querySelector<HTMLInputElement>("#mrt-resched-date");
     await act(async () => {
       if (dateInput) setInputValue(dateInput, "2026-09-15");
