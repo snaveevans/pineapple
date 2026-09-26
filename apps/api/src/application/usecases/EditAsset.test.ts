@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AssetId,
+  ConflictError,
   ForbiddenError,
   NotFoundError,
   UserId,
@@ -134,7 +135,7 @@ describe("EditAsset", () => {
     expect(result.value.sharedTeamId).toBeNull();
   });
 
-  it("saves without publishing an event when nothing actually changed", async () => {
+  it("returns without saving or publishing when nothing actually changed", async () => {
     const asset = makeAsset(ownerId);
     const assets = new FakeAssetRepository(asset);
     const eventBus = new RecordingEventBus();
@@ -149,7 +150,29 @@ describe("EditAsset", () => {
     expect(result.ok).toBe(true);
     expect(eventBus.events).toHaveLength(0);
     expect(eventBus.publishAllCalls).toBe(0);
-    expect(assets.saveCalls).toBe(1);
+    expect(assets.saveCalls).toBe(0);
+  });
+
+  it("rejects a stale expected revision before applying an edit", async () => {
+    const asset = makeAsset(ownerId);
+    asset.edit({ name: "Current Name", metadata: vehicleMetadata, actorId: ownerId });
+    const assets = new FakeAssetRepository(asset);
+    const eventBus = new RecordingEventBus();
+
+    const result = await new EditAsset(assets, new FakeTeamRepository(null), eventBus).execute({
+      assetId: asset.id,
+      requesterId: ownerId,
+      expectedRevision: 0,
+      name: "Stale Name",
+      metadata: vehicleMetadata,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBeInstanceOf(ConflictError);
+    expect(asset.name).toBe("Current Name");
+    expect(assets.saveCalls).toBe(0);
+    expect(eventBus.events).toHaveLength(0);
   });
 
   it("returns ValidationError when the metadata kind differs from the asset's current kind", async () => {

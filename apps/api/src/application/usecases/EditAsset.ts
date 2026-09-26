@@ -1,5 +1,6 @@
 import {
   type AssetId,
+  ConflictError,
   type DomainError,
   DomainError as DomainErrorClass,
   ForbiddenError,
@@ -21,6 +22,7 @@ export type EditAssetCommand = {
   requesterId: UserId;
   name: string;
   metadata: AssetMetadata;
+  expectedRevision?: number;
 };
 
 export class EditAsset {
@@ -41,10 +43,14 @@ export class EditAsset {
         return err(new ForbiddenError("Only the asset owner can edit this asset"));
       }
 
+      if (cmd.expectedRevision !== undefined && asset.revision !== cmd.expectedRevision) {
+        return err(new ConflictError("Asset changed; refresh before editing"));
+      }
+
       asset.edit({ name: cmd.name, metadata: cmd.metadata, actorId: cmd.requesterId });
       const events = asset.pullEvents();
-      await this.assets.save(asset, events);
       if (events.length > 0) {
+        await this.assets.save(asset, events);
         await this.eventBus.publishAll(events);
       }
       return ok(asset);
