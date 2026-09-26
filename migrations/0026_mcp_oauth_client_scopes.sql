@@ -28,5 +28,5 @@ WHERE "tokenEndpointAuthMethod" = 'none'
   )
   AND NOT EXISTS (
     SELECT 1 FROM json_each(CASE WHEN json_valid("grantTypes") THEN "grantTypes" ELSE '[]' END)
-    WHERE value NOT IN ('authorization_code', 'refresh_token')
+    WHERE type <> 'text' OR value NOT IN ('authorization_code', 'refresh_token')
   );

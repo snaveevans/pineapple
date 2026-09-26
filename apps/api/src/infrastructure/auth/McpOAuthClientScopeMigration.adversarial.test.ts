@@ -44,6 +44,9 @@ describe("MCP OAuth legacy client capability migration", () => {
     seedMigrationClients(sqlite);
     const unchangedIds = [
       "malformed-scopes",
+      "malformed-grant-null",
+      "malformed-grant-number",
+      "malformed-grant-object",
       "different-scopes",
       "disabled-client",
       "skip-consent-client",
@@ -402,6 +405,18 @@ function seedMigrationClients(sqlite: DatabaseSync): void {
     { clientId: "public-null-pkce" },
     { clientId: "public-explicit-pkce", options: { requirePKCE: 1 } },
     { clientId: "malformed-scopes", scopes: '["assets:read", "offline_access"' },
+    {
+      clientId: "malformed-grant-null",
+      options: { grantTypes: ["authorization_code", null] },
+    },
+    {
+      clientId: "malformed-grant-number",
+      options: { grantTypes: ["authorization_code", 3] },
+    },
+    {
+      clientId: "malformed-grant-object",
+      options: { grantTypes: ["authorization_code", { kind: "refresh_token" }] },
+    },
     {
       clientId: "different-scopes",
       scopes: JSON.stringify(["assets:read", "offline_access", "custom:scope"]),
