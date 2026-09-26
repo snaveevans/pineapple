@@ -6,6 +6,7 @@ import {
   McpServer,
   PROTOCOL_VERSION_META_KEY,
 } from "@modelcontextprotocol/server";
+import { z } from "zod";
 import { createAuth, mcpResourceUrl } from "../auth/auth.ts";
 import { createMcpTransport } from "./McpTransport.ts";
 
@@ -59,7 +60,11 @@ function mcpRequest(headers?: HeadersInit): Request {
   });
 }
 
-function modernMcpRequest(method: string, headers?: HeadersInit): Request {
+function modernMcpRequest(
+  method: string,
+  headers?: HeadersInit,
+  params: Record<string, unknown> = {},
+): Request {
   return new Request(resource, {
     method: "POST",
     headers: {
@@ -73,6 +78,7 @@ function modernMcpRequest(method: string, headers?: HeadersInit): Request {
       id: 1,
       method,
       params: {
+        ...params,
         _meta: {
           [PROTOCOL_VERSION_META_KEY]: "2026-07-28",
           [CLIENT_INFO_META_KEY]: { name: "test-client", version: "1.0.0" },
@@ -190,5 +196,42 @@ describe("MCP transport authorization", () => {
         extra: { sub: "better-auth-user-id" },
       },
     });
+  });
+
+  it("does not echo private input embedded in SDK validation errors", async () => {
+    const server = new McpServer({ name: "pineapple", version: "2" });
+    const execute = vi.fn().mockResolvedValue({ content: [] });
+    server.registerTool("example", { inputSchema: z.object({}).strict() }, execute);
+    const handle = createMcpTransport(createAuth(undefined, baseURL), resource, () => server);
+    const response = await handle(
+      modernMcpRequest(
+        "tools/call",
+        { authorization: `Bearer ${await accessToken()}`, "mcp-name": "example" },
+        { name: "example", arguments: { "867 Secret Lane": "private" } },
+      ),
+    );
+    const body: unknown = await response.json();
+    expect(JSON.stringify(body)).not.toContain("867 Secret Lane");
+    expect(body).toMatchObject({
+      result: { isError: true, structuredContent: { error: { code: "INVALID_ARGUMENTS" } } },
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("contains unexpected factory errors without logging or returning private exception text", async () => {
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const handle = createMcpTransport(createAuth(undefined, baseURL), resource, () => {
+        throw new Error("867 Secret Lane private snapshot");
+      });
+      const response = await handle(
+        modernMcpRequest("tools/list", { authorization: `Bearer ${await accessToken()}` }),
+      );
+      expect(response.status).toBe(500);
+      expect(await response.text()).not.toContain("867 Secret Lane");
+      expect(JSON.stringify(errorLog.mock.calls)).not.toContain("867 Secret Lane");
+    } finally {
+      errorLog.mockRestore();
+    }
   });
 });

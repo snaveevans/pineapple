@@ -43,6 +43,47 @@ function authInfo(request: Request, claims: AccessTokenClaims, resource: string)
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+async function sanitizeProtocolErrors(response: Response): Promise<Response> {
+  if (!response.headers.get("content-type")?.includes("application/json")) return response;
+  // The SDK can quote unrecognized input keys before a tool callback runs.
+  // Keep our allowlisted domain errors, but replace those protocol diagnostics.
+  const body: unknown = await response.clone().json();
+  if (!isRecord(body)) return response;
+  if (isRecord(body["error"])) {
+    body["error"] = {
+      code: body["error"]["code"],
+      message: "The MCP request could not be processed.",
+    };
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(JSON.stringify(body), { status: response.status, headers });
+  }
+  const result = body["result"];
+  if (!isRecord(result) || result["isError"] !== true) return response;
+  const structured = result["structuredContent"];
+  if (isRecord(structured) && isRecord(structured["error"])) return response;
+  const output = {
+    error: {
+      code: "INVALID_ARGUMENTS",
+      message: "The requested tool or arguments are unavailable or invalid.",
+    },
+  };
+  body["result"] = {
+    isError: true,
+    content: [{ type: "text", text: JSON.stringify(output) }],
+    structuredContent: output,
+    ...(result["resultType"] !== undefined ? { resultType: result["resultType"] } : {}),
+    ...(result["_meta"] !== undefined ? { _meta: result["_meta"] } : {}),
+  };
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  return new Response(JSON.stringify(body), { status: response.status, headers });
+}
+
 /**
  * Creates Pineapple's stateless, modern MCP request handler.
  *
@@ -68,8 +109,10 @@ export function createMcpTransport(
 
   return requireMcpAuth(
     auth,
-    (request, claims) =>
-      transport.fetch(request, { authInfo: authInfo(request, claims, resource) }),
+    async (request, claims) =>
+      sanitizeProtocolErrors(
+        await transport.fetch(request, { authInfo: authInfo(request, claims, resource) }),
+      ),
     {
       resource,
       requiredScopes: [MCP_ASSET_READ_SCOPE],
