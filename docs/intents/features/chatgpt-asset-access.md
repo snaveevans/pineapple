@@ -51,9 +51,11 @@ assets currently shared with the caller's team.
   authorization.
 - **`INV-2`** The MCP query preserves Pineapple's existing asset visibility
   rules, including team sharing, and never exposes an asset outside that set.
-- **`INV-3`** Property address fields are never returned to the MCP client or
-  included in model-readable content. Other asset information may be returned
-  when useful to identify or describe the asset.
+- **`INV-3`** Property street and house-number data are never returned to the
+  MCP client or included in model-readable results. The 2026-09-25 ready-gate
+  amendment in [ChatGPT Field Operations](chatgpt-field-operations.md) permits
+  other locality fields and user-supplied street details as write input. Property
+  names and nicknames remain excluded when they may contain a street address.
 - **`INV-4`** The initial integration is strictly read-only and cannot create,
   edit, share, archive, or otherwise mutate Pineapple state.
 - **`INV-5`** Access is granted through a revocable, least-privilege user
@@ -82,7 +84,7 @@ assets currently shared with the caller's team.
 - Daily or weekly reports, scheduled execution, or notifications
 - Public plugin publication or third-party distribution
 - A custom MCP UI or a general-purpose wrapper around the Pineapple HTTP API
-- Sending property addresses to ChatGPT
+- Returning property street and house-number data to ChatGPT
 
 ## Success and Evidence Expectations
 
@@ -146,3 +148,12 @@ continue exposing private developer-mode connections on every ChatGPT plan.
 ## Open Questions
 
 None.
+
+## Ready-Gate Amendment — 2026-09-25
+
+Tyler explicitly approved implementation and production delivery of
+[ChatGPT Field Operations](chatgpt-field-operations.md). That accepted follow-on
+intent governs the expanded tool surface and narrows the sensitive property
+field to street and house number. The original all-address exclusion and
+single-tool evidence describe the first read-only release; the expansion spec
+owns the amended contract and evidence.

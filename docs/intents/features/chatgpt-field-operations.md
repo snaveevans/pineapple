@@ -11,41 +11,40 @@ metadata:
 
 # Intent: ChatGPT Field Operations
 
-**Status:** `draft`
-**Ready Gate:** `pending`
-**Approved By:** `pending`
-**Approval Record:** `pending`
+**Status:** `accepted`
+**Ready Gate:** `approved 2026-09-25`
+**Approved By:** Tyler Evans
+**Approval Record:** Explicit authorization in the originating Codex task to specify, implement, test with delegated agents, and deploy to production on 2026-09-25
 **Owner:** Tyler Evans
 **Last Updated:** 2026-09-25
-**Related Specs:** [ChatGPT Asset Access](../../specs/features/chatgpt-asset-access.md), [Dashboard](../../specs/features/dashboard.md), [Maintenance Task](../../specs/features/maintenance-task.md), [Maintenance Record](../../specs/features/maintenance-record.md), [Permissions](../../specs/cross-cutting/permissions.md)
+**Related Specs:** [ChatGPT Asset Access](../../specs/features/chatgpt-asset-access.md), [Create Asset](../../specs/features/create-asset.md), [Edit Asset](../../specs/features/edit-asset.md), [Dashboard](../../specs/features/dashboard.md), [Maintenance Task](../../specs/features/maintenance-task.md), [Maintenance Record](../../specs/features/maintenance-record.md), [Permissions](../../specs/cross-cutting/permissions.md)
 **Related ADRs:** [ADR-0003](../../decisions/0003-monorepo-layer-architecture-and-dependency-rules.md), [ADR-0009](../../decisions/0009-computed-fields-belong-in-api-read-models.md), [ADR-0019](../../decisions/0019-use-intent-driven-development.md)
 
 ## Problem
 
-The private ChatGPT connection can list assets but cannot help an operator act
-on them. On a phone, the operator must switch to Pineapple to find due work,
-correct an asset, plan maintenance, or record completed work. Broad access to
-write endpoints would expose changes that cannot be reliably repaired.
+The private ChatGPT connection only lists assets. Phone users must switch to
+Pineapple to find due work or change assets and maintenance. Broad write access
+would expose changes that cannot be reliably repaired.
 
 ## Desired Outcomes
 
 - **`OUT-1`** From ChatGPT on a phone, an authenticated Pineapple user can ask
   what is due today, due soon, or overdue and receive current, authorized
   information from Pineapple's existing schedules and recorded work.
-- **`OUT-2`** In that conversation, the user can create and edit vehicle and
-  equipment assets, create and edit time-based maintenance tasks, reschedule a
-  task without claiming work occurred, and log or correct maintenance records.
-  The agent reports the persisted result and any linked schedule change.
-- **`OUT-3`** Every agent-authorized write can be identified and repaired by a
-  Pineapple operator using durable evidence of the affected data and its prior
-  state. An in-app undo or self-service recovery flow is outside this intent.
+- **`OUT-2`** In that conversation, the user can create and edit vehicle,
+  property, and equipment assets; create and edit time-based maintenance tasks;
+  reschedule a task without claiming work occurred; and log or correct
+  maintenance records. The agent reports the persisted result and any linked
+  schedule change.
+- **`OUT-3`** An operator can identify and repair every agent-authorized write
+  from durable evidence of affected data and prior state. No in-app undo is
+  required.
 
 ## Affected Users and Systems
 
 This applies to Pineapple users through their private ChatGPT connection. The
-agent follows existing asset and team permissions. Property maintenance remains
-available when its target is unambiguous without an address; property asset
-creation and editing are excluded.
+agent follows existing asset and team permissions. Property selection and edits
+must work without returning the stored street and house number.
 
 ## Invariants
 
@@ -53,20 +52,20 @@ creation and editing are excluded.
   cases decide authorization and business rules on every call. A prompt or tool
   argument cannot choose another actor or bypass asset and team permissions.
 - **`INV-2`** MCP exposes no hard delete, archive, unshare, or other action that
-  removes access, destroys data, or defeats recovery. A write is exposed only
-  after its persisted effects, including linked schedule changes, can be
-  reconstructed and repaired without relying on the conversation transcript.
+  removes access or destroys data. Every write and linked schedule change must
+  be repairable without relying on the conversation transcript.
 - **`INV-3`** Repeated, delayed, or failed tool calls cannot silently create
   duplicate data or overwrite a newer edit. The user can tell whether a change
   was applied.
 - **`INV-4`** Read and write permissions are separately consented and
-  revocable. Tool declarations accurately identify writes, and Pineapple
-  enforces the granted capability server-side rather than trusting client
-  confirmations or model instructions.
-- **`INV-5`** MCP tools neither request nor return property addresses. Results
-  and telemetry retain the current exclusion of property names and nicknames
-  that may contain an address. Recovery evidence is access-controlled and does
-  not leak private asset data into logs or model output.
+  revocable. Pineapple labels writes accurately and enforces grants server-side.
+- **`INV-5`** A property's street and house number are sensitive. MCP reads,
+  write results, and telemetry never expose them. Other locality fields may be
+  returned. A property edit that does not change the street preserves its stored
+  value without returning it. Property names and nicknames must not become a
+  back door for returning the street. User-supplied street details may be accepted
+  as write input; this means the user has supplied them to ChatGPT. Recovery
+  evidence is operator-only.
 - **`INV-6`** A task reschedule never claims maintenance occurred. A maintenance
   record linked to a task follows the existing completion and reconciliation
   rules; the agent does not independently calculate due dates or urgency.
@@ -85,7 +84,6 @@ creation and editing are excluded.
 
 ## Non-Goals
 
-- Property asset creation or editing while an address is required
 - Agent-accessible deletion, archiving, sharing changes, or team administration
 - One-click undo, self-service restore, or replaying a chat transcript as backup
 - Distance- or hour-based schedules, new asset types, autonomous work orders,
@@ -107,10 +105,11 @@ creation and editing are excluded.
 - **`INV-3` / `INV-6`** Exercise retries, concurrent edits, task rescheduling,
   and maintenance logging/correction; compare final persisted state and
   server-derived due dates.
-- **`INV-5`** Inspect every new read and write result plus telemetry for
-  address leakage and sensitive recovery data.
+- **`INV-5`** Inspect property reads, write results, free-form labels, and
+  telemetry for street and house-number leakage; prove other locality fields
+  remain useful.
 
-## Proposed Architecture Direction for Ready Gate
+## Approved Architecture Direction
 
 Keep a focused MCP adapter over the existing application use cases. Add
 purpose-specific read tools for the existing due queue and the asset/task/record
@@ -118,15 +117,15 @@ context needed to select a target. Give write tools narrow OAuth capabilities
 and accurate annotations. Build on the existing transactional activity outbox
 where possible, adding access-controlled prior-state evidence and an operator
 restoration procedure for every exposed write. Land shared recovery work before
-the first write tool. Use server-side retry and conflict protection.
+the first write tool. Use server-side retry and conflict protection. The new
+property boundary revises the [ChatGPT Asset Access](chatgpt-asset-access.md)
+address invariant through this approved ready gate.
 
-## Proposed High-Level Delivery Boundaries
+## High-Level Delivery Boundaries
 
-First complete the existing authenticated and mobile read-only production
-verification. Then deliver useful read context. Establish and drill the
-recovery mechanism before adding write tools. Add the bounded asset,
-maintenance-task, and maintenance-record writes in separately reviewable
-branches, with production mobile and recovery evidence at each release gate.
+Complete mobile read-only verification, then deliver read context. Drill
+recovery before adding bounded asset, task, and record writes in separate
+branches. Each release needs mobile and recovery evidence.
 
 ## Remaining Uncertainty
 
@@ -136,4 +135,6 @@ activity timeline lacks sufficient prior state for some proposed writes.
 
 ## Open Questions
 
-None pending approval of this ready packet.
+None. The authorization to implement property creation includes accepting
+user-supplied street details as write input; stored street details remain absent
+from MCP reads and write results.
