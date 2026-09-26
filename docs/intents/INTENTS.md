@@ -51,9 +51,10 @@ most of the brief should remain true.
 
 ## Feature Intents
 
-| Intent                                                   | Area         | Status   | Related specs                                                                                                                                                         |
-| -------------------------------------------------------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [ChatGPT Asset Access](features/chatgpt-asset-access.md) | Integrations | accepted | [Asset Library](../specs/features/asset-library.md), [Authentication](../specs/cross-cutting/authentication.md), [Permissions](../specs/cross-cutting/permissions.md) |
+| Intent                                                           | Area         | Status   | Related specs                                                                                                                                                         |
+| ---------------------------------------------------------------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ChatGPT Asset Access](features/chatgpt-asset-access.md)         | Integrations | accepted | [Asset Library](../specs/features/asset-library.md), [Authentication](../specs/cross-cutting/authentication.md), [Permissions](../specs/cross-cutting/permissions.md) |
+| [ChatGPT Field Operations](features/chatgpt-field-operations.md) | Integrations | accepted | [ChatGPT Field Operations](../specs/features/chatgpt-field-operations.md), [Agent Operation Recovery](../specs/features/agent-operation-recovery.md)                  |
 
 ## Workflow
 

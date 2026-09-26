@@ -19,6 +19,10 @@ date: 2026-09-20
 
 ## Summary
 
+The first-release contract below is retained as its verification record. The
+accepted [ChatGPT Field Operations](chatgpt-field-operations.md) spec governs
+the expanded catalog, revised street-only privacy boundary, and separate grants.
+
 An authenticated Pineapple user can privately connect Pineapple to ChatGPT and
 ask for the active assets they can see. The first version exposes one read-only
 MCP tool, returns the same owned and team-shared inventory as the Asset Library,

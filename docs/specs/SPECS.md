@@ -36,24 +36,26 @@ relevant cross-cutting specs rather than re-describing the behavior.
 
 ## Feature Specs
 
-| Spec                                                          | Area          | Status      |
-| ------------------------------------------------------------- | ------------- | ----------- |
-| [sign-in.md](./features/sign-in.md)                           | Auth          | review      |
-| [chatgpt-asset-access.md](./features/chatgpt-asset-access.md) | Integrations  | in-progress |
-| [create-asset.md](./features/create-asset.md)                 | Assets        | draft       |
-| [edit-asset.md](./features/edit-asset.md)                     | Assets        | in-progress |
-| [asset-library.md](./features/asset-library.md)               | Assets        | in-progress |
-| [app-search.md](./features/app-search.md)                     | Assets        | in-progress |
-| [dashboard.md](./features/dashboard.md)                       | Home          | in-progress |
-| [activity-history.md](./features/activity-history.md)         | History       | in-progress |
-| [notifications.md](./features/notifications.md)               | Notifications | in-progress |
-| [maintenance-record.md](./features/maintenance-record.md)     | Maintenance   | in-progress |
-| [maintenance-task.md](./features/maintenance-task.md)         | Maintenance   | in-progress |
-| [marketing-home.md](./features/marketing-home.md)             | Marketing     | active      |
-| [user-profile.md](./features/user-profile.md)                 | Identity      | active      |
-| [email-verification.md](./features/email-verification.md)     | Identity      | active      |
-| [telemetry-enrichment.md](./features/telemetry-enrichment.md) | Observability | draft       |
-| [teams-foundation.md](./features/teams-foundation.md)         | Teams         | active      |
+| Spec                                                                  | Area          | Status      |
+| --------------------------------------------------------------------- | ------------- | ----------- |
+| [sign-in.md](./features/sign-in.md)                                   | Auth          | review      |
+| [chatgpt-asset-access.md](./features/chatgpt-asset-access.md)         | Integrations  | in-progress |
+| [chatgpt-field-operations.md](./features/chatgpt-field-operations.md) | Integrations  | review      |
+| [agent-operation-recovery.md](./features/agent-operation-recovery.md) | Integrations  | review      |
+| [create-asset.md](./features/create-asset.md)                         | Assets        | draft       |
+| [edit-asset.md](./features/edit-asset.md)                             | Assets        | in-progress |
+| [asset-library.md](./features/asset-library.md)                       | Assets        | in-progress |
+| [app-search.md](./features/app-search.md)                             | Assets        | in-progress |
+| [dashboard.md](./features/dashboard.md)                               | Home          | in-progress |
+| [activity-history.md](./features/activity-history.md)                 | History       | in-progress |
+| [notifications.md](./features/notifications.md)                       | Notifications | in-progress |
+| [maintenance-record.md](./features/maintenance-record.md)             | Maintenance   | in-progress |
+| [maintenance-task.md](./features/maintenance-task.md)                 | Maintenance   | in-progress |
+| [marketing-home.md](./features/marketing-home.md)                     | Marketing     | active      |
+| [user-profile.md](./features/user-profile.md)                         | Identity      | active      |
+| [email-verification.md](./features/email-verification.md)             | Identity      | active      |
+| [telemetry-enrichment.md](./features/telemetry-enrichment.md)         | Observability | draft       |
+| [teams-foundation.md](./features/teams-foundation.md)                 | Teams         | active      |
 
 ## Backlog (parked specs)
 
