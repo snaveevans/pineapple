@@ -86,13 +86,13 @@ gallery registry — there is no deferred hatch (#193).
 
 **Route:** `/oauth/consent`
 **Goal:** Let a signed-in Pineapple user explicitly allow or deny a private
-ChatGPT connection's narrow asset-read grant.
+ChatGPT connection's requested asset and maintenance permissions.
 
 **States:**
 
 - `loading` — validate the provider-signed request and session/domain profile, then load public client metadata
 - `error` — fail closed when the signed request is missing, invalid, expired, or cannot be resolved
-- `populated` — identify the requesting client, describe asset-read and persistent-connection permissions, and state the property-address exclusion
+- `populated` — identify the requesting client, describe only the requested read/write and persistent-connection permissions, and explain street privacy and operator recovery
 - `pending` — disable both decisions while Better Auth completes the allow or deny response
 
 **Exceptions:** This OAuth transition uses the Better Auth client rather than
@@ -107,10 +107,14 @@ and is not a stable renderable state.
   Pineapple; a nameless client is never labeled "ChatGPT" by default
 - Loading `GET /api/users/me` before consent also ensures that a newly signed-in
   Better Auth identity has a corresponding Pineapple domain user
-- The screen promises only active owned and team-shared asset visibility and
-  explicitly excludes property addresses and every mutation
+- Existing asset-read grants remain read-only. Additional asset and maintenance
+  scopes require explicit consent; registration capabilities alone do not grant access
+- Street and house number are not returned; property locality is available.
+  Asset-write consent permits saving a street supplied by the user
+- Write grants permit bounded creation/correction and explain operator recovery;
+  no delete, archive, sharing, or agent restore tool is available
 
-**Spec:** [`docs/specs/features/chatgpt-asset-access.md`](../specs/features/chatgpt-asset-access.md)
+**Spec:** [`docs/specs/features/chatgpt-field-operations.md`](../specs/features/chatgpt-field-operations.md)
 
 ---
 

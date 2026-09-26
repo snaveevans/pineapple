@@ -58,8 +58,9 @@ export function createMcpTransport(
     legacy: "reject",
     responseMode: "json",
     onerror: (error) => {
+      // Protocol errors may contain submitted property street or private snapshots.
       console.error(
-        { errorName: error.name, errorMessage: error.message },
+        { errorType: error instanceof Error ? "Error" : "Unknown" },
         "MCP transport request failed",
       );
     },
