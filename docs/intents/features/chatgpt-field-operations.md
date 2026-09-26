@@ -6,8 +6,8 @@ metadata:
 ---
 
 > **Audience:** product owner and affected engineers/agents · **Purpose:**
-> proposed intent for conversational field operations through Pineapple's MCP ·
-> **Source of truth:** this draft · **Last reviewed:** 2026-09-25
+> accepted intent for conversational field operations through Pineapple's MCP ·
+> **Source of truth:** this accepted brief · **Last reviewed:** 2026-09-25
 
 # Intent: ChatGPT Field Operations
 

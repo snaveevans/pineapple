@@ -90,15 +90,32 @@ function buttonByText(label: string): HTMLButtonElement {
 }
 
 describe("OAuthConsent", () => {
-  it("describes the narrow asset permission and address exclusion", async () => {
+  it("describes a read-only grant without promising to hide permitted locality", async () => {
     await renderConsent();
 
     expect(document.body.textContent).toContain("View your active Pineapple assets");
-    expect(document.body.textContent).toContain("Property addresses are never shared");
+    expect(document.body.textContent).toContain("Stored street details stay private");
+    expect(document.body.textContent).toContain("read access only");
+    expect(document.body.textContent).not.toContain("Create and edit");
     expect(document.body.textContent).toContain("Stay connected until you disconnect");
     expect(document.body.textContent).toContain("App names are supplied by the requesting app");
     expect(getOAuthClientMock).toHaveBeenCalledWith("chatgpt");
     expect(getUserProfileMock).toHaveBeenCalledOnce();
+  });
+
+  it("explains each requested write permission and operator recovery", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/oauth/consent?client_id=chatgpt&scope=assets%3Aread%20maintenance%3Aread%20assets%3Awrite%20maintenance%3Awrite%20offline_access&sig=signed",
+    );
+    await renderConsent();
+    expect(document.body.textContent).toContain("View maintenance schedules and records");
+    expect(document.body.textContent).toContain("Create and edit your assets");
+    expect(document.body.textContent).toContain("Create and edit maintenance");
+    expect(document.body.textContent).toContain("recovered by an operator");
+    expect(document.body.textContent).toContain("street and house number are not returned");
+    expect(document.body.textContent).not.toContain("read access only");
   });
 
   it("grants the requested connection after the user allows it", async () => {

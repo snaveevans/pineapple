@@ -28,7 +28,7 @@ describe("MCP OAuth configuration", () => {
       resource: "https://pineapple.txe.app/mcp",
       authorization_servers: ["https://pineapple.txe.app/api/auth"],
       bearer_methods_supported: ["header"],
-      scopes_supported: ["assets:read"],
+      scopes_supported: ["assets:read", "maintenance:read", "assets:write", "maintenance:write"],
     });
   });
 
@@ -46,13 +46,19 @@ describe("MCP OAuth configuration", () => {
       token_endpoint: "https://pineapple.txe.app/api/auth/oauth2/token",
       registration_endpoint: "https://pineapple.txe.app/api/auth/oauth2/register",
       revocation_endpoint: "https://pineapple.txe.app/api/auth/oauth2/revoke",
-      scopes_supported: ["assets:read", "offline_access"],
+      scopes_supported: [
+        "assets:read",
+        "maintenance:read",
+        "assets:write",
+        "maintenance:write",
+        "offline_access",
+      ],
       grant_types_supported: ["authorization_code", "refresh_token"],
       code_challenge_methods_supported: ["S256"],
     });
   });
 
-  it("dynamically registers a public ChatGPT client with the narrow defaults", async () => {
+  it("registers explicit asset and maintenance capabilities without issuing a user grant", async () => {
     const configuredAuth = createAuth(undefined, "https://pineapple.txe.app");
 
     const response = await configuredAuth.handler(
@@ -72,7 +78,7 @@ describe("MCP OAuth configuration", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({
       client_name: "ChatGPT",
-      scope: "assets:read offline_access",
+      scope: "assets:read maintenance:read assets:write maintenance:write offline_access",
       resources: ["https://pineapple.txe.app/mcp"],
       token_endpoint_auth_method: "none",
       grant_types: ["authorization_code", "refresh_token"],

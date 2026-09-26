@@ -4,7 +4,13 @@ import { withCloudflare } from "better-auth-cloudflare";
 import { mcp } from "@better-auth/mcp";
 
 export const MCP_ASSET_READ_SCOPE = "assets:read";
-const MCP_OAUTH_SCOPES = [MCP_ASSET_READ_SCOPE, "offline_access"] as const;
+const MCP_OAUTH_SCOPES = [
+  MCP_ASSET_READ_SCOPE,
+  "maintenance:read",
+  "assets:write",
+  "maintenance:write",
+  "offline_access",
+] as const;
 
 export function mcpResourceUrl(baseURL: string): string {
   return new URL("/mcp", baseURL).toString();
@@ -87,6 +93,8 @@ export function createAuth(env?: AuthEnv, baseURL?: string) {
     // Let the consent UI use Better Auth's own signed-query verifier before
     // displaying an actionable grant to a dynamically registered client.
     allowPublicClientPrelogin: true,
+    // Registration capabilities are not grants. Every requested scope still
+    // requires the user's explicit authorization; existing tokens stay narrow.
     clientRegistrationDefaultScopes: [...MCP_OAUTH_SCOPES],
     clientRegistrationDefaultResources: [mcpResourceUrl(resolvedBaseURL)],
   }) as unknown as BetterAuthPlugin;

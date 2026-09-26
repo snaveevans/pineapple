@@ -25,6 +25,23 @@ const PERMISSIONS: Permission[] = [
     description: "Includes assets you own and assets shared with you through a team.",
   },
   {
+    scope: "maintenance:read",
+    title: "View maintenance schedules and records",
+    description: "See due, soon, and overdue work and maintenance history for accessible assets.",
+  },
+  {
+    scope: "assets:write",
+    title: "Create and edit your assets",
+    description:
+      "Create vehicles, properties, and equipment and edit assets you own. A street you supply can be saved.",
+  },
+  {
+    scope: "maintenance:write",
+    title: "Create and edit maintenance",
+    description:
+      "Plan or reschedule work and record or correct completed maintenance on accessible assets.",
+  },
+  {
     scope: "offline_access",
     title: "Stay connected until you disconnect",
     description: "ChatGPT can renew this connection without asking you to sign in each time.",
@@ -56,6 +73,7 @@ export function OAuthConsent() {
   const clientId = search.get("client_id");
   const hasSignedRequest = search.has("sig");
   const permissions = useMemo(() => requestedPermissions(search), [search]);
+  const permitsChanges = permissions.some(({ scope }) => scope.endsWith(":write"));
   const [state, setState] = useState<ConsentState>(
     clientId !== null && hasSignedRequest
       ? { phase: "loading" }
@@ -154,8 +172,11 @@ export function OAuthConsent() {
         <div className="oc-private">
           <Icon name="lock" size={17} stroke={2} />
           <span>
-            <strong>Property addresses are never shared.</strong> This connection cannot create,
-            edit, archive, or delete anything.
+            <strong>Stored street details stay private.</strong> Property street and house number
+            are not returned; locality is available.
+            {permitsChanges
+              ? " Changes can be recovered by an operator. This connection has no delete, archive, sharing, or restore tools."
+              : " This connection has read access only."}
           </span>
         </div>
 
