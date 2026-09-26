@@ -1,0 +1,14 @@
+{
+  "name": "pineapple-agent-recovery-operator",
+  "main": "./operator-worker.ts",
+  "compatibility_date": "2026-09-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pineapple",
+      "database_id": "9187de54-a0ee-49c4-8d84-954df8010366",
+      "remote": true,
+    },
+  ],
+}

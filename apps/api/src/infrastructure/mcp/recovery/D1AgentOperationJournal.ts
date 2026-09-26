@@ -363,8 +363,8 @@ function parseStoredOperation(value: unknown): StoredAgentOperation {
     row.snapshot_version !== SNAPSHOT_VERSION ||
     !isString(row.receipt_json) ||
     !isString(row.snapshots_json) ||
-    !isString(row.created_at) ||
-    (row.restored_at !== null && !isString(row.restored_at))
+    !isCanonicalTimestamp(row.created_at) ||
+    (row.restored_at !== null && !isCanonicalTimestamp(row.restored_at))
   ) {
     throw new InvariantError("Stored agent operation is malformed.");
   }
@@ -404,6 +404,12 @@ function parseJson(value: string, message: string): unknown {
   } catch {
     throw new InvariantError(message);
   }
+}
+
+function isCanonicalTimestamp(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds) && new Date(milliseconds).toISOString() === value;
 }
 
 function isOperationTool(value: unknown): value is AgentJournalCommit["tool"] {
