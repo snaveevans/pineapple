@@ -394,6 +394,7 @@ describe("CreateMaintenanceRecord", () => {
         assetId?: AssetId;
         ownerId?: UserId;
         lastCompletedDate?: string | null;
+        revision?: number;
       } = {},
     ) {
       const asset = assetFor();
@@ -408,8 +409,37 @@ describe("CreateMaintenanceRecord", () => {
           overrides.lastCompletedDate !== undefined ? overrides.lastCompletedDate : null,
         nextDue: "2026-08-09",
         createdAt: new Date(),
+        ...(overrides.revision !== undefined ? { revision: overrides.revision } : {}),
       });
     }
+
+    it("checks expectedTaskRevision before creating a linked record", async () => {
+      const asset = assetFor();
+      const task = makeTask({ assetId: asset.id, revision: 3 });
+      const records = new MaintenanceRecordWriterFake();
+      const events = new EventBusFake();
+
+      const result = await new CreateMaintenanceRecord(
+        new AssetRepositoryFake(asset),
+        new TeamRepositoryFake(),
+        records,
+        new MaintenanceTaskRepositoryFake(task),
+        events,
+        dates,
+      ).execute({
+        assetId: asset.id,
+        requesterId: ownerId,
+        title: "Changed oil",
+        performedAt: "2026-06-09",
+        taskId: task.id,
+        expectedTaskRevision: 2,
+      });
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.error).toBeInstanceOf(ConflictError);
+      expect(records.savedRecord).toBeNull();
+      expect(events.events).toHaveLength(0);
+    });
 
     it("saves the record, advances the task, and publishes MaintenanceTaskAdvanced", async () => {
       const asset = assetFor();

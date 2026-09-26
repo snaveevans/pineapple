@@ -385,6 +385,25 @@ describe("RescheduleMaintenanceTask", () => {
     expect(events.events).toHaveLength(0);
   });
 
+  it("checks expected revision before attempting a reschedule", async () => {
+    const task = makeTask({ revision: 4 });
+    const { repo, writer, events, useCase } = build([task]);
+
+    const result = await useCase.execute({
+      taskId: task.id,
+      assetId,
+      requesterId: ownerId,
+      expectedRevision: 3,
+      nextDue: "2026-09-15",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBeInstanceOf(ConflictError);
+    expect(repo.saved).toBeNull();
+    expect(writer.committed).toBe(false);
+    expect(events.events).toHaveLength(0);
+  });
+
   it("returns ServiceUnavailableError when the write gate is frozen", async () => {
     const task = makeTask();
     const repo = new MaintenanceTaskRepositoryFake([task]);

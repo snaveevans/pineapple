@@ -7,7 +7,11 @@ import {
 import { describe, expect, it, vi } from "vitest";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
-import { D1MaintenanceRecordRepository } from "./D1MaintenanceRecordRepository.ts";
+import {
+  D1MaintenanceRecordRepository,
+  prepareMaintenanceRecordInsert,
+  prepareMaintenanceRecordUpdateWithRevision,
+} from "./D1MaintenanceRecordRepository.ts";
 
 type BoundStatement = {
   query: string;
@@ -65,6 +69,20 @@ function createEntities() {
 }
 
 describe("D1MaintenanceRecordRepository", () => {
+  it("prepares a strict record insert and revision-guarded record update", () => {
+    const { db, statements } = createDatabaseHarness();
+    const { record } = createEntities();
+
+    prepareMaintenanceRecordInsert(db, record);
+    prepareMaintenanceRecordUpdateWithRevision(db, record, 4);
+
+    expect(statements[0]?.query).toContain("INSERT INTO maintenance_records");
+    expect(statements[0]?.query).not.toContain("ON CONFLICT");
+    expect(statements[1]?.query).toContain("UPDATE maintenance_records");
+    expect(statements[1]?.query).toContain("WHERE id = ? AND revision = ?");
+    expect(statements[1]?.values.slice(-2)).toEqual([record.id, 4]);
+  });
+
   it("batches the record insert and advanced task update", async () => {
     const { db, batch, statements } = createDatabaseHarness();
     const { record, task } = createEntities();

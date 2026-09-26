@@ -290,6 +290,35 @@ describe("UpdateMaintenanceRecord", () => {
     });
   });
 
+  it("checks expected revision after access and does not write a stale record edit", async () => {
+    const asset = assetFor();
+    const record = makeRecord(asset, { revision: 4 });
+    const writer = new MaintenanceRecordWriterFake();
+    const events = new EventBusFake();
+
+    const result = await new UpdateMaintenanceRecord(
+      new AssetRepositoryFake(asset),
+      new TeamRepositoryFake(),
+      new MaintenanceRecordRepositoryFake([record]),
+      writer,
+      new MaintenanceTaskRepositoryFake(),
+      events,
+      dates,
+      new MaintenanceWriteGateFake("open"),
+    ).execute({
+      assetId: asset.id,
+      recordId: record.id,
+      requesterId: ownerId,
+      expectedRevision: 3,
+      title: "Updated title",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBeInstanceOf(ConflictError);
+    expect(writer.updatedRecord).toBeNull();
+    expect(events.events).toHaveLength(0);
+  });
+
   it("advances linked task schedule when performedAt is updated to a later date", async () => {
     const asset = assetFor();
     const task = makeTask(asset, {

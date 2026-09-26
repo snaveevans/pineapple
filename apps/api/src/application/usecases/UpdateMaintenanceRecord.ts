@@ -30,6 +30,7 @@ export type UpdateMaintenanceRecordCommand = {
   assetId: AssetId;
   recordId: MaintenanceRecordId;
   requesterId: UserId;
+  expectedRevision?: number;
   title?: string;
   performedAt?: string;
   notes?: string | null;
@@ -80,6 +81,13 @@ export class UpdateMaintenanceRecord {
 
         if (asset.archivedAt !== null) {
           return err(new ConflictError("Cannot edit maintenance on an archived asset"));
+        }
+
+        if (
+          command.expectedRevision !== undefined &&
+          record.revision !== command.expectedRevision
+        ) {
+          return err(new ConflictError("Maintenance record changed; refresh before editing"));
         }
 
         const expectedRecordRevision = record.revision;

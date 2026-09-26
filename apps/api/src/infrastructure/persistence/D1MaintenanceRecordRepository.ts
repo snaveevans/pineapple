@@ -9,9 +9,11 @@ import type { DomainEvent } from "../../domain/events/DomainEvent.ts";
 import { MaintenanceRecord } from "../../domain/maintenance/MaintenanceRecord.ts";
 import type { MaintenanceRecordRepository } from "../../domain/maintenance/MaintenanceRecordRepository.ts";
 import type { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
-import { prepareActivityOutboxInsert } from "../activity/D1ActivityOutboxRepository.ts";
-import { prepareNotificationOutboxInsert } from "../notifications/D1NotificationOutboxRepository.ts";
-import { prepareMaintenanceTaskSave } from "./D1MaintenanceTaskRepository.ts";
+import {
+  prepareMaintenanceTaskSave,
+  prepareMaintenanceTaskUpdateWithRevision,
+} from "./D1MaintenanceTaskRepository.ts";
+import { prepareMaintenanceOutboxInserts } from "./D1MaintenanceOutboxStatements.ts";
 
 type MaintenanceRecordRow = {
   id: string;
@@ -27,6 +29,56 @@ type MaintenanceRecordRow = {
 
 const SELECT_COLUMNS =
   "id, asset_id, owner_id, title, performed_at, notes, task_id, created_at, revision";
+
+function recordValues(record: MaintenanceRecord): unknown[] {
+  return [
+    record.id,
+    record.assetId,
+    record.ownerId,
+    record.title,
+    record.performedAt,
+    record.notes,
+    record.taskId,
+    record.createdAt.toISOString(),
+    record.revision,
+  ];
+}
+
+/** A strict create statement used by atomic agent-operation batches. */
+export function prepareMaintenanceRecordInsert(
+  db: D1Database,
+  record: MaintenanceRecord,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `INSERT INTO maintenance_records
+         (id, asset_id, owner_id, title, performed_at, notes, task_id, created_at, revision)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .bind(...recordValues(record));
+}
+
+/** A compare-and-swap update used after the application use case validates a record edit. */
+export function prepareMaintenanceRecordUpdateWithRevision(
+  db: D1Database,
+  record: MaintenanceRecord,
+  expectedRevision: number,
+): D1PreparedStatement {
+  return db
+    .prepare(
+      `UPDATE maintenance_records
+       SET title = ?, performed_at = ?, notes = ?, revision = ?
+       WHERE id = ? AND revision = ?`,
+    )
+    .bind(
+      record.title,
+      record.performedAt,
+      record.notes,
+      expectedRevision + 1,
+      record.id,
+      expectedRevision,
+    );
+}
 
 export class D1MaintenanceRecordRepository
   implements MaintenanceRecordRepository, MaintenanceRecordWriter
@@ -72,35 +124,14 @@ export class D1MaintenanceRecordRepository
     advancedTask: MaintenanceTask | null = null,
     events: readonly DomainEvent[] = [],
   ): Promise<void> {
-    const recordStatement = this.db
-      .prepare(
-        `INSERT INTO maintenance_records
-           (id, asset_id, owner_id, title, performed_at, notes, task_id, created_at, revision)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        record.id,
-        record.assetId,
-        record.ownerId,
-        record.title,
-        record.performedAt,
-        record.notes,
-        record.taskId,
-        record.createdAt.toISOString(),
-        record.revision,
-      );
+    const recordStatement = prepareMaintenanceRecordInsert(this.db, record);
 
     if (advancedTask === null && events.length === 0) {
       await recordStatement.run();
       return;
     }
 
-    const outboxStatements = events
-      .flatMap((event) => [
-        prepareActivityOutboxInsert(this.db, event),
-        prepareNotificationOutboxInsert(this.db, event),
-      ])
-      .filter((statement): statement is D1PreparedStatement => statement !== null);
+    const outboxStatements = prepareMaintenanceOutboxInserts(this.db, events);
 
     const statements = [recordStatement];
     if (advancedTask !== null) statements.push(prepareMaintenanceTaskSave(this.db, advancedTask));
@@ -138,46 +169,24 @@ export class D1MaintenanceRecordRepository
         expectedTaskRevision !== undefined ? expectedTaskRevision : null,
       );
 
-    const recordStatement = this.db
-      .prepare(
-        `UPDATE maintenance_records
-         SET title = ?, performed_at = ?, notes = ?, revision = ?
-         WHERE id = ? AND revision = ?`,
-      )
-      .bind(
-        record.title,
-        record.performedAt,
-        record.notes,
-        record.revision,
-        record.id,
-        expectedRecordRevision,
-      );
+    const recordStatement = prepareMaintenanceRecordUpdateWithRevision(
+      this.db,
+      record,
+      expectedRecordRevision,
+    );
 
     const statements: D1PreparedStatement[] = [guardStatement, recordStatement];
 
     if (reconciledTask !== null && expectedTaskRevision !== undefined) {
-      const taskStatement = this.db
-        .prepare(
-          `UPDATE maintenance_tasks
-           SET last_completed_date = ?, next_due = ?, revision = ?
-           WHERE id = ? AND revision = ?`,
-        )
-        .bind(
-          reconciledTask.lastCompletedDate,
-          reconciledTask.nextDue,
-          reconciledTask.revision,
-          reconciledTask.id,
-          expectedTaskRevision,
-        );
+      const taskStatement = prepareMaintenanceTaskUpdateWithRevision(
+        this.db,
+        reconciledTask,
+        expectedTaskRevision,
+      );
       statements.push(taskStatement);
     }
 
-    const outboxStatements = events
-      .flatMap((event) => [
-        prepareActivityOutboxInsert(this.db, event),
-        prepareNotificationOutboxInsert(this.db, event),
-      ])
-      .filter((statement): statement is D1PreparedStatement => statement !== null);
+    const outboxStatements = prepareMaintenanceOutboxInserts(this.db, events);
 
     try {
       const results = await this.db.batch([...statements, ...outboxStatements]);
@@ -248,28 +257,12 @@ export class D1MaintenanceRecordRepository
     const statements: D1PreparedStatement[] = [guardStatement, recordStatement];
 
     if (reconciledTask !== null && expectedTaskRevision !== undefined) {
-      const taskStatement = this.db
-        .prepare(
-          `UPDATE maintenance_tasks
-           SET last_completed_date = ?, next_due = ?, revision = ?
-           WHERE id = ? AND revision = ?`,
-        )
-        .bind(
-          reconciledTask.lastCompletedDate,
-          reconciledTask.nextDue,
-          reconciledTask.revision,
-          reconciledTask.id,
-          expectedTaskRevision,
-        );
-      statements.push(taskStatement);
+      statements.push(
+        prepareMaintenanceTaskUpdateWithRevision(this.db, reconciledTask, expectedTaskRevision),
+      );
     }
 
-    const outboxStatements = events
-      .flatMap((event) => [
-        prepareActivityOutboxInsert(this.db, event),
-        prepareNotificationOutboxInsert(this.db, event),
-      ])
-      .filter((statement): statement is D1PreparedStatement => statement !== null);
+    const outboxStatements = prepareMaintenanceOutboxInserts(this.db, events);
 
     try {
       const results = await this.db.batch([...statements, ...outboxStatements]);

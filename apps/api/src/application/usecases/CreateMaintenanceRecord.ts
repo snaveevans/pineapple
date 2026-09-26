@@ -31,6 +31,7 @@ export type CreateMaintenanceRecordCommand = {
   performedAt: string;
   notes?: string;
   taskId?: MaintenanceTaskId;
+  expectedTaskRevision?: number;
 };
 
 export class CreateMaintenanceRecord {
@@ -71,6 +72,12 @@ export class CreateMaintenanceRecord {
         }
         if (task.assetId !== command.assetId) {
           return err(new ValidationError("Task does not belong to this asset", "taskId"));
+        }
+        if (
+          command.expectedTaskRevision !== undefined &&
+          task.revision !== command.expectedTaskRevision
+        ) {
+          return err(new ConflictError("Maintenance task changed; refresh before logging"));
         }
       }
 

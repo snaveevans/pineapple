@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 import { MaintenanceTask } from "../../domain/maintenance/MaintenanceTask.ts";
 import {
   D1MaintenanceTaskRepository,
+  prepareMaintenanceTaskInsert,
   prepareMaintenanceTaskSave,
+  prepareMaintenanceTaskUpdateWithRevision,
 } from "./D1MaintenanceTaskRepository.ts";
 
 type BoundStatement = {
@@ -69,6 +71,33 @@ describe("D1MaintenanceTaskRepository", () => {
     expect(query).toContain("interval_unit = excluded.interval_unit");
     expect(query).toContain("last_completed_date = excluded.last_completed_date");
     expect(query).toContain("next_due = excluded.next_due");
+    expect(query).toContain("revision = COALESCE(maintenance_tasks.revision, 0) + 1");
+    expect(query).not.toContain("revision = excluded.revision");
+  });
+
+  it("prepares strict task inserts and revision-guarded task updates", () => {
+    const { db, statements } = createDatabaseHarness();
+    const task = MaintenanceTask.reconstitute({
+      id: MaintenanceTaskId.generate(),
+      assetId: AssetId.generate(),
+      ownerId: UserId.generate(),
+      title: "Replace furnace filter",
+      intervalValue: 3,
+      intervalUnit: "month",
+      lastCompletedDate: "2026-04-11",
+      nextDue: "2026-07-11",
+      createdAt: new Date(),
+    });
+
+    prepareMaintenanceTaskInsert(db, task);
+    prepareMaintenanceTaskUpdateWithRevision(db, task, 8);
+
+    expect(statements[0]?.query).toContain("INSERT INTO maintenance_tasks");
+    expect(statements[0]?.query).not.toContain("ON CONFLICT");
+    expect(statements[1]?.query).toContain("UPDATE maintenance_tasks");
+    expect(statements[1]?.query).toContain("revision = ?");
+    expect(statements[1]?.query).toContain("WHERE id = ? AND revision = ?");
+    expect(statements[1]?.values.slice(-2)).toEqual([task.id, 8]);
   });
 
   it("persists next_due_override through the save upsert and clears it to NULL", () => {
