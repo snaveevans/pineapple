@@ -8,12 +8,18 @@ It supports authorized asset and maintenance reads, asset creation/editing,
 schedule creation/editing/rescheduling, and maintenance recording/correction.
 It has no deletion, archiving, sharing, sending, or recovery tool.
 
+The transport uses the SDK's current stateless MCP protocol and
+`server/discover`; it rejects legacy `initialize` requests. Use a host that
+supports the deployed protocol rather than treating a legacy initialization
+error as an authorization failure.
+
 Property street and house number are private. The MCP accepts a street supplied
 by the user when creating a property or replacing its street, but never returns
 the stored street. Property names/nicknames are omitted because those free-form
 fields can contain addresses. City, state, postal code, country, and stable IDs
-help identify properties. Known street literals in property-context text are
-redacted; this is deterministic sanitization, not general address detection.
+help identify properties. Known street literals in property-context text and
+repeated locality fields are redacted; this is deterministic sanitization, not
+general address detection.
 
 ## Connection renewal
 
@@ -85,12 +91,12 @@ before enabling writes in a separately reviewed configuration change. Only the
 literal string `true` enables them. The switch affects discovery and execution;
 it preserves reads and existing recovery evidence.
 
-Record actual deployed API/web version IDs, both new D1 migration names,
+Record actual deployed API/web version IDs, all three new D1 migration names,
 authenticated protocol/scope/privacy/readback checks, controlled production
 restore results, and phone acceptance status. Never put tokens, raw snapshots,
 or real streets in release records. `/health` reports only the latest migration;
-inspect migration history to confirm both the journal and asset-revision
-migrations applied.
+inspect migration history to confirm the journal, asset-revision, and OAuth
+client-capability migrations applied.
 
 If a write defect is found, disable writes and preserve the journal. If access
 or privacy fails, follow the [rollback runbook](../runbooks/rollback.md) and use a
