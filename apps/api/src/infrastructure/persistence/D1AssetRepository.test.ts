@@ -1,5 +1,6 @@
 import { UserId } from "@snaveevans/pineapple-shared";
 import { describe, expect, it, vi } from "vitest";
+import { Asset } from "../../domain/asset/Asset.ts";
 import { D1AssetRepository } from "./D1AssetRepository.ts";
 
 type BoundStatement = {
@@ -27,6 +28,27 @@ function createDatabaseHarness() {
 }
 
 describe("D1AssetRepository", () => {
+  it("reads a missing legacy revision as zero and advances revisions on upsert", async () => {
+    const { db, statements } = createDatabaseHarness();
+    const repository = new D1AssetRepository(db);
+    const ownerId = UserId.generate();
+    const asset = Asset.create({
+      ownerId,
+      name: "Generator",
+      metadata: { kind: "equipment", manufacturer: "Honda" },
+    });
+
+    await repository.findById(asset.id);
+    expect(statements[0]?.query).toContain("COALESCE(revision, 0) AS revision");
+
+    await repository.save(asset);
+    expect(statements[1]?.query).toContain("INSERT INTO assets");
+    expect(statements[1]?.query).toContain("shared_team_id, revision)");
+    expect(statements[1]?.query).toContain("revision       = COALESCE(assets.revision, 0) + 1");
+    expect(statements[1]?.query).toContain("WHERE assets.name IS NOT excluded.name");
+    expect(statements[1]?.values.at(-1)).toBe(0);
+  });
+
   it("findVisibleTo includes owned assets and team-shared assets via membership subquery", async () => {
     const { db, statements } = createDatabaseHarness();
     const userId = UserId.generate();
