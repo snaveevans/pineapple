@@ -36,6 +36,9 @@
 
   "vars": {
     "ENVIRONMENT": "production",
+    // Fail closed until independent verification and restoration drills pass.
+    // Setting this to "false" removes write discovery and blocks cached calls.
+    "MCP_WRITES_ENABLED": "false",
     // Outbound transactional email sender (ADR-0012). The from domain must be
     // onboarded to Cloudflare Email Sending first — see docs/reference/email-sending.md.
     "EMAIL_FROM_ADDRESS": "noreply@pineapple.txe.app",

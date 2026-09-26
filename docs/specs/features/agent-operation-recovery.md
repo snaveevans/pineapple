@@ -2,7 +2,7 @@
 audience: product and engineering
 purpose: atomically retain and safely restore Pineapple agent mutations without an end-user undo interface
 source: this file
-date: 2026-09-25
+date: 2026-09-26
 ---
 
 # Agent Operation Recovery
@@ -11,6 +11,7 @@ date: 2026-09-25
 **Owner:** Tyler Evans
 **Related Intent:** [ChatGPT Field Operations](../../intents/features/chatgpt-field-operations.md) (`accepted`)
 **Related Issues:** [#298](https://github.com/snaveevans/pineapple/issues/298), [#299](https://github.com/snaveevans/pineapple/issues/299)
+**Related PRs:** [#302](https://github.com/snaveevans/pineapple/pull/302), [#303](https://github.com/snaveevans/pineapple/pull/303), [#306](https://github.com/snaveevans/pineapple/pull/306), [#307](https://github.com/snaveevans/pineapple/pull/307), [#308](https://github.com/snaveevans/pineapple/pull/308)
 **Ready Gate:** `approved 2026-09-25`
 **Related Specs:** [ChatGPT Field Operations](chatgpt-field-operations.md), [Permissions](../cross-cutting/permissions.md), [Schema Migrations](../cross-cutting/schema-migrations.md), [Maintenance Task](maintenance-task.md), [Maintenance Record](maintenance-record.md), [Activity History](activity-history.md)
 **Related ADRs:** [ADR-0003](../../decisions/0003-monorepo-layer-architecture-and-dependency-rules.md), [ADR-0017](../../decisions/0017-expand-contract-schema-migrations.md), [ADR-0019](../../decisions/0019-use-intent-driven-development.md)
@@ -25,9 +26,9 @@ Use an additive private operation journal in D1. A committed operation stores th
 
 The journal transaction includes domain row changes, optimistic/access assertions, activity and notification outbox inserts, the receipt, and snapshots in one D1 batch. A failed assertion or write rolls the entire batch back. A journal entry is finalized only after that same transaction applies the mutation; no durable pending entry can strand retries. Existing application use cases still decide permissions, validation, event content, and schedule arithmetic. Infrastructure stages their writes and events, commits through the journal, then publishes telemetry/domain handlers only for a newly committed operation.
 
-Replay uses actor plus operation UUID. Canonical JSON normalizes object key order, preserves array order and absent-versus-null meaning, and excludes no behavior-affecting fields. SHA-256 binds tool and full validated input. Replays reauthorize current access to the parent asset before returning a safe receipt. Identical IDs on separate users are independent. A changed tool or input under the same actor/UUID fails without any mutation. Concurrent identical requests commit once and return the same receipt; a lost response is recoverable by retrying the original UUID and input.
+Replay uses actor plus operation UUID. Canonical JSON normalizes object key order, preserves array order and absent-versus-null meaning, and excludes no behavior-affecting fields. SHA-256 binds tool and full validated input. Journal `created_at` and non-null `restored_at` values must be canonical UTC timestamps exactly equal to their `Date.toISOString()` form. Malformed or noncanonical timestamp evidence fails closed through inspection, dry-run, apply, or replay with a safe generic error; raw values are not returned, and domain rows, journal rows, and outbox state are left unchanged. Replays reauthorize current access to the parent asset before returning a safe receipt. Identical IDs on separate users are independent. A changed tool or input under the same actor/UUID fails without any mutation. Concurrent identical requests commit once and return the same receipt; a lost response is recoverable by retrying the original UUID and input.
 
-Asset persistence gains an additive nullable revision column. Existing rows read as revision zero. Every persisted asset update, including ordinary web edits and sharing changes, advances the persisted revision monotonically. MCP uses it alongside existing task and record revisions. Read receipts include only public revision values. Atomic guards compare current revisions and affected source row/set state, including authorization state; a stale write cannot overwrite a newer human edit or unsharing.
+Asset persistence gains an additive nullable revision column. Existing rows read publicly as revision zero. Every persisted asset update, including ordinary web edits and sharing changes, advances the persisted revision monotonically. MCP uses it alongside existing task and record revisions. Read receipts include only public revision values. Atomic guards compare current revisions and affected source row/set state, including authorization state; a stale write cannot overwrite a newer human edit or unsharing. Full journal snapshots retain the raw stored asset revision. Thus an unchanged no-op on a legacy asset with stored `revision = NULL` records identical before/after rows with `NULL`; its public revision is zero, and restoring that no-op leaves the stored `NULL` unchanged and emits no domain or notification outbox event. This legacy exception applies only to asset revisions; task and record revisions remain required numeric evidence.
 
 Operator recovery is a separate internal planner/runbook, not an HTTP or MCP route. It defaults to inspection/dry run and validates that current domain rows match the operation's after snapshots. A row can be restored after a later operation only when each later operation is already restored and the complete snapshots form an unambiguous chain; the current row must match the resulting compensated values, with each monotonic revision and asset timestamp explained by those restorations. The apply transaction rechecks the observed full row and journal-chain membership. Changed or ambiguous state and dependencies block recovery. It marks the journal restored and retains original evidence. Task compensation re-emits a producer-owned schedule conclusion to the notification outbox with an occurrence time strictly after the durable task-event history, so delayed or reverse-delivered older events cannot reapply a stale schedule. Recovery of linked maintenance must restore/reconcile the linked schedule, not merely the record. Already delivered reminders and immutable timeline entries remain historical evidence.
 
@@ -41,33 +42,34 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 
 ### Journal primitive (`S1`)
 
-- [ ] `S1` `OUT-3` `INV-2` New journal storage is additive, private, and contains actor, operation UUID, tool, payload hash, safe receipt, timestamp, and versioned before/after snapshots.
-- [ ] `S1` `INV-3` Canonical payload hashes are stable across object key order and differ for null/absence, changed values, array order, and tool names.
-- [ ] `S1` `INV-3` A transaction failure leaves no domain mutation, receipt, recovery snapshot, or event outbox row.
-- [ ] `S1` `INV-3` Two simultaneous identical actor/UUID requests apply one mutation and yield an equivalent safe receipt.
-- [ ] `S1` `INV-1` `INV-3` A UUID reused with different input fails with a conflict; another actor can independently use the same UUID.
-- [ ] `S1` `INV-5` Recovery snapshots and raw input are not returned by the journal's public receipt path or recorded in error logs.
-- [ ] `S1` `S3` `INV-2` `INV-5` Unknown snapshot versions or malformed/incomplete evidence refuse new commit, successful replay, and recovery apply without changing any domain, outbox, or journal state; only a safe error is returned.
+- [x] `S1` `OUT-3` `INV-2` New journal storage is additive, private, and contains actor, operation UUID, tool, payload hash, safe receipt, timestamp, and versioned before/after snapshots.
+- [x] `S1` `INV-3` Canonical payload hashes are stable across object key order and differ for null/absence, changed values, array order, and tool names.
+- [x] `S1` `INV-3` A transaction failure leaves no domain mutation, receipt, recovery snapshot, or event outbox row.
+- [x] `S1` `INV-3` Two simultaneous identical actor/UUID requests apply one mutation and yield an equivalent safe receipt.
+- [x] `S1` `INV-1` `INV-3` A UUID reused with different input fails with a conflict; another actor can independently use the same UUID.
+- [x] `S1` `INV-5` Recovery snapshots and raw input are not returned by the journal's public receipt path or recorded in error logs.
+- [x] `S1` `S3` `INV-2` `INV-5` For an operation with an unknown snapshot version, noncanonical journal timestamp, or malformed/incomplete evidence, new commit/replay, inspection/dry-run disclosure, and recovery apply are refused without changing domain, outbox, or journal state; preserve original evidence and return only a safe error.
 
 ### Mutation integration (`S2`)
 
-- [ ] `S2` `OUT-3` `INV-2` Every permitted MCP write stores complete restoration evidence for every changed domain row, including task advancement/reconciliation caused by a record.
-- [ ] `S2` `INV-1` MCP mutation execution invokes existing application use cases and preserves ownership, team access, archive rules, maintenance freeze, and date validation.
-- [ ] `S2` `INV-1` `INV-3` Atomic write guards recheck asset/team access, source revisions, and relevant linked-record state; a concurrent change rolls back all writes and receipts.
-- [ ] `S2` `INV-3` Asset revisions advance for non-MCP writes too; stale MCP asset edits cannot overwrite a newer web edit or sharing change.
-- [ ] `S2` `INV-3` Task/record edits and reschedules require the caller's observed revision. Linked record creation also requires the observed linked-task revision.
-- [ ] `S2` `INV-3` No-op edits have a replayable safe receipt, retain accurate evidence, and do not fabricate domain events.
-- [ ] `S2` `INV-1` `INV-3` Replay rechecks current parent-resource access and never republishes events or repeats persistence changes.
-- [ ] `S2` `INV-5` Partial property edits preserve omitted street data and optional metadata; clearing optional fields is explicit null, never accidental omission.
+- [x] `S2` `OUT-3` `INV-2` Every permitted MCP write stores complete restoration evidence for every changed domain row, including task advancement/reconciliation caused by a record.
+- [x] `S2` `INV-1` MCP mutation execution invokes existing application use cases and preserves ownership, team access, archive rules, maintenance freeze, and date validation.
+- [x] `S2` `INV-1` `INV-3` Atomic write guards recheck asset/team access, source revisions, and relevant linked-record state; a concurrent change rolls back all writes and receipts.
+- [x] `S2` `INV-3` Asset revisions advance for non-MCP writes too; stale MCP asset edits cannot overwrite a newer web edit or sharing change.
+- [x] `S2` `INV-3` Task/record edits and reschedules require the caller's observed revision. Linked record creation also requires the observed linked-task revision.
+- [x] `S2` `INV-3` No-op edits have a replayable safe receipt, retain complete identical before/after evidence, and do not fabricate domain events. A legacy asset with stored `revision = NULL` keeps raw `NULL` in both snapshots and after no-op restoration; public reads report revision zero, and no asset/domain row is mutated or event outbox row is created. This rule does not admit null task/record revisions.
+- [x] `S2` `INV-1` `INV-3` Replay rechecks current parent-resource access and never republishes events or repeats persistence changes.
+- [x] `S2` `INV-5` Partial property edits preserve omitted street data and optional metadata; clearing optional fields is explicit null, never accidental omission.
 
 ### Operator recovery (`S3`)
 
-- [ ] `S3` `OUT-3` `INV-2` The operator procedure inspects first and requires an explicit apply step; it is absent from HTTP routes and the MCP tool list.
-- [ ] `S3` `OUT-3` `INV-2` Representative create/edit asset, create/edit/reschedule task, and create/correct record operations can be restored using only journal and current persisted state.
-- [ ] `S3` `INV-3` Restoration refuses an already restored operation, changed/ambiguous current state, or new dependent data; reversing later operations first is accepted only when full snapshots prove an exact chain and the transaction rechecks the observed rows and chain membership.
-- [ ] `S3` `INV-6` Restoring a record or task repairs completion, seed, override, and effective due state with monotonic revisions and a notification outbox conclusion strictly newer than the durable task-event history.
-- [ ] `S3` `INV-2` Creation reversal removes only the untouched created entity; dependent asset/task work requires later operations to be reversed first.
-- [ ] `S3` `INV-5` Sensitive snapshots appear only in the operator's controlled session; evidence reports use operation IDs and pass/fail rather than raw data.
+- [x] `S3` `OUT-3` `INV-2` The operator procedure inspects first and requires an explicit apply step; it is absent from HTTP routes and the MCP tool list.
+- [x] `S3` `OUT-3` `INV-2` Representative create/edit asset, create/edit/reschedule task, and create/correct record operations can be restored using only journal and current persisted state.
+- [x] `S3` `INV-3` Restoration refuses an already restored operation, changed/ambiguous current state, or new dependent data; reversing later operations first is accepted only when full snapshots prove an exact chain and the transaction rechecks the observed rows and chain membership.
+- [x] `S3` `INV-6` Restoring a record or task repairs completion, seed, override, and effective due state with monotonic revisions and a notification outbox conclusion strictly newer than the durable task-event history.
+- [x] `S3` `INV-2` Creation reversal removes only the untouched created entity; dependent asset/task work requires later operations to be reversed first.
+- [x] `S3` `INV-5` Sensitive snapshots appear only in the operator's controlled session; evidence reports use operation IDs and pass/fail rather than raw data.
+- [ ] `S3` `OUT-3` Production release evidence records successful operator restoration drills for every permitted mutation against controlled production state; this remains open until completed.
 
 ## Delivery Plan
 
@@ -87,19 +89,29 @@ Operator recovery is a separate internal planner/runbook, not an HTTP or MCP rou
 | `INV-5`           | No private recovery data escapes          | journal/adapter contracts          | receipts and errors contain no street or raw snapshots                                                                  | no                       |
 | `INV-6`           | Recovery repairs recurrence and reminders | domain/persistence integration     | restore linked maintenance plus override; process compensation before an older event and verify reminders stay restored | yes                      |
 
+### Merged implementation and verification evidence
+
+- Nullable asset revisions and ordinary-write monotonicity: [PR #302](https://github.com/snaveevans/pineapple/pull/302).
+- Atomic private journal and replay safety: [PR #303](https://github.com/snaveevans/pineapple/pull/303).
+- Revision and authorization guards: [PR #306](https://github.com/snaveevans/pineapple/pull/306).
+- Operator inspection, dry-run, apply, privacy-safe reporting, and restoration planner: [PR #307](https://github.com/snaveevans/pineapple/pull/307).
+- Seven recoverable mutations and complete before/after evidence: [PR #308](https://github.com/snaveevans/pineapple/pull/308).
+- The post-composition `pnpm verify` gate passed 926 API and 170 web tests. All seven mutation restoration drills passed locally; eight vertical cases include legacy `NULL` asset no-op restoration with unchanged raw row state and no outbox/domain event. Independent operator and source reviews were completed. Malformed timestamp privacy is covered across inspect, dry-run, and apply for both journal timestamp columns.
+- This is local code and integration evidence, not production restoration acceptance. The production recovery criterion remains unchecked pending controlled production drills and review.
+
 ## Edge Cases & Error States
 
-| Scenario                                                  | Expected behavior                                                                                                                                |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Invalid or unauthorized request                           | No journal entry or domain write                                                                                                                 |
-| Unknown snapshot version or malformed/incomplete evidence | Refuse mutation, successful replay, and recovery apply; preserve all domain/outbox/journal state and original evidence; return only a safe error |
-| Failure between statements                                | Transaction rolls back all domain/journal/outbox state                                                                                           |
-| Timeout after commit                                      | Retry returns the committed receipt                                                                                                              |
-| Same UUID, changed input                                  | Conflict; original operation remains intact                                                                                                      |
-| Newer target edit or unsharing                            | Conflict; refresh current context before a new intended operation                                                                                |
-| Replay after access removal                               | Forbidden; no retained snapshot is revealed                                                                                                      |
-| Restore after later changes or dependents                 | Refuse; inspect/reverse later operations first                                                                                                   |
-| Queue delivery lags                                       | Journal and outbox remain sufficient durable evidence; no reliance on projected timeline                                                         |
+| Scenario                                                                           | Expected behavior                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Invalid or unauthorized request                                                    | No journal entry or domain write                                                                                                                                            |
+| Unknown snapshot version, noncanonical timestamp, or malformed/incomplete evidence | Refuse mutation, successful replay, report disclosure, and recovery apply; preserve all domain/outbox/journal state and original evidence; return only a safe generic error |
+| Failure between statements                                                         | Transaction rolls back all domain/journal/outbox state                                                                                                                      |
+| Timeout after commit                                                               | Retry returns the committed receipt                                                                                                                                         |
+| Same UUID, changed input                                                           | Conflict; original operation remains intact                                                                                                                                 |
+| Newer target edit or unsharing                                                     | Conflict; refresh current context before a new intended operation                                                                                                           |
+| Replay after access removal                                                        | Forbidden; no retained snapshot is revealed                                                                                                                                 |
+| Restore after later changes or dependents                                          | Refuse; inspect/reverse later operations first                                                                                                                              |
+| Queue delivery lags                                                                | Journal and outbox remain sufficient durable evidence; no reliance on projected timeline                                                                                    |
 
 ## Telemetry
 

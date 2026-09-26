@@ -53,7 +53,11 @@ import type { ActivityEventMessage } from "./infrastructure/activity/ActivityEve
 import { createAuth, mcpResourceUrl, type Auth, type AuthEnv } from "./infrastructure/auth/auth.ts";
 import { BetterAuthResolver } from "./infrastructure/auth/BetterAuthResolver.ts";
 import { createMcpTransport } from "./infrastructure/mcp/McpTransport.ts";
-import { createAssetMcpServerFactory } from "./infrastructure/mcp/McpAssetServer.ts";
+import {
+  createPineappleMcpServerFactory,
+  mcpWritesEnabled,
+} from "./infrastructure/mcp/McpAssetServer.ts";
+import { D1AgentOperationExecutor } from "./infrastructure/mcp/mutations/D1AgentOperationExecutor.ts";
 import { D1McpUserResolver } from "./infrastructure/mcp/D1McpUserResolver.ts";
 import { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus.ts";
 import { AnalyticsEngineTelemetrySink } from "./infrastructure/telemetry/AnalyticsEngineTelemetrySink.ts";
@@ -467,16 +471,66 @@ app.on(["GET", "POST"], "/api/auth/*", (c) => c.get("auth").handler(c.req.raw));
 app.on(["GET", "HEAD"], "/.well-known/*", (c) => c.get("auth").handler(c.req.raw));
 
 // Modern MCP is one authenticated, stateless POST endpoint. The verified OAuth
-// subject is resolved to the same domain User used by the application API, then
-// the MCP adapter invokes the existing ListAssets use case.
+// subject is resolved to the same domain User used by the application API.
+// Reads reuse authorized application read models; writes use the atomic journal.
 app.post("/mcp", (c) => {
   const baseURL = c.env.BETTER_AUTH_URL ?? new URL(c.req.url).origin;
   const users = new D1UserRepository(c.env.DB);
   const identity = new D1McpUserResolver(c.env.DB, users);
-  const serverFactory = createAssetMcpServerFactory({
+  const assets = new D1AssetRepository(c.env.DB);
+  const tasks = new D1MaintenanceTaskRepository(c.env.DB);
+  const records = new D1MaintenanceRecordRepository(c.env.DB);
+  const teams = new D1TeamRepository(c.env.DB);
+  const serverFactory = createPineappleMcpServerFactory({
     resolveUser: (subject) => identity.resolve(subject),
-    createListAssets: () => new ListAssets(new D1AssetRepository(c.env.DB), users),
+    createReads: () => ({
+      listAssets: new ListAssets(assets, users),
+      getAsset: new GetAsset(assets, teams, users),
+      getDashboard: new GetDashboard(
+        assets,
+        tasks,
+        new SystemUtcDateProvider(),
+        users,
+        new D1ScheduledReminderRepository(c.env.DB),
+      ),
+      listMaintenanceTasks: new ListMaintenanceTasks(assets, teams, tasks),
+      listMaintenanceRecords: new ListMaintenanceRecords(assets, teams, records),
+    }),
+    createOperations: () => {
+      const executor = new D1AgentOperationExecutor({
+        db: c.env.DB,
+        teams,
+        eventBus: c.get("eventBus"),
+        dates: new SystemUtcDateProvider(),
+        writeGate: new D1MaintenanceWriteGate(c.env.DB),
+      });
+      return {
+        execute: async (requesterId, command) => {
+          const result = await executor.execute(requesterId, command);
+          if (result.ok && !result.value.replayed) {
+            // Only committed writes relay. Failure cannot erase the durable receipt;
+            // the scheduled sweep retries pending outbox rows.
+            const [ActivityOutboxRepository, NotificationOutboxRepository] =
+              REQUEST_PATH_RELAYED_OUTBOX_REPOSITORIES;
+            const relays = await Promise.allSettled([
+              new ActivityOutboxRepository(c.env.DB).relayPending(c.env.ACTIVITY_HISTORY_QUEUE),
+              new NotificationOutboxRepository(c.env.DB).relayPending(
+                c.env.NOTIFICATION_EVENTS_QUEUE,
+              ),
+            ]);
+            if (relays.some((relay) => relay.status === "rejected")) {
+              console.error(
+                { operation: "mcp_outbox_relay" },
+                "MCP outbox relay failed; scheduled retry remains active",
+              );
+            }
+          }
+          return result;
+        },
+      };
+    },
     onAuthenticated: (user) => c.set("user", user),
+    writesEnabled: () => mcpWritesEnabled(c.env.MCP_WRITES_ENABLED),
   });
   return createMcpTransport(c.get("auth"), mcpResourceUrl(baseURL), serverFactory)(c.req.raw);
 });

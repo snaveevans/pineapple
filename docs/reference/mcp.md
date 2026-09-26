@@ -2,6 +2,11 @@
 
 # Private ChatGPT asset-query release plan
 
+This document records the initial one-tool release. For the expanded catalog,
+permissions, phone prompts, and operator recovery, use
+[Private MCP field operations](mcp-field-operations.md). The historical checks
+below describe that earlier release, including its stricter property projection.
+
 ## Outcome and boundaries
 
 Pineapple exposes one private, read-only MCP tool at:
