@@ -86,15 +86,20 @@ export class D1AgentOperationJournal {
   constructor(private readonly db: D1Database) {}
 
   async find(actorId: string, operationId: string): Promise<StoredAgentOperation | null> {
-    const row = await this.db
-      .prepare(
-        `SELECT actor_id, operation_id, tool, input_hash, receipt_json,
+    let row: unknown;
+    try {
+      row = await this.db
+        .prepare(
+          `SELECT actor_id, operation_id, tool, input_hash, receipt_json,
                 snapshot_version, snapshots_json, created_at, restored_at
          FROM agent_operation_journal
          WHERE actor_id = ? AND operation_id = ?`,
-      )
-      .bind(actorId, operationId)
-      .first<unknown>();
+        )
+        .bind(actorId, operationId)
+        .first<unknown>();
+    } catch {
+      throw new InvariantError("Agent operation evidence could not be read.");
+    }
     if (row === null) return null;
     return parseStoredOperation(row);
   }
@@ -134,10 +139,16 @@ export class D1AgentOperationJournal {
       return { ...receipt, replayed: false };
     } catch (error) {
       // A concurrent request may have committed while this batch was running.
-      // Resolve only a matching durable entry; otherwise preserve the DB error.
+      // Resolve only a matching durable entry. Provider messages may contain private input.
       const committed = await this.find(request.actorId, request.operationId);
       if (committed !== null) return this.#replayOrConflict(committed, request.tool, inputHash);
-      throw error;
+      if (
+        error instanceof Error &&
+        error.message.includes("CHECK constraint failed: assertion = 1")
+      ) {
+        throw new ConflictError("The source changed while this operation was being saved.");
+      }
+      throw new InvariantError("Agent operation could not be saved.");
     }
   }
 
