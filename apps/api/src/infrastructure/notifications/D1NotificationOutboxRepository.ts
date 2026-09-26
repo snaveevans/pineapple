@@ -59,7 +59,8 @@ export class D1NotificationOutboxRepository {
       await queue.sendBatch(messages);
       await this.markSent(rows.map((row) => row.id));
     } catch (error) {
-      console.error({ error }, "Notification outbox relay failed");
+      // Queue/DB errors can embed private event payloads; log only a fixed category.
+      console.error("Notification outbox relay failed");
       await this.recordRelayFailure(rows, error);
     }
   }
@@ -125,8 +126,8 @@ export class D1NotificationOutboxRepository {
             .bind(now, message, row.id, NOTIFICATION_EVENTS_CONSUMER),
         ),
       );
-    } catch (failureRecordError) {
-      console.error({ error: failureRecordError }, "Notification outbox failure update failed");
+    } catch {
+      console.error("Notification outbox failure update failed");
     }
   }
 }

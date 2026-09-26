@@ -16,8 +16,9 @@ export class InMemoryEventBus implements EventBus {
       handlers.map(async (handler) => {
         try {
           await handler.handle(event);
-        } catch (error) {
-          console.error({ eventType: event.type, error }, "Domain event handler failed");
+        } catch {
+          // Handler errors may embed private domain state. Keep only the event category.
+          console.error({ eventType: event.type }, "Domain event handler failed");
         }
       }),
     );

@@ -14,8 +14,9 @@ export class AnalyticsEngineTelemetrySink implements TelemetrySink {
   write(dataPoint: TelemetryDataPoint): void {
     try {
       this.dataset.writeDataPoint(dataPoint);
-    } catch (error) {
-      console.error({ error }, "Analytics Engine telemetry write failed");
+    } catch {
+      // The provider error can echo a submitted datapoint; keep failure logs fixed.
+      console.error("Analytics Engine telemetry write failed");
     }
   }
 }
