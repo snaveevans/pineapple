@@ -67,8 +67,8 @@ older mutation event even if it arrives after the compensation.
 
 ## Verify and record
 
-1. Run `inspect` again; the operation should report `restored` with a
-   `restoredAt` timestamp.
+1. Run `inspect` again; it reports `found` and includes a non-null `restoredAt`
+   timestamp. A repeated `dry-run` reports `already_restored`.
 2. Verify the intended current field state in the normal authenticated Pineapple
    interface and confirm any task schedule notification is delivered through
    its normal pipeline. Do not copy raw journal snapshots into tickets, chat,
